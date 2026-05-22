@@ -19,6 +19,7 @@
   ],
   "license": "MIT",
   "dependencies": {
+    "@notionhq/client": "^5.22.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "handlebars": "^4.7.9",

@@ -9,6 +9,7 @@ import { ADR_TEMPLATE } from '../templates/adr-template.js'
 import { ko } from '../i18n/ko.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
+import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
 
 const PROJECT_TYPES = [
@@ -34,6 +35,7 @@ export type InitOptions = {
   name?: string
   description?: string
   type?: string
+  fromNotion?: string
   yes?: boolean
 }
 
@@ -51,36 +53,58 @@ function resolveType(type?: string): string | undefined {
   return type
 }
 
-async function collectAnswers(options: InitOptions): Promise<ProjectAnswers> {
+async function collectAnswers(
+  options: InitOptions,
+  defaults: Partial<ProjectAnswers> = {}
+): Promise<ProjectAnswers> {
   const prompts: inquirer.DistinctQuestion[] = []
 
-  if (!options.name) {
+  if (!options.name && !defaults.name) {
     prompts.push({ type: 'input', name: 'name', message: ko.init.projectName })
   }
-  if (!options.description) {
+  if (!options.description && !defaults.description) {
     prompts.push({ type: 'input', name: 'description', message: ko.init.description })
   }
-  if (!options.type) {
+  if (!options.type && !defaults.type) {
     prompts.push({ type: 'list', name: 'type', message: ko.init.projectType, choices: PROJECT_TYPES })
   }
 
   const prompted = prompts.length ? await inquirer.prompt(prompts) : {}
 
   return {
-    name: options.name ?? prompted.name,
-    description: options.description ?? prompted.description,
-    type: resolveType(options.type ?? prompted.type) ?? prompted.type,
+    name: options.name ?? defaults.name ?? prompted.name,
+    description: options.description ?? defaults.description ?? prompted.description,
+    type: resolveType(options.type ?? defaults.type ?? prompted.type) ?? prompted.type,
   }
 }
 
 export async function init(options: InitOptions = {}) {
-  if (options.skipGate) {
+  const skipGate = Boolean(options.skipGate || options.fromNotion)
+
+  if (skipGate) {
     console.log(chalk.dim(`\n${ko.init.skipGate}\n`))
   }
 
   console.log(chalk.bold(`\n${ko.init.title}\n`))
 
-  const answers = await collectAnswers(options)
+  let prdContent: Partial<PrdContent> = {}
+  const defaults: Partial<ProjectAnswers> = {}
+
+  if (options.fromNotion) {
+    log.step(ko.init.notionFetching)
+    try {
+      const notion = await fetchPrdFromNotion(options.fromNotion)
+      prdContent = notion.prd
+      defaults.name = notion.projectName
+      defaults.description = notion.prd.tagline
+      log.success(ko.init.notionDone(notion.projectName))
+    } catch (err) {
+      log.error(err instanceof Error ? err.message : String(err))
+      process.exit(1)
+    }
+  }
+
+  const answers = await collectAnswers(options, defaults)
 
   if (!answers.name || !answers.description || !answers.type) {
     log.error('프로젝트 이름, 설명, 유형이 모두 필요합니다.')
@@ -103,7 +127,7 @@ export async function init(options: InitOptions = {}) {
   }
 
   const cwd = process.cwd()
-  const files = generateFiles(answers.name, answers.description, stack)
+  const files = generateFiles(answers.name, answers.description, stack, prdContent)
 
   log.step(ko.init.filesGenerating)
   for (const [filePath, content] of Object.entries(files)) {
@@ -127,10 +151,16 @@ export async function init(options: InitOptions = {}) {
 
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
-  console.log(`  1. ${ko.init.fillHint}`)
-  console.log(`  2. ${ko.init.prdHint}`)
-  console.log(`  3. ${chalk.cyan(ko.init.gitHint)}`)
-  console.log(`  4. ${ko.init.startDev}\n`)
+  if (options.fromNotion) {
+    console.log(`  1. ${ko.init.notionReviewHint}`)
+    console.log(`  2. ${chalk.cyan(ko.init.gitHint)}`)
+    console.log(`  3. ${ko.init.startDev}\n`)
+  } else {
+    console.log(`  1. ${ko.init.fillHint}`)
+    console.log(`  2. ${ko.init.prdHint}`)
+    console.log(`  3. ${chalk.cyan(ko.init.gitHint)}`)
+    console.log(`  4. ${ko.init.startDev}\n`)
+  }
 }
 
 export function generateFiles(

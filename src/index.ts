@@ -21,6 +21,7 @@ program
   .option('--name <name>', '프로젝트 이름')
   .option('--description <desc>', '한 줄 설명')
   .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile)')
+  .option('--from-notion <url>', 'Notion PRD 페이지 URL에서 내용 import')
   .option('-y, --yes', '스택 확인 프롬프트 스킵')
   .action(init)
 
