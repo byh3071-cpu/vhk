@@ -16,6 +16,7 @@ import { save } from './commands/save.js'
 import { undo } from './commands/undo.js'
 import { diff } from './commands/diff.js'
 import { status } from './commands/status.js'
+import { startMcpServer } from './mcp/server.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -47,7 +48,10 @@ program.configureHelp({
     }
 
     const subs = helper.visibleCommands(cmd).filter((c) => c.name() !== 'help')
-    const terms = subs.map((c) => `${c.name()} (${KO_ALIASES[c.name()]})`)
+    const terms = subs.map((c) => {
+      const alias = KO_ALIASES[c.name()]
+      return alias ? `${c.name()} (${alias})` : c.name()
+    })
     const termWidth = Math.max(...terms.map((t) => t.length), 0)
 
     const lines = [
@@ -160,6 +164,13 @@ program
   .alias('차이')
   .description('Git 변경사항 한국어 요약 (staged / unstaged / 새 파일)')
   .action(diff)
+
+program
+  .command('mcp')
+  .description('MCP 서버 시작 (Cursor 등 MCP 클라이언트용)')
+  .action(async () => {
+    await startMcpServer()
+  })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''

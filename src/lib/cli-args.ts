@@ -14,6 +14,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'undo', '되돌리기',
   'status', '상태', '현황',
   'diff', '변경', '차이',
+  'mcp',
   'help',
 ])
 
