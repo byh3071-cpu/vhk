@@ -1,0 +1,124 @@
+import chalk from 'chalk'
+import { execSync } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { printNextStep } from '../lib/next-step.js'
+import { ko } from '../i18n/ko.js'
+
+export interface CheckResult {
+  name: string
+  command: string
+  version?: string
+  ok: boolean
+  hint: string
+}
+
+export function checkCommand(name: string, command: string, hint: string): CheckResult {
+  try {
+    const version = execSync(`${command} --version`, { encoding: 'utf-8' }).trim().split('\n')[0]
+    return { name, command, version, ok: true, hint }
+  } catch {
+    return { name, command, ok: false, hint }
+  }
+}
+
+function getVhkVersion(): string | undefined {
+  const dir = path.dirname(fileURLToPath(import.meta.url))
+  const candidates = [
+    path.join(dir, '../package.json'),
+    path.join(dir, '../../package.json'),
+  ]
+
+  for (const pkgPath of candidates) {
+    try {
+      if (fs.existsSync(pkgPath)) {
+        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string }
+        return pkg.version
+      }
+    } catch {
+      continue
+    }
+  }
+  return undefined
+}
+
+export async function doctor() {
+  console.log(chalk.bold(`\n${ko.doctor.title}\n`))
+
+  const checks: CheckResult[] = [
+    checkCommand('Node.js', 'node', '설치: https://nodejs.org (LTS 권장)'),
+    checkCommand('npm', 'npm', 'Node.js 설치 시 함께 설치됩니다'),
+    checkCommand('pnpm', 'pnpm', '설치: npm i -g pnpm'),
+    checkCommand('Git', 'git', '설치: https://git-scm.com'),
+  ]
+
+  let allOk = true
+
+  for (const check of checks) {
+    if (check.ok) {
+      console.log(chalk.green(`  ✅ ${check.name}`) + chalk.dim(` — ${check.version}`))
+    } else {
+      console.log(chalk.red(`  ❌ ${check.name} 없음`))
+      console.log(chalk.dim(`     → ${check.hint}`))
+      allOk = false
+    }
+  }
+
+  console.log('')
+  const vhkVersion = getVhkVersion()
+  if (vhkVersion) {
+    console.log(chalk.green('  ✅ VHK') + chalk.dim(` — v${vhkVersion}`))
+  } else {
+    console.log(chalk.green('  ✅ VHK') + chalk.dim(' — 설치됨'))
+  }
+
+  console.log('')
+  console.log(chalk.bold(`  ${ko.doctor.projectFiles}`))
+
+  const cwd = process.cwd()
+
+  const projectFiles = [
+    { name: 'RULES.md', hint: 'vhk init으로 생성 가능' },
+    { name: 'COMMANDS.md', hint: 'vhk init으로 생성 가능' },
+    { name: 'package.json', hint: '프로젝트 폴더에서 실행하세요' },
+    { name: '.gitignore', hint: '보안을 위해 추가 권장' },
+    { name: '.env', hint: '.gitignore에 포함되어 있는지 확인' },
+  ]
+
+  for (const file of projectFiles) {
+    const exists = fs.existsSync(path.join(cwd, file.name))
+    if (exists) {
+      console.log(chalk.green(`    ✅ ${file.name}`))
+      if (file.name === '.env') {
+        const gitignorePath = path.join(cwd, '.gitignore')
+        if (fs.existsSync(gitignorePath)) {
+          const gitignore = fs.readFileSync(gitignorePath, 'utf-8')
+          if (!gitignore.includes('.env')) {
+            console.log(chalk.yellow(`    ${ko.doctor.envNotIgnored}`))
+          }
+        }
+      }
+    } else {
+      console.log(chalk.dim(`    ⬚ ${file.name}`) + chalk.dim(` — ${file.hint}`))
+    }
+  }
+
+  console.log('')
+  if (allOk) {
+    console.log(chalk.green.bold(`  ${ko.doctor.allOk}`))
+    printNextStep({
+      message: ko.doctor.nextOkMessage,
+      command: 'vhk 시작',
+      cursorHint: '프로젝트 만들어줘',
+    })
+  } else {
+    console.log(chalk.yellow.bold(`  ${ko.doctor.missing} ${ko.doctor.missingHint}`))
+    printNextStep({
+      message: ko.doctor.nextRetryMessage,
+      command: 'vhk doctor',
+      cursorHint: '환경 다시 점검해줘',
+    })
+    process.exitCode = 1
+  }
+}

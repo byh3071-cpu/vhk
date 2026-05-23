@@ -1,12 +1,16 @@
 import inquirer from 'inquirer'
+import type { DistinctQuestion } from 'inquirer'
 import chalk from 'chalk'
+import fs from 'node:fs'
 import path from 'node:path'
 import { CLAUDE_MD_TEMPLATE } from '../templates/claude-md.js'
 import { CURSORRULES_TEMPLATE } from '../templates/cursorrules.js'
 import { PRD_TEMPLATE } from '../templates/prd.js'
 import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
+import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
 import { ko } from '../i18n/ko.js'
+import { printNextStep } from '../lib/next-step.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
@@ -57,7 +61,7 @@ async function collectAnswers(
   options: InitOptions,
   defaults: Partial<ProjectAnswers> = {}
 ): Promise<ProjectAnswers> {
-  const prompts: inquirer.DistinctQuestion[] = []
+  const prompts: DistinctQuestion[] = []
 
   if (!options.name && !defaults.name) {
     prompts.push({ type: 'input', name: 'name', message: ko.init.projectName })
@@ -149,18 +153,29 @@ export async function init(options: InitOptions = {}) {
     log.success(filePath)
   }
 
+  await writeInitExtras(cwd)
+
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
   if (options.fromNotion) {
     console.log(`  1. ${ko.init.notionReviewHint}`)
-    console.log(`  2. ${chalk.cyan(ko.init.gitHint)}`)
+    console.log(`  2. ${ko.init.gitHintLabel}`)
+    console.log(`     ${chalk.cyan(ko.init.gitHintCommand)}`)
     console.log(`  3. ${ko.init.startDev}\n`)
   } else {
     console.log(`  1. ${ko.init.fillHint}`)
     console.log(`  2. ${ko.init.prdHint}`)
-    console.log(`  3. ${chalk.cyan(ko.init.gitHint)}`)
+    console.log(`  3. ${ko.init.gitHintLabel}`)
+    console.log(`     ${chalk.cyan(ko.init.gitHintCommand)}`)
     console.log(`  4. ${ko.init.startDev}\n`)
   }
+
+  printNextStep({
+    message: '프로젝트 뼈대 완성! 이제 개발을 시작하세요.',
+    command: `cd ${cwd}`,
+    cursorHint: 'docs/PRD.md 열고 개발 시작해줘',
+    alternative: 'VS Code/Cursor에서 폴더를 열어도 됩니다',
+  })
 }
 
 export function generateFiles(
@@ -185,5 +200,52 @@ export function generateFiles(
     'docs/troubleshooting/.gitkeep': '',
     'docs/til.md': `# TIL (Today I Learned)\n\n- [${new Date().toISOString().split('T')[0]}] 프로젝트 시작\n`,
     'BACKLOG.md': `# BACKLOG\n\n> v1 OUT 기능은 여기에 기록. 범위 수비 필수.\n\n## v1.1 후보\n\n- \n`,
+  }
+}
+
+const VHK_PACKAGE_SCRIPTS: Record<string, string> = {
+  save: 'git add . && git commit -m',
+  check: 'vhk check',
+  scan: 'vhk secure scan',
+  recap: 'vhk recap',
+  ship: 'vhk ship',
+  doctor: 'vhk doctor',
+}
+
+export function enhancePackageScripts(projectDir: string): boolean {
+  const pkgPath = path.join(projectDir, 'package.json')
+  if (!fs.existsSync(pkgPath)) return false
+
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
+    scripts?: Record<string, string>
+  }
+  pkg.scripts = { ...pkg.scripts, ...VHK_PACKAGE_SCRIPTS }
+  fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+  return true
+}
+
+async function writeInitExtras(projectDir: string) {
+  const commandsPath = path.join(projectDir, 'COMMANDS.md')
+
+  if (fileExists(commandsPath)) {
+    const { overwrite } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'overwrite',
+      message: ko.init.overwrite('COMMANDS.md'),
+      default: false,
+    }])
+    if (!overwrite) {
+      log.warn(ko.init.skipped('COMMANDS.md'))
+    } else {
+      writeFile(commandsPath, COMMANDS_MD_TEMPLATE())
+      log.success(ko.init.commandsMdDone)
+    }
+  } else {
+    writeFile(commandsPath, COMMANDS_MD_TEMPLATE())
+    log.success(ko.init.commandsMdDone)
+  }
+
+  if (enhancePackageScripts(projectDir)) {
+    log.success(ko.init.scriptsDone)
   }
 }

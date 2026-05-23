@@ -1,6 +1,26 @@
+import path from 'node:path'
 import simpleGit, { type SimpleGit } from 'simple-git'
+import { filterTrackedPaths } from './check-secure.js'
 
 const git: SimpleGit = simpleGit()
+
+/** 터미널/OOM 등으로 생긴 쓰레기 untracked 파일 제외 */
+export function isNoiseRecapPath(filePath: string): boolean {
+  const base = path.basename(filePath)
+  if (base.includes('${') || base.includes('`')) return true
+  if (/^\d+(\.\d+)?$/.test(base)) return true
+  if (/^(pnpm|vhk|npm|node|yarn)$/i.test(base)) return true
+  if (!filePath.includes('/') && !filePath.includes('\\') && !base.includes('.')) {
+    if (!/^(README|LICENSE|Makefile|Dockerfile|CHANGELOG)$/i.test(base)) return true
+  }
+  return false
+}
+
+export function filterRecapFiles(files: SessionDiff['files']): SessionDiff['files'] {
+  const paths = files.map(f => f.file)
+  const tracked = new Set(filterTrackedPaths(paths))
+  return files.filter(f => tracked.has(f.file) && !isNoiseRecapPath(f.file))
+}
 
 export interface SessionDiff {
   filesChanged: number
@@ -42,18 +62,20 @@ export async function getSessionDiff(since?: string): Promise<SessionDiff> {
     diffSummary.files.map(f => [f.file, f])
   )
 
-  const files = statusResult.files.map(f => {
-    const stat = statByFile.get(f.path)
-    return {
-      file: f.path,
-      insertions: stat?.insertions ?? 0,
-      deletions: stat?.deletions ?? 0,
-      status: fileStatus(f.working_dir),
-    }
-  })
+  const files = filterRecapFiles(
+    statusResult.files.map(f => {
+      const stat = statByFile.get(f.path)
+      return {
+        file: f.path,
+        insertions: stat?.insertions ?? 0,
+        deletions: stat?.deletions ?? 0,
+        status: fileStatus(f.working_dir),
+      }
+    })
+  )
 
   return {
-    filesChanged: statusResult.files.length,
+    filesChanged: files.length,
     insertions: diffSummary.insertions,
     deletions: diffSummary.deletions,
     files,

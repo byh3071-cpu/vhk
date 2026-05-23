@@ -1,6 +1,8 @@
 import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
+import { ko } from '../i18n/ko.js'
+import { printNextStep } from '../lib/next-step.js'
 
 interface RulesSection {
   title: string
@@ -97,13 +99,13 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
 }
 
 export async function sync() {
-  console.log(chalk.bold('\n🔄 VHK SYNC — RULES.md → 규칙 파일 동기화\n'))
+  console.log(chalk.bold(`\n${ko.sync.title}\n`))
 
   const cwd = process.cwd()
   const rulesPath = path.join(cwd, 'RULES.md')
 
   if (!fs.existsSync(rulesPath)) {
-    console.log(chalk.yellow('⚠️ RULES.md가 없습니다.'))
+    console.log(chalk.yellow(ko.sync.noRules))
     console.log(chalk.dim('  RULES.md는 프로젝트 규칙의 Single Source of Truth입니다.'))
     console.log(chalk.dim('  생성하려면: vhk init 실행 후 RULES.md를 작성하세요.'))
     console.log('')
@@ -125,16 +127,22 @@ export async function sync() {
 
   const cursorrulesPath = path.join(cwd, '.cursorrules')
   fs.writeFileSync(cursorrulesPath, toCursorrules(sections, projectName), 'utf-8')
-  console.log(chalk.green('  ✅ .cursorrules 동기화 완료'))
+  console.log(chalk.green(`  ${ko.sync.cursorrulesDone}`))
 
   const claudePath = path.join(cwd, 'CLAUDE.md')
   const existingClaude = fs.existsSync(claudePath)
     ? fs.readFileSync(claudePath, 'utf-8')
     : `# 기록 규칙 (${projectName})\n\n## 현재 상태\n- **Phase:** __FILL__\n- **블로커:** 없음\n- **다음 액션:** __FILL__\n- **마지막 업데이트:** ${new Date().toISOString().split('T')[0]}`
   fs.writeFileSync(claudePath, toClaudeMd(sections, existingClaude), 'utf-8')
-  console.log(chalk.green('  ✅ CLAUDE.md 동기화 완료'))
+  console.log(chalk.green(`  ${ko.sync.claudeDone}`))
 
-  console.log(chalk.bold.green('\n🔄 동기화 완료!'))
+  console.log(chalk.bold.green(`\n${ko.sync.done}`))
   console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md (자동 생성)'))
-  console.log(chalk.dim('  규칙 변경은 항상 RULES.md에서만 하세요.\n'))
+  console.log(chalk.dim('  규칙 변경은 항상 RULES.md에서만 하세요.'))
+
+  printNextStep({
+    message: '규칙 동기화 완료! 이제 Cursor가 새 규칙을 따릅니다.',
+    command: 'vhk 점검',
+    cursorHint: '규칙 점검해줘',
+  })
 }
