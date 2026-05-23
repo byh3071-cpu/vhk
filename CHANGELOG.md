@@ -1,0 +1,81 @@
+# Changelog
+
+VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식, [Semantic Versioning](https://semver.org/lang/ko/).
+
+## [Unreleased]
+
+### Added
+- `CHANGELOG.md` 신설 — 릴리즈마다 자동 갱신
+- `doctor` 명령에 npm 최신 버전 비교 — 새 버전 안내 한 줄
+- VHK 자체 부트스트랩 (`vhk init`으로 vhk-cli 레포 docs/ 생성)
+
+### Fixed
+- `vhk init --skip-gate --name X --type Y` 같은 옵션값 포함 명령이 자연어로 오인되어 gate로 잘못 라우팅되던 버그 ([cli-args.ts](src/lib/cli-args.ts))
+- `enhancePackageScripts`가 사용자가 정의한 동명 스크립트(예: `check: eslint`)를 덮어쓰던 문제 — 이제 사용자 정의가 우선 ([init.ts](src/commands/init.ts))
+
+---
+
+## [0.5.2] — 2026-05-23
+
+### Fixed
+- 자연어 CLI 인자가 Commander 파싱 전에 잡히도록 분리 — `vhk 보안 확인` 같은 입력이 `too many arguments` 에러 없이 동작
+- UTF-8 BOM이 붙은 `package.json` 파싱 처리 (`stripBom`, `readJsonFile`)
+
+---
+
+## [0.5.1] — 2026-05-23
+
+### Changed
+- npm 첫 publish 준비 — `@byh3071/vhk` 스코프 패키지
+
+---
+
+## [0.5.0] — 2026-05-23
+
+### Added
+- **`vhk save`** — `git add . → commit → push` 한 번에. 원격 없으면 로컬만 커밋
+- **`vhk undo`** — 최근 1~5커밋 `soft reset`, 원격 push 상태면 경고·확인 후 진행
+- **`vhk diff`** — staged / unstaged / 새 파일 분리 요약. HEAD 대비 줄 수 표시
+- **`vhk status`** — 브랜치·변경 개수·최근 커밋·upstream 동기화 대시보드
+- 보안 경고 강화 — `save` / `init` / `recap` 전에 `.env`·민감 파일 노출 사전 안내
+- Codex 2차 리뷰 반영: `secure scan` 정확도 개선, `save` push 안정화, git porcelain 파싱 견고화
+
+---
+
+## [0.4.0] — 2026-05-23
+
+### Added
+- 시작 메뉴 — `vhk`만 입력해도 인터랙티브 메뉴
+- 한국어 별칭 — `vhk 검증`, `vhk 시작`, `vhk 정리` 등
+- 자연어 라우팅 — `vhk "프로젝트 만들고 싶어"` → `init`
+- **`vhk doctor`** — Node / npm / pnpm / Git + 프로젝트 파일 점검
+- **`vhk ship`** — 배포 체크리스트 + 회고 + `docs/build-log/` 생성
+- **`vhk check`** — `RULES.md` 위반 린트
+- **`vhk secure scan`** — 시크릿/키 패턴 스캔. **CRITICAL/HIGH 발견 시 exit code 1** (CI용)
+- 각 명령 끝에 "다음에 이것만 하세요" 복붙 명령 + Cursor 힌트
+
+---
+
+## [0.2.0] — 2026-05-23
+
+### Added
+- **`vhk recap`** — Git 변경 → `docs/log/` 세션 로그 자동 생성. ADR/트러블슈팅 분리
+- **`vhk sync`** — `RULES.md` → `.cursorrules` + `CLAUDE.md` 동기화
+- **`vhk init --from-notion <url>`** — Notion PRD 페이지 import → 로컬 `docs/PRD.md` 채우기
+
+---
+
+## [0.1.0] — 2026-05-23
+
+### Added
+- 첫 MVP 릴리즈
+- **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
+- **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
+
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/byh3071-cpu/vhk/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/byh3071-cpu/vhk/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/byh3071-cpu/vhk/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/byh3071-cpu/vhk/compare/v0.2.0...v0.4.0
+[0.2.0]: https://github.com/byh3071-cpu/vhk/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/byh3071-cpu/vhk/releases/tag/v0.1.0

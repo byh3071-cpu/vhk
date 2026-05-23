@@ -38,7 +38,7 @@ const KO_ALIASES: Record<string, string> = {
 program
   .name('vhk')
   .description('VHK — 바이브코딩 프로젝트 코치 (한국어로 안내합니다)')
-  .version('0.5.2')
+  .version('0.5.3')
 
 program.configureHelp({
   formatHelp(cmd, helper) {

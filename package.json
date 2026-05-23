@@ -1,6 +1,6 @@
 {
   "name": "@byh3071/vhk",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Vibe Harness Kit — 바이브코딩 풀사이클 CLI",
   "bin": {
     "vhk": "./dist/index.js"
@@ -11,7 +11,13 @@
     "build": "tsup",
     "test": "vitest",
     "test:run": "vitest --run",
-    "prepublishOnly": "pnpm build && pnpm test:run"
+    "prepublishOnly": "pnpm build && pnpm test:run",
+    "save": "vhk save",
+    "check": "vhk check",
+    "scan": "vhk secure scan",
+    "recap": "vhk recap",
+    "ship": "vhk ship",
+    "doctor": "vhk doctor"
   },
   "files": [
     "dist",

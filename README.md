@@ -1,12 +1,14 @@
 ---
 id: vhk-readme
 date: 2026-05-23
-tags: [vhk, cli, readme, v0.5.2]
+tags: [vhk, cli, readme, v0.5.3]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.5.2)
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.5.3)
+>
+> 🍽️ **VHK는 VHK로 부트스트랩됨** — 이 레포의 `docs/`, `CLAUDE.md`, `.cursorrules`도 `vhk init`이 만들었습니다.
 
 명령어를 외우지 않아도 됩니다. `vhk`만 치면 메뉴가 나오고, 한국어로 말해도 알아듣습니다.
 
@@ -102,6 +104,15 @@ vhk 기획 끝났고 바로 시작
 | 옵션 | 설명 |
 |------|------|
 | `--since YYYY-MM-DD` | 분석 시작일 (기본: 오늘) |
+
+## v0.5.3 하이라이트
+
+| 기능 | 설명 |
+|------|------|
+| **셀프호스팅** | `vhk init`이 vhk-cli 레포 자체를 부트스트랩 — 자기 도구로 자기 레포 만들기 |
+| **CHANGELOG.md** | 변경 이력 표준 파일 신설. `vhk ship`이 `[Unreleased]` → `[버전]` 자동 이동 |
+| **doctor 업데이트 알림** | `vhk doctor`가 npm 최신 버전 비교 후 `🆕 v0.X.X 사용 가능` 한 줄 표시 |
+| **init 안전성** | 옵션값 포함 명령 라우팅 버그 픽스, 사용자 정의 `package.json` scripts 보존 |
 
 ## v0.5.0 하이라이트
 

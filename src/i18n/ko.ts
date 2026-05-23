@@ -184,6 +184,9 @@ export const ko = {
     envNotIgnored: '⚠️ .env가 .gitignore에 없음! 추가하세요',
     nextOkMessage: '환경 점검 통과! 이제 프로젝트를 시작하세요.',
     nextRetryMessage: '위 도구를 설치한 후 다시 점검하세요.',
+    updateAvailable: (latest: string) =>
+      `🆕 v${latest} 사용 가능 — npm i -g @byh3071/vhk`,
+    updateCurrent: '최신 버전을 쓰고 있어요',
   },
   nlp: {
     matched: '이게 맞나요?',
@@ -239,6 +242,12 @@ export const ko = {
     hintSecurity: 'vhk 보안 scan',
     checkCommit: '모든 변경이 커밋되었나요?',
     hintCommit: 'git status 확인',
+    changelogUpdated: (version: string) =>
+      `CHANGELOG.md 갱신됨 — [Unreleased] → [${version}] 섹션으로 이동`,
+    changelogNoUnreleased:
+      'CHANGELOG.md에 [Unreleased] 섹션이 없어 자동 갱신을 스킵했어요',
+    changelogMissing:
+      'CHANGELOG.md가 없어요. 만들면 ship이 자동으로 [Unreleased] → 버전 섹션으로 옮겨줍니다.',
   },
 } as const
 
