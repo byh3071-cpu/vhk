@@ -124,7 +124,7 @@ export async function secure() {
   console.log(chalk.dim('    2. git history에서도 제거: git filter-branch 또는 BFG Repo-Cleaner'))
   console.log(chalk.dim('    3. 유출된 키는 즉시 폐기하고 재발급\n'))
 
-  if (critical.length > 0) {
+  if (critical.length > 0 || high.length > 0) {
     process.exitCode = 1
   }
 }

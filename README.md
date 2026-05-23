@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-05-23
-tags: [vhk, cli, readme, v0.4.0]
+tags: [vhk, cli, readme, v0.5.0]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.4.0)
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.5.0)
 
 명령어를 외우지 않아도 됩니다. `vhk`만 치면 메뉴가 나오고, 한국어로 말해도 알아듣습니다.
 
@@ -44,7 +44,8 @@ vhk
 vhk 프로젝트 만들고 싶어
 vhk 기획 끝났고 바로 시작
 vhk 오늘 한 일 정리
-vhk 뭔가 안 돼
+vhk 저장해줘
+vhk 변경사항 보여줘
 ```
 
 ## 워크플로우 (권장 순서)
@@ -53,9 +54,11 @@ vhk 뭔가 안 돼
 vhk 검증 (gate)     → 아이디어 GO/다듬기/다른 아이디어
 vhk 시작 (init)     → 하네스 파일 생성 (CLAUDE.md, PRD, ADR 템플릿 등)
    개발 ...
+vhk diff / 상태     → 변경 요약 · 브랜치·원격 현황
+vhk 저장 (save)     → git add · commit · push
 vhk 정리 (recap)    → 세션 로그 + ADR/트러블슈팅 제안
 vhk 점검 (check)    → RULES.md 규칙 린트
-vhk 보안 scan       → 시크릿·키 유출 검사
+vhk 보안            → 시크릿·키 유출 검사 (scan 별칭 동일)
 vhk 배포 (ship)     → 배포 체크리스트 + 회고 → docs/build-log/
 ```
 
@@ -77,9 +80,13 @@ vhk 기획 끝났고 바로 시작
 | `vhk recap` | `정리`, `오늘` | Git 변경 → `docs/log/` 세션 로그 |
 | `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md |
 | `vhk check` | `점검`, `린트` | RULES.md 규칙 위반 검사 |
-| `vhk secure scan` | `보안`, `스캔` | 코드 내 시크릿·키 패턴 스캔 |
+| `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일) |
 | `vhk ship` | `배포`, `릴리즈` | 배포 체크리스트 + 회고 + 빌드 로그 |
-| `vhk doctor` | `진단`, `환경` | Node / npm / pnpm / Git 환경 점검 |
+| `vhk doctor` | `환경`, `진단` | Node / npm / pnpm / Git 환경 점검 |
+| `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에 |
+| `vhk undo` | `되돌리기`, `취소` | 최근 커밋 soft reset (변경은 staged 유지) |
+| `vhk diff` | `변경`, `차이` | staged / unstaged / 새 파일 요약 |
+| `vhk status` | `상태`, `현황` | 브랜치·변경·커밋·원격·버전 대시보드 |
 
 ### init 옵션
 
@@ -95,6 +102,16 @@ vhk 기획 끝났고 바로 시작
 | 옵션 | 설명 |
 |------|------|
 | `--since YYYY-MM-DD` | 분석 시작일 (기본: 오늘) |
+
+## v0.5.0 하이라이트
+
+| 기능 | 설명 |
+|------|------|
+| **save** | 변경 목록 확인 → 커밋 → push (원격 없으면 로컬만) |
+| **undo** | 최근 1~5커밋 soft reset, 원격 push 시 경고·확인 |
+| **diff** | staged / unstaged / untracked + HEAD 대비 줄 수 |
+| **status** | 브랜치, 변경 개수, 최근 커밋, upstream sync |
+| **보안 경고** | save / init / recap 전 `.env`·민감 파일 노출 안내 |
 
 ## v0.4.0 하이라이트
 
@@ -114,6 +131,7 @@ vhk 기획 끝났고 바로 시작
 - `docs/PRD.md`, `docs/ARCHITECTURE.md`
 - `docs/adr/`, `docs/log/`, `docs/troubleshooting/`
 - `COMMANDS.md`, `BACKLOG.md` (프로젝트 유형에 따라)
+- `package.json` scripts: `save`, `check`, `scan`, `recap`, `ship`, `doctor` → `vhk` 호출
 
 ## 자연어 예시
 
@@ -122,7 +140,11 @@ vhk 기획 끝났고 바로 시작
 | 프로젝트 만들고 싶어 | `vhk 시작` |
 | 기획 끝났고 바로 시작 | `vhk 시작 --skip-gate` |
 | 오늘 한 일 정리 | `vhk 정리` |
-| 보안 스캔 돌려 | `vhk 보안 scan` |
+| 저장해줘 / 푸시 올려 | `vhk 저장` |
+| 커밋 취소 / 롤백 | `vhk 되돌리기` |
+| 뭐 바뀌었어 | `vhk diff` |
+| 프로젝트 현황 | `vhk 상태` |
+| 보안 스캔 돌려 | `vhk 보안` |
 | 배포하고 싶어 | `vhk 배포` |
 | 뭔가 안 돼 | `vhk doctor` |
 
@@ -136,7 +158,7 @@ vhk 기획 끝났고 바로 시작
 ## 요구 사항
 
 - Node.js >= 20
-- Git (recap·ship 권장)
+- Git (recap·save·ship 권장)
 
 ## 개발
 

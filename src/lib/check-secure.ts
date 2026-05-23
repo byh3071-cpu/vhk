@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import chalk from 'chalk'
 import ignore, { type Ignore } from 'ignore'
 
 /** 실수로 커밋되면 위험한 파일 패턴 */
@@ -50,7 +51,7 @@ export function isPathIgnored(ig: Ignore, relativePath: string): boolean {
 export function findExposedSensitiveFiles(
   rootDir: string,
   ig: Ignore = loadGitignore(rootDir),
-  maxDepth = 3
+  maxDepth = 8
 ): string[] {
   const exposed: string[] = []
 
@@ -120,6 +121,16 @@ export function checkProjectSecurity(rootDir: string = process.cwd()): SecureChe
     exposedPaths,
     warnings,
   }
+}
+
+/** save/init/recap 전 — 경고만 출력 (진행은 막지 않음) */
+export function printSecurityWarnings(rootDir: string = process.cwd()): boolean {
+  const result = checkProjectSecurity(rootDir)
+  if (result.ok) return true
+  for (const w of result.warnings) {
+    console.log(chalk.yellow(`   ⚠️  ${w}`))
+  }
+  return false
 }
 
 /**

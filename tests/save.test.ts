@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { execSync, execFileSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
+import inquirer from 'inquirer'
 import { formatDefaultCommitMessage } from '../src/commands/save.js'
 import { t } from '../src/i18n/ko.js'
 
@@ -10,6 +11,9 @@ vi.mock('ora', () => ({
     start: () => ({ text: '', succeed: vi.fn(), fail: vi.fn() }),
   }),
 }))
+vi.mock('../src/lib/check-secure.js', () => ({
+  printSecurityWarnings: vi.fn(() => true),
+}))
 
 describe('save', () => {
   beforeEach(() => {
@@ -18,17 +22,43 @@ describe('save', () => {
   })
 
   it('git 저장소가 아니면 에러 메시지 출력', async () => {
-    vi.mocked(execSync).mockImplementationOnce(() => {
-      throw new Error('not a git repo')
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') {
+        throw new Error('not a git repo')
+      }
+      return ''
     })
     const { save } = await import('../src/commands/save.js')
     await expect(save()).resolves.not.toThrow()
-    expect(execSync).toHaveBeenCalled()
+    expect(execFileSync).toHaveBeenCalled()
+  })
+
+  it('commit 실패 시 staged 안내', async () => {
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test commit' })
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
+      if (Array.isArray(args) && args[0] === 'status') {
+        return ' M file.ts'
+      }
+      if (Array.isArray(args) && args[0] === 'add') return ''
+      if (Array.isArray(args) && args[0] === 'commit') {
+        throw new Error('commit failed')
+      }
+      if (Array.isArray(args) && args[0] === 'diff') {
+        return ' file.ts | 1 +'
+      }
+      return ''
+    })
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    const { save } = await import('../src/commands/save.js')
+    await save()
+    expect(logSpy.mock.calls.some(c => String(c).includes('git reset HEAD'))).toBe(true)
+    logSpy.mockRestore()
   })
 
   it('변경사항 없으면 안내 메시지 출력', async () => {
-    vi.mocked(execSync).mockReturnValueOnce(Buffer.from('true'))
     vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
       if (Array.isArray(args) && args[0] === 'status') return ''
       return ''
     })

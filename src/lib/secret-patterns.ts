@@ -39,7 +39,7 @@ export const SECRET_PATTERNS: SecretPattern[] = [
     id: 'notion-token',
     name: 'Notion Integration Token',
     severity: 'critical',
-    pattern: /secret_[A-Za-z0-9]{24,}/,
+    pattern: /secret_[A-Za-z0-9]{40,50}/,
   },
   {
     id: 'github-token',
@@ -51,7 +51,7 @@ export const SECRET_PATTERNS: SecretPattern[] = [
     id: 'openai-key',
     name: 'OpenAI API Key',
     severity: 'critical',
-    pattern: /sk-[A-Za-z0-9]{20,}/,
+    pattern: /\bsk-(?:proj-|ant-api03-|live-)[A-Za-z0-9_-]{16,}\b/,
   },
   {
     id: 'generic-api-key',

@@ -6,6 +6,7 @@ import { getSessionDiff, getRecentCommits, isGitRepo } from '../lib/git.js'
 import { detectAdrCandidates, createAdrFile } from '../lib/adr.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { printSecurityWarnings } from '../lib/check-secure.js'
 
 export type RecapOptions = {
   since?: string
@@ -18,6 +19,8 @@ export async function recap(options: RecapOptions = {}) {
     console.log(chalk.red(ko.recap.noRepo))
     return
   }
+
+  printSecurityWarnings()
 
   console.log(chalk.dim(`${ko.recap.analyzing}\n`))
   const since = options.since || new Date().toISOString().split('T')[0]

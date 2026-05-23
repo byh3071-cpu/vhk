@@ -11,6 +11,7 @@ import { ADR_TEMPLATE } from '../templates/adr-template.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { printSecurityWarnings } from '../lib/check-secure.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
@@ -90,6 +91,7 @@ export async function init(options: InitOptions = {}) {
   }
 
   console.log(chalk.bold(`\n${ko.init.title}\n`))
+  printSecurityWarnings()
 
   let prdContent: Partial<PrdContent> = {}
   const defaults: Partial<ProjectAnswers> = {}
@@ -204,7 +206,7 @@ export function generateFiles(
 }
 
 const VHK_PACKAGE_SCRIPTS: Record<string, string> = {
-  save: 'git add . && git commit -m',
+  save: 'vhk save',
   check: 'vhk check',
   scan: 'vhk secure scan',
   recap: 'vhk recap',

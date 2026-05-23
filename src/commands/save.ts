@@ -1,7 +1,8 @@
-import { execFileSync, execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import chalk from 'chalk'
 import ora from 'ora'
 import inquirer from 'inquirer'
+import { printSecurityWarnings } from '../lib/check-secure.js'
 import { t } from '../i18n/ko.js'
 
 function gitOut(args: string[]): string {
@@ -33,11 +34,14 @@ export async function save(): Promise<void> {
   console.log(chalk.gray('─'.repeat(40)))
 
   try {
-    execSync('git rev-parse --is-inside-work-tree', { stdio: 'pipe' })
+    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'pipe' })
   } catch {
     console.log(chalk.red(`❌ ${t('save.notGitRepo')}`))
     return
   }
+
+  console.log(chalk.cyan(`\n🔒 ${t('save.securityWarnHeader')}`))
+  printSecurityWarnings()
 
   const status = gitOut(['status', '--porcelain']).trim()
   if (!status) {
@@ -61,8 +65,10 @@ export async function save(): Promise<void> {
   }])
 
   const spinner = ora(t('save.saving')).start()
+  let didAdd = false
   try {
     gitRun(['add', '.'])
+    didAdd = true
     gitRun(['commit', '-m', message])
     spinner.text = t('save.pushing')
 
@@ -79,6 +85,16 @@ export async function save(): Promise<void> {
     spinner.fail(t('save.failed'))
     const msg = err instanceof Error ? err.message : String(err)
     console.log(chalk.red(msg))
+    if (didAdd) {
+      try {
+        const staged = gitOut(['diff', '--cached', '--stat']).trim()
+        if (staged) {
+          console.log(chalk.yellow(`\n💡 ${t('save.stagedAfterFail')}`))
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     process.exitCode = 1
   }
 }
