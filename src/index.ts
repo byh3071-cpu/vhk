@@ -17,6 +17,7 @@ import { undo } from './commands/undo.js'
 import { diff } from './commands/diff.js'
 import { status } from './commands/status.js'
 import { startMcpServer } from './mcp/server.js'
+import { mcpInit } from './commands/mcp-init.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -170,6 +171,14 @@ program
   .description('MCP 서버 시작 (Cursor 등 MCP 클라이언트용)')
   .action(async () => {
     await startMcpServer()
+  })
+
+program
+  .command('mcp-init')
+  .alias('mcp설정')
+  .description('Cursor MCP 연동 설정 자동 생성 (.cursor/mcp.json)')
+  .action(async () => {
+    await mcpInit()
   })
 
 program.on('command:*', async (operands: string[]) => {
