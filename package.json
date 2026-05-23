@@ -3,7 +3,7 @@
   "version": "0.5.3",
   "description": "Vibe Harness Kit — 바이브코딩 풀사이클 CLI",
   "bin": {
-    "vhk": "./dist/index.js"
+    "vhk": "dist/index.js"
   },
   "type": "module",
   "scripts": {
@@ -36,7 +36,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/byh3071-cpu/vhk.git"
+    "url": "git+https://github.com/byh3071-cpu/vhk.git"
   },
   "engines": {
     "node": ">=20"
