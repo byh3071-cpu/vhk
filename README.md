@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-05-23
-tags: [vhk, cli, readme, v0.5.1]
+tags: [vhk, cli, readme, v0.5.2]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.5.1)
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.5.2)
 
 명령어를 외우지 않아도 됩니다. `vhk`만 치면 메뉴가 나오고, 한국어로 말해도 알아듣습니다.
 

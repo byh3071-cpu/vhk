@@ -4,6 +4,7 @@ import path from 'node:path'
 import chalk from 'chalk'
 import { normalizePorcelain } from '../lib/git-porcelain.js'
 import { getGitRoot, gitOut } from '../lib/git-repo.js'
+import { readJsonFile } from '../lib/read-json.js'
 import { t } from '../i18n/ko.js'
 
 export interface FileChangeCounts {
@@ -73,10 +74,10 @@ export function readProjectPackage(cwd = process.cwd()): ProjectPackage | null {
   if (!fs.existsSync(pkgPath)) return null
 
   try {
-    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
+    const pkg = readJsonFile<{
       name?: string
       version?: string
-    }
+    }>(pkgPath)
     if (!pkg.name && !pkg.version) return null
     return {
       name: pkg.name ?? '(no name)',
