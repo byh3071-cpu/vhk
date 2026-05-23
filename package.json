@@ -1,6 +1,6 @@
 {
-  "name": "vhk",
-  "version": "0.1.0",
+  "name": "@byh3071/vhk",
+  "version": "0.5.0",
   "description": "Vibe Harness Kit — 바이브코딩 풀사이클 CLI",
   "bin": {
     "vhk": "./dist/index.js"
@@ -9,25 +9,45 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsup",
-    "test": "vitest"
+    "test": "vitest",
+    "test:run": "vitest --run",
+    "prepublishOnly": "pnpm build && pnpm test:run"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "keywords": [
     "vibe-coding",
     "harness",
     "cli",
-    "scaffold"
+    "scaffold",
+    "session-log",
+    "rules-sync"
   ],
+  "author": "byh3071 <246838173+byh3071-cpu@users.noreply.github.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/byh3071-cpu/vhk.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@notionhq/client": "^5.22.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "handlebars": "^4.7.9",
-    "inquirer": "^9.3.8"
+    "inquirer": "^9.3.8",
+    "ora": "^9.4.0",
+    "simple-git": "^3.36.0"
   },
   "devDependencies": {
     "@types/inquirer": "^9.0.9",
     "@types/node": "^25.9.1",
+    "ignore": "^7.0.5",
     "tsup": "^8.5.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
