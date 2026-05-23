@@ -1,12 +1,10 @@
-import { execFileSync, execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import chalk from 'chalk'
+import { normalizePorcelain } from '../lib/git-porcelain.js'
+import { getGitRoot, gitOut } from '../lib/git-repo.js'
 import { t } from '../i18n/ko.js'
-
-function gitOut(args: string[]): string {
-  return execFileSync('git', args, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
-}
 
 export interface FileChangeCounts {
   staged: number
@@ -89,9 +87,9 @@ export function readProjectPackage(cwd = process.cwd()): ProjectPackage | null {
   }
 }
 
-function getSyncCounts(): SyncCounts {
+function getSyncCounts(gitRoot: string): SyncCounts {
   try {
-    const out = gitOut(['rev-list', '--left-right', '--count', 'HEAD...@{u}'])
+    const out = gitOut(['rev-list', '--left-right', '--count', 'HEAD...@{u}'], gitRoot)
     return parseSyncCounts(out)
   } catch {
     return { ahead: 0, behind: 0, hasUpstream: false }
@@ -102,8 +100,10 @@ export async function status(): Promise<void> {
   console.log(chalk.bold(`\n📊 ${t('status.title')}`))
   console.log(chalk.gray('─'.repeat(40)))
 
+  let gitRoot: string
   try {
-    execSync('git rev-parse --is-inside-work-tree', { stdio: 'pipe' })
+    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'pipe' })
+    gitRoot = getGitRoot()
   } catch {
     console.log(chalk.red(`❌ ${t('status.notGitRepo')}`))
     return
@@ -111,18 +111,18 @@ export async function status(): Promise<void> {
 
   let branch: string
   try {
-    branch = gitOut(['branch', '--show-current']).trim() || t('status.detached')
+    branch = gitOut(['branch', '--show-current'], gitRoot).trim() || t('status.detached')
   } catch {
     branch = t('status.unknownBranch')
   }
 
-  const porcelain = gitOut(['status', '--porcelain']).trim()
+  const porcelain = normalizePorcelain(gitOut(['status', '--porcelain'], gitRoot))
   const counts = countFileChanges(porcelain)
-  const sync = getSyncCounts()
+  const sync = getSyncCounts(gitRoot)
 
   let commits: string[] = []
   try {
-    commits = parseRecentCommitLines(gitOut(['log', '--oneline', '-3']).trim())
+    commits = parseRecentCommitLines(gitOut(['log', '--oneline', '-3'], gitRoot).trim())
   } catch {
     commits = []
   }

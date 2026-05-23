@@ -1,22 +1,18 @@
 import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
-import { SECRET_PATTERNS, maskSecret, type SecretFinding } from '../lib/secret-patterns.js'
-import { walkProjectFiles, MAX_SCAN_FILE_BYTES } from '../lib/scan-files.js'
+import {
+  scanProjectForSecrets,
+  MAX_SECRET_FINDINGS,
+} from '../lib/scan-secrets.js'
+import { MAX_SCAN_FILE_BYTES } from '../lib/scan-files.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
-
-const MAX_FINDINGS = 200
-const MAX_LINE_CHARS = 4_000
 
 export async function secure() {
   console.log(chalk.bold(`\n${ko.secure.title}\n`))
 
   const cwd = process.cwd()
-  const findings: SecretFinding[] = []
-  let scannedFiles = 0
-  let truncated = false
-
   const gitignorePath = path.join(cwd, '.gitignore')
   const hasGitignore = fs.existsSync(gitignorePath)
 
@@ -33,45 +29,11 @@ export async function secure() {
 
   console.log(chalk.dim(`  ${ko.secure.scanning}\n`))
 
-  walkProjectFiles(cwd, (filePath, relPath) => {
-    scannedFiles++
-    const content = fs.readFileSync(filePath, 'utf-8')
-    const lines = content.split('\n')
-
-    for (const pattern of SECRET_PATTERNS) {
-      if (truncated) break
-
-      lines.forEach((line, idx) => {
-        if (truncated) return
-        if (line.length > MAX_LINE_CHARS) return
-
-        const trimmed = line.trim()
-        if (trimmed.startsWith('//') && trimmed.includes('example')) return
-        if (trimmed.startsWith('#') && trimmed.includes('example')) return
-
-        const regex = new RegExp(pattern.pattern.source, pattern.pattern.flags)
-        let match: RegExpExecArray | null
-        while ((match = regex.exec(line)) !== null) {
-          findings.push({
-            patternId: pattern.id,
-            patternName: pattern.name,
-            severity: pattern.severity,
-            file: relPath,
-            line: idx + 1,
-            match: maskSecret(match[0]),
-          })
-          if (findings.length >= MAX_FINDINGS) {
-            truncated = true
-            return
-          }
-        }
-      })
-    }
-  })
+  const { findings, scannedFiles, truncated } = scanProjectForSecrets(cwd)
 
   console.log(chalk.dim(`  📂 ${scannedFiles}개 파일 스캔 완료 (lock·node_modules·>${MAX_SCAN_FILE_BYTES / 1024}KB 제외)`))
   if (truncated) {
-    console.log(chalk.yellow(`  ⚠️  결과 ${MAX_FINDINGS}건에서 출력을 제한했습니다. lock 파일 등은 자동 제외됩니다.`))
+    console.log(chalk.yellow(`  ⚠️  결과 ${MAX_SECRET_FINDINGS}건에서 출력을 제한했습니다. lock 파일 등은 자동 제외됩니다.`))
   }
   console.log('')
 

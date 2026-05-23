@@ -80,12 +80,12 @@ vhk 기획 끝났고 바로 시작
 | `vhk recap` | `정리`, `오늘` | Git 변경 → `docs/log/` 세션 로그 |
 | `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md |
 | `vhk check` | `점검`, `린트` | RULES.md 규칙 위반 검사 |
-| `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일) |
+| `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
 | `vhk ship` | `배포`, `릴리즈` | 배포 체크리스트 + 회고 + 빌드 로그 |
 | `vhk doctor` | `환경`, `진단` | Node / npm / pnpm / Git 환경 점검 |
 | `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에 |
 | `vhk undo` | `되돌리기`, `취소` | 최근 커밋 soft reset (변경은 staged 유지) |
-| `vhk diff` | `변경`, `차이` | staged / unstaged / 새 파일 요약 |
+| `vhk diff` | `변경`, `차이` | staged / unstaged / 새 파일 요약 (줄 수 합계는 tracked·HEAD 기준) |
 | `vhk status` | `상태`, `현황` | 브랜치·변경·커밋·원격·버전 대시보드 |
 
 ### init 옵션
@@ -170,7 +170,12 @@ pnpm dev
 pnpm dev 검증
 ```
 
-> Windows PowerShell 5.x에서는 `&&` 대신 `;` 사용: `pnpm build; pnpm test --run`
+> Windows PowerShell 5.x: `&&` 대신 `;` 사용 (`pnpm build; pnpm test --run`)  
+> 실행 정책으로 `pnpm`이 막히면 **`pnpm.cmd`** 사용: `pnpm.cmd install`, `pnpm.cmd test --run`
+
+### CI에서 secure
+
+`vhk 보안` / `vhk secure scan`은 **CRITICAL 또는 HIGH** 패턴이 있으면 **exit code 1**입니다. MEDIUM만 있으면 0입니다.
 
 ## 라이선스
 

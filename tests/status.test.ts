@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import {
   countFileChanges,
   parseSyncCounts,
@@ -15,12 +15,15 @@ describe('status', () => {
   })
 
   it('git 없어도 에러 없이 실행', async () => {
-    vi.mocked(execSync).mockImplementation(() => {
-      throw new Error('not a git repo')
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') {
+        throw new Error('not a git repo')
+      }
+      return ''
     })
     const { status } = await import('../src/commands/status.js')
     await expect(status()).resolves.not.toThrow()
-    expect(execSync).toHaveBeenCalled()
+    expect(execFileSync).toHaveBeenCalled()
   })
 })
 
@@ -32,6 +35,12 @@ describe('vhk status helpers', () => {
       unstaged: 1,
       untracked: 1,
     })
+  })
+
+  it('leading space — trim 하면 unstaged가 staged로 오집계', () => {
+    const wrong = ' M unstaged.ts\n'.trim()
+    expect(countFileChanges(wrong).unstaged).toBe(0)
+    expect(countFileChanges(' M unstaged.ts\n').unstaged).toBe(1)
   })
 
   it('formatSyncLabel — upstream 없음', () => {

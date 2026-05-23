@@ -3,15 +3,16 @@ import chalk from 'chalk'
 import ora from 'ora'
 import inquirer from 'inquirer'
 import { printSecurityWarnings } from '../lib/check-secure.js'
+import { parsePorcelainLines } from '../lib/git-porcelain.js'
+import {
+  getGitRoot,
+  gitOut,
+  gitRun,
+  hasGitRemote,
+  getExecErrorMessage,
+} from '../lib/git-repo.js'
+import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 import { t } from '../i18n/ko.js'
-
-function gitOut(args: string[]): string {
-  return execFileSync('git', args, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
-}
-
-function gitRun(args: string[]) {
-  execFileSync('git', args, { stdio: 'pipe' })
-}
 
 export function formatDefaultCommitMessage(date = new Date()): string {
   const y = date.getFullYear()
@@ -33,25 +34,47 @@ export async function save(): Promise<void> {
   console.log(chalk.bold(`\n💾 ${t('save.title')}`))
   console.log(chalk.gray('─'.repeat(40)))
 
+  let gitRoot: string
   try {
     execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'pipe' })
+    gitRoot = getGitRoot()
   } catch {
     console.log(chalk.red(`❌ ${t('save.notGitRepo')}`))
     return
   }
 
   console.log(chalk.cyan(`\n🔒 ${t('save.securityWarnHeader')}`))
-  printSecurityWarnings()
+  printSecurityWarnings(gitRoot)
 
-  const status = gitOut(['status', '--porcelain']).trim()
-  if (!status) {
+  const severe = filterSevereFindings(scanProjectForSecrets(gitRoot).findings)
+  if (severe.length > 0) {
+    console.log(chalk.red(`\n⚠️  ${t('save.secretsFound', severe.length)}`))
+    severe.slice(0, 5).forEach(f => {
+      console.log(chalk.dim(`   ${f.file}:${f.line} — ${f.patternName}`))
+    })
+    if (severe.length > 5) {
+      console.log(chalk.dim(`   ... 외 ${severe.length - 5}건 (vhk 보안 scan)`))
+    }
+    const { proceed } = await inquirer.prompt<{ proceed: boolean }>([{
+      type: 'confirm',
+      name: 'proceed',
+      message: t('save.secretsConfirm'),
+      default: false,
+    }])
+    if (!proceed) {
+      console.log(chalk.gray(t('save.cancelled')))
+      return
+    }
+  }
+
+  const lines = parsePorcelainLines(gitOut(['status', '--porcelain'], gitRoot))
+  if (lines.length === 0) {
     console.log(chalk.yellow(`📭 ${t('save.noChanges')}`))
     return
   }
 
-  const files = status.split('\n').filter(Boolean)
-  console.log(chalk.cyan(`\n📋 ${t('save.filesHeader', files.length)}`))
-  files.forEach(line => {
+  console.log(chalk.cyan(`\n📋 ${t('save.filesHeader', lines.length)}`))
+  lines.forEach(line => {
     const code = line.substring(0, 2)
     const name = line.substring(3)
     console.log(`   ${statusIcon(code)} ${name}`)
@@ -67,27 +90,37 @@ export async function save(): Promise<void> {
   const spinner = ora(t('save.saving')).start()
   let didAdd = false
   try {
-    gitRun(['add', '.'])
+    gitRun(['add', '.'], gitRoot)
     didAdd = true
-    gitRun(['commit', '-m', message])
+    gitRun(['commit', '-m', message], gitRoot)
     spinner.text = t('save.pushing')
 
-    try {
-      gitRun(['push'])
-      spinner.succeed(t('save.successWithPush'))
-    } catch {
+    if (!hasGitRemote(gitRoot)) {
       spinner.succeed(t('save.successLocal'))
       console.log(chalk.yellow(`   💡 ${t('save.noRemote')}`))
+    } else {
+      try {
+        gitRun(['push'], gitRoot)
+        spinner.succeed(t('save.successWithPush'))
+      } catch (pushErr) {
+        spinner.fail(t('save.pushFailed'))
+        console.log(chalk.red(getExecErrorMessage(pushErr)))
+        console.log(chalk.yellow(`\n💡 ${t('save.commitOkPushFailed')}`))
+        process.exitCode = 1
+      }
     }
 
-    console.log(chalk.green(`\n✅ ${t('save.done', files.length)}`))
+    if (process.exitCode !== 1) {
+      console.log(chalk.green(`\n✅ ${t('save.done', lines.length)}`))
+    } else {
+      console.log(chalk.green(`\n✅ ${t('save.doneLocalOnly', lines.length)}`))
+    }
   } catch (err) {
     spinner.fail(t('save.failed'))
-    const msg = err instanceof Error ? err.message : String(err)
-    console.log(chalk.red(msg))
+    console.log(chalk.red(getExecErrorMessage(err)))
     if (didAdd) {
       try {
-        const staged = gitOut(['diff', '--cached', '--stat']).trim()
+        const staged = gitOut(['diff', '--cached', '--stat'], gitRoot).trim()
         if (staged) {
           console.log(chalk.yellow(`\n💡 ${t('save.stagedAfterFail')}`))
         }

@@ -37,7 +37,7 @@ function normalize(input: string): string {
 export const NLP_KEYWORDS: Partial<Record<NlpCommand, readonly string[]>> = {
   save: ['저장', '세이브', '커밋', '올려', '올리기', '푸시', 'push', 'commit'],
   undo: ['되돌려', '되돌리기', '취소', '원래대로', '롤백', '리셋', 'reset', 'rollback'],
-  status: ['상태', '현황', '어떻게', '어때', '지금', '확인'],
+  status: ['상태', '현황', '어떻게', '어때', '지금'],
   diff: ['변경', '바뀐', '뭐바뀜', '차이', '달라진', '수정된'],
 }
 
@@ -71,6 +71,25 @@ const RULES: NlpRule[] = [
       /프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t),
   },
   {
+    command: 'secure',
+    explanation: '보안 스캔 (vhk 보안)',
+    confidence: 'high',
+    test: t => /보안|시크릿|비밀|키\s*유출|secure|scan/.test(t),
+  },
+  {
+    command: 'check',
+    explanation: '규칙 점검 (vhk 점검)',
+    confidence: 'high',
+    test: t => /규칙.*(점검|위반)|린트|check|위반/.test(t),
+  },
+  {
+    command: 'doctor',
+    explanation: '환경 점검 (vhk doctor)',
+    confidence: 'high',
+    test: t =>
+      /뭔가\s*안|안\s*돼|안돼|환경\s*(점검|진단|확인)|진단|doctor|설치.*확인|왜\s*안/.test(t),
+  },
+  {
     command: 'diff',
     explanation: '변경사항 요약 (vhk diff)',
     confidence: 'high',
@@ -89,9 +108,10 @@ const RULES: NlpRule[] = [
     explanation: '프로젝트 상태 확인 (vhk 상태)',
     confidence: 'high',
     test: t =>
-      matchesKeywords(t, 'status') ||
-      /^status$/.test(t) ||
-      /브랜치.*(뭐|어디)|git\s*상태|동기화\s*상태/.test(t),
+      (matchesKeywords(t, 'status') ||
+        /^status$/.test(t) ||
+        /브랜치.*(뭐|어디)|git\s*상태|동기화\s*상태|프로젝트\s*상태/.test(t)) &&
+      !/보안|시크릿|규칙|점검|린트|환경|진단|doctor|secure|check|스캔|설치/.test(t),
   },
   {
     command: 'save',
@@ -108,29 +128,10 @@ const RULES: NlpRule[] = [
     test: t => /오늘.*(정리|기록)|한\s*일|세션|회고|recap|정리해/.test(t),
   },
   {
-    command: 'doctor',
-    explanation: '환경 점검 (vhk doctor)',
-    confidence: 'high',
-    test: t =>
-      /뭔가\s*안|안\s*돼|안돼|환경\s*(점검|진단)|진단|doctor|설치.*확인|왜\s*안/.test(t),
-  },
-  {
     command: 'gate',
     explanation: '아이디어 검증 (vhk 검증)',
     confidence: 'high',
     test: t => /아이디어|검증|gate|go\/refine|pain\s*point/.test(t),
-  },
-  {
-    command: 'secure',
-    explanation: '보안 스캔 (vhk 보안 scan)',
-    confidence: 'high',
-    test: t => /보안|시크릿|비밀|키\s*유출|secure|scan/.test(t),
-  },
-  {
-    command: 'check',
-    explanation: '규칙 점검 (vhk 점검)',
-    confidence: 'high',
-    test: t => /규칙.*(점검|위반)|린트|check|위반/.test(t),
   },
   {
     command: 'sync',

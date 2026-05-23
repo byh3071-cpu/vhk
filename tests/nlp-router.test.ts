@@ -51,6 +51,10 @@ describe('자연어 라우팅', () => {
     expect(routeNaturalLanguage('프로젝트 현황')?.command).toBe('status')
   })
 
+  it('"보안 확인" → secure (status 오라우팅 방지)', () => {
+    expect(routeNaturalLanguage('보안 확인')?.command).toBe('secure')
+  })
+
   it('키워드 맵 — diff', () => {
     expect(routeNaturalLanguage('뭐바뀜')?.command).toBe('diff')
     expect(routeNaturalLanguage('수정된 파일')?.command).toBe('diff')

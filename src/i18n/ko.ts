@@ -31,7 +31,13 @@ export const ko = {
     stagedAfterFail:
       '커밋은 실패했지만 파일은 스테이징되어 있습니다. 확인: git status / 취소: git reset HEAD',
     securityWarnHeader: '저장 전 보안 확인:',
+    secretsFound: (n: number) => `코드에서 CRITICAL/HIGH 시크릿 패턴 ${n}건 감지`,
+    secretsConfirm: '그래도 커밋·push를 진행할까요?',
+    cancelled: '저장을 취소했습니다.',
+    pushFailed: 'push 실패 (로컬 커밋은 완료됨)',
+    commitOkPushFailed: '로컬 커밋은 됐지만 원격 push에 실패했습니다. git push를 직접 확인하세요.',
     done: (n: number) => `${n}개 파일 저장 완료!`,
+    doneLocalOnly: (n: number) => `${n}개 파일 로컬 저장됨 (push는 실패)`,
   },
   undo: {
     title: '되돌리기',
@@ -48,6 +54,9 @@ export const ko = {
     cancelled: '취소됨',
     success: '되돌리기 완료! 변경사항은 그대로 남아있습니다.',
     stagedHint: '변경사항은 스테이징 영역에 남아 있어요.',
+    rootCommit: '첫 커밋만 있어서 더 되돌릴 수 없습니다.',
+    forcePushHint:
+      '원격과 맞추려면: git push --force-with-lease (혼자 작업한 브랜치에서만, 팀과 합의 후)',
     failed: '되돌리기 실패',
   },
   diff: {
