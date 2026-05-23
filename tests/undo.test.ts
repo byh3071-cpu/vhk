@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { execSync, execFileSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import {
   parseRecentCommits,
   willUndoPushedCommits,
+  isUndoRisky,
 } from '../src/commands/undo.js'
 
 vi.mock('node:child_process')
@@ -15,17 +16,20 @@ describe('undo', () => {
   })
 
   it('git 저장소가 아니면 에러 메시지 출력', async () => {
-    vi.mocked(execSync).mockImplementationOnce(() => {
-      throw new Error('not a git repo')
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') {
+        throw new Error('not a git repo')
+      }
+      return ''
     })
     const { undo } = await import('../src/commands/undo.js')
     await expect(undo()).resolves.not.toThrow()
-    expect(execSync).toHaveBeenCalled()
+    expect(execFileSync).toHaveBeenCalled()
   })
 
   it('커밋 없으면 안내 메시지 출력', async () => {
-    vi.mocked(execSync).mockReturnValueOnce(Buffer.from('true'))
     vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
       if (Array.isArray(args) && args[0] === 'log') {
         throw new Error('no commits')
       }
@@ -52,5 +56,12 @@ describe('vhk undo helpers', () => {
     expect(willUndoPushedCommits(2, 1)).toBe(true)
     expect(willUndoPushedCommits(1, 1)).toBe(false)
     expect(willUndoPushedCommits(1, -1)).toBe(false)
+  })
+
+  it('isUndoRisky — upstream 없고 remote 있으면 위험', () => {
+    expect(isUndoRisky(1, -1, true)).toBe(true)
+    expect(isUndoRisky(1, -1, false)).toBe(false)
+    expect(isUndoRisky(1, 2, true)).toBe(false)
+    expect(isUndoRisky(3, 1, true)).toBe(true)
   })
 })

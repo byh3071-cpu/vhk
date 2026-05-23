@@ -1,4 +1,4 @@
-import { execFileSync, execSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
@@ -13,6 +13,14 @@ function gitRun(args: string[]) {
 
 export function parseRecentCommits(logOutput: string): string[] {
   return logOutput.split('\n').map(l => l.trim()).filter(Boolean)
+}
+
+export function hasGitRemote(): boolean {
+  try {
+    return gitOut(['remote']).trim().length > 0
+  } catch {
+    return false
+  }
 }
 
 /** 원격에 아직 안 올라간 커밋 개수. upstream 없으면 -1 */
@@ -30,12 +38,23 @@ export function willUndoPushedCommits(undoCount: number, unpushedCount: number):
   return undoCount > unpushedCount
 }
 
+/** upstream 없는데 remote가 있거나, push된 커밋을 되돌릴 때 */
+export function isUndoRisky(
+  undoCount: number,
+  unpushedCount: number,
+  hasRemote: boolean,
+): boolean {
+  if (willUndoPushedCommits(undoCount, unpushedCount)) return true
+  if (unpushedCount < 0 && hasRemote) return true
+  return false
+}
+
 export async function undo(): Promise<void> {
   console.log(chalk.bold(`\n⏪ ${t('undo.title')}`))
   console.log(chalk.gray('─'.repeat(40)))
 
   try {
-    execSync('git rev-parse --is-inside-work-tree', { stdio: 'pipe' })
+    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'pipe' })
   } catch {
     console.log(chalk.red(`❌ ${t('undo.notGitRepo')}`))
     return
@@ -72,15 +91,21 @@ export async function undo(): Promise<void> {
 
   const undoCount = Math.min(Math.max(1, count || 1), maxUndo)
   const unpushed = countUnpushedCommits()
+  const hasRemote = hasGitRemote()
+  const risky = isUndoRisky(undoCount, unpushed, hasRemote)
 
-  if (willUndoPushedCommits(undoCount, unpushed)) {
-    console.log(chalk.red(`\n⚠️  ${t('undo.alreadyPushed')}`))
+  if (risky) {
+    if (unpushed < 0) {
+      console.log(chalk.red(`\n⚠️  ${t('undo.noUpstreamWarning')}`))
+    } else {
+      console.log(chalk.red(`\n⚠️  ${t('undo.alreadyPushed')}`))
+    }
   }
 
   const { confirm } = await inquirer.prompt<{ confirm: boolean }>([{
     type: 'confirm',
     name: 'confirm',
-    message: t('undo.confirmMessage', undoCount),
+    message: risky ? t('undo.confirmRisky', undoCount) : t('undo.confirmMessage'),
     default: false,
   }])
 
@@ -91,7 +116,7 @@ export async function undo(): Promise<void> {
 
   try {
     gitRun(['reset', '--soft', `HEAD~${undoCount}`])
-    console.log(chalk.green(`\n✅ ${t('undo.success', undoCount)}`))
+    console.log(chalk.green(`\n✅ ${t('undo.success')}`))
     console.log(chalk.gray(`   💡 ${t('undo.stagedHint')}`))
   } catch (err) {
     console.log(chalk.red(`❌ ${t('undo.failed')}`))

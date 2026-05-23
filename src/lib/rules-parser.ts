@@ -84,15 +84,7 @@ export function parseRules(rulesPath: string): Rule[] {
       }
     }
 
-    if (/반드시|필수|항상|must|always|required/i.test(ruleText)) {
-      rules.push({
-        id: `required-${ruleIndex}`,
-        section: currentSection,
-        type: 'custom',
-        description: ruleText,
-        check: () => [],
-      })
-    }
+    // 문서상 필수 규칙은 자동 검사 없음 — RULES.md 수동 확인
   }
 
   return rules

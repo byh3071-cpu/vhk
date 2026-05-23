@@ -112,7 +112,8 @@ program
 const secureCmd = program
   .command('secure')
   .alias('보안')
-  .description('보안 도구 모음')
+  .description('보안 도구 모음 — scan: 시크릿·키 유출 검사')
+  .action(secure)
 
 secureCmd
   .command('scan')

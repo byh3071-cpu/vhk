@@ -28,6 +28,9 @@ export const ko = {
     successLocal: '로컬 저장 완료!',
     noRemote: '원격 저장소가 설정되지 않아 push를 건너뛰었습니다.',
     failed: '저장 실패',
+    stagedAfterFail:
+      '커밋은 실패했지만 파일은 스테이징되어 있습니다. 확인: git status / 취소: git reset HEAD',
+    securityWarnHeader: '저장 전 보안 확인:',
     done: (n: number) => `${n}개 파일 저장 완료!`,
   },
   undo: {
@@ -37,7 +40,11 @@ export const ko = {
     recentHeader: '📋 최근 커밋:',
     howMany: '몇 개의 커밋을 되돌릴까요?',
     alreadyPushed: '이 커밋은 이미 원격에 올라갔습니다. 되돌리면 충돌이 생길 수 있어요.',
+    noUpstreamWarning:
+      'upstream 브랜치가 없습니다. 이미 push한 커밋일 수 있어요. 되돌린 뒤 force push가 필요할 수 있습니다.',
     confirmMessage: '최근 커밋을 되돌리시겠습니까?',
+    confirmRisky: (n: number) =>
+      `⚠️ 위험: 최근 ${n}개 커밋을 soft reset합니다. 원격과 어긋날 수 있습니다. 계속할까요?`,
     cancelled: '취소됨',
     success: '되돌리기 완료! 변경사항은 그대로 남아있습니다.',
     stagedHint: '변경사항은 스테이징 영역에 남아 있어요.',

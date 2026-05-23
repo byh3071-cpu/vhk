@@ -41,37 +41,27 @@ export interface RecentCommit {
   author: string
 }
 
-function fileStatus(workingDir: string): SessionDiff['files'][number]['status'] {
-  if (workingDir === '?') return 'new'
-  if (workingDir === 'D') return 'deleted'
-  if (workingDir === 'R') return 'renamed'
+export function inferFileStatusFromDiff(
+  insertions: number,
+  deletions: number,
+): SessionDiff['files'][number]['status'] {
+  if (deletions > 0 && insertions === 0) return 'deleted'
+  if (insertions > 0 && deletions === 0) return 'new'
   return 'modified'
 }
 
-/**
- * 마지막 세션 로그 이후의 diff를 가져온다.
- * --since 옵션이 없으면 오늘 커밋만 분석.
- */
-export async function getSessionDiff(since?: string): Promise<SessionDiff> {
-  const sinceDate = since || new Date().toISOString().split('T')[0]
-
-  const diffSummary = await git.diffSummary([`--since=${sinceDate}`])
-  const statusResult = await git.status()
-
-  const statByFile = new Map(
-    diffSummary.files.map(f => [f.file, f])
-  )
-
+export function buildSessionDiffFromSummary(diffSummary: {
+  insertions: number
+  deletions: number
+  files: Array<{ file: string; insertions: number; deletions: number }>
+}): SessionDiff {
   const files = filterRecapFiles(
-    statusResult.files.map(f => {
-      const stat = statByFile.get(f.path)
-      return {
-        file: f.path,
-        insertions: stat?.insertions ?? 0,
-        deletions: stat?.deletions ?? 0,
-        status: fileStatus(f.working_dir),
-      }
-    })
+    diffSummary.files.map(f => ({
+      file: f.file,
+      insertions: f.insertions,
+      deletions: f.deletions,
+      status: inferFileStatusFromDiff(f.insertions, f.deletions),
+    })),
   )
 
   return {
@@ -80,6 +70,15 @@ export async function getSessionDiff(since?: string): Promise<SessionDiff> {
     deletions: diffSummary.deletions,
     files,
   }
+}
+
+/**
+ * --since 이후 커밋 diff만 사용 (작업 트리 status와 섞지 않음).
+ */
+export async function getSessionDiff(since?: string): Promise<SessionDiff> {
+  const sinceDate = since || new Date().toISOString().split('T')[0]
+  const diffSummary = await git.diffSummary([`--since=${sinceDate}`])
+  return buildSessionDiffFromSummary(diffSummary)
 }
 
 /**
