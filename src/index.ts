@@ -270,4 +270,4 @@ program.action(async () => {
   }
 })
 
-program.parse()
+await program.parseAsync(process.argv)

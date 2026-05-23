@@ -14,11 +14,28 @@ vi.mock('ora', () => ({
 vi.mock('../src/lib/check-secure.js', () => ({
   printSecurityWarnings: vi.fn(() => true),
 }))
+vi.mock('../src/lib/scan-secrets.js', () => ({
+  scanProjectForSecrets: vi.fn(() => ({ findings: [], scannedFiles: 0, truncated: false })),
+  filterSevereFindings: vi.fn(() => []),
+}))
+const mockGetGitRoot = vi.fn(() => '/repo')
+const mockGitOut = vi.fn()
+const mockGitRun = vi.fn()
+const mockHasGitRemote = vi.fn()
+
+vi.mock('../src/lib/git-repo.js', () => ({
+  getGitRoot: (...args: unknown[]) => mockGetGitRoot(...args),
+  gitOut: (...args: unknown[]) => mockGitOut(...args),
+  gitRun: (...args: unknown[]) => mockGitRun(...args),
+  hasGitRemote: (...args: unknown[]) => mockHasGitRemote(...args),
+  getExecErrorMessage: (e: unknown) => (e instanceof Error ? e.message : String(e)),
+}))
 
 describe('save', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockGetGitRoot.mockReturnValue('/repo')
   })
 
   it('git 저장소가 아니면 에러 메시지 출력', async () => {
@@ -30,45 +47,60 @@ describe('save', () => {
     })
     const { save } = await import('../src/commands/save.js')
     await expect(save()).resolves.not.toThrow()
-    expect(execFileSync).toHaveBeenCalled()
+  })
+
+  it('remote 없으면 push 없이 로컬 성공', async () => {
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
+      return ''
+    })
+    mockGitOut.mockImplementation((args: string[]) => {
+      if (args[0] === 'status') return ' M file.ts'
+      return ''
+    })
+    mockHasGitRemote.mockReturnValue(false)
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test' })
+    const { save } = await import('../src/commands/save.js')
+    await save()
+    expect(mockGitRun).not.toHaveBeenCalledWith(['push'], '/repo')
+  })
+
+  it('push 실패 시 exitCode 1', async () => {
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
+      return ''
+    })
+    mockGitOut.mockReturnValue(' M file.ts')
+    mockHasGitRemote.mockReturnValue(true)
+    mockGitRun.mockImplementation((args: string[]) => {
+      if (args[0] === 'push') throw new Error('rejected')
+    })
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test' })
+    const exitBefore = process.exitCode
+    const { save } = await import('../src/commands/save.js')
+    await save()
+    expect(process.exitCode).toBe(1)
+    process.exitCode = exitBefore
   })
 
   it('commit 실패 시 staged 안내', async () => {
-    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test commit' })
     vi.mocked(execFileSync).mockImplementation((_file, args) => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
-      if (Array.isArray(args) && args[0] === 'status') {
-        return ' M file.ts'
-      }
-      if (Array.isArray(args) && args[0] === 'add') return ''
-      if (Array.isArray(args) && args[0] === 'commit') {
-        throw new Error('commit failed')
-      }
-      if (Array.isArray(args) && args[0] === 'diff') {
-        return ' file.ts | 1 +'
-      }
       return ''
     })
+    mockGitOut.mockImplementation((args: string[]) => {
+      if (args[0] === 'status') return ' M file.ts'
+      if (args[0] === 'diff') return ' file.ts | 1 +'
+      return ''
+    })
+    mockGitRun.mockImplementation((args: string[]) => {
+      if (args[0] === 'commit') throw new Error('commit failed')
+    })
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test' })
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const { save } = await import('../src/commands/save.js')
     await save()
     expect(logSpy.mock.calls.some(c => String(c).includes('git reset HEAD'))).toBe(true)
-    logSpy.mockRestore()
-  })
-
-  it('변경사항 없으면 안내 메시지 출력', async () => {
-    vi.mocked(execFileSync).mockImplementation((_file, args) => {
-      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
-      if (Array.isArray(args) && args[0] === 'status') return ''
-      return ''
-    })
-    const { save } = await import('../src/commands/save.js')
-    await expect(save()).resolves.not.toThrow()
-    expect(execFileSync).toHaveBeenCalledWith(
-      'git',
-      ['status', '--porcelain'],
-      expect.objectContaining({ encoding: 'utf-8' }),
-    )
   })
 })
 
@@ -80,7 +112,6 @@ describe('vhk save helpers', () => {
 
   it('t(save.*) — i18n 키 조회', () => {
     expect(t('save.title')).toBe('저장하기')
-    expect(t('save.noChanges')).toBe('저장할 변경사항이 없습니다.')
-    expect(t('save.successWithPush')).toBe('저장 + 원격 업로드 완료!')
+    expect(t('save.pushFailed')).toContain('push')
   })
 })

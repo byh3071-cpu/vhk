@@ -1,32 +1,24 @@
 import { execFileSync } from 'node:child_process'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
+import {
+  countLocalCommits,
+  getGitRoot,
+  gitOut,
+  gitRun,
+  hasGitRemote,
+} from '../lib/git-repo.js'
 import { t } from '../i18n/ko.js'
-
-function gitOut(args: string[]): string {
-  return execFileSync('git', args, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] })
-}
-
-function gitRun(args: string[]) {
-  execFileSync('git', args, { stdio: 'pipe' })
-}
 
 export function parseRecentCommits(logOutput: string): string[] {
   return logOutput.split('\n').map(l => l.trim()).filter(Boolean)
 }
 
-export function hasGitRemote(): boolean {
-  try {
-    return gitOut(['remote']).trim().length > 0
-  } catch {
-    return false
-  }
-}
-
 /** 원격에 아직 안 올라간 커밋 개수. upstream 없으면 -1 */
-export function countUnpushedCommits(): number {
+export function countUnpushedCommits(gitRoot?: string): number {
+  const cwd = gitRoot ?? process.cwd()
   try {
-    const out = gitOut(['rev-list', '--count', '@{u}..HEAD']).trim()
+    const out = gitOut(['rev-list', '--count', '@{u}..HEAD'], cwd).trim()
     return parseInt(out, 10) || 0
   } catch {
     return -1
@@ -53,8 +45,10 @@ export async function undo(): Promise<void> {
   console.log(chalk.bold(`\n⏪ ${t('undo.title')}`))
   console.log(chalk.gray('─'.repeat(40)))
 
+  let gitRoot: string
   try {
     execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'pipe' })
+    gitRoot = getGitRoot()
   } catch {
     console.log(chalk.red(`❌ ${t('undo.notGitRepo')}`))
     return
@@ -62,7 +56,7 @@ export async function undo(): Promise<void> {
 
   let logOutput: string
   try {
-    logOutput = gitOut(['log', '--oneline', '-5']).trim()
+    logOutput = gitOut(['log', '--oneline', '-5'], gitRoot).trim()
   } catch {
     console.log(chalk.yellow(`📭 ${t('undo.noCommits')}`))
     return
@@ -90,9 +84,16 @@ export async function undo(): Promise<void> {
   }])
 
   const undoCount = Math.min(Math.max(1, count || 1), maxUndo)
-  const unpushed = countUnpushedCommits()
-  const hasRemote = hasGitRemote()
-  const risky = isUndoRisky(undoCount, unpushed, hasRemote)
+  const headCount = countLocalCommits(gitRoot)
+
+  if (undoCount >= headCount) {
+    console.log(chalk.yellow(`\n📭 ${t('undo.rootCommit')}`))
+    return
+  }
+
+  const unpushed = countUnpushedCommits(gitRoot)
+  const remote = hasGitRemote(gitRoot)
+  const risky = isUndoRisky(undoCount, unpushed, remote)
 
   if (risky) {
     if (unpushed < 0) {
@@ -115,9 +116,12 @@ export async function undo(): Promise<void> {
   }
 
   try {
-    gitRun(['reset', '--soft', `HEAD~${undoCount}`])
+    gitRun(['reset', '--soft', `HEAD~${undoCount}`], gitRoot)
     console.log(chalk.green(`\n✅ ${t('undo.success')}`))
     console.log(chalk.gray(`   💡 ${t('undo.stagedHint')}`))
+    if (risky) {
+      console.log(chalk.yellow(`\n💡 ${t('undo.forcePushHint')}`))
+    }
   } catch (err) {
     console.log(chalk.red(`❌ ${t('undo.failed')}`))
     const msg = err instanceof Error ? err.message : String(err)
