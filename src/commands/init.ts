@@ -221,7 +221,8 @@ export function enhancePackageScripts(projectDir: string): boolean {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
     scripts?: Record<string, string>
   }
-  pkg.scripts = { ...pkg.scripts, ...VHK_PACKAGE_SCRIPTS }
+  // 사용자가 정의한 동명 스크립트 보존. 누락된 키만 추가.
+  pkg.scripts = { ...VHK_PACKAGE_SCRIPTS, ...pkg.scripts }
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
   return true
 }

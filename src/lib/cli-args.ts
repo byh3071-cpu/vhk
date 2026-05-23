@@ -32,6 +32,10 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
   const first = rest[0]
   if (isOptionToken(first)) return null
 
+  // 옵션(-/--)이 하나라도 있으면 commander가 파싱. 자연어 가로채기 금지.
+  // 예: vhk init --skip-gate --name vhk --type cli -y
+  if (rest.some(isOptionToken)) return null
+
   const input = rest.join(' ').trim()
   if (!input) return null
 
@@ -39,9 +43,6 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
 
   // vhk save / vhk 검증
   if (firstIsKnown && rest.length === 1) return null
-
-  // vhk init --skip-gate / vhk secure scan
-  if (firstIsKnown && rest.slice(1).every(isOptionToken)) return null
 
   if (firstIsKnown && rest.length > 1) {
     // vhk 보안 확인 → secure 단독이 아니라 문장 전체를 NLP로

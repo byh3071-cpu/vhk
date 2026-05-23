@@ -56,6 +56,28 @@ describe('vhk init', () => {
     fs.rmSync(tmpDir, { recursive: true })
   })
 
+  it('동명 사용자 스크립트는 vhk 기본값보다 우선 (보존)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-test-'))
+    const pkgPath = path.join(tmpDir, 'package.json')
+    fs.writeFileSync(
+      pkgPath,
+      JSON.stringify({
+        name: 'x',
+        scripts: { check: 'eslint .', save: 'echo custom-save' },
+      }),
+      'utf-8'
+    )
+
+    expect(enhancePackageScripts(tmpDir)).toBe(true)
+
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+    expect(pkg.scripts.check).toBe('eslint .')
+    expect(pkg.scripts.save).toBe('echo custom-save')
+    expect(pkg.scripts.ship).toBe('vhk ship')
+
+    fs.rmSync(tmpDir, { recursive: true })
+  })
+
   it('COMMANDS.md 템플릿에 필수 명령이 있다', () => {
     const md = COMMANDS_MD_TEMPLATE()
     expect(md).toContain('vhk doctor')
