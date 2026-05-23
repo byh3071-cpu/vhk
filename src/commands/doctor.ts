@@ -43,6 +43,30 @@ function getVhkVersion(): string | undefined {
   return undefined
 }
 
+export function fetchLatestNpmVersion(packageName: string): string | undefined {
+  try {
+    const result = execSync(`npm view ${packageName} version`, {
+      encoding: 'utf-8',
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    if (/^\d+\.\d+\.\d+/.test(result)) return result
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function compareSemver(a: string, b: string): number {
+  const parse = (v: string) =>
+    v.replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0)
+  const [a1 = 0, a2 = 0, a3 = 0] = parse(a)
+  const [b1 = 0, b2 = 0, b3 = 0] = parse(b)
+  if (a1 !== b1) return a1 - b1
+  if (a2 !== b2) return a2 - b2
+  return a3 - b3
+}
+
 export async function doctor() {
   console.log(chalk.bold(`\n${ko.doctor.title}\n`))
 
@@ -71,6 +95,15 @@ export async function doctor() {
     console.log(chalk.green('  ✅ VHK') + chalk.dim(` — v${vhkVersion}`))
   } else {
     console.log(chalk.green('  ✅ VHK') + chalk.dim(' — 설치됨'))
+  }
+
+  if (vhkVersion) {
+    const latest = fetchLatestNpmVersion('@byh3071/vhk')
+    if (latest && compareSemver(latest, vhkVersion) > 0) {
+      console.log(chalk.yellow(`  ${ko.doctor.updateAvailable(latest)}`))
+    } else if (latest) {
+      console.log(chalk.dim(`     ${ko.doctor.updateCurrent}`))
+    }
   }
 
   console.log('')

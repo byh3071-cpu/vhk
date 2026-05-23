@@ -3,6 +3,7 @@ import inquirer from 'inquirer'
 import fs from 'node:fs'
 import path from 'node:path'
 import { ko } from '../i18n/ko.js'
+import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
 
 const CHECKLIST = [
@@ -16,6 +17,47 @@ const CHECKLIST = [
 
 function sanitizeVersion(version: string): string {
   return version.trim().replace(/^v/i, '').replace(/[^a-zA-Z0-9._-]/g, '-') || '0.0.0'
+}
+
+export type ChangelogUpdateResult =
+  | { status: 'missing' }
+  | { status: 'no-unreleased' }
+  | { status: 'updated'; version: string }
+
+/**
+ * CHANGELOG.md의 `## [Unreleased]` 섹션을 `## [VERSION] — DATE`로 이동하고
+ * 빈 `## [Unreleased]` 섹션을 그 위에 새로 만든다. 멱등성 보장 안 됨 (같은 버전 두 번 호출 시 중복).
+ */
+export function updateChangelogUnreleased(
+  cwd: string,
+  version: string,
+  date: string
+): ChangelogUpdateResult {
+  const changelogPath = path.join(cwd, 'CHANGELOG.md')
+  if (!fs.existsSync(changelogPath)) return { status: 'missing' }
+
+  const content = fs.readFileSync(changelogPath, 'utf-8')
+  const unreleasedHeading = /^## \[Unreleased\][^\n]*$/m
+
+  if (!unreleasedHeading.test(content)) return { status: 'no-unreleased' }
+
+  const blankUnreleased = [
+    '## [Unreleased]',
+    '',
+    '### Added',
+    '- ',
+    '',
+    '### Fixed',
+    '- ',
+    '',
+    '---',
+    '',
+    `## [${version}] — ${date}`,
+  ].join('\n')
+
+  const updated = content.replace(unreleasedHeading, blankUnreleased)
+  fs.writeFileSync(changelogPath, updated, 'utf-8')
+  return { status: 'updated', version }
 }
 
 export async function ship() {
@@ -121,6 +163,15 @@ export async function ship() {
   fs.writeFileSync(filePath, content, 'utf-8')
 
   console.log(chalk.green(`\n  ${ko.ship.buildLogDone(path.relative(cwd, filePath))}`))
+
+  const changelogResult = updateChangelogUnreleased(cwd, versionSlug, today)
+  if (changelogResult.status === 'updated') {
+    log.success(ko.ship.changelogUpdated(changelogResult.version))
+  } else if (changelogResult.status === 'no-unreleased') {
+    log.warn(ko.ship.changelogNoUnreleased)
+  } else {
+    log.info(ko.ship.changelogMissing)
+  }
 
   printNextStep({
     message: ko.ship.deployMessage,
