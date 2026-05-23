@@ -20,6 +20,21 @@ describe('detectNaturalLanguageInput', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', 'init', '--skip-gate'])).toBeNull()
   })
 
+  it('vhk init --skip-gate --name vhk --type cli -y → null (옵션값 포함)', () => {
+    expect(
+      detectNaturalLanguageInput([
+        'node', 'vhk', 'init',
+        '--skip-gate', '--name', 'vhk', '--type', 'cli', '-y',
+      ])
+    ).toBeNull()
+  })
+
+  it('vhk recap --since 2026-01-01 → null (옵션값 포함)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'recap', '--since', '2026-01-01'])
+    ).toBeNull()
+  })
+
   it('vhk "보안 확인" (한 덩어리) → 자연어', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '보안 확인'])).toBe('보안 확인')
   })
