@@ -1,6 +1,6 @@
 {
   "name": "vhk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Vibe Harness Kit — 바이브코딩 풀사이클 CLI",
   "bin": {
     "vhk": "./dist/index.js"
@@ -23,7 +23,8 @@
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "handlebars": "^4.7.9",
-    "inquirer": "^9.3.8"
+    "inquirer": "^9.3.8",
+    "simple-git": "^3.36.0"
   },
   "devDependencies": {
     "@types/inquirer": "^9.0.9",
