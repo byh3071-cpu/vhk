@@ -82,6 +82,6 @@ describe('cli NL e2e', () => {
 
   it('vhk --version', () => {
     const r = spawnSync(process.execPath, [bin, '--version'], { encoding: 'utf-8' })
-    expect(r.stdout?.trim()).toMatch(/0\.5\./)
+    expect(r.stdout?.trim()).toMatch(/^\d+\.\d+\.\d+/)
   })
 })
