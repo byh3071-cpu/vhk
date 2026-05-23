@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { generateFiles } from '../src/commands/init.js'
+import { generateFiles, enhancePackageScripts } from '../src/commands/init.js'
+import { COMMANDS_MD_TEMPLATE } from '../src/templates/commands-md.js'
 import { writeFile } from '../src/utils/file.js'
 
 const EXPECTED_FILES = [
@@ -38,5 +39,26 @@ describe('vhk init', () => {
     expect(prd).toContain('테스트 프로젝트')
 
     fs.rmSync(tmpDir, { recursive: true })
+  })
+
+  it('package.json에 vhk 편의 scripts를 병합한다', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-test-'))
+    const pkgPath = path.join(tmpDir, 'package.json')
+    fs.writeFileSync(pkgPath, JSON.stringify({ name: 'x', scripts: { build: 'tsup' } }), 'utf-8')
+
+    expect(enhancePackageScripts(tmpDir)).toBe(true)
+
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'))
+    expect(pkg.scripts.build).toBe('tsup')
+    expect(pkg.scripts.ship).toBe('vhk ship')
+    expect(pkg.scripts.scan).toBe('vhk secure scan')
+
+    fs.rmSync(tmpDir, { recursive: true })
+  })
+
+  it('COMMANDS.md 템플릿에 필수 명령이 있다', () => {
+    const md = COMMANDS_MD_TEMPLATE()
+    expect(md).toContain('vhk doctor')
+    expect(md).toContain('vhk 보안 scan')
   })
 })

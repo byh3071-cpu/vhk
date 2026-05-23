@@ -3,25 +3,29 @@ import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
 import { getSessionDiff, getRecentCommits, isGitRepo } from '../lib/git.js'
+import { detectAdrCandidates, createAdrFile } from '../lib/adr.js'
+import { ko } from '../i18n/ko.js'
+import { printNextStep } from '../lib/next-step.js'
 
 export type RecapOptions = {
   since?: string
 }
 
 export async function recap(options: RecapOptions = {}) {
-  console.log(chalk.bold('\n📝 VHK RECAP — 세션 기록 자동 생성\n'))
+  console.log(chalk.bold(`\n${ko.recap.title}\n`))
 
   if (!(await isGitRepo())) {
-    console.log(chalk.red('❌ Git 레포가 아닙니다. git init 먼저 실행하세요.'))
+    console.log(chalk.red(ko.recap.noRepo))
     return
   }
 
-  console.log(chalk.dim('📊 Git 변경사항 분석 중...\n'))
-  const diff = await getSessionDiff(options.since)
-  const commits = await getRecentCommits(10, options.since)
+  console.log(chalk.dim(`${ko.recap.analyzing}\n`))
+  const since = options.since || new Date().toISOString().split('T')[0]
+  const diff = await getSessionDiff(since)
+  const commits = await getRecentCommits(10, since)
 
   if (diff.filesChanged === 0 && commits.length === 0) {
-    console.log(chalk.yellow('⚠️ 변경사항이 없습니다. 커밋하거나 파일을 수정한 후 다시 시도하세요.'))
+    console.log(chalk.yellow(ko.recap.noChanges))
     return
   }
 
@@ -54,23 +58,23 @@ export async function recap(options: RecapOptions = {}) {
     {
       type: 'input',
       name: 'summary',
-      message: '📝 이번 세션에서 뭘 했나요? (1~3줄)',
+      message: ko.recap.summary,
     },
     {
       type: 'input',
       name: 'decisions',
-      message: '🧭 내린 결정이 있나요? (없으면 Enter)',
+      message: ko.recap.decisions,
       default: '없음',
     },
     {
       type: 'input',
       name: 'nextTodo',
-      message: '⏭️ 다음 세션에서 할 일은?',
+      message: ko.recap.nextTodo,
     },
     {
       type: 'input',
       name: 'blockers',
-      message: '🚧 블로커가 있나요? (없으면 Enter)',
+      message: ko.recap.blockers,
       default: '없음',
     },
   ])
@@ -124,7 +128,118 @@ export async function recap(options: RecapOptions = {}) {
 
   fs.writeFileSync(filePath, content, 'utf-8')
 
-  console.log(chalk.green.bold('\n✅ 세션 로그 생성 완료!'))
+  const adrCandidates = detectAdrCandidates(diff)
+  if (adrCandidates.length > 0) {
+    console.log(chalk.cyan.bold(`\n${ko.recap.adrDetected} (${adrCandidates.length}건)`))
+
+    for (const candidate of adrCandidates) {
+      console.log(chalk.cyan(`  • ${candidate.title}: ${candidate.context}`))
+      candidate.files.forEach(f => console.log(chalk.dim(`    ${f}`)))
+    }
+
+    const { createAdr } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'createAdr',
+      message: ko.recap.createAdr,
+      default: true,
+    }])
+
+    if (createAdr) {
+      for (const candidate of adrCandidates) {
+        const adrAnswers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'decision',
+            message: `🧭 [${candidate.title}] 어떤 결정을 내렸나요?`,
+          },
+          {
+            type: 'input',
+            name: 'consequences',
+            message: '📝 이 결정의 결과/영향은?',
+            default: '추후 확인',
+          },
+        ])
+
+        const adrPath = createAdrFile(
+          process.cwd(),
+          candidate.title,
+          candidate.context,
+          adrAnswers.decision,
+          adrAnswers.consequences,
+        )
+        console.log(chalk.green(`  ✅ ADR 생성: ${path.relative(process.cwd(), adrPath)}`))
+      }
+    }
+  }
+
+  const troubleshootingKeywords = /fix|bug|error|crash|hotfix|patch|revert|트러블|에러|버그|수정|핫픽스/i
+  const troubleCommits = commits.filter(c => troubleshootingKeywords.test(c.message))
+
+  if (troubleCommits.length > 0) {
+    console.log(chalk.yellow.bold(`\n${ko.recap.troubleDetected} (${troubleCommits.length}건)`))
+    troubleCommits.forEach(c => {
+      console.log(chalk.dim(`  • ${c.message}`))
+    })
+
+    const { createTroubleshoot } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'createTroubleshoot',
+      message: ko.recap.createTroubleshoot,
+      default: true,
+    }])
+
+    if (createTroubleshoot) {
+      const tsDir = path.join(process.cwd(), 'docs', 'troubleshooting')
+      if (!fs.existsSync(tsDir)) fs.mkdirSync(tsDir, { recursive: true })
+
+      const tsAnswers = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'problem',
+          message: '🐛 무슨 문제였나요? (증상)',
+        },
+        {
+          type: 'input',
+          name: 'cause',
+          message: '🔍 원인은?',
+        },
+        {
+          type: 'input',
+          name: 'solution',
+          message: '✅ 어떻게 해결했나요?',
+        },
+      ])
+
+      const tsFileName = `${today}-${tsAnswers.problem.slice(0, 30).replace(/[^a-zA-Z0-9가-힣]/g, '-')}.md`
+      const tsFilePath = path.join(tsDir, tsFileName)
+
+      const tsContent = [
+        `# 트러블슈팅: ${tsAnswers.problem}`,
+        '',
+        `**날짜:** ${today}`,
+        '',
+        '## 증상',
+        tsAnswers.problem,
+        '',
+        '## 원인',
+        tsAnswers.cause,
+        '',
+        '## 해결',
+        tsAnswers.solution,
+        '',
+        '## 관련 커밋',
+        troubleCommits.map(c => `- \`${c.hash.slice(0, 7)}\` ${c.message}`).join('\n'),
+        '',
+        '---',
+        `*Generated by \`vhk recap\` at ${new Date().toISOString()}*`,
+      ].join('\n')
+
+      fs.writeFileSync(tsFilePath, tsContent, 'utf-8')
+      console.log(chalk.green(`  ✅ 트러블슈팅 문서 생성: ${path.relative(process.cwd(), tsFilePath)}`))
+    }
+  }
+
+  console.log(chalk.green.bold(`\n${ko.recap.done}`))
   console.log(chalk.dim(`  📄 ${path.relative(process.cwd(), filePath)}`))
 
   const claudeMdPath = path.join(process.cwd(), 'CLAUDE.md')
@@ -132,7 +247,7 @@ export async function recap(options: RecapOptions = {}) {
     const { updateClaude } = await inquirer.prompt([{
       type: 'confirm',
       name: 'updateClaude',
-      message: 'CLAUDE.md "현재 상태" 섹션도 업데이트할까요?',
+      message: ko.recap.updateClaude,
       default: true,
     }])
 
@@ -151,5 +266,13 @@ export async function recap(options: RecapOptions = {}) {
     }
   }
 
-  console.log(chalk.dim(`\n💡 팁: git add docs/log/ && git commit -m "docs: session recap ${today}"\n`))
+  const gitSaveCmd = process.platform === 'win32'
+    ? 'git add .; git commit -m "recap: 세션 기록"'
+    : 'git add . && git commit -m "recap: 세션 기록"'
+
+  printNextStep({
+    message: '오늘 기록 완료! 저장하고 싶으면:',
+    command: gitSaveCmd,
+    cursorHint: '저장해줘',
+  })
 }

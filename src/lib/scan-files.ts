@@ -1,0 +1,83 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { isPathIgnored, loadGitignore } from './check-secure.js'
+import type { Ignore } from 'ignore'
+
+const IGNORE_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  '.next',
+  '.nuxt',
+  'build',
+  'coverage',
+  'out',
+  '.turbo',
+  '.vercel',
+  '.cache',
+  '.pnpm',
+  '.idea',
+  '.claude',
+  '.cursor',
+])
+
+const SKIP_FILE_NAMES = new Set([
+  'pnpm-lock.yaml',
+  'package-lock.json',
+  'yarn.lock',
+])
+
+const SCAN_EXTENSIONS = new Set([
+  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
+  '.json', '.yaml', '.yml', '.toml',
+])
+
+export const MAX_SCAN_FILE_BYTES = 512 * 1024
+
+export function isScannableFileName(fileName: string): boolean {
+  if (SKIP_FILE_NAMES.has(fileName)) return false
+  if (fileName.startsWith('.env')) return true
+  return SCAN_EXTENSIONS.has(path.extname(fileName).toLowerCase())
+}
+
+export function walkProjectFiles(
+  rootDir: string,
+  onFile: (absolutePath: string, relativePath: string) => void,
+  ig: Ignore = loadGitignore(rootDir)
+) {
+  function walk(dir: string) {
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name)
+      const rel = path.relative(rootDir, fullPath).replace(/\\/g, '/')
+
+      if (entry.isDirectory()) {
+        if (IGNORE_DIRS.has(entry.name)) continue
+        if (isPathIgnored(ig, `${rel}/`)) continue
+        walk(fullPath)
+        continue
+      }
+
+      if (!isScannableFileName(entry.name)) continue
+      if (isPathIgnored(ig, rel)) continue
+
+      let size = 0
+      try {
+        size = fs.statSync(fullPath).size
+      } catch {
+        continue
+      }
+      if (size > MAX_SCAN_FILE_BYTES) continue
+
+      onFile(fullPath, rel)
+    }
+  }
+
+  walk(rootDir)
+}
