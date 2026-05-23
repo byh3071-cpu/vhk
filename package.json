@@ -1,9 +1,10 @@
 {
   "name": "@byh3071/vhk",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "Vibe Harness Kit — 바이브코딩 풀사이클 CLI",
   "bin": {
-    "vhk": "dist/index.js"
+    "vhk": "dist/index.js",
+    "vhk-mcp": "dist/mcp/index.js"
   },
   "type": "module",
   "scripts": {
