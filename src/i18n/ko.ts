@@ -249,6 +249,10 @@ export const ko = {
     changelogMissing:
       'CHANGELOG.md가 없어요. 만들면 ship이 자동으로 [Unreleased] → 버전 섹션으로 옮겨줍니다.',
   },
+  mcp: {
+    initTitle: 'Cursor MCP 연동 설정',
+    serverStarted: 'VHK MCP 서버 시작됨',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)
