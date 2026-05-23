@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { extractPageId } from '../src/notion/extract-page-id.js'
+import { extractPageId } from '../src/lib/notion-import.js'
 import { parseBlocksToPrd, extractProjectNameFromTitle } from '../src/notion/parse-blocks.js'
 import { PRD_TEMPLATE } from '../src/templates/prd.js'
 

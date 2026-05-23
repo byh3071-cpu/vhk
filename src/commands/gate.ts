@@ -1,6 +1,7 @@
 import inquirer from 'inquirer'
 import chalk from 'chalk'
 import { ko } from '../i18n/ko.js'
+import { printNextStep } from '../lib/next-step.js'
 
 export type GateMode = 'full' | 'quick' | 'skip'
 export type GateStatus = 'pass' | 'hold' | 'fail'
@@ -20,7 +21,7 @@ export const GATE_QUESTIONS: GateQuestion[] = [
   { id: 2,  stage: '핵심 기능', question: '딱 1개 기능만 고르면?', failIf: '2개 이상 → 범위 초과', quick: true },
   { id: 3,  stage: '수요 검증', question: '타겟이 모이는 커뮤니티 3곳은?', failIf: '0곳 → 시장 접점 부재', quick: true, hint: '예: 인디해커스, 트위터 #buildinpublic, 디스코드' },
   { id: 4,  stage: '기획',     question: 'v1 기능 목록 5개 이내로 정리해보세요.', failIf: '5개 초과 → 오버엔지니어링' },
-  { id: 5,  stage: '설계',     question: '핵심 API/DB 스키마 3개 이내로?', failIf: '복잡도 초과' },
+  { id: 5,  stage: '설계',     question: '데이터를 저장할 곳이 떠오르시나요?', failIf: '모르면 보류해도 됩니다', hint: '예: 사용자 목록은 DB, 로그인은 Supabase — 모르면 "보류"' },
   { id: 6,  stage: '개발',     question: '3일 안에 코어 완성 가능한가?', failIf: '불가능 → 범위 축소 필요', quick: true },
   { id: 7,  stage: '디자인',   question: '레퍼런스 UI 1개 지정할 수 있나?', failIf: '없으면 → 방향 미정' },
   { id: 8,  stage: '배포',     question: '배포 플랫폼 + 도메인 확정했나?', failIf: '미정 → 배포 지연 예고' },
@@ -70,10 +71,21 @@ export async function gate() {
 
   console.log(chalk.dim(`\n${header} ${ko.gate.modeCountSuffix(total)}\n`))
 
-  const { idea, painPoint, edge } = await inquirer.prompt<{ idea: string; painPoint: string; edge: string }>([
-    { type: 'input', name: 'idea',      message: ko.gate.idea },
+  console.log(chalk.dim(`\n${ko.gate.welcome}\n`))
+
+  console.log(chalk.dim(`  ${ko.gate.ideaHint}`))
+  const { idea } = await inquirer.prompt<{ idea: string }>([
+    { type: 'input', name: 'idea', message: ko.gate.idea },
+  ])
+
+  console.log(chalk.dim(`  ${ko.gate.painPointHint}`))
+  const { painPoint } = await inquirer.prompt<{ painPoint: string }>([
     { type: 'input', name: 'painPoint', message: ko.gate.painPoint },
-    { type: 'input', name: 'edge',      message: ko.gate.edge },
+  ])
+
+  console.log(chalk.dim(`  ${ko.gate.edgeHint}`))
+  const { edge } = await inquirer.prompt<{ edge: string }>([
+    { type: 'input', name: 'edge', message: ko.gate.edge },
   ])
 
   console.log(chalk.dim(`\n${ko.gate.checklistStart}\n`))
@@ -123,12 +135,21 @@ export async function gate() {
 
   if (verdict === 'GO') {
     console.log(chalk.green.bold(ko.gate.go))
-    console.log(chalk.green(ko.gate.nextCommand))
     if (holdCount > 0) {
       console.log(chalk.yellow(ko.gate.holdRemainHint))
     }
+    printNextStep({
+      message: '아이디어 통과! 이제 프로젝트를 만들어보세요.',
+      command: 'vhk 시작',
+      cursorHint: '프로젝트 만들어줘',
+    })
   } else if (verdict === 'REFINE') {
     console.log(chalk.yellow.bold(ko.gate.refine))
+    printNextStep({
+      message: '조금 더 다듬은 후 다시 검증해보세요.',
+      command: 'vhk 검증',
+      cursorHint: '아이디어 다시 검증해줘',
+    })
   } else {
     console.log(chalk.red.bold(ko.gate.drop))
   }

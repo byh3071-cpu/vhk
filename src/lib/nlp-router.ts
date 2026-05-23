@@ -1,0 +1,171 @@
+export type NlpCommand =
+  | 'gate'
+  | 'init'
+  | 'recap'
+  | 'sync'
+  | 'check'
+  | 'secure'
+  | 'ship'
+  | 'doctor'
+  | 'save'
+  | 'undo'
+  | 'diff'
+  | 'status'
+
+export type NlpConfidence = 'high' | 'low'
+
+export type NlpRoute = {
+  command: NlpCommand
+  explanation: string
+  confidence: NlpConfidence
+  args?: string[]
+}
+
+type NlpRule = {
+  command: NlpCommand
+  explanation: string
+  confidence: NlpConfidence
+  args?: string[]
+  test: (normalized: string) => boolean
+}
+
+function normalize(input: string): string {
+  return input.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** 자연어 → 명령 매칭용 키워드 (부분 문자열) */
+export const NLP_KEYWORDS: Partial<Record<NlpCommand, readonly string[]>> = {
+  save: ['저장', '세이브', '커밋', '올려', '올리기', '푸시', 'push', 'commit'],
+  undo: ['되돌려', '되돌리기', '취소', '원래대로', '롤백', '리셋', 'reset', 'rollback'],
+  status: ['상태', '현황', '어떻게', '어때', '지금'],
+  diff: ['변경', '바뀐', '뭐바뀜', '차이', '달라진', '수정된'],
+}
+
+function matchesKeywords(text: string, command: NlpCommand): boolean {
+  const keywords = NLP_KEYWORDS[command]
+  if (!keywords) return false
+  return keywords.some(kw => text.includes(kw.toLowerCase()))
+}
+
+const RULES: NlpRule[] = [
+  {
+    command: 'init',
+    explanation: '검증 스킵하고 바로 프로젝트 시작 (vhk 시작 --skip-gate)',
+    confidence: 'high',
+    args: ['--skip-gate'],
+    test: t =>
+      /기획.*(끝|완료)|노션.*(기획|완료)|검증.*(스킵|건너)|gate.*(스킵|건너)|바로.*시작/.test(t),
+  },
+  {
+    command: 'init',
+    explanation: 'Notion에서 가져와 프로젝트 시작 (vhk 시작 --from-notion)',
+    confidence: 'low',
+    args: ['--from-notion'],
+    test: t => /노션|notion/.test(t) && /(시작|만들|import|가져)/.test(t),
+  },
+  {
+    command: 'init',
+    explanation: '프로젝트 시작 (vhk 시작)',
+    confidence: 'high',
+    test: t =>
+      /프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t),
+  },
+  {
+    command: 'secure',
+    explanation: '보안 스캔 (vhk 보안)',
+    confidence: 'high',
+    test: t => /보안|시크릿|비밀|키\s*유출|secure|scan/.test(t),
+  },
+  {
+    command: 'check',
+    explanation: '규칙 점검 (vhk 점검)',
+    confidence: 'high',
+    test: t => /규칙.*(점검|위반)|린트|check|위반/.test(t),
+  },
+  {
+    command: 'doctor',
+    explanation: '환경 점검 (vhk doctor)',
+    confidence: 'high',
+    test: t =>
+      /뭔가\s*안|안\s*돼|안돼|환경\s*(점검|진단|확인)|진단|doctor|설치.*확인|왜\s*안/.test(t),
+  },
+  {
+    command: 'diff',
+    explanation: '변경사항 요약 (vhk diff)',
+    confidence: 'high',
+    test: t =>
+      (matchesKeywords(t, 'diff') || /^diff$/.test(t) || /변경사항|수정\s*내역|차이\s*보/.test(t)) &&
+      !/저장|커밋|push|푸시|상태|현황|세이브|commit/.test(t),
+  },
+  {
+    command: 'undo',
+    explanation: '최근 커밋 되돌리기 (vhk 되돌리기)',
+    confidence: 'high',
+    test: t => matchesKeywords(t, 'undo') || /undo|커밋\s*취/.test(t),
+  },
+  {
+    command: 'status',
+    explanation: '프로젝트 상태 확인 (vhk 상태)',
+    confidence: 'high',
+    test: t =>
+      (matchesKeywords(t, 'status') ||
+        /^status$/.test(t) ||
+        /브랜치.*(뭐|어디)|git\s*상태|동기화\s*상태|프로젝트\s*상태/.test(t)) &&
+      !/보안|시크릿|규칙|점검|린트|환경|진단|doctor|secure|check|스캔|설치/.test(t),
+  },
+  {
+    command: 'save',
+    explanation: 'Git에 저장 (vhk 저장)',
+    confidence: 'high',
+    test: t =>
+      (matchesKeywords(t, 'save') || /깃허브|github/.test(t)) &&
+      !/정리|recap|되돌|취소|rollback|reset|리셋|롤백|원래대로/.test(t),
+  },
+  {
+    command: 'recap',
+    explanation: '오늘 한 일 정리 (vhk 정리)',
+    confidence: 'high',
+    test: t => /오늘.*(정리|기록)|한\s*일|세션|회고|recap|정리해/.test(t),
+  },
+  {
+    command: 'gate',
+    explanation: '아이디어 검증 (vhk 검증)',
+    confidence: 'high',
+    test: t => /아이디어|검증|gate|go\/refine|pain\s*point/.test(t),
+  },
+  {
+    command: 'sync',
+    explanation: '규칙 파일 동기화 (vhk 규칙)',
+    confidence: 'high',
+    test: t => /규칙.*(맞|동기)|sync|cursorrules|claude\.md.*맞/.test(t),
+  },
+  {
+    command: 'ship',
+    explanation: '배포 체크 + 회고 (vhk ship)',
+    confidence: 'high',
+    test: t => /배포|출시|릴리스|ship|빌드\s*전/.test(t),
+  },
+]
+
+export function routeNaturalLanguage(input: string): NlpRoute | null {
+  const normalized = normalize(input)
+  if (!normalized) return null
+
+  for (const rule of RULES) {
+    if (rule.test(normalized)) {
+      return {
+        command: rule.command,
+        explanation: rule.explanation,
+        confidence: rule.confidence,
+        args: rule.args,
+      }
+    }
+  }
+
+  return null
+}
+
+export function extractNotionUrl(input: string): string | undefined {
+  const m = input.match(/https?:\/\/[^\s]+/i)
+  return m?.[0]
+}

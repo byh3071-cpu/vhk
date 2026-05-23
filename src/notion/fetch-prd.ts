@@ -1,78 +1,60 @@
-import { Client } from '@notionhq/client'
-import type { BlockObjectResponse, PageObjectResponse } from '@notionhq/client/build/src/api-endpoints.js'
 import type { PrdContent } from '../types/prd.js'
-import { extractPageId } from './extract-page-id.js'
-import { extractProjectNameFromTitle, parseBlocksToPrd } from './parse-blocks.js'
-
-type Block = BlockObjectResponse
-
-function getPageTitle(page: PageObjectResponse): string {
-  const props = page.properties
-  for (const prop of Object.values(props)) {
-    if (prop.type === 'title') {
-      return prop.title.map(t => t.plain_text).join('')
-    }
-  }
-  return 'Untitled'
-}
-
-async function fetchAllBlocks(client: Client, blockId: string): Promise<Block[]> {
-  const blocks: Block[] = []
-  let cursor: string | undefined
-
-  do {
-    const response = await client.blocks.children.list({
-      block_id: blockId,
-      start_cursor: cursor,
-      page_size: 100,
-    })
-
-    for (const block of response.results) {
-      if (!('type' in block)) continue
-      blocks.push(block as Block)
-
-      if (block.has_children && block.type !== 'child_page' && block.type !== 'child_database') {
-        const children = await fetchAllBlocks(client, block.id)
-        blocks.push(...children)
-      }
-    }
-
-    cursor = response.has_more ? response.next_cursor ?? undefined : undefined
-  } while (cursor)
-
-  return blocks
-}
+import { importNotionPrd } from '../lib/notion-import.js'
+import { extractProjectNameFromTitle } from './parse-blocks.js'
 
 export type NotionPrdResult = {
   projectName: string
   prd: Partial<PrdContent>
 }
 
-export async function fetchPrdFromNotion(urlOrId: string): Promise<NotionPrdResult> {
-  const token = process.env.NOTION_TOKEN
-  if (!token) {
-    throw new Error(
-      'NOTION_TOKEN 환경변수가 필요합니다.\n' +
-      '  1. https://www.notion.so/my-integrations 에서 Integration 생성\n' +
-      '  2. PRD 페이지에 Integration 연결\n' +
-      '  3. $env:NOTION_TOKEN = "secret_xxx" 설정'
-    )
+function sectionsToPrdContent(sections: Record<string, string>): Partial<PrdContent> {
+  const prd: Partial<PrdContent> = {}
+
+  for (const [heading, content] of Object.entries(sections)) {
+    if (heading.includes('한 줄')) prd.tagline = content
+    else if (heading.includes('문제')) prd.problem = content
+    else if (heading.includes('해결')) prd.solution = content
+    else if (heading.includes('v1 IN')) {
+      prd.v1In = content
+        .split('\n')
+        .map(l => l.replace(/^[-*]\s*/, '').trim())
+        .filter(Boolean)
+        .map((feature, i) => ({
+          feature,
+          description: '',
+          priority: i < 2 ? 'P0' : 'P1',
+        }))
+    } else if (heading.includes('v1 OUT')) {
+      prd.v1Out = content
+        .split('\n')
+        .map(l => l.replace(/^[-*]\s*/, '').trim())
+        .filter(Boolean)
+    } else if (heading.includes('화면')) {
+      prd.screens = content
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean)
+        .map(line => {
+          const [screen, ...rest] = line.split(/\s*[|—]\s*/)
+          return { screen: screen?.trim() ?? line, elements: rest.join(' ').trim() }
+        })
+    } else if (heading.includes('성공')) {
+      prd.metrics = content
+        .split('\n')
+        .map(l => l.replace(/^[-*]\s*/, '').trim())
+        .filter(Boolean)
+    }
   }
 
-  const pageId = extractPageId(urlOrId)
-  const client = new Client({ auth: token })
+  return prd
+}
 
-  const page = await client.pages.retrieve({ page_id: pageId }) as PageObjectResponse
-  const title = getPageTitle(page)
-  const blocks = await fetchAllBlocks(client, pageId)
-  const prd = parseBlocksToPrd(blocks)
+export async function fetchPrdFromNotion(urlOrId: string): Promise<NotionPrdResult> {
+  const { title, sections } = await importNotionPrd(urlOrId)
+  const prd = sectionsToPrdContent(sections)
 
-  if (!prd.tagline) {
-    const firstParagraph = blocks.find(b => b.type === 'paragraph')
-    if (firstParagraph && 'paragraph' in firstParagraph) {
-      const text = firstParagraph.paragraph.rich_text.map(t => t.plain_text).join('')
-      if (text) prd.tagline = text
-    }
+  if (!prd.tagline && sections['## 한 줄 정의']) {
+    prd.tagline = sections['## 한 줄 정의']
   }
 
   return {
