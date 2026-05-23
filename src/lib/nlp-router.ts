@@ -38,7 +38,7 @@ export const NLP_KEYWORDS: Partial<Record<NlpCommand, readonly string[]>> = {
   save: ['저장', '세이브', '커밋', '올려', '올리기', '푸시', 'push', 'commit'],
   undo: ['되돌려', '되돌리기', '취소', '원래대로', '롤백', '리셋', 'reset', 'rollback'],
   status: ['상태', '현황', '어떻게', '어때', '지금'],
-  diff: ['변경', '바뀐', '뭐바뀜', '차이', '달라진', '수정된'],
+  diff: ['변경', '바뀐', '뭐바뀜', '바뀌었', '차이', '달라진', '수정된'],
 }
 
 function matchesKeywords(text: string, command: NlpCommand): boolean {
@@ -94,7 +94,7 @@ const RULES: NlpRule[] = [
     explanation: '변경사항 요약 (vhk diff)',
     confidence: 'high',
     test: t =>
-      (matchesKeywords(t, 'diff') || /^diff$/.test(t) || /변경사항|수정\s*내역|차이\s*보/.test(t)) &&
+      (matchesKeywords(t, 'diff') || /^diff$/.test(t) || /변경사항|수정\s*내역|차이\s*보|뭐\s*바뀌/.test(t)) &&
       !/저장|커밋|push|푸시|상태|현황|세이브|commit/.test(t),
   },
   {

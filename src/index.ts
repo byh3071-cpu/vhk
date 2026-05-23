@@ -1,7 +1,8 @@
 import { Command, Help } from 'commander'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
-import { routeNaturalLanguage, extractNotionUrl } from './lib/nlp-router.js'
+import { detectNaturalLanguageInput } from './lib/cli-args.js'
+import { runNaturalLanguageRoute } from './lib/nlp-run.js'
 import { ko } from './i18n/ko.js'
 import { gate } from './commands/gate.js'
 import { init } from './commands/init.js'
@@ -37,7 +38,7 @@ const KO_ALIASES: Record<string, string> = {
 program
   .name('vhk')
   .description('VHK — 바이브코딩 프로젝트 코치 (한국어로 안내합니다)')
-  .version('0.5.1')
+  .version('0.5.2')
 
 program.configureHelp({
   formatHelp(cmd, helper) {
@@ -161,62 +162,10 @@ program
   .action(diff)
 
 program.on('command:*', async (operands: string[]) => {
-  const input = operands.join(' ')
-  const route = routeNaturalLanguage(input)
-
-  if (route) {
-    console.log('')
-    console.log(chalk.cyan(`  💬 "${input}"`))
-    console.log(chalk.cyan(`  → ${route.explanation}`))
-
-    if (route.confidence === 'low') {
-      const { confirm } = await inquirer.prompt([{
-        type: 'confirm',
-        name: 'confirm',
-        message: `${route.explanation} — ${ko.nlp.matched}`,
-        default: true,
-      }])
-      if (!confirm) {
-        console.log(chalk.dim(`  ${ko.nlp.menuHint}`))
-        return
-      }
-    }
-    console.log('')
-
-    switch (route.command) {
-      case 'gate':
-        return gate()
-      case 'init':
-        return init({
-          skipGate: route.args?.includes('--skip-gate'),
-          fromNotion: route.args?.includes('--from-notion')
-            ? extractNotionUrl(input)
-            : undefined,
-        })
-      case 'recap':
-        return recap({})
-      case 'sync':
-        return sync()
-      case 'check':
-        return check()
-      case 'secure':
-        return secure()
-      case 'ship':
-        return ship()
-      case 'doctor':
-        return doctor()
-      case 'save':
-        return save()
-      case 'undo':
-        return undo()
-      case 'status':
-        return status()
-      case 'diff':
-        return diff()
-    }
-  }
-
-  console.log(chalk.yellow(`\n  ❓ "${input}" — ${ko.nlp.notMatched}\n`))
+  const unknown = operands[0] ?? ''
+  const rest = operands.slice(1)
+  const input = [unknown, ...rest].join(' ').trim()
+  await runNaturalLanguageRoute(input)
 })
 
 program.action(async () => {
@@ -270,4 +219,9 @@ program.action(async () => {
   }
 })
 
-await program.parseAsync(process.argv)
+const nlInput = detectNaturalLanguageInput(process.argv)
+if (nlInput !== null) {
+  await runNaturalLanguageRoute(nlInput)
+} else {
+  await program.parseAsync(process.argv)
+}
