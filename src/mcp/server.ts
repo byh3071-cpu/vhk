@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { execSync } from 'node:child_process'
+import { execSync, execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
 const SERVER_VERSION = '0.6.0'
@@ -9,6 +9,22 @@ const SERVER_VERSION = '0.6.0'
 function safeExec(cmd: string): { ok: true; out: string } | { ok: false; err: string } {
   try {
     const out = execSync(cmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).toString()
+    return { ok: true, out: out.trim() }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { ok: false, err: msg }
+  }
+}
+
+function safeExecFile(
+  cmd: string,
+  args: string[]
+): { ok: true; out: string } | { ok: false; err: string } {
+  try {
+    const out = execFileSync(cmd, args, {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).toString()
     return { ok: true, out: out.trim() }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -50,13 +66,12 @@ export function createVhkMcpServer(): McpServer {
       const now = new Date()
       const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
-      const escaped = commitMsg.replace(/"/g, '\\"')
 
       const add = safeExec('git add .')
       if (!add.ok) {
         return { content: [{ type: 'text', text: `❌ git add 실패: ${add.err}` }] }
       }
-      const commit = safeExec(`git commit -m "${escaped}"`)
+      const commit = safeExecFile('git', ['commit', '-m', commitMsg])
       if (!commit.ok) {
         return { content: [{ type: 'text', text: `❌ commit 실패: ${commit.err}` }] }
       }
@@ -272,7 +287,7 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
       const n = count && count > 0 ? Math.floor(count) : 10
-      const log = safeExec(`git log --oneline -${n}`)
+      const log = safeExecFile('git', ['log', '--oneline', `-${n}`])
       if (!log.ok) {
         return { content: [{ type: 'text', text: `❌ git log 실패: ${log.err}` }] }
       }
