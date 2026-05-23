@@ -4,6 +4,24 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+---
+
+## [0.6.0] — 2026-05-24
+
+### Added
+- **MCP 서버 (`vhk mcp`)** — 8개 도구(save/undo/status/diff/ship/doctor/check/recap) stdio 노출. Cursor 등 MCP 클라이언트에서 자연어로 호출
+- **`vhk mcp-init`** — Cursor `.cursor/mcp.json` 자동 생성. 재시작 한 번으로 연동 완료
+- 자연어 라우팅에 `mcp설정` → `mcp-init` 키워드 추가
+- `package.json` `bin`에 `vhk-mcp` 별도 엔트리 추가
+- v0.5.x → v0.6.0 버전 업
+
+### Security
+- MCP `save` 도구의 shell injection 취약점 차단 — 모든 git 호출에 `execFileSync` 사용 ([aed5b47](https://github.com/byh3071-cpu/vhk/commit/aed5b47))
+
+---
+
+## [0.5.3] — 2026-05-23
+
 ### Added
 - `CHANGELOG.md` 신설 — 릴리즈마다 자동 갱신
 - `doctor` 명령에 npm 최신 버전 비교 — 새 버전 안내 한 줄
@@ -72,7 +90,9 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/byh3071-cpu/vhk/compare/v0.5.3...v0.6.0
+[0.5.3]: https://github.com/byh3071-cpu/vhk/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/byh3071-cpu/vhk/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/byh3071-cpu/vhk/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/byh3071-cpu/vhk/compare/v0.4.0...v0.5.0
