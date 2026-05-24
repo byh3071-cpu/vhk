@@ -5,23 +5,29 @@ describe('lib/exec', () => {
     const { platformCmd } = await import('../src/lib/exec.js')
     // process.platform이 win32일 때 .cmd 부착
     const original = process.platform
-    Object.defineProperty(process, 'platform', { value: 'win32' })
-    expect(platformCmd('pnpm')).toBe('pnpm.cmd')
-    expect(platformCmd('npm')).toBe('npm.cmd')
-    expect(platformCmd('npx')).toBe('npx.cmd')
-    expect(platformCmd('yarn')).toBe('yarn.cmd')
-    expect(platformCmd('git')).toBe('git')
-    expect(platformCmd('node')).toBe('node')
-    Object.defineProperty(process, 'platform', { value: original })
+    try {
+      Object.defineProperty(process, 'platform', { value: 'win32' })
+      expect(platformCmd('pnpm')).toBe('pnpm.cmd')
+      expect(platformCmd('npm')).toBe('npm.cmd')
+      expect(platformCmd('npx')).toBe('npx.cmd')
+      expect(platformCmd('yarn')).toBe('yarn.cmd')
+      expect(platformCmd('git')).toBe('git')
+      expect(platformCmd('node')).toBe('node')
+    } finally {
+      Object.defineProperty(process, 'platform', { value: original })
+    }
   })
 
   it('platformCmd: 비 Windows에서는 그대로 반환', async () => {
     const { platformCmd } = await import('../src/lib/exec.js')
     const original = process.platform
-    Object.defineProperty(process, 'platform', { value: 'linux' })
-    expect(platformCmd('pnpm')).toBe('pnpm')
-    expect(platformCmd('git')).toBe('git')
-    Object.defineProperty(process, 'platform', { value: original })
+    try {
+      Object.defineProperty(process, 'platform', { value: 'linux' })
+      expect(platformCmd('pnpm')).toBe('pnpm')
+      expect(platformCmd('git')).toBe('git')
+    } finally {
+      Object.defineProperty(process, 'platform', { value: original })
+    }
   })
 
   it('safeExecFile: 성공 시 ok=true와 trim된 out 반환', async () => {
