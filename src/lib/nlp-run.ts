@@ -28,11 +28,18 @@ import { update } from '../commands/update.js'
 import { context, contextShow } from '../commands/context.js'
 import { memoryList } from '../commands/memory.js'
 import { brief } from '../commands/brief.js'
+import { start } from '../commands/start.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
     case 'gate':
       return gate()
+    case 'start':
+      return start({
+        fromNotion: route.args?.includes('--from-notion')
+          ? extractNotionUrl(input)
+          : undefined,
+      })
     case 'init':
       return init({
         skipGate: route.args?.includes('--skip-gate'),

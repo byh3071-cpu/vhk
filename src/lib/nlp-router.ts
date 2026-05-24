@@ -1,5 +1,6 @@
 export type NlpCommand =
   | 'gate'
+  | 'start'
   | 'init'
   | 'recap'
   | 'sync'
@@ -66,27 +67,26 @@ function matchesKeywords(text: string, command: NlpCommand): boolean {
 
 const RULES: NlpRule[] = [
   {
-    command: 'init',
-    explanation: '검증 스킵하고 바로 프로젝트 시작 (vhk 시작 --skip-gate)',
-    confidence: 'high',
-    args: ['--skip-gate'],
-    test: t =>
-      /기획.*(끝|완료)|노션.*(기획|완료)|검증.*(스킵|건너)|gate.*(스킵|건너)|바로.*시작/.test(t),
-  },
-  {
-    command: 'init',
-    explanation: 'Notion에서 가져와 프로젝트 시작 (vhk 시작 --from-notion)',
+    command: 'start',
+    explanation: '노션에서 가져와 새 프로젝트 시작 마법사 (vhk start --from-notion)',
     confidence: 'low',
     args: ['--from-notion'],
     test: t => /노션|notion/.test(t) && /(시작|만들|import|가져)/.test(t),
   },
   {
-    command: 'init',
-    explanation: '프로젝트 시작 (vhk 시작)',
+    command: 'start',
+    explanation: '새 프로젝트 시작 마법사 — git+문서+MCP+컨텍스트 (vhk start)',
     confidence: 'high',
     test: t =>
-      (/프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t)) &&
-      !/디자인|design|팔레트|palette|테마|theme|레퍼런스|reference|다크\s*모드|라이트\s*모드|색상\s*모드|브리핑|brief|컨텍스트|context|맥락|기억|memory/.test(t),
+      (/프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|새\s*프로젝트|^시작$|마법사|기획.*(끝|완료)|검증.*(스킵|건너)|gate.*(스킵|건너)|바로.*시작/.test(t)) &&
+      !/디자인|design|팔레트|palette|테마|theme|레퍼런스|reference|다크\s*모드|라이트\s*모드|색상\s*모드|브리핑|brief|컨텍스트|context|맥락|기억|memory|^초기화$|하네스.*만/.test(t),
+  },
+  {
+    command: 'init',
+    explanation: '문서/하네스 파일만 생성 (vhk init) — git/MCP/context는 제외',
+    confidence: 'high',
+    test: t =>
+      /^init$|^초기화$|하네스\s*만|문서\s*만\s*만들|init\s*만/.test(t),
   },
   {
     command: 'mcp-init',

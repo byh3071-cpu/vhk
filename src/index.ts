@@ -32,13 +32,15 @@ import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
 import { brief } from './commands/brief.js'
+import { start } from './commands/start.js'
 
 const program = new Command()
 const defaultHelp = new Help()
 
 const KO_ALIASES: Record<string, string> = {
   gate: '검증',
-  init: '시작',
+  start: '시작',
+  init: '초기화',
   recap: '정리',
   sync: '규칙',
   check: '점검',
@@ -107,12 +109,25 @@ program
   .description('아이디어 검증 → 시작해도 돼요 / 다듬기 / 다른 아이디어')
   .action(gate)
 
-// 2단계 — 프로젝트 시작
+// 2단계 — 프로젝트 시작 (올인원 마법사: git + init + mcp-init + context)
+program
+  .command('start')
+  .alias('시작')
+  .alias('새프로젝트')
+  .description('새 프로젝트 시작 마법사 — git init + 문서 + MCP + 컨텍스트 한 번에')
+  .option('--from-notion <url>', 'Notion PRD 페이지에서 import')
+  .option('--name <name>', '프로젝트 이름')
+  .option('--description <desc>', '한 줄 설명')
+  .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile)')
+  .option('-y, --yes', '모든 확인 스킵 (자동 yes)')
+  .action(start)
+
+// 2단계(저수준) — 문서/하네스만 생성. 일반 사용자는 'vhk start' 권장.
 program
   .command('init')
-  .alias('시작')
+  .alias('초기화')
   .alias('만들기')
-  .description('프로젝트 시작하기 — 폴더 + 하네스 파일 자동 생성')
+  .description('하네스 파일만 생성 (git/MCP/context는 제외) — 보통 vhk start 권장')
   .option('--skip-gate', 'gate 검증 스킵')
   .option('--from-notion <url>', 'Notion PRD 페이지에서 import')
   .option('--name <name>', '프로젝트 이름')
@@ -364,7 +379,7 @@ program.action(async () => {
     message: '뭘 도와드릴까요?',
     choices: [
       { name: '💡 새 아이디어 검증하기', value: 'gate' },
-      { name: '📦 프로젝트 시작하기', value: 'init' },
+      { name: '🚀 새 프로젝트 시작 마법사 (start)', value: 'start' },
       { name: '📝 오늘 한 일 정리하기', value: 'recap' },
       { name: '🔍 규칙 파일 점검하기', value: 'check' },
       { name: '🔒 보안 스캔 돌리기', value: 'secure' },
@@ -381,8 +396,8 @@ program.action(async () => {
   switch (choice) {
     case 'gate':
       return gate()
-    case 'init':
-      return init({ skipGate: false })
+    case 'start':
+      return start()
     case 'recap':
       return recap({})
     case 'check':
