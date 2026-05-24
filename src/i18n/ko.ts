@@ -260,6 +260,10 @@ export const ko = {
     addTitle: '레퍼런스 추가',
     listTitle: '레퍼런스 목록',
   },
+  memory: {
+    addTitle: '기억 추가',
+    listTitle: '기억 목록',
+  },
   mcp: {
     initTitle: 'Cursor MCP 연동 설정',
     serverStarted: 'VHK MCP 서버 시작됨',
@@ -300,6 +304,13 @@ export const ko = {
   },
   update: {
     title: 'VHK CLI 업데이트',
+  },
+  context: {
+    title: '프로젝트 컨텍스트 생성',
+    showTitle: '컨텍스트 파일',
+  },
+  brief: {
+    title: '프로젝트 브리핑',
   },
 } as const
 

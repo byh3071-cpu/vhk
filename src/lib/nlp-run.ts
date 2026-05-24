@@ -25,6 +25,9 @@ import { harness } from '../commands/harness.js'
 import { audit } from '../commands/audit.js'
 import { migrate } from '../commands/migrate.js'
 import { update } from '../commands/update.js'
+import { context, contextShow } from '../commands/context.js'
+import { memoryList } from '../commands/memory.js'
+import { brief } from '../commands/brief.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -83,6 +86,14 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return migrate()
     case 'update':
       return update()
+    case 'context':
+      return context()
+    case 'context-show':
+      return contextShow()
+    case 'memory':
+      return memoryList()
+    case 'brief':
+      return brief()
   }
 }
 

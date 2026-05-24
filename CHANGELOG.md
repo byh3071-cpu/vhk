@@ -6,6 +6,29 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ---
 
+## [1.0.0] — 2026-05-24 — GA 🎉
+
+### Added
+- `vhk context` — 프로젝트 디렉토리 트리(3-depth) + 기술 스택 자동 감지(Next/Nuxt/React/Vue/Svelte/TS/Tailwind/tsup/Vite/webpack/vitest/jest/commander/inquirer + pnpm/yarn/npm) + VHK 명령어 목록을 `.vhk/context.md` 마크다운으로 자동 생성. AI 어시스턴트의 프로젝트 맥락 파악용
+- `vhk context-show` — 현재 컨텍스트 파일 내용 출력
+- `vhk memory add|list|remove` — `.vhk/memory.json` 기반 결정사항 기억 관리. `--tags` 옵션으로 태그 지원. NL은 list만 (add/remove는 인자 필수 → commander 전용)
+- `vhk brief` — 프로젝트 정보 + git 상태(브랜치·마지막 커밋·미커밋 변경) + 최근 결정사항 5건 + 레퍼런스 3건 통합 보고서 `.vhk/brief.md` 생성 + 콘솔 출력. `safeExecFile` 기반 (Windows .cmd shim 안전)
+- 자연어 라우터에 context/context-show/memory(list)/brief 키워드 추가 — `"맥락 만들어줘"`, `"컨텍스트 보여줘"`, `"기억 목록"`, `"프로젝트 브리핑 만들어줘"`, `"상태 요약 보여줘"` 등 9건
+- README에 v1.0 GA 정책 섹션 + 전체 30+ 명령어 한국어 별칭 표
+
+### Changed
+- 버전: 0.9.1 → 1.0.0 (GA)
+- `nlp-router` init 룰에 v1.0 신규 키워드 negation guard 추가 (`브리핑|brief|컨텍스트|context|맥락|기억|memory`) — `"프로젝트 브리핑 만들어줘"`가 init에 잘못 매칭되던 문제 차단
+
+### Stability — v1.0 GA 공개 API 약속
+- 명령어 이름, CLI 인자, `.vhk/` 파일 포맷은 v2.0까지 breaking change 없음
+- 신규 명령 추가는 마이너 버전(1.x.0)으로 진행
+- deprecation은 제거 전 1개 마이너 버전에서 경고
+- i18n 키(`ko.ts`)는 누적만, 기존 키 미제거
+- MCP 도구 8개 인터페이스 안정
+
+---
+
 ## [0.9.0] — 2026-05-24
 
 ### Added
@@ -151,7 +174,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/byh3071-cpu/vhk/compare/v0.9.1...v1.0.0
 [0.9.0]: https://github.com/byh3071-cpu/vhk/compare/v0.8.1...v0.9.0
 [0.8.0]: https://github.com/byh3071-cpu/vhk/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/byh3071-cpu/vhk/compare/v0.7.0...v0.7.1

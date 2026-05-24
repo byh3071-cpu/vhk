@@ -149,4 +149,36 @@ describe('자연어 라우팅', () => {
   it('"vhk 업데이트 해줘" → update', () => {
     expect(routeNaturalLanguage('vhk 업데이트 해줘')?.command).toBe('update')
   })
+
+  it('"맥락 만들어줘" → context', () => {
+    expect(routeNaturalLanguage('맥락 만들어줘')?.command).toBe('context')
+  })
+
+  it('"컨텍스트 보여줘" → context-show', () => {
+    expect(routeNaturalLanguage('컨텍스트 보여줘')?.command).toBe('context-show')
+  })
+
+  it('"맥락 보여줘" → context-show (context 아님)', () => {
+    expect(routeNaturalLanguage('맥락 보여줘')?.command).toBe('context-show')
+  })
+
+  it('"기억 목록" → memory', () => {
+    expect(routeNaturalLanguage('기억 목록')?.command).toBe('memory')
+  })
+
+  it('"기억 추가해줘" → null (NL 배제)', () => {
+    expect(routeNaturalLanguage('기억 추가해줘')).toBeNull()
+  })
+
+  it('"프로젝트 브리핑 만들어줘" → brief', () => {
+    expect(routeNaturalLanguage('프로젝트 브리핑 만들어줘')?.command).toBe('brief')
+  })
+
+  it('"상태 요약 보여줘" → brief', () => {
+    expect(routeNaturalLanguage('상태 요약 보여줘')?.command).toBe('brief')
+  })
+
+  it('"오늘 한 일 정리" → recap (brief 아님)', () => {
+    expect(routeNaturalLanguage('오늘 한 일 정리')?.command).toBe('recap')
+  })
 })

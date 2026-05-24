@@ -31,6 +31,9 @@ import { harness } from './commands/harness.js'
 import { audit } from './commands/audit.js'
 import { migrate } from './commands/migrate.js'
 import { update } from './commands/update.js'
+import { context, contextShow } from './commands/context.js'
+import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
+import { brief } from './commands/brief.js'
 
 // 런타임에 package.json에서 버전 읽기 — src와 dist 둘 다 동작.
 // dist/index.js: ../package.json (npm 글로벌 + 로컬 빌드 동일)
@@ -78,6 +81,10 @@ const KO_ALIASES: Record<string, string> = {
   audit: '감사',
   migrate: '전환',
   update: '업데이트',
+  context: '맥락',
+  'context-show': '맥락보기',
+  memory: '기억',
+  brief: '브리핑',
 }
 
 program
@@ -315,6 +322,51 @@ program
   .alias('업데이트')
   .description('VHK CLI 최신 버전 업데이트')
   .action(async () => { await update() })
+
+program
+  .command('context')
+  .alias('맥락')
+  .description('프로젝트 맥락 파일 생성 (.vhk/context.md)')
+  .action(async () => { await context() })
+
+program
+  .command('context-show')
+  .alias('맥락보기')
+  .description('현재 컨텍스트 파일 내용 출력')
+  .action(async () => { await contextShow() })
+
+const memoryCmd = program
+  .command('memory')
+  .alias('기억')
+  .description('결정사항 기억 관리 (add / list / remove)')
+  .action(async () => { await memoryList() })
+
+memoryCmd
+  .command('add <content>')
+  .option('--tags <tags>', '태그 (쉼표 구분)')
+  .description('결정사항 기억 저장')
+  .action(async (content: string, opts: { tags?: string }) => {
+    const tags = opts.tags ? opts.tags.split(',').map((s) => s.trim()) : undefined
+    await memoryAdd(content, tags)
+  })
+
+memoryCmd
+  .command('list')
+  .alias('목록')
+  .description('저장된 기억 목록')
+  .action(async () => { await memoryList() })
+
+memoryCmd
+  .command('remove <index>')
+  .alias('삭제')
+  .description('기억 삭제 (1부터 시작하는 번호)')
+  .action(async (index: string) => { await memoryRemove(index) })
+
+program
+  .command('brief')
+  .alias('브리핑')
+  .description('프로젝트 상태 요약 보고서 생성 (.vhk/brief.md)')
+  .action(async () => { await brief() })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
