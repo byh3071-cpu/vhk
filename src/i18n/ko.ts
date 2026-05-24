@@ -260,6 +260,10 @@ export const ko = {
     addTitle: '레퍼런스 추가',
     listTitle: '레퍼런스 목록',
   },
+  memory: {
+    addTitle: '기억 추가',
+    listTitle: '기억 목록',
+  },
   mcp: {
     initTitle: 'Cursor MCP 연동 설정',
     serverStarted: 'VHK MCP 서버 시작됨',
