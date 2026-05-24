@@ -16,6 +16,7 @@ import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -218,9 +219,7 @@ export function enhancePackageScripts(projectDir: string): boolean {
   const pkgPath = path.join(projectDir, 'package.json')
   if (!fs.existsSync(pkgPath)) return false
 
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as {
-    scripts?: Record<string, string>
-  }
+  const pkg = readJsonFile<{ scripts?: Record<string, string> }>(pkgPath)
   // 사용자가 정의한 동명 스크립트 보존. 누락된 키만 추가.
   pkg.scripts = { ...VHK_PACKAGE_SCRIPTS, ...pkg.scripts }
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8')

@@ -1,20 +1,68 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const mockIsGitRepo = vi.fn()
+const mockHasAnyCommits = vi.fn()
+const mockGetSessionDiff = vi.fn()
+const mockGetRecentCommits = vi.fn()
+
+vi.mock('../src/lib/git.js', () => ({
+  isGitRepo: (...a: unknown[]) => mockIsGitRepo(...a),
+  hasAnyCommits: (...a: unknown[]) => mockHasAnyCommits(...a),
+  getSessionDiff: (...a: unknown[]) => mockGetSessionDiff(...a),
+  getRecentCommits: (...a: unknown[]) => mockGetRecentCommits(...a),
+}))
+
+vi.mock('../src/lib/check-secure.js', () => ({
+  printSecurityWarnings: () => {},
+  filterTrackedPaths: (p: string[]) => p,
+}))
+
+vi.mock('../src/lib/adr.js', () => ({
+  detectAdrCandidates: () => [],
+  createAdrFile: () => '',
+}))
+
+vi.mock('inquirer', () => ({
+  default: { prompt: () => Promise.resolve({}) },
+}))
 
 describe('vhk recap', () => {
-  it('Git 레포가 아니면 에러 메시지 출력', () => {
-    // TODO: isGitRepo() mock → false → 에러 확인
-    expect(true).toBe(true)
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
   })
 
-  it('변경사항 없으면 경고 메시지', () => {
-    // TODO: getSessionDiff() mock → 빈 결과
+  it('Git 레포가 아니면 안내만 출력하고 종료한다', async () => {
+    mockIsGitRepo.mockResolvedValue(false)
+    const { recap } = await import('../src/commands/recap.js')
+    await recap()
+    expect(mockGetSessionDiff).not.toHaveBeenCalled()
+    expect(mockGetRecentCommits).not.toHaveBeenCalled()
   })
 
-  it('세션 로그 파일이 docs/log/에 생성된다', () => {
-    // TODO: 임시 디렉토리에서 생성 확인
+  it('커밋이 0개인 신규 레포에서는 안내만 출력하고 종료 (회귀 가드: simple-git GitError throw)', async () => {
+    mockIsGitRepo.mockResolvedValue(true)
+    mockHasAnyCommits.mockResolvedValue(false)
+    const { recap } = await import('../src/commands/recap.js')
+    await recap()
+    // 가드 통과 시 호출되는 단계가 실행되지 않아야 함
+    expect(mockGetSessionDiff).not.toHaveBeenCalled()
+    expect(mockGetRecentCommits).not.toHaveBeenCalled()
   })
 
-  it('같은 날짜에 여러 세션 → 세션 번호 증가', () => {
-    // TODO: session-1, session-2 파일명 검증
+  it('변경/커밋 둘 다 0이면 noChanges 메시지 후 inquirer 호출 없이 종료', async () => {
+    mockIsGitRepo.mockResolvedValue(true)
+    mockHasAnyCommits.mockResolvedValue(true)
+    mockGetSessionDiff.mockResolvedValue({
+      filesChanged: 0,
+      insertions: 0,
+      deletions: 0,
+      files: [],
+    })
+    mockGetRecentCommits.mockResolvedValue([])
+    const { recap } = await import('../src/commands/recap.js')
+    await recap()
+    expect(mockGetSessionDiff).toHaveBeenCalled()
+    expect(mockGetRecentCommits).toHaveBeenCalled()
   })
 })

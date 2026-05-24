@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
 import { safeExecFile } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 const SERVER_VERSION = '0.7.1'
 
@@ -99,7 +100,7 @@ export function createVhkMcpServer(): McpServer {
 
     if (existsSync('package.json')) {
       try {
-        const pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
+        const pkg = readJsonFile<{ name?: string; version?: string }>('package.json')
         lines.push(`📦 프로젝트: ${pkg.name ?? '(이름 없음)'} v${pkg.version ?? '?'}`)
       } catch {
         // skip
@@ -203,7 +204,7 @@ export function createVhkMcpServer(): McpServer {
 
     if (existsSync('package.json')) {
       try {
-        const pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
+        const pkg = readJsonFile<{ version?: string }>('package.json')
         checks.push(`📦 버전: ${pkg.version}`)
       } catch {
         // skip

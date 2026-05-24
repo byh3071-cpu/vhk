@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { printNextStep } from '../lib/next-step.js'
 import { ko } from '../i18n/ko.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 export interface CheckResult {
   name: string
@@ -33,7 +34,7 @@ function getVhkVersion(): string | undefined {
   for (const pkgPath of candidates) {
     try {
       if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string }
+        const pkg = readJsonFile<{ version?: string }>(pkgPath)
         return pkg.version
       }
     } catch {
