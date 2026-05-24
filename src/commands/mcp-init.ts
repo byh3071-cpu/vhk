@@ -8,15 +8,27 @@ type McpEntry = { command: string; args: string[] }
 type McpConfig = { mcpServers: Record<string, McpEntry> }
 
 function resolveVhkMcpPath(): string {
+  // 1. 자기 dogfooding 감지: cwd의 package.json name이 @byh3071/vhk면 dist/mcp/index.js
   try {
-    // 글로벌 설치 (npm i -g) 환경: import.meta.resolve로 패키지 경로를 찾는다.
-    // 반환값은 file:// URL이므로 fileURLToPath로 OS 네이티브 경로로 변환 (Windows 대응).
+    const pkgPath = join(process.cwd(), 'package.json')
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { name?: string }
+      if (pkg.name === '@byh3071/vhk') {
+        return join(process.cwd(), 'dist', 'mcp', 'index.js')
+      }
+    }
+  } catch {
+    // skip
+  }
+  // 2. 글로벌 설치 (npm i -g) 환경: import.meta.resolve로 패키지 경로를 찾는다.
+  // 반환값은 file:// URL이므로 fileURLToPath로 OS 네이티브 경로로 변환 (Windows 대응).
+  try {
     const url = import.meta.resolve?.('@byh3071/vhk/dist/mcp/index.js')
     if (typeof url === 'string') return fileURLToPath(url)
   } catch {
     // ignore
   }
-  // 로컬 fallback: node_modules 안의 경로 추정.
+  // 3. 로컬 fallback: node_modules 안의 경로 추정.
   return join(process.cwd(), 'node_modules', '@byh3071', 'vhk', 'dist', 'mcp', 'index.js')
 }
 
