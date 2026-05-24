@@ -29,6 +29,10 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'audit', '감사',
   'migrate', '전환',
   'update', '업데이트',
+  'context', '맥락',
+  'context-show', '맥락보기',
+  'memory', '기억',
+  'brief', '브리핑',
   'help',
 ])
 
