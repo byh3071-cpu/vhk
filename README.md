@@ -1,12 +1,14 @@
 ---
 id: vhk-readme
 date: 2026-05-24
-tags: [vhk, cli, readme, v0.9.0]
+tags: [vhk, cli, readme, v1.0.0, ga]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.9.0)
+> 🎉 **v1.0.0 GA** — 바이브코더의 올인원 CLI. 공개 API 안정성 보장.
+>
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v1.0.0)
 >
 > 🍽️ **VHK는 VHK로 부트스트랩됨** — 이 레포의 `docs/`, `CLAUDE.md`, `.cursorrules`도 `vhk init`이 만들었습니다.
 
@@ -100,9 +102,13 @@ vhk 기획 끝났고 바로 시작
 | `vhk theme` | `테마` | 다크/라이트 모드 CSS + 토글 유틸리티 생성 |
 | `vhk ref` | `레퍼런스` | 레퍼런스 URL 관리 (`add` / `list` / `open`) |
 | `vhk harness` | `하네스` | 통합 품질 점검 (lint + type-check + test + build 순차 실행 + 리포트) |
-| `vhk audit` | `감사` | npm 보안 취약점 감사 (`--fix`로 자동 수정) |
+| `vhk audit` | `감사` | npm/pnpm/yarn 보안 취약점 감사 (`--fix`로 자동 수정, npm만) |
 | `vhk migrate [target]` | `전환` | 패키지 매니저 전환 (`npm` / `yarn` / `pnpm`, lockfile + node_modules 재구성) |
 | `vhk update` | `업데이트` | VHK CLI 최신 버전으로 셀프 업데이트 |
+| `vhk context` | `맥락` | 프로젝트 트리·스택·CLI 명령 목록을 `.vhk/context.md`로 자동 생성 (AI 어시스턴트용) |
+| `vhk context-show` | `맥락보기` | 현재 컨텍스트 파일 내용 출력 |
+| `vhk memory` | `기억` | 결정사항 기억 관리 (`add` / `list` / `remove`, `.vhk/memory.json` 기반, 태그 지원) |
+| `vhk brief` | `브리핑` | 프로젝트 정보 + git 상태 + 결정사항 + 레퍼런스 통합 보고서 `.vhk/brief.md` |
 
 ### init 옵션
 
@@ -136,6 +142,45 @@ MCP 서버를 수동으로 띄우려면:
 ```powershell
 vhk mcp                # stdio 서버 시작 (Cursor가 자동으로 호출)
 ```
+
+## v1.0.0 GA 하이라이트 🎉
+
+> **공개 API 안정성 약속**. 명령어 이름, CLI 인자, `.vhk/` 파일 포맷은 v2.0까지 breaking change 없음.
+
+| 기능 | 설명 |
+|------|------|
+| **context** | 프로젝트 디렉토리 트리(3-depth) + 기술 스택(Next/Nuxt/Vue/Svelte/TS/Tailwind/tsup/Vite/...) 자동 감지 + 29개+ VHK 명령어 목록을 `.vhk/context.md` 마크다운으로 생성. AI 어시스턴트가 프로젝트 맥락을 즉시 파악 |
+| **memory** | `.vhk/memory.json` 결정사항 기억 관리. `add <content> --tags X,Y` / `list` / `remove <번호>`. NL은 list만 (add/remove는 인자 필수 → commander 전용) |
+| **brief** | 프로젝트 정보 + git 상태(브랜치·마지막 커밋·미커밋 변경) + 최근 결정사항 + 레퍼런스를 한 화면에 + `.vhk/brief.md` 저장. `safeExecFile` 기반 (Windows .cmd shim 안전) |
+| **자연어 확장** | `"맥락 만들어줘"` → context · `"컨텍스트 보여줘"` → context-show · `"기억 목록"` → memory · `"프로젝트 브리핑 만들어줘"` / `"상태 요약"` → brief |
+
+```powershell
+vhk context             # .vhk/context.md (트리 + 스택 + 명령 목록)
+vhk memory add "API는 tRPC 사용" --tags decision,arch
+vhk memory list
+vhk brief               # 콘솔 출력 + .vhk/brief.md
+```
+
+### Cursor 권장 시퀀스 (v1.0 GA)
+
+```text
+vhk init                # 프로젝트 셋업
+vhk design + theme      # 디자인 시스템
+vhk context             # AI 맥락 파일 생성
+... 개발 ...
+vhk memory add "<결정>"  # 결정 누적
+vhk brief               # 세션 종료 시 상태 보고서
+다음 세션 시작: "컨텍스트 보여줘" → 어제 맥락 복원
+```
+
+### v1.0.0 GA 정책
+
+- **공개 API 안정성**: 명령어 이름, CLI 인자, `.vhk/` 파일 포맷은 v2.0까지 breaking change 없음
+- **deprecation 절차**: 명령어/옵션 제거 전 1개 마이너 버전(1.x.0)에서 deprecation 경고
+- **i18n 키**: `ko.ts`의 `t()` 키 이름은 안정. 신규 키 누적, 기존 키 미제거
+- **MCP 서버 도구**: 8개 도구(save/undo/status/diff/ship/doctor/check/recap) 인터페이스 안정
+
+> **`vhk memory` vs Claude Code `auto memory`** — `vhk memory`는 **프로젝트 단위** 결정사항(`.vhk/memory.json`, 팀 공유). Claude Code의 `auto memory`는 **사용자 단위** (`~/.claude/projects/.../memory/`, 개인 컨텍스트). 둘은 별개.
 
 ## v0.9.0 하이라이트
 
@@ -250,6 +295,10 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 | 보안 감사 해줘 / 취약점 확인 | `vhk audit` |
 | 패키지 매니저 전환 | `vhk migrate` |
 | vhk 업데이트 해줘 | `vhk update` |
+| 맥락 만들어줘 / 컨텍스트 생성 | `vhk context` |
+| 컨텍스트 보여줘 / 맥락 보여줘 | `vhk context-show` |
+| 기억 목록 / 결정사항 확인 | `vhk memory` (list) |
+| 프로젝트 브리핑 / 상태 요약 | `vhk brief` |
 
 ## 특징
 
