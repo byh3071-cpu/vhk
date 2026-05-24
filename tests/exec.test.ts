@@ -47,4 +47,14 @@ describe('lib/exec', () => {
       expect(result.err).toBeTruthy()
     }
   })
+
+  it('safeExecFile: Windows .cmd shim 실행 (Node 20.12+ CVE-2024-27980 회귀 방지)', async () => {
+    // pnpm.cmd가 spawnSync EINVAL 없이 실행되어야 함
+    const { safeExecFile } = await import('../src/lib/exec.js')
+    const result = safeExecFile('pnpm', ['--version'])
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.out).toMatch(/^\d+\.\d+\.\d+/)
+    }
+  })
 })
