@@ -6,6 +6,21 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ---
 
+## [0.8.0] — 2026-05-24
+
+### Added
+- `vhk design` — 컬러 팔레트 프리셋 4종(Minimal/Vibrant/Corporate/Pastel) 선택 + Tailwind config 또는 CSS 변수 토큰 파일 생성
+- `vhk design-palette` — design과 동일 (별칭 진입점)
+- `vhk theme` — 다크/라이트 모드 CSS + 토글 유틸리티(`getTheme`/`setTheme`/`toggleTheme`/`initTheme`) 생성
+- `vhk ref add|list|open` — `.vhk/refs.json` 기반 레퍼런스 URL 관리. 브라우저 자동 오픈 (Windows/macOS/Linux)
+- 자연어 라우터에 design/design-palette/theme/ref 키워드 추가 — `"디자인 토큰 만들어줘"`, `"다크 모드 적용"`, `"레퍼런스 보여줘"` 등
+- `ref add` / `ref open`은 인자 추출 인프라가 없어 NL 진입점에서 의도적으로 배제 — commander 서브커맨드로만 노출
+
+### Changed
+- 버전: 0.7.1 → 0.8.0
+
+---
+
 ## [0.7.1] — 2026-05-24
 
 ### Added
@@ -117,7 +132,9 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/byh3071-cpu/vhk/compare/v0.7.1...v0.8.0
+[0.7.1]: https://github.com/byh3071-cpu/vhk/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/byh3071-cpu/vhk/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/byh3071-cpu/vhk/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/byh3071-cpu/vhk/compare/v0.5.2...v0.5.3

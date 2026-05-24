@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-05-24
-tags: [vhk, cli, readme, v0.6.0]
+tags: [vhk, cli, readme, v0.8.0]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.6.0)
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.8.0)
 >
 > 🍽️ **VHK는 VHK로 부트스트랩됨** — 이 레포의 `docs/`, `CLAUDE.md`, `.cursorrules`도 `vhk init`이 만들었습니다.
 
@@ -95,6 +95,10 @@ vhk 기획 끝났고 바로 시작
 | `vhk env` | `환경변수` | `.env` → `.env.example` 동기화 + `.gitignore`에 `.env` 자동 추가 |
 | `vhk env-check` | `환경변수점검` | `.env.example` 기준 누락 환경변수 검사 |
 | `vhk publish` | `출시` | npm 배포 자동화 (버전 범프 → 빌드 → 테스트 → publish → git tag) |
+| `vhk design` | `디자인` | 디자인 토큰 생성 (Tailwind config 또는 CSS 변수) |
+| `vhk design-palette` | `팔레트` | 컬러 팔레트 프리셋 선택 + 적용 |
+| `vhk theme` | `테마` | 다크/라이트 모드 CSS + 토글 유틸리티 생성 |
+| `vhk ref` | `레퍼런스` | 레퍼런스 URL 관리 (`add` / `list` / `open`) |
 
 ### init 옵션
 
@@ -128,6 +132,31 @@ MCP 서버를 수동으로 띄우려면:
 ```powershell
 vhk mcp                # stdio 서버 시작 (Cursor가 자동으로 호출)
 ```
+
+## v0.8.0 하이라이트
+
+| 기능 | 설명 |
+|------|------|
+| **design** | 팔레트 프리셋 4종(Minimal/Vibrant/Corporate/Pastel) 선택 → `src/styles/tokens.css` 또는 `src/styles/vhk-colors.ts` (Tailwind config가 있으면 TS) 생성 |
+| **theme** | `src/styles/theme.css` (다크/라이트 + `prefers-color-scheme` + `data-theme` 셀렉터) + `src/lib/theme-toggle.ts` (`getTheme`/`setTheme`/`toggleTheme`/`initTheme`) 생성 |
+| **ref** | `.vhk/refs.json` 기반 레퍼런스 URL 관리. `ref add <url> --memo "..."` / `ref list` / `ref open <번호>` (Windows/macOS/Linux 브라우저 자동 오픈) |
+| **자연어 확장** | `"디자인 토큰 만들어줘"` / `"팔레트 골라줘"` / `"다크 모드 적용"` / `"레퍼런스 보여줘"` 인식. `ref add`/`open`은 인자 추출 인프라가 없어 의도적으로 NL 배제 — commander 서브커맨드만 사용 |
+
+```powershell
+vhk design              # 팔레트 선택 → src/styles/tokens.css 또는 vhk-colors.ts
+vhk theme               # src/styles/theme.css + src/lib/theme-toggle.ts
+vhk ref add https://example.com --memo "참고 사이트"
+vhk ref list            # 저장된 레퍼런스 목록
+vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
+```
+
+## v0.7.0 하이라이트
+
+| 기능 | 설명 |
+|------|------|
+| **deploy** | Vercel / Netlify / Cloudflare Workers 자동 감지 + 프로덕션 배포 |
+| **env / env-check** | `.env` → `.env.example` 동기화 + 누락 환경변수 검사. MCP 도구로도 노출 (v0.7.1) |
+| **publish** | semver 범프 + 빌드 + 테스트 + `npm publish` + git tag 자동화 |
 
 ## v0.6.0 하이라이트
 
@@ -191,6 +220,10 @@ vhk mcp                # stdio 서버 시작 (Cursor가 자동으로 호출)
 | 보안 스캔 돌려 | `vhk 보안` |
 | 배포하고 싶어 | `vhk 배포` |
 | 뭔가 안 돼 | `vhk doctor` |
+| 디자인 토큰 만들어줘 | `vhk design` |
+| 팔레트 골라줘 | `vhk design-palette` |
+| 다크 모드 적용 | `vhk theme` |
+| 레퍼런스 보여줘 | `vhk ref` (list) |
 
 ## 특징
 
