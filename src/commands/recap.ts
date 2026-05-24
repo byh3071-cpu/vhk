@@ -2,7 +2,7 @@ import inquirer from 'inquirer'
 import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
-import { getSessionDiff, getRecentCommits, isGitRepo } from '../lib/git.js'
+import { getSessionDiff, getRecentCommits, isGitRepo, hasAnyCommits } from '../lib/git.js'
 import { detectAdrCandidates, createAdrFile } from '../lib/adr.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -17,6 +17,12 @@ export async function recap(options: RecapOptions = {}) {
 
   if (!(await isGitRepo())) {
     console.log(chalk.red(ko.recap.noRepo))
+    return
+  }
+
+  if (!(await hasAnyCommits())) {
+    console.log(chalk.yellow('⚠️  아직 커밋이 없어요.'))
+    console.log(chalk.gray('   파일을 추가하고 `vhk save` 또는 `git commit`으로 첫 커밋을 만들어 보세요.'))
     return
   }
 

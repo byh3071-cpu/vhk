@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 interface RefEntry {
   url: string
@@ -15,8 +16,7 @@ const REFS_PATH = '.vhk/refs.json'
 function loadRefs(): RefEntry[] {
   if (!existsSync(REFS_PATH)) return []
   try {
-    const raw = readFileSync(REFS_PATH, 'utf-8')
-    const parsed = JSON.parse(raw)
+    const parsed = readJsonFile<unknown>(REFS_PATH)
     return Array.isArray(parsed) ? (parsed as RefEntry[]) : []
   } catch {
     return []

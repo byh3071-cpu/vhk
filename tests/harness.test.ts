@@ -81,4 +81,21 @@ describe('harness', () => {
     const bins = mockSafeExecFile.mock.calls.map((c) => c[0] as string)
     expect(bins[0]).toBe('pnpm')
   })
+
+  it('UTF-8 BOM이 있는 package.json도 정상 파싱한다 (Windows PowerShell 호환)', async () => {
+    // BOM(﻿) prefix가 있어도 readJsonFile이 strip 후 parse → scripts 감지 정상
+    mockReadFileSync.mockReturnValue(
+      '﻿' + JSON.stringify({ scripts: { lint: 'eslint', test: 'vitest', build: 'tsup' } })
+    )
+    mockExistsSync.mockReturnValue(false)
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
+    const { harness } = await import('../src/commands/harness.js')
+    await harness()
+    // lint + test + build = 3개 호출
+    expect(mockSafeExecFile).toHaveBeenCalledTimes(3)
+    const scripts = mockSafeExecFile.mock.calls.map((c) => (c[1] as string[]).join(' '))
+    expect(scripts.some((s) => s.includes('lint'))).toBe(true)
+    expect(scripts.some((s) => s.includes('test'))).toBe(true)
+    expect(scripts.some((s) => s.includes('build'))).toBe(true)
+  })
 })

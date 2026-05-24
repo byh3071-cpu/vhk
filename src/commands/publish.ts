@@ -5,6 +5,7 @@ import ora from 'ora'
 import { safeExecFile, safeExecFileStream } from '../lib/exec.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 export type BumpType = 'patch' | 'minor' | 'major'
 
@@ -36,7 +37,7 @@ export async function publish(): Promise<void> {
 
   let pkg: Pkg
   try {
-    pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
+    pkg = readJsonFile<Pkg>('package.json')
   } catch {
     console.log(chalk.red('❌ package.json 파싱 실패'))
     return
