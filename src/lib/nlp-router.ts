@@ -20,6 +20,10 @@ export type NlpCommand =
   | 'design-palette'
   | 'theme'
   | 'ref'
+  | 'harness'
+  | 'audit'
+  | 'migrate'
+  | 'update'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -116,6 +120,34 @@ const RULES: NlpRule[] = [
     test: t =>
       (/^레퍼런스$|^ref$|레퍼런스.*(보|목록|확인|있|뭐)|참고\s*(사이트|목록|링크)|reference.*list/.test(t)) &&
       !/(add|추가|open|열|https?:\/\/)/.test(t),
+  },
+  {
+    command: 'harness',
+    explanation: '통합 품질 점검 (vhk harness)',
+    confidence: 'high',
+    test: t =>
+      /하네스|harness|통합\s*점검|품질\s*점검|빌드\s*테스트|lint.*(test|build)|전체\s*점검|품질\s*확인/.test(t),
+  },
+  {
+    command: 'audit',
+    explanation: '보안 취약점 감사 (vhk audit)',
+    confidence: 'high',
+    test: t =>
+      /감사|취약점|audit|vulnerability|보안\s*감사|보안\s*취약|의존성\s*취약/.test(t),
+  },
+  {
+    command: 'migrate',
+    explanation: '패키지 매니저 전환 (vhk migrate)',
+    confidence: 'high',
+    test: t =>
+      /전환|마이그레이트|migrate|패키지\s*매니저|npm.*pnpm|pnpm.*npm|yarn.*전환|npm.*전환|pnpm.*전환/.test(t),
+  },
+  {
+    command: 'update',
+    explanation: 'VHK CLI 최신 버전 업데이트 (vhk update)',
+    confidence: 'high',
+    test: t =>
+      /업데이트|update|버전\s*업|최신\s*버전|셀프\s*업데이트|vhk.*최신|vhk.*업데이트/.test(t),
   },
   {
     command: 'secure',

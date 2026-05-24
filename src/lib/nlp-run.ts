@@ -21,6 +21,10 @@ import { publish } from '../commands/publish.js'
 import { design, designPalette } from '../commands/design.js'
 import { theme } from '../commands/theme.js'
 import { refList } from '../commands/ref.js'
+import { harness } from '../commands/harness.js'
+import { audit } from '../commands/audit.js'
+import { migrate } from '../commands/migrate.js'
+import { update } from '../commands/update.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -71,6 +75,14 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return theme()
     case 'ref':
       return refList()
+    case 'harness':
+      return harness()
+    case 'audit':
+      return audit()
+    case 'migrate':
+      return migrate()
+    case 'update':
+      return update()
   }
 }
 

@@ -27,6 +27,10 @@ import { publish } from './commands/publish.js'
 import { design, designPalette } from './commands/design.js'
 import { theme } from './commands/theme.js'
 import { refAdd, refList, refOpen } from './commands/ref.js'
+import { harness } from './commands/harness.js'
+import { audit } from './commands/audit.js'
+import { migrate } from './commands/migrate.js'
+import { update } from './commands/update.js'
 
 // 런타임에 package.json에서 버전 읽기 — src와 dist 둘 다 동작.
 // dist/index.js: ../package.json (npm 글로벌 + 로컬 빌드 동일)
@@ -70,6 +74,10 @@ const KO_ALIASES: Record<string, string> = {
   'design-palette': '팔레트',
   theme: '테마',
   ref: '레퍼런스',
+  harness: '하네스',
+  audit: '감사',
+  migrate: '전환',
+  update: '업데이트',
 }
 
 program
@@ -282,6 +290,31 @@ refCmd
   .alias('열기')
   .description('레퍼런스를 브라우저에서 열기')
   .action(async (index: string) => { await refOpen(index) })
+
+program
+  .command('harness')
+  .alias('하네스')
+  .description('통합 품질 점검 (lint + type-check + test + build)')
+  .action(async () => { await harness() })
+
+program
+  .command('audit')
+  .alias('감사')
+  .option('--fix', '자동 수정 시도')
+  .description('보안 취약점 감사 (npm audit 래핑)')
+  .action(async (opts: { fix?: boolean }) => { await audit(opts.fix) })
+
+program
+  .command('migrate [target]')
+  .alias('전환')
+  .description('패키지 매니저 전환 (npm/yarn/pnpm)')
+  .action(async (target?: string) => { await migrate(target) })
+
+program
+  .command('update')
+  .alias('업데이트')
+  .description('VHK CLI 최신 버전 업데이트')
+  .action(async () => { await update() })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
