@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-05-24
-tags: [vhk, cli, readme, v0.8.0]
+tags: [vhk, cli, readme, v0.9.0]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.8.0)
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.9.0)
 >
 > 🍽️ **VHK는 VHK로 부트스트랩됨** — 이 레포의 `docs/`, `CLAUDE.md`, `.cursorrules`도 `vhk init`이 만들었습니다.
 
@@ -99,6 +99,10 @@ vhk 기획 끝났고 바로 시작
 | `vhk design-palette` | `팔레트` | 컬러 팔레트 프리셋 선택 + 적용 |
 | `vhk theme` | `테마` | 다크/라이트 모드 CSS + 토글 유틸리티 생성 |
 | `vhk ref` | `레퍼런스` | 레퍼런스 URL 관리 (`add` / `list` / `open`) |
+| `vhk harness` | `하네스` | 통합 품질 점검 (lint + type-check + test + build 순차 실행 + 리포트) |
+| `vhk audit` | `감사` | npm 보안 취약점 감사 (`--fix`로 자동 수정) |
+| `vhk migrate [target]` | `전환` | 패키지 매니저 전환 (`npm` / `yarn` / `pnpm`, lockfile + node_modules 재구성) |
+| `vhk update` | `업데이트` | VHK CLI 최신 버전으로 셀프 업데이트 |
 
 ### init 옵션
 
@@ -131,6 +135,24 @@ MCP 서버를 수동으로 띄우려면:
 
 ```powershell
 vhk mcp                # stdio 서버 시작 (Cursor가 자동으로 호출)
+```
+
+## v0.9.0 하이라이트
+
+| 기능 | 설명 |
+|------|------|
+| **harness** | `package.json` scripts 자동 감지 → `lint` / `type-check` / `test` / `build` 순차 실행 + 통합 리포트. 일부 실패해도 끝까지 진행 |
+| **audit** | `npm audit --json` 래핑 + 심각도별 요약. `Critical`/`High` 발견 시 자동 fix 옵션. Windows PowerShell 호환 (`2>/dev/null` 미사용) |
+| **migrate** | npm/yarn/pnpm 전환 — 대상 CLI 존재 확인 → 확인 프롬프트 → 기존 lockfile + node_modules 정리 → `<pm> install` |
+| **update** | npm registry에서 `@byh3071/vhk` 최신 버전 조회 → semver 비교 → `npm update -g` 실행. 현재 버전이 같거나 더 높으면 스킵 |
+| **자연어 확장** | `"품질 점검해줘"` → harness · `"보안 감사 해줘"` / `"취약점 확인"` → audit · `"패키지 매니저 전환"` → migrate · `"vhk 업데이트 해줘"` → update. 키워드 충돌 가드: `점검` 단독은 기존 `check`에 양보, `보안` 단독은 기존 `secure`에 양보 |
+
+```powershell
+vhk harness             # lint + type-check + test + build 순차 실행
+vhk audit               # npm 보안 감사 (Critical/High 발견 시 자동 fix 옵션)
+vhk audit --fix         # 항상 npm audit fix 실행
+vhk migrate pnpm        # npm/yarn → pnpm 전환 (대화형 확인)
+vhk update              # @byh3071/vhk 최신 버전 체크 + 글로벌 업데이트
 ```
 
 ## v0.8.0 하이라이트
@@ -224,6 +246,10 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 | 팔레트 골라줘 | `vhk design-palette` |
 | 다크 모드 적용 | `vhk theme` |
 | 레퍼런스 보여줘 | `vhk ref` (list) |
+| 품질 점검해줘 | `vhk harness` |
+| 보안 감사 해줘 / 취약점 확인 | `vhk audit` |
+| 패키지 매니저 전환 | `vhk migrate` |
+| vhk 업데이트 해줘 | `vhk update` |
 
 ## 특징
 
