@@ -16,6 +16,10 @@ export type NlpCommand =
   | 'env'
   | 'env-check'
   | 'publish'
+  | 'design'
+  | 'design-palette'
+  | 'theme'
+  | 'ref'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -80,6 +84,35 @@ const RULES: NlpRule[] = [
     explanation: 'Cursor MCP 연동 설정 (vhk mcp-init)',
     confidence: 'high',
     test: t => /mcp.*(설정|연동|초기|init)|커서.*(연동|설정|mcp)|cursor.*mcp/.test(t),
+  },
+  {
+    command: 'design-palette',
+    explanation: '컬러 팔레트 선택 (vhk design-palette)',
+    confidence: 'high',
+    test: t =>
+      /팔레트|palette|컬러\s*(고|선택|바꿔|변경)|색상\s*(고|선택|변경)|색깔\s*선택/.test(t),
+  },
+  {
+    command: 'design',
+    explanation: '디자인 토큰 생성 (vhk design)',
+    confidence: 'high',
+    test: t =>
+      /디자인\s*(토큰|시스템|만들|생성|셋업|설정)|design\s*(token|system|setup)|토큰\s*만들|css\s*변수.*만들|tailwind\s*(컬러|설정)/.test(t),
+  },
+  {
+    command: 'theme',
+    explanation: '다크/라이트 테마 적용 (vhk theme)',
+    confidence: 'high',
+    test: t =>
+      /테마(?!\s*(파일|이름))|theme|다크\s*모드|라이트\s*모드|dark\s*mode|light\s*mode|색상\s*모드|모드\s*전환/.test(t),
+  },
+  {
+    command: 'ref',
+    explanation: '레퍼런스 목록 (vhk ref list)',
+    confidence: 'high',
+    test: t =>
+      (/^레퍼런스$|^ref$|레퍼런스.*(보|목록|확인|있|뭐)|참고\s*(사이트|목록|링크)|reference.*list/.test(t)) &&
+      !/(add|추가|open|열|https?:\/\/)/.test(t),
   },
   {
     command: 'secure',
