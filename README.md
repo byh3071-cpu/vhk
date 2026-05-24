@@ -92,7 +92,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk mcp` | — | MCP 서버 시작 (Cursor 등 MCP 클라이언트용, stdio) |
 | `vhk mcp-init` | `mcp설정` | Cursor `.cursor/mcp.json` 자동 생성 |
 | `vhk deploy` | `배포` | 프로덕션 배포 (Vercel / Netlify / Cloudflare 자동 감지) |
-| `vhk env` | — | `.env` → `.env.example` 동기화 + `.gitignore`에 `.env` 자동 추가 |
+| `vhk env` | `환경변수` | `.env` → `.env.example` 동기화 + `.gitignore`에 `.env` 자동 추가 |
 | `vhk env-check` | `환경변수점검` | `.env.example` 기준 누락 환경변수 검사 |
 | `vhk publish` | `출시` | npm 배포 자동화 (버전 범프 → 빌드 → 테스트 → publish → git tag) |
 
