@@ -6,6 +6,16 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ---
 
+## [0.7.1] — 2026-05-24
+
+### Added
+- MCP 도구로 `env` + `env-check` 노출 — Cursor 채팅에서 자연어로 환경변수 동기화/누락 검사 가능
+
+### Notes
+- `deploy` / `publish` MCP 노출은 stdio 충돌 (`safeExecFileStream` + ora spinner) 및 inquirer 프롬프트 의존성으로 v0.8에서 별도 refactor (skipConfirm 옵션 + 출력 캡처)
+
+---
+
 ## [0.7.0] — 2026-05-24
 
 ### Added
