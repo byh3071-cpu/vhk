@@ -112,6 +112,10 @@ export async function publish(): Promise<void> {
   if (!pubResult.ok) {
     pubSpinner.fail(t('publish.publishFailed'))
     console.log(chalk.red(pubResult.err.slice(0, 500)))
+    // 버전 롤백 (publish 실패 시 package.json 원래대로)
+    pkg.version = currentVersion
+    writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+    console.log(chalk.gray(`📦 package.json 버전을 v${currentVersion}로 복구했습니다.`))
     return
   }
   pubSpinner.succeed(t('publish.publishSuccess'))
