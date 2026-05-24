@@ -92,4 +92,16 @@ describe('자연어 라우팅', () => {
   it('"레퍼런스 추가해줘" → null (NL에서 의도적으로 배제)', () => {
     expect(routeNaturalLanguage('레퍼런스 추가해줘')).toBeNull()
   })
+
+  it('"팔레트 만들고 싶어" → design-palette (init 룰의 \'만들고 싶\' 가로채기 방지)', () => {
+    expect(routeNaturalLanguage('팔레트 만들고 싶어')?.command).toBe('design-palette')
+  })
+
+  it('"디자인 시스템 만들고 싶어" → design (init 가로채기 방지)', () => {
+    expect(routeNaturalLanguage('디자인 시스템 만들고 싶어')?.command).toBe('design')
+  })
+
+  it('"테마 만들고 싶어" → theme (init 가로채기 방지)', () => {
+    expect(routeNaturalLanguage('테마 만들고 싶어')?.command).toBe('theme')
+  })
 })

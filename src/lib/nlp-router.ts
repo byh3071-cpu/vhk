@@ -77,7 +77,8 @@ const RULES: NlpRule[] = [
     explanation: '프로젝트 시작 (vhk 시작)',
     confidence: 'high',
     test: t =>
-      /프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t),
+      (/프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t)) &&
+      !/디자인|design|팔레트|palette|테마|theme|레퍼런스|reference|다크\s*모드|라이트\s*모드|색상\s*모드/.test(t),
   },
   {
     command: 'mcp-init',
