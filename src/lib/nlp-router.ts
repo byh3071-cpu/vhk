@@ -24,6 +24,10 @@ export type NlpCommand =
   | 'audit'
   | 'migrate'
   | 'update'
+  | 'context'
+  | 'context-show'
+  | 'memory'
+  | 'brief'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -82,7 +86,7 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     test: t =>
       (/프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t)) &&
-      !/디자인|design|팔레트|palette|테마|theme|레퍼런스|reference|다크\s*모드|라이트\s*모드|색상\s*모드/.test(t),
+      !/디자인|design|팔레트|palette|테마|theme|레퍼런스|reference|다크\s*모드|라이트\s*모드|색상\s*모드|브리핑|brief|컨텍스트|context|맥락|기억|memory/.test(t),
   },
   {
     command: 'mcp-init',
@@ -148,6 +152,36 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     test: t =>
       /업데이트|update|버전\s*업|최신\s*버전|셀프\s*업데이트|vhk.*최신|vhk.*업데이트/.test(t),
+  },
+  {
+    command: 'context-show',
+    explanation: '컨텍스트 파일 보기 (vhk context-show)',
+    confidence: 'high',
+    test: t =>
+      /맥락\s*(보|확인|보여)|컨텍스트\s*(보|확인|보여)|context\s*show/.test(t),
+  },
+  {
+    command: 'context',
+    explanation: '프로젝트 맥락 생성 (vhk context)',
+    confidence: 'high',
+    test: t =>
+      /(^맥락$|^컨텍스트$|^context$|맥락\s*(만들|생성|갱신|업데이트)|컨텍스트\s*(만들|생성|갱신|업데이트)|프로젝트\s*맥락|프로젝트\s*정보\s*생성)/.test(t)
+      && !/보|확인|보여|show/.test(t),
+  },
+  {
+    command: 'memory',
+    explanation: '기억 목록 조회 (vhk memory list)',
+    confidence: 'high',
+    test: t =>
+      (/^기억$|기억\s*(목록|보|확인|뭐)|memory.*list|결정사항\s*(목록|확인|보여)/.test(t))
+      && !/(추가|add|삭제|remove|저장|기록해)/.test(t),
+  },
+  {
+    command: 'brief',
+    explanation: '프로젝트 상태 요약 (vhk brief)',
+    confidence: 'high',
+    test: t =>
+      /브리핑|brief|상태\s*요약|프로젝트\s*요약|요약\s*(보고|리포트|보여|만들)|보고서\s*(만들|생성|보여)/.test(t),
   },
   {
     command: 'secure',
