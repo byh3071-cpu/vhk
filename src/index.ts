@@ -21,6 +21,9 @@ import { mcpInit } from './commands/mcp-init.js'
 import { deploy } from './commands/deploy.js'
 import { env, envCheck } from './commands/env.js'
 import { publish } from './commands/publish.js'
+import { design, designPalette } from './commands/design.js'
+import { theme } from './commands/theme.js'
+import { refAdd, refList, refOpen } from './commands/ref.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -42,6 +45,10 @@ const KO_ALIASES: Record<string, string> = {
   env: '환경변수',
   'env-check': '환경변수점검',
   publish: '출시',
+  design: '디자인',
+  'design-palette': '팔레트',
+  theme: '테마',
+  ref: '레퍼런스',
 }
 
 program
@@ -210,6 +217,50 @@ program
   .alias('출시')
   .description('npm 배포 (버전 범프 → 빌드 → 테스트 → publish)')
   .action(async () => { await publish() })
+
+program
+  .command('design')
+  .alias('디자인')
+  .description('디자인 토큰 생성 (Tailwind config 또는 CSS 변수)')
+  .action(async () => { await design() })
+
+program
+  .command('design-palette')
+  .alias('팔레트')
+  .description('컬러 팔레트 프리셋 선택 + 적용')
+  .action(async () => { await designPalette() })
+
+program
+  .command('theme')
+  .alias('테마')
+  .description('다크/라이트 모드 CSS + 토글 유틸리티 생성')
+  .action(async () => { await theme() })
+
+const refCmd = program
+  .command('ref')
+  .alias('레퍼런스')
+  .description('레퍼런스 URL 관리 (add / list / open)')
+  .action(async () => { await refList() })
+
+refCmd
+  .command('add <url>')
+  .option('--memo <memo>', '메모 추가')
+  .description('레퍼런스 URL 추가')
+  .action(async (url: string, opts: { memo?: string }) => {
+    await refAdd(url, opts.memo)
+  })
+
+refCmd
+  .command('list')
+  .alias('목록')
+  .description('저장된 레퍼런스 목록')
+  .action(async () => { await refList() })
+
+refCmd
+  .command('open <index>')
+  .alias('열기')
+  .description('레퍼런스를 브라우저에서 열기')
+  .action(async (index: string) => { await refOpen(index) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
