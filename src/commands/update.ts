@@ -1,10 +1,11 @@
 import { execSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 const PACKAGE = '@byh3071/vhk'
 
@@ -15,7 +16,7 @@ function getCurrentVersion(): string {
   for (const pkgPath of [join(dir, '../package.json'), join(dir, '../../package.json')]) {
     try {
       if (existsSync(pkgPath)) {
-        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: string }
+        const pkg = readJsonFile<{ version?: string }>(pkgPath)
         if (pkg.version) return pkg.version
       }
     } catch {

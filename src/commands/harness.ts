@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import chalk from 'chalk'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 type CheckSpec = { name: string; bin: string; args: string[] }
 
@@ -30,7 +31,7 @@ function detectChecks(): CheckSpec[] {
   const checks: CheckSpec[] = []
   let pkg: { scripts?: Record<string, string> } = {}
   try {
-    pkg = JSON.parse(readFileSync('package.json', 'utf-8'))
+    pkg = readJsonFile<{ scripts?: Record<string, string> }>('package.json')
   } catch {
     return checks
   }

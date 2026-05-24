@@ -6,6 +6,21 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ---
 
+## [1.0.1] — 2026-05-24 — Hotfix
+
+### Fixed
+
+- `vhk mcp-init` — pnpm 글로벌 설치 환경에서 `import.meta.resolve` 실패 시 `<cwd>/node_modules/@byh3071/vhk/dist/mcp/index.js` (존재하지 않는 경로)로 fallback해 깨진 `.cursor/mcp.json` 생성하던 회귀. 자기 파일 위치(`dist/commands/mcp-init.js → ../mcp/index.js`) 기반 해석을 1순위로 사용하고 모든 후보 경로에 `existsSync` 검증 추가. 진입점 못 찾으면 PATH의 `vhk-mcp` shim으로 fallback. (영향: Cursor 사용자 모두)
+- `vhk harness` — Windows PowerShell의 `Out-File -Encoding utf8`이 생성하는 UTF-8 BOM 포함 `package.json`에서 `JSON.parse` throw → silent catch → "실행할 수 있는 스크립트가 없습니다" 잘못된 메시지. `readJsonFile` helper (BOM strip 포함)로 교체. 같은 패턴 7개 파일(`doctor`, `init`, `mcp-init`, `publish`, `update`, `mcp/server.ts` 2곳, `ref`)도 일괄 정리.
+- `vhk recap` — 신규 git 레포에서 커밋이 0개일 때 `simple-git`이 `GitError: fatal: your current branch 'master' does not have any commits yet`를 던지고 프로세스 크래시. recap 진입부에 `hasAnyCommits()` 가드 추가, lib/git의 `getSessionDiff` / `getRecentCommits`에도 try/catch 안전망 추가. 첫 커밋 만들도록 안내.
+
+### Internal
+
+- `src/lib/git.ts` — `hasAnyCommits(): Promise<boolean>` helper 신설
+- `src/lib/read-json.ts` 헬퍼 일관 적용 (이미 존재하던 helper를 그동안 호출자들이 안 쓰던 상태였음)
+
+---
+
 ## [1.0.0] — 2026-05-24 — GA 🎉
 
 ### Added
