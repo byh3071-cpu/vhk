@@ -4,6 +4,40 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- `vhk start` (한국어 alias `시작`, `새프로젝트`) — 새 프로젝트 시작 올인원 마법사. 4단계 자동 진행:
+  1. `git init` — 이미 repo면 스킵
+  2. `vhk init` — `--skip-gate` 자동 적용, 문서/하네스 파일 생성
+  3. `vhk mcp-init` — `.cursor/mcp.json` 생성/갱신
+  4. `vhk context` — `.vhk/context.md` 생성
+
+  명령어 4개를 외울 필요 없이 `vhk start` 하나로 끝. 옵션은 init 패스스루: `--yes`, `--from-notion <url>`, `--name`, `--description`, `--type`.
+- 자연어 라우팅에 "시작", "새 프로젝트", "마법사", "프로젝트 만들고 싶어", "기획 끝났어요 바로 시작" 등 키워드 → `start`로 라우팅
+- 기본 메뉴(`vhk` 단독 실행)의 "프로젝트 시작" 선택지가 `start` 마법사로 전환
+- `start` 진입 시 안전 가드: `CLAUDE.md`/`.cursor/mcp.json`/`.vhk/context.md` 중 하나라도 있으면 "이미 VHK 설치 흔적 감지" 경고 + 진행 여부 재확인 (init의 파일별 overwrite 프롬프트와 별개)
+
+### Changed (Breaking — 한국어 alias 재배치)
+
+- `vhk 시작` 한국어 alias가 `init` → `start` 마법사로 이동
+  - **기존**: `vhk 시작` ≡ `vhk init` (문서/하네스 파일만 생성)
+  - **신규**: `vhk 시작` ≡ `vhk start` (git init + 문서 + MCP + context 일괄)
+  - 새 동작은 기존 init의 superset. 새 프로젝트에서는 무해. **다만 이미 `.cursor/mcp.json` / `.vhk/context.md`가 있는 프로젝트에서 재실행 시 갱신/덮어쓰기 발생** (안전 가드로 1차 차단)
+- `init` 명령에 한국어 alias `초기화` 추가 (`만들기`는 유지). `vhk init`, `vhk 초기화`, `vhk 만들기`는 기존 init 동작 그대로 유지
+- NLP 라우팅 규칙 갱신
+  - "시작", "프로젝트 만들고 싶어", "기획 끝났어요 바로 시작", "노션…가져와 시작" 등은 `start`로 라우팅
+  - `init`은 명시적 키워드(`init`, `초기화`, `하네스 만`, `init만`)만 매칭
+
+### Migration
+
+- **`vhk 시작` 사용자**: 새 프로젝트라면 그대로 사용 권장 (오히려 git/MCP/context까지 자동). 기존 프로젝트에서 init만 다시 돌리고 싶으면 `vhk init`(또는 `vhk 초기화`, `vhk 만들기`) 호출
+- **CI/스크립트**: `vhk 시작 --skip-gate` 같은 코드가 있다면 `vhk init --skip-gate`로 명시적 호출로 교체 (start는 `--skip-gate` 옵션 없음 — 마법사 내부에서 자동 적용)
+
+### Compatibility note vs v1.0 GA 약속
+
+- v1.0 GA 안정성 약속은 **명령어 이름·CLI 인자·`.vhk/` 파일 포맷**을 대상으로 함. 한국어 alias는 보조 UX 레이어로 재배치 가능. 그래도 사용자 충격이 있어 마이너 버전(1.1.0) 권장
+- 영문 명령어 `vhk init` 및 그 옵션/동작은 그대로 유지 — 약속 무위반
+
 ---
 
 ## [1.0.1] — 2026-05-24 — Hotfix
