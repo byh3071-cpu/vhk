@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import ora from 'ora'
-import { safeExecFile } from '../lib/exec.js'
+import { safeExecFile, safeExecFileStream } from '../lib/exec.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 
@@ -106,11 +106,13 @@ export async function publish(): Promise<void> {
     return
   }
 
-  // npm publish
-  const pubSpinner = ora(t('publish.publishing')).start()
-  const pubResult = safeExecFile('npm', ['publish', '--access', 'public'])
+  // npm publish — 2FA 인증(OTP 입력 또는 웹 기반 URL 클릭) 지원을 위해 stdio inherit 사용.
+  // spinner는 stdin/stdout 점유 충돌 회피 위해 사용 안 함.
+  console.log(chalk.cyan(`\n📤 ${t('publish.publishing')}`))
+  console.log(chalk.gray('   2FA 활성화 시: OTP 6자리 입력 또는 브라우저 인증 URL 클릭 (Windows Hello / PIN 지원)'))
+  const pubResult = safeExecFileStream('npm', ['publish', '--access', 'public'])
   if (!pubResult.ok) {
-    pubSpinner.fail(t('publish.publishFailed'))
+    console.log(chalk.red(`\n✖ ${t('publish.publishFailed')}`))
     console.log(chalk.red(pubResult.err.slice(0, 500)))
     // 버전 롤백 (publish 실패 시 package.json 원래대로)
     pkg.version = currentVersion
@@ -118,7 +120,7 @@ export async function publish(): Promise<void> {
     console.log(chalk.gray(`📦 package.json 버전을 v${currentVersion}로 복구했습니다.`))
     return
   }
-  pubSpinner.succeed(t('publish.publishSuccess'))
+  console.log(chalk.green(`\n✔ ${t('publish.publishSuccess')}`))
 
   // git tag (옵션 — 실패해도 publish는 성공)
   const addResult = safeExecFile('git', ['add', 'package.json'])
