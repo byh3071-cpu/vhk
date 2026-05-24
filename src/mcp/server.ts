@@ -213,6 +213,7 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── ship ───────────────────────────────────────────────
+  // TODO(v0.6.1): execa로 비동기 전환 — ship 장시간 블로킹 방지
   server.tool('ship', '배포 체크리스트 실행 (빌드 + 테스트 + 버전 + git 상태)', {}, async () => {
     const checks: string[] = []
 
