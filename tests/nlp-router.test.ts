@@ -104,4 +104,21 @@ describe('자연어 라우팅', () => {
   it('"테마 만들고 싶어" → theme (init 가로채기 방지)', () => {
     expect(routeNaturalLanguage('테마 만들고 싶어')?.command).toBe('theme')
   })
+
+  it('"다크 모드 보안 검사" → secure (theme 가드: 보안 키워드 우선)', () => {
+    expect(routeNaturalLanguage('다크 모드 보안 검사')?.command).toBe('secure')
+  })
+
+  it('"디자인 시스템 배포" → null (design 가드 + 모호 발화 → 메뉴 안내)', () => {
+    // design 가드로 design 차단, deploy 룰은 `^배포$` 단독만 인정 → 안전한 null
+    expect(routeNaturalLanguage('디자인 시스템 배포')).toBeNull()
+  })
+
+  it('"테마 시크릿 확인" → secure (theme 가드)', () => {
+    expect(routeNaturalLanguage('테마 시크릿 확인')?.command).toBe('secure')
+  })
+
+  it('"디자인 토큰 npm 출시" → publish (design 가드)', () => {
+    expect(routeNaturalLanguage('디자인 토큰 npm 출시')?.command).toBe('publish')
+  })
 })
