@@ -3,7 +3,8 @@ import { routeNaturalLanguage } from './nlp-router.js'
 /** Commander에 등록된 서브커맨드·별칭 (첫 토큰) */
 export const KNOWN_COMMAND_TOKENS = new Set([
   'gate', '검증', '아이디어',
-  'init', '시작', '만들기',
+  'start', '시작', '새프로젝트',
+  'init', '초기화', '만들기',
   'recap', '정리', '오늘',
   'sync', '맞추기', '규칙',
   'check', '점검', '린트',
