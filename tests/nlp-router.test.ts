@@ -10,15 +10,14 @@ describe('자연어 라우팅', () => {
     expect(NLP_KEYWORDS.diff).toContain('뭐바뀜')
   })
 
-  it('"프로젝트 만들고 싶어" → init', () => {
+  it('"프로젝트 만들고 싶어" → start (마법사)', () => {
     const result = routeNaturalLanguage('프로젝트 만들고 싶어')
-    expect(result?.command).toBe('init')
+    expect(result?.command).toBe('start')
   })
 
-  it('"기획 끝났고 바로 시작" → init --skip-gate', () => {
+  it('"기획 끝났고 바로 시작" → start (마법사 한 방에 git+문서+MCP+context)', () => {
     const result = routeNaturalLanguage('기획 끝났고 바로 시작')
-    expect(result?.command).toBe('init')
-    expect(result?.args).toContain('--skip-gate')
+    expect(result?.command).toBe('start')
   })
 
   it('"오늘 한 일 정리" → recap', () => {
