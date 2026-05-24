@@ -31,9 +31,9 @@ describe('자연어 라우팅', () => {
     expect(result?.command).toBe('secure')
   })
 
-  it('"배포하고 싶어" → ship', () => {
+  it('"배포하고 싶어" → deploy', () => {
     const result = routeNaturalLanguage('배포하고 싶어')
-    expect(result?.command).toBe('ship')
+    expect(result?.command).toBe('deploy')
   })
 
   it('키워드 맵 — save', () => {

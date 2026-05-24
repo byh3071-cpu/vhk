@@ -253,6 +253,30 @@ export const ko = {
     initTitle: 'Cursor MCP 연동 설정',
     serverStarted: 'VHK MCP 서버 시작됨',
   },
+  deploy: {
+    title: '배포하기',
+    selectPlatform: '어떤 플랫폼에 배포할까요?',
+    deploying: '배포 중...',
+    success: '배포 성공!',
+    failed: '배포 실패',
+  },
+  env: {
+    title: '환경변수 관리',
+    checkTitle: '환경변수 점검',
+  },
+  publish: {
+    title: 'npm 배포',
+    selectBump: '버전을 어떻게 올릴까요?',
+    building: '빌드 중...',
+    buildSuccess: '빌드 성공',
+    buildFailed: '빌드 실패',
+    testing: '테스트 중...',
+    testSuccess: '테스트 통과',
+    testFailed: '테스트 실패',
+    publishing: 'npm 배포 중...',
+    publishSuccess: 'npm 배포 성공!',
+    publishFailed: 'npm 배포 실패',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)

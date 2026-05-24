@@ -6,6 +6,23 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ---
 
+## [0.7.0] — 2026-05-24
+
+### Added
+- `vhk deploy` — Vercel / Netlify / Cloudflare Workers 자동 감지 + 프로덕션 배포
+- `vhk env` — `.env` 키만 추출해 `.env.example` 생성, `.gitignore`에 `.env` 자동 추가
+- `vhk env-check` — `.env.example` 기준 누락 환경변수 검사
+- `vhk publish` — semver 범프(patch/minor/major) + 빌드 + 테스트 + `npm publish` + git tag
+- `src/lib/exec.ts` — `safeExecFile` 공유 헬퍼 분리 (MCP 서버 + v0.7 신규 명령 재사용)
+- 자연어 라우팅: `'환경변수 점검'`, `'vercel 배포'`, `'npm 출시'` 등 신규 패턴
+
+### Changed
+- `ship` 별칭: `'배포'` → `'출하'` (`deploy`와 의미 분리)
+- `ship` NLP 룰: `'배포 체크/준비/점검'` 또는 `'출하'` 단독으로만 매칭. `'배포'` 단독은 `deploy`로 양보
+- 버전: 0.6.0 → 0.7.0
+
+---
+
 ## [0.6.0] — 2026-05-24
 
 ### Added
@@ -90,7 +107,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/byh3071-cpu/vhk/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/byh3071-cpu/vhk/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/byh3071-cpu/vhk/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/byh3071-cpu/vhk/compare/v0.5.1...v0.5.2

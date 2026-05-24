@@ -15,6 +15,9 @@ import { undo } from '../commands/undo.js'
 import { status } from '../commands/status.js'
 import { diff } from '../commands/diff.js'
 import { mcpInit } from '../commands/mcp-init.js'
+import { deploy } from '../commands/deploy.js'
+import { env, envCheck } from '../commands/env.js'
+import { publish } from '../commands/publish.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -49,6 +52,14 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return diff()
     case 'mcp-init':
       return mcpInit()
+    case 'deploy':
+      return deploy()
+    case 'env':
+      return env()
+    case 'env-check':
+      return envCheck()
+    case 'publish':
+      return publish()
   }
 }
 

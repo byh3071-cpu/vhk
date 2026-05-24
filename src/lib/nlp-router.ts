@@ -12,6 +12,10 @@ export type NlpCommand =
   | 'diff'
   | 'status'
   | 'mcp-init'
+  | 'deploy'
+  | 'env'
+  | 'env-check'
+  | 'publish'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -148,9 +152,39 @@ const RULES: NlpRule[] = [
   },
   {
     command: 'ship',
-    explanation: '배포 체크 + 회고 (vhk ship)',
+    explanation: '배포 체크리스트 + 회고 (vhk 출하)',
     confidence: 'high',
-    test: t => /배포|출시|릴리스|ship|빌드\s*전/.test(t),
+    test: t => /^출하$|^ship$|빌드\s*전|(배포|출하)\s*(체크|준비|점검)/.test(t),
+  },
+  {
+    command: 'deploy',
+    explanation: '프로덕션 배포 (vhk deploy)',
+    confidence: 'high',
+    test: t =>
+      /^배포$|배포\s*해|배포하|배포해줘|^deploy$|디플로이|vercel|netlify|cloudflare|wrangler|프로덕션|올려줘/.test(t) &&
+      !/체크|준비|점검|출하|회고|빌드\s*전/.test(t),
+  },
+  {
+    command: 'env-check',
+    explanation: '환경변수 누락 검사 (vhk env-check)',
+    confidence: 'high',
+    test: t => /환경변수\s*(점검|확인|누락)|env\s*(체크|확인|check)|키\s*(확인|누락)/.test(t),
+  },
+  {
+    command: 'env',
+    explanation: '환경변수 관리 (vhk env)',
+    confidence: 'high',
+    test: t =>
+      /환경변수|\.env|env\s*example|env\s*동기화|시크릿\s*정리|키\s*설정/.test(t) &&
+      !/점검|확인|누락|체크|check/.test(t),
+  },
+  {
+    command: 'publish',
+    explanation: 'npm 배포 (vhk publish)',
+    confidence: 'high',
+    test: t =>
+      /^출시$|출시\s*해|^publish$|퍼블리시|npm\s*(배포|출시)|버전\s*올|^릴리즈$|^release$/.test(t) &&
+      !/체크|준비|회고/.test(t),
   },
 ]
 

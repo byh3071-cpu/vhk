@@ -8,7 +8,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'sync', '맞추기', '규칙',
   'check', '점검', '린트',
   'secure', '보안', 'scan', '스캔',
-  'ship', '배포', '릴리즈',
+  'ship',
   'doctor', '환경', '진단',
   'save', '저장',
   'undo', '되돌리기',
@@ -16,6 +16,11 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'diff', '변경', '차이',
   'mcp',
   'mcp-init', 'mcp설정',
+  'deploy', '배포',
+  'env', '환경변수',
+  'env-check', '환경변수점검',
+  'publish', '출시',
+  '출하',
   'help',
 ])
 
