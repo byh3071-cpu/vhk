@@ -1,0 +1,93 @@
+import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
+import chalk from 'chalk'
+import { t } from '../i18n/ko.js'
+import { printNextStep } from '../lib/next-step.js'
+
+export function parseEnvKeys(content: string): string[] {
+  return content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'))
+    .map((line) => line.split('=')[0].trim())
+    .filter(Boolean)
+}
+
+function ensureGitignore(): void {
+  const gitignorePath = '.gitignore'
+  if (existsSync(gitignorePath)) {
+    const content = readFileSync(gitignorePath, 'utf-8')
+    if (!content.split('\n').some((l) => l.trim() === '.env')) {
+      appendFileSync(gitignorePath, '\n.env\n')
+      console.log(chalk.green('\n🔒 .gitignore에 .env 추가됨'))
+    }
+  } else {
+    writeFileSync(gitignorePath, '.env\nnode_modules/\ndist/\n')
+    console.log(chalk.green('\n🔒 .gitignore 생성 (.env 포함)'))
+  }
+}
+
+export async function env(): Promise<void> {
+  console.log(chalk.bold('\n🔐 ' + t('env.title')))
+  console.log(chalk.gray('─'.repeat(40)))
+
+  if (!existsSync('.env')) {
+    console.log(chalk.yellow('\n⚠️  .env 파일이 없습니다.'))
+    console.log(chalk.gray('   .env 파일을 먼저 만들어주세요.'))
+    return
+  }
+
+  const envContent = readFileSync('.env', 'utf-8')
+  const keys = parseEnvKeys(envContent)
+
+  if (keys.length === 0) {
+    console.log(chalk.yellow('\n📭 .env에 환경변수가 없습니다.'))
+    return
+  }
+
+  const exampleContent = keys.map((k) => `${k}=`).join('\n') + '\n'
+  writeFileSync('.env.example', exampleContent, 'utf-8')
+  console.log(chalk.green(`\n✅ .env.example 생성 (${keys.length}개 키)`))
+  keys.forEach((k) => console.log(chalk.gray(`   ${k}`)))
+
+  ensureGitignore()
+
+  printNextStep({
+    message: '.env.example 생성 완료!',
+    command: 'vhk env-check',
+    cursorHint: '환경변수 점검해줘',
+  })
+}
+
+export async function envCheck(): Promise<void> {
+  console.log(chalk.bold('\n🔍 ' + t('env.checkTitle')))
+  console.log(chalk.gray('─'.repeat(40)))
+
+  if (!existsSync('.env.example')) {
+    console.log(chalk.yellow('\n⚠️  .env.example이 없습니다. 먼저 vhk env를 실행하세요.'))
+    return
+  }
+
+  const requiredKeys = parseEnvKeys(readFileSync('.env.example', 'utf-8'))
+  const currentKeys = existsSync('.env')
+    ? parseEnvKeys(readFileSync('.env', 'utf-8'))
+    : []
+
+  const missing = requiredKeys.filter((k) => !currentKeys.includes(k))
+  const extra = currentKeys.filter((k) => !requiredKeys.includes(k))
+
+  console.log(chalk.cyan(`\n📋 필수 환경변수: ${requiredKeys.length}개`))
+
+  if (missing.length === 0) {
+    console.log(chalk.green('\n✅ 모든 필수 환경변수가 설정되어 있습니다!'))
+  } else {
+    console.log(chalk.red(`\n❌ 누락된 환경변수 (${missing.length}개):`))
+    missing.forEach((k) => console.log(chalk.red(`   • ${k}`)))
+  }
+
+  if (extra.length > 0) {
+    console.log(chalk.yellow(`\n💡 .env.example에 없는 추가 변수 (${extra.length}개):`))
+    extra.forEach((k) => console.log(chalk.yellow(`   • ${k}`)))
+  }
+
+  ensureGitignore()
+}
