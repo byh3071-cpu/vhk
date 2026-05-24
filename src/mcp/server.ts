@@ -1,19 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { execSync, execFileSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
 const SERVER_VERSION = '0.6.0'
 
-function safeExec(cmd: string): { ok: true; out: string } | { ok: false; err: string } {
-  try {
-    const out = execSync(cmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).toString()
-    return { ok: true, out: out.trim() }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { ok: false, err: msg }
+// Windows에서 pnpm/npm/npx/yarn은 .cmd shim. execFileSync는 native 바이너리만 찾으므로 .cmd 확장자 부여.
+const SHIM_BINARIES = new Set(['pnpm', 'npm', 'npx', 'yarn'])
+function platformCmd(cmd: string): string {
+  if (process.platform === 'win32' && SHIM_BINARIES.has(cmd)) {
+    return `${cmd}.cmd`
   }
+  return cmd
 }
 
 function safeExecFile(
@@ -21,7 +20,7 @@ function safeExecFile(
   args: string[]
 ): { ok: true; out: string } | { ok: false; err: string } {
   try {
-    const out = execFileSync(cmd, args, {
+    const out = execFileSync(platformCmd(cmd), args, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).toString()
@@ -33,7 +32,7 @@ function safeExecFile(
 }
 
 function isGitRepo(): boolean {
-  return safeExec('git rev-parse --is-inside-work-tree').ok
+  return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
 }
 
 export function createVhkMcpServer(): McpServer {
@@ -54,7 +53,7 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
 
-      const status = safeExec('git status --porcelain')
+      const status = safeExecFile('git', ['status', '--porcelain'])
       if (!status.ok) {
         return { content: [{ type: 'text', text: `❌ git status 실패: ${status.err}` }] }
       }
@@ -67,7 +66,7 @@ export function createVhkMcpServer(): McpServer {
       const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
 
-      const add = safeExec('git add .')
+      const add = safeExecFile('git', ['add', '.'])
       if (!add.ok) {
         return { content: [{ type: 'text', text: `❌ git add 실패: ${add.err}` }] }
       }
@@ -76,7 +75,7 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: `❌ commit 실패: ${commit.err}` }] }
       }
 
-      const push = safeExec('git push')
+      const push = safeExecFile('git', ['push'])
       const pushResult = push.ok ? '+ 원격 업로드 완료' : '(원격 저장소 없거나 push 실패 → 스킵)'
 
       return {
@@ -96,12 +95,12 @@ export function createVhkMcpServer(): McpServer {
       return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
     }
 
-    const last = safeExec('git log --oneline -1')
+    const last = safeExecFile('git', ['log', '--oneline', '-1'])
     if (!last.ok || !last.out) {
       return { content: [{ type: 'text', text: '📭 되돌릴 커밋이 없습니다.' }] }
     }
 
-    const reset = safeExec('git reset --soft HEAD~1')
+    const reset = safeExecFile('git', ['reset', '--soft', 'HEAD~1'])
     if (!reset.ok) {
       return { content: [{ type: 'text', text: `❌ reset 실패: ${reset.err}` }] }
     }
@@ -134,10 +133,10 @@ export function createVhkMcpServer(): McpServer {
       return { content: [{ type: 'text', text: lines.join('\n') }] }
     }
 
-    const branch = safeExec('git branch --show-current')
+    const branch = safeExecFile('git', ['branch', '--show-current'])
     if (branch.ok) lines.push(`🌿 브랜치: ${branch.out || '(detached)'}`)
 
-    const status = safeExec('git status --porcelain')
+    const status = safeExecFile('git', ['status', '--porcelain'])
     if (status.ok) {
       if (!status.out) {
         lines.push('📝 변경사항: ✅ 깨끗함')
@@ -154,7 +153,7 @@ export function createVhkMcpServer(): McpServer {
       }
     }
 
-    const log = safeExec('git log --oneline -3')
+    const log = safeExecFile('git', ['log', '--oneline', '-3'])
     if (log.ok && log.out) {
       lines.push('📜 최근 커밋:')
       log.out.split('\n').forEach((l) => lines.push(`   ${l}`))
@@ -169,9 +168,9 @@ export function createVhkMcpServer(): McpServer {
       return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
     }
 
-    const unstaged = safeExec('git diff --stat')
-    const staged = safeExec('git diff --cached --stat')
-    const untracked = safeExec('git ls-files --others --exclude-standard')
+    const unstaged = safeExecFile('git', ['diff', '--stat'])
+    const staged = safeExecFile('git', ['diff', '--cached', '--stat'])
+    const untracked = safeExecFile('git', ['ls-files', '--others', '--exclude-standard'])
 
     const unstagedOut = unstaged.ok ? unstaged.out : ''
     const stagedOut = staged.ok ? staged.out : ''
@@ -196,7 +195,7 @@ export function createVhkMcpServer(): McpServer {
       files.forEach((f) => lines.push(`   + ${f}`))
     }
 
-    const numstat = safeExec('git diff --numstat HEAD')
+    const numstat = safeExecFile('git', ['diff', '--numstat', 'HEAD'])
     if (numstat.ok && numstat.out) {
       let totalAdd = 0
       let totalDel = 0
@@ -217,10 +216,10 @@ export function createVhkMcpServer(): McpServer {
   server.tool('ship', '배포 체크리스트 실행 (빌드 + 테스트 + 버전 + git 상태)', {}, async () => {
     const checks: string[] = []
 
-    const build = safeExec('pnpm build')
+    const build = safeExecFile('pnpm', ['build'])
     checks.push(build.ok ? '✅ 빌드 성공' : '❌ 빌드 실패')
 
-    const test = safeExec('pnpm test --run')
+    const test = safeExecFile('pnpm', ['test', '--run'])
     checks.push(test.ok ? '✅ 테스트 통과' : '❌ 테스트 실패')
 
     if (existsSync('package.json')) {
@@ -233,7 +232,7 @@ export function createVhkMcpServer(): McpServer {
     }
 
     if (isGitRepo()) {
-      const status = safeExec('git status --porcelain')
+      const status = safeExecFile('git', ['status', '--porcelain'])
       if (status.ok) {
         if (status.out) {
           checks.push(`⚠️ 커밋되지 않은 변경사항 ${status.out.split('\n').length}개`)
@@ -250,19 +249,19 @@ export function createVhkMcpServer(): McpServer {
   server.tool('doctor', '개발 환경 점검 (Node/Git/npm/pnpm/TypeScript)', {}, async () => {
     const checks: string[] = []
 
-    const node = safeExec('node --version')
+    const node = safeExecFile('node', ['--version'])
     checks.push(node.ok ? `✅ Node.js: ${node.out}` : '❌ Node.js: 설치 안 됨')
 
-    const git = safeExec('git --version')
+    const git = safeExecFile('git', ['--version'])
     checks.push(git.ok ? `✅ Git: ${git.out}` : '❌ Git: 설치 안 됨')
 
-    const pnpm = safeExec('pnpm --version')
+    const pnpm = safeExecFile('pnpm', ['--version'])
     checks.push(pnpm.ok ? `✅ pnpm: v${pnpm.out}` : '⚠️ pnpm: 설치 안 됨')
 
-    const npm = safeExec('npm --version')
+    const npm = safeExecFile('npm', ['--version'])
     checks.push(npm.ok ? `✅ npm: v${npm.out}` : '❌ npm: 설치 안 됨')
 
-    const tsc = safeExec('npx tsc --version')
+    const tsc = safeExecFile('npx', ['tsc', '--version'])
     checks.push(tsc.ok ? `✅ TypeScript: ${tsc.out}` : '⚠️ TypeScript: 프로젝트에 없음')
 
     return { content: [{ type: 'text', text: '🩺 환경 점검 결과\n' + checks.join('\n') }] }
