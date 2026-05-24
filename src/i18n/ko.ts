@@ -305,6 +305,13 @@ export const ko = {
   update: {
     title: 'VHK CLI 업데이트',
   },
+  context: {
+    title: '프로젝트 컨텍스트 생성',
+    showTitle: '컨텍스트 파일',
+  },
+  brief: {
+    title: '프로젝트 브리핑',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)
