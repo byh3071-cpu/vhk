@@ -6,6 +6,25 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ---
 
+## [0.9.0] — 2026-05-24
+
+### Added
+- `vhk harness` — `package.json` scripts 자동 감지 후 lint / type-check / test / build 순차 실행 + 통합 리포트. 일부 실패해도 끝까지 진행
+- `vhk audit` — `npm audit --json` 래핑, 심각도별 요약, `Critical`/`High` 발견 시 자동 fix 옵션 (`--fix`). Windows PowerShell 호환 (shell stderr redirect 미사용, `err.stdout` 안전 파싱)
+- `vhk migrate [npm|yarn|pnpm]` — 패키지 매니저 전환. 대상 CLI 존재 확인 → 확인 프롬프트 → 기존 lockfile + node_modules 정리 → `<pm> install`
+- `vhk update` — npm registry 최신 버전 조회 → semver 비교 → `npm update -g @byh3071/vhk` 실행. 현재 ≥ 최신이면 스킵
+- 자연어 라우터에 harness/audit/migrate/update 키워드 추가 — `"품질 점검해줘"`, `"보안 감사"`, `"취약점 확인"`, `"패키지 매니저 전환"`, `"vhk 업데이트 해줘"` 등
+
+### Fixed
+- `update` 명령이 tsup 번들 후 `package.json` 경로를 잘못 해석해 항상 `v0.0.0`을 출력하던 버그. `dist/index.js` / `src/commands/update.ts` 두 위치 모두에서 동작하도록 `getVersion` 다중 경로 탐색 적용
+- `update` 명령이 현재 버전이 publish 된 최신보다 높을 때 다운그레이드를 시도하던 버그. `isUpToDate(current, latest)` semver 비교로 `current >= latest`면 "이미 최신" 처리
+
+### Changed
+- 버전: 0.8.1 → 0.9.0
+- 키워드 충돌 가드: `harness` 별칭 `하네스` (`점검`은 기존 `check` 유지), `audit` 별칭 `감사` (`보안`은 기존 `secure` 유지)
+
+---
+
 ## [0.8.0] — 2026-05-24
 
 ### Added
@@ -132,7 +151,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/byh3071-cpu/vhk/compare/v0.8.1...v0.9.0
 [0.8.0]: https://github.com/byh3071-cpu/vhk/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/byh3071-cpu/vhk/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/byh3071-cpu/vhk/compare/v0.6.0...v0.7.0

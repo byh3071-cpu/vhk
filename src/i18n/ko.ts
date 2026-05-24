@@ -288,6 +288,19 @@ export const ko = {
     publishSuccess: 'npm 배포 성공!',
     publishFailed: 'npm 배포 실패',
   },
+  harness: {
+    title: '통합 품질 점검',
+  },
+  audit: {
+    title: '보안 감사',
+  },
+  migrate: {
+    title: '패키지 매니저 전환',
+    selectTarget: '어떤 패키지 매니저로 전환할까요?',
+  },
+  update: {
+    title: 'VHK CLI 업데이트',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)
