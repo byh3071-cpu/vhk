@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { execSync } from 'node:child_process'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { safeExecFile } from '../lib/exec.js'
 
 interface RefEntry {
   url: string
@@ -89,18 +89,35 @@ export async function refOpen(indexStr: string): Promise<void> {
   }
 
   const ref = refs[idx]
+
+  // http(s) 외 프로토콜 거부 — javascript:, file:, data: 등 차단
+  let parsed: URL
+  try {
+    parsed = new URL(ref.url)
+  } catch {
+    console.log(chalk.red(`❌ 유효하지 않은 URL: ${ref.url}`))
+    return
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    console.log(chalk.red(`❌ http(s) URL만 열 수 있습니다 (${parsed.protocol})`))
+    return
+  }
+
   console.log(chalk.cyan(`\n🌐 열기: ${ref.url}`))
 
-  try {
-    if (process.platform === 'darwin') {
-      execSync(`open "${ref.url}"`)
-    } else if (process.platform === 'win32') {
-      execSync(`start "" "${ref.url}"`, { shell: 'cmd.exe' })
-    } else {
-      execSync(`xdg-open "${ref.url}"`)
-    }
+  // safeExecFile — shell 없이 argv 분리 호출 → URL injection 차단
+  let result
+  if (process.platform === 'darwin') {
+    result = safeExecFile('open', [ref.url])
+  } else if (process.platform === 'win32') {
+    result = safeExecFile('cmd.exe', ['/c', 'start', '', ref.url])
+  } else {
+    result = safeExecFile('xdg-open', [ref.url])
+  }
+
+  if (result.ok) {
     console.log(chalk.green('✅ 브라우저에서 열었습니다.'))
-  } catch {
+  } else {
     console.log(chalk.yellow('⚠️  브라우저를 열 수 없습니다. URL을 직접 방문해주세요.'))
   }
 }

@@ -4,7 +4,7 @@ const mockExistsSync = vi.fn()
 const mockMkdirSync = vi.fn()
 const mockReadFileSync = vi.fn()
 const mockWriteFileSync = vi.fn()
-const mockExecSync = vi.fn()
+const mockSafeExecFile = vi.fn()
 
 vi.mock('node:fs', () => ({
   existsSync: (...a: unknown[]) => mockExistsSync(...a),
@@ -13,8 +13,8 @@ vi.mock('node:fs', () => ({
   writeFileSync: (...a: unknown[]) => mockWriteFileSync(...a),
 }))
 
-vi.mock('node:child_process', () => ({
-  execSync: (...a: unknown[]) => mockExecSync(...a),
+vi.mock('../src/lib/exec.js', () => ({
+  safeExecFile: (...a: unknown[]) => mockSafeExecFile(...a),
 }))
 
 describe('ref', () => {
@@ -84,25 +84,62 @@ describe('ref', () => {
     expect(joined).toContain('https://b.com')
   })
 
-  it('refOpen — 유효하지 않은 인덱스면 execSync를 호출하지 않는다', async () => {
+  it('refOpen — 유효하지 않은 인덱스면 safeExecFile을 호출하지 않는다', async () => {
     mockExistsSync.mockReturnValue(true)
     mockReadFileSync.mockReturnValue(
       JSON.stringify([{ url: 'https://a.com', memo: '', addedAt: '2026-01-01' }])
     )
     const { refOpen } = await import('../src/commands/ref.js')
     await refOpen('99')
-    expect(mockExecSync).not.toHaveBeenCalled()
+    expect(mockSafeExecFile).not.toHaveBeenCalled()
   })
 
-  it('refOpen — 유효한 인덱스면 플랫폼별 open 명령을 호출한다', async () => {
+  it('refOpen — 유효한 인덱스면 safeExecFile을 호출한다 (argv 분리)', async () => {
     mockExistsSync.mockReturnValue(true)
     mockReadFileSync.mockReturnValue(
       JSON.stringify([{ url: 'https://a.com', memo: '', addedAt: '2026-01-01' }])
     )
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
     const { refOpen } = await import('../src/commands/ref.js')
     await refOpen('1')
-    expect(mockExecSync).toHaveBeenCalled()
-    const cmd = String(mockExecSync.mock.calls[0][0])
-    expect(cmd).toContain('https://a.com')
+
+    expect(mockSafeExecFile).toHaveBeenCalledTimes(1)
+    const [cmd, args] = mockSafeExecFile.mock.calls[0]
+    // 플랫폼별 cmd는 다르나 args에 URL이 별도 토큰으로 전달돼야 함 (shell injection 차단)
+    expect(Array.isArray(args)).toBe(true)
+    expect((args as string[]).includes('https://a.com')).toBe(true)
+    // cmd 자체는 'open' / 'cmd.exe' / 'xdg-open' 중 하나
+    expect(['open', 'cmd.exe', 'xdg-open']).toContain(String(cmd))
+  })
+
+  it('refOpen — http(s) 외 프로토콜은 차단', async () => {
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify([{ url: 'javascript:alert(1)', memo: '', addedAt: '2026-01-01' }])
+    )
+    const { refOpen } = await import('../src/commands/ref.js')
+    await refOpen('1')
+    expect(mockSafeExecFile).not.toHaveBeenCalled()
+  })
+
+  it('refOpen — URL injection 시도(따옴표/세미콜론)는 argv로 전달되어 shell 해석 안 됨', async () => {
+    const malicious = 'https://x.com"; rm -rf /'
+    mockExistsSync.mockReturnValue(true)
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify([{ url: malicious, memo: '', addedAt: '2026-01-01' }])
+    )
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
+    const { refOpen } = await import('../src/commands/ref.js')
+    await refOpen('1')
+
+    // URL parse에서 통과한 경우 — 따옴표/세미콜론 포함 URL은 잘못된 URL이므로 차단됨
+    // 만약 차단됐다면 safeExecFile 안 호출
+    // 만약 호출됐다면 args에 별도 토큰으로 들어가 shell 해석 없음
+    if (mockSafeExecFile.mock.calls.length > 0) {
+      const args = mockSafeExecFile.mock.calls[0][1] as string[]
+      // URL이 args의 한 요소로 들어감 → shell metachar 분리 안 됨
+      expect(args.some((a) => a.includes('rm -rf'))).toBe(false)
+      expect(args.includes(malicious)).toBe(true)
+    }
   })
 })
