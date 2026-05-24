@@ -106,10 +106,10 @@ export async function publish(): Promise<void> {
     return
   }
 
-  // npm publish — 2FA OTP 입력 등 대화형 프롬프트 지원을 위해 stdio inherit 사용.
-  // spinner는 stdin 점유 충돌 회피 위해 사용 안 함.
+  // npm publish — 2FA 인증(OTP 입력 또는 웹 기반 URL 클릭) 지원을 위해 stdio inherit 사용.
+  // spinner는 stdin/stdout 점유 충돌 회피 위해 사용 안 함.
   console.log(chalk.cyan(`\n📤 ${t('publish.publishing')}`))
-  console.log(chalk.gray('   (2FA 활성화된 계정이면 OTP 입력 프롬프트가 표시됩니다)'))
+  console.log(chalk.gray('   2FA 활성화 시: OTP 6자리 입력 또는 브라우저 인증 URL 클릭 (Windows Hello / PIN 지원)'))
   const pubResult = safeExecFileStream('npm', ['publish', '--access', 'public'])
   if (!pubResult.ok) {
     console.log(chalk.red(`\n✖ ${t('publish.publishFailed')}`))
