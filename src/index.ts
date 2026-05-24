@@ -18,6 +18,9 @@ import { diff } from './commands/diff.js'
 import { status } from './commands/status.js'
 import { startMcpServer } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
+import { deploy } from './commands/deploy.js'
+import { env, envCheck } from './commands/env.js'
+import { publish } from './commands/publish.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -29,12 +32,16 @@ const KO_ALIASES: Record<string, string> = {
   sync: '규칙',
   check: '점검',
   secure: '보안',
-  ship: '배포',
+  ship: '출하',
   doctor: '환경',
   save: '저장',
   undo: '되돌리기',
   status: '상태',
   diff: '변경',
+  deploy: '배포',
+  env: '환경변수',
+  'env-check': '환경변수점검',
+  publish: '출시',
 }
 
 program
@@ -129,8 +136,7 @@ secureCmd
 
 program
   .command('ship')
-  .alias('배포')
-  .alias('릴리즈')
+  .alias('출하')
   .description('배포 체크리스트 + 회고 + 빌드 로그 생성')
   .action(ship)
 
@@ -180,6 +186,30 @@ program
   .action(async () => {
     await mcpInit()
   })
+
+program
+  .command('deploy')
+  .alias('배포')
+  .description('프로덕션 배포 (Vercel/Netlify/Cloudflare 자동 감지)')
+  .action(async () => { await deploy() })
+
+program
+  .command('env')
+  .alias('환경변수')
+  .description('.env → .env.example 동기화 + .gitignore 자동 추가')
+  .action(async () => { await env() })
+
+program
+  .command('env-check')
+  .alias('환경변수점검')
+  .description('필수 환경변수 누락 검사')
+  .action(async () => { await envCheck() })
+
+program
+  .command('publish')
+  .alias('출시')
+  .description('npm 배포 (버전 범프 → 빌드 → 테스트 → publish)')
+  .action(async () => { await publish() })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
