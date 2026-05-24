@@ -25,6 +25,10 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'design-palette', '팔레트',
   'theme', '테마',
   'ref', '레퍼런스',
+  'harness', '하네스',
+  'audit', '감사',
+  'migrate', '전환',
+  'update', '업데이트',
   'help',
 ])
 
