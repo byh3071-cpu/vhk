@@ -107,15 +107,15 @@ export async function brief(): Promise<void> {
     }
   }
 
-  // 5. 다음 단계 제안
+  // 5. 다음 단계 제안 — 동적 번호 매기기 (uncommitted 유무에 따라 1~4단계)
   lines.push('## 다음 단계 제안')
   lines.push('')
-  if (uncommitted) {
-    lines.push('1. 미커밋 변경 사항을 커밋하세요: `vhk save`')
-  }
-  lines.push('1. 품질 점검 실행: `vhk harness`')
-  lines.push('2. 보안 감사: `vhk audit`')
-  lines.push('3. 컨텍스트 갱신: `vhk context`')
+  const steps: string[] = []
+  if (uncommitted) steps.push('미커밋 변경 사항을 커밋하세요: `vhk save`')
+  steps.push('품질 점검 실행: `vhk harness`')
+  steps.push('보안 감사: `vhk audit`')
+  steps.push('컨텍스트 갱신: `vhk context`')
+  steps.forEach((s, i) => lines.push(`${i + 1}. ${s}`))
   lines.push('')
 
   lines.push('---')
