@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockExecSync = vi.fn()
+const mockSafeExecFile = vi.fn()
 const mockReadFileSync = vi.fn()
 const mockExistsSync = vi.fn()
 
-vi.mock('node:child_process', () => ({
-  execSync: (...a: unknown[]) => mockExecSync(...a),
+vi.mock('../src/lib/exec.js', () => ({
+  safeExecFile: (...a: unknown[]) => mockSafeExecFile(...a),
 }))
 
 vi.mock('node:fs', () => ({
@@ -35,12 +35,12 @@ describe('harness', () => {
     expect(mod.harness).toBeDefined()
   })
 
-  it('package.json scripts가 없으면 안내만 출력하고 execSync 호출 없음', async () => {
+  it('package.json scripts가 없으면 안내만 출력하고 safeExecFile 호출 없음', async () => {
     mockReadFileSync.mockReturnValue(JSON.stringify({ name: 't' }))
     mockExistsSync.mockReturnValue(false)
     const { harness } = await import('../src/commands/harness.js')
     await harness()
-    expect(mockExecSync).not.toHaveBeenCalled()
+    expect(mockSafeExecFile).not.toHaveBeenCalled()
   })
 
   it('test/build scripts 감지 시 순차 실행한다', async () => {
@@ -48,12 +48,12 @@ describe('harness', () => {
       JSON.stringify({ scripts: { test: 'vitest', build: 'tsup' } })
     )
     mockExistsSync.mockReturnValue(false)
-    mockExecSync.mockReturnValue(Buffer.from(''))
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
     const { harness } = await import('../src/commands/harness.js')
     await harness()
-    const cmds = mockExecSync.mock.calls.map((c) => String(c[0]))
-    expect(cmds.some((c) => c.includes('test'))).toBe(true)
-    expect(cmds.some((c) => c.includes('build'))).toBe(true)
+    const callArgs = mockSafeExecFile.mock.calls.map((c) => c[1] as string[])
+    expect(callArgs.some((a) => a.includes('test'))).toBe(true)
+    expect(callArgs.some((a) => a.includes('build'))).toBe(true)
   })
 
   it('실패해도 다음 점검을 계속 진행한다', async () => {
@@ -62,13 +62,23 @@ describe('harness', () => {
     )
     mockExistsSync.mockReturnValue(false)
     let call = 0
-    mockExecSync.mockImplementation(() => {
+    mockSafeExecFile.mockImplementation(() => {
       call += 1
-      if (call === 1) throw new Error('test failed')
-      return Buffer.from('')
+      if (call === 1) return { ok: false, err: 'test failed', out: '' }
+      return { ok: true, out: '' }
     })
     const { harness } = await import('../src/commands/harness.js')
     await harness()
-    expect(mockExecSync).toHaveBeenCalledTimes(2)
+    expect(mockSafeExecFile).toHaveBeenCalledTimes(2)
+  })
+
+  it('pnpm-lock.yaml 감지 시 pnpm으로 실행', async () => {
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { build: 'tsup' } }))
+    mockExistsSync.mockImplementation((p: unknown) => String(p) === 'pnpm-lock.yaml')
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
+    const { harness } = await import('../src/commands/harness.js')
+    await harness()
+    const bins = mockSafeExecFile.mock.calls.map((c) => c[0] as string)
+    expect(bins[0]).toBe('pnpm')
   })
 })

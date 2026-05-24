@@ -1,10 +1,10 @@
-import { execSync } from 'node:child_process'
 import { existsSync, unlinkSync, rmSync } from 'node:fs'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { safeExecFile } from '../lib/exec.js'
 
 type PackageManager = 'npm' | 'yarn' | 'pnpm'
 
@@ -22,12 +22,8 @@ function detectCurrentPM(): PackageManager | null {
 }
 
 function isCLIAvailable(pm: PackageManager): boolean {
-  try {
-    execSync(`${pm} --version`, { stdio: ['pipe', 'pipe', 'pipe'] })
-    return true
-  } catch {
-    return false
-  }
+  // Windows .cmd shim 호환 위해 safeExecFile 사용 (Node 20.12+ CVE-2024-27980 EINVAL 회피).
+  return safeExecFile(pm, ['--version']).ok
 }
 
 export async function migrate(target?: string): Promise<void> {
@@ -93,13 +89,12 @@ export async function migrate(target?: string): Promise<void> {
   cleanup.succeed('기존 파일 정리 완료')
 
   const install = ora(`${targetPM} install 실행 중...`).start()
-  try {
-    execSync(`${targetPM} install`, { stdio: ['pipe', 'pipe', 'pipe'] })
+  const installResult = safeExecFile(targetPM, ['install'])
+  if (installResult.ok) {
     install.succeed(`${targetPM} install 완료!`)
-  } catch (err) {
+  } else {
     install.fail(`${targetPM} install 실패`)
-    const msg = err instanceof Error ? err.message.slice(0, 300) : String(err)
-    console.log(chalk.red(msg))
+    console.log(chalk.red(installResult.err.slice(0, 300)))
     return
   }
 

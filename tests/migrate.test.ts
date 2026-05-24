@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockExecSync = vi.fn()
+const mockSafeExecFile = vi.fn()
 const mockExistsSync = vi.fn()
 const mockUnlinkSync = vi.fn()
 const mockRmSync = vi.fn()
 const mockPrompt = vi.fn()
 
-vi.mock('node:child_process', () => ({
-  execSync: (...a: unknown[]) => mockExecSync(...a),
+vi.mock('../src/lib/exec.js', () => ({
+  safeExecFile: (...a: unknown[]) => mockSafeExecFile(...a),
 }))
 
 vi.mock('node:fs', () => ({
@@ -51,9 +51,9 @@ describe('migrate', () => {
 
   it('대상 PM CLI가 없으면 안내만 출력', async () => {
     mockExistsSync.mockImplementation((p: unknown) => String(p) === 'pnpm-lock.yaml')
-    mockExecSync.mockImplementation((cmd: unknown) => {
-      if (String(cmd).startsWith('yarn --version')) throw new Error('not found')
-      return Buffer.from('1.0.0')
+    mockSafeExecFile.mockImplementation((bin: string) => {
+      if (bin === 'yarn') return { ok: false, err: 'not found', out: '' }
+      return { ok: true, out: '1.0.0' }
     })
     const { migrate } = await import('../src/commands/migrate.js')
     await migrate('yarn')
@@ -63,7 +63,7 @@ describe('migrate', () => {
 
   it('확인 거부 시 lockfile 삭제하지 않는다', async () => {
     mockExistsSync.mockImplementation((p: unknown) => String(p) === 'pnpm-lock.yaml')
-    mockExecSync.mockReturnValue(Buffer.from('1.0.0'))
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '1.0.0' })
     mockPrompt.mockResolvedValue({ confirm: false })
     const { migrate } = await import('../src/commands/migrate.js')
     await migrate('npm')
@@ -75,13 +75,15 @@ describe('migrate', () => {
       const s = String(p)
       return s === 'pnpm-lock.yaml' || s === 'node_modules'
     })
-    mockExecSync.mockReturnValue(Buffer.from('1.0.0'))
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '1.0.0' })
     mockPrompt.mockResolvedValue({ confirm: true })
     const { migrate } = await import('../src/commands/migrate.js')
     await migrate('npm')
     expect(mockUnlinkSync).toHaveBeenCalled()
     expect(mockRmSync).toHaveBeenCalledWith('node_modules', { recursive: true, force: true })
-    const installCall = mockExecSync.mock.calls.find((c) => String(c[0]) === 'npm install')
+    const installCall = mockSafeExecFile.mock.calls.find(
+      (c) => c[0] === 'npm' && Array.isArray(c[1]) && (c[1] as string[]).includes('install')
+    )
     expect(installCall).toBeDefined()
   })
 })

@@ -10,7 +10,7 @@ export function platformCmd(cmd: string): string {
   return cmd
 }
 
-export type ExecResult = { ok: true; out: string } | { ok: false; err: string }
+export type ExecResult = { ok: true; out: string } | { ok: false; err: string; out: string }
 
 // Windows .cmd shim 호출은 Node 20.12+ / 21.7+ CVE-2024-27980 보안 강화로 execFileSync 직접 호출 시
 // spawnSync EINVAL. cmd.exe /d /s /c <shim>.cmd <args>로 래핑 — shell:false 유지하면서 동작.
@@ -32,8 +32,12 @@ export function safeExecFile(cmd: string, args: string[]): ExecResult {
     }).toString()
     return { ok: true, out: out.trim() }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { ok: false, err: msg }
+    // non-zero exit: stdout/stderr는 err.stdout/err.stderr에 담겨 있다.
+    // 예: `npm audit`은 취약점 있으면 exit !=0이지만 stdout에 JSON 출력.
+    const e = err as { stdout?: Buffer | string; stderr?: Buffer | string; message?: string }
+    const stdout = e.stdout ? e.stdout.toString() : ''
+    const msg = e.message ?? String(err)
+    return { ok: false, err: msg, out: stdout.trim() }
   }
 }
 
