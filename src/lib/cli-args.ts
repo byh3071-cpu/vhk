@@ -21,6 +21,10 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'env-check', '환경변수점검',
   'publish', '출시',
   '출하',
+  'design', '디자인',
+  'design-palette', '팔레트',
+  'theme', '테마',
+  'ref', '레퍼런스',
   'help',
 ])
 

@@ -18,6 +18,9 @@ import { mcpInit } from '../commands/mcp-init.js'
 import { deploy } from '../commands/deploy.js'
 import { env, envCheck } from '../commands/env.js'
 import { publish } from '../commands/publish.js'
+import { design, designPalette } from '../commands/design.js'
+import { theme } from '../commands/theme.js'
+import { refList } from '../commands/ref.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -60,6 +63,14 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return envCheck()
     case 'publish':
       return publish()
+    case 'design':
+      return design()
+    case 'design-palette':
+      return designPalette()
+    case 'theme':
+      return theme()
+    case 'ref':
+      return refList()
   }
 }
 
