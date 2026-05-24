@@ -1,35 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
+import { safeExecFile } from '../lib/exec.js'
 
-const SERVER_VERSION = '0.6.0'
-
-// Windows에서 pnpm/npm/npx/yarn은 .cmd shim. execFileSync는 native 바이너리만 찾으므로 .cmd 확장자 부여.
-const SHIM_BINARIES = new Set(['pnpm', 'npm', 'npx', 'yarn'])
-function platformCmd(cmd: string): string {
-  if (process.platform === 'win32' && SHIM_BINARIES.has(cmd)) {
-    return `${cmd}.cmd`
-  }
-  return cmd
-}
-
-function safeExecFile(
-  cmd: string,
-  args: string[]
-): { ok: true; out: string } | { ok: false; err: string } {
-  try {
-    const out = execFileSync(platformCmd(cmd), args, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).toString()
-    return { ok: true, out: out.trim() }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { ok: false, err: msg }
-  }
-}
+const SERVER_VERSION = '0.7.0'
 
 function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok

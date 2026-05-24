@@ -83,7 +83,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md |
 | `vhk check` | `점검`, `린트` | RULES.md 규칙 위반 검사 |
 | `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
-| `vhk ship` | `배포`, `릴리즈` | 배포 체크리스트 + 회고 + 빌드 로그 |
+| `vhk ship` | `출하` | 배포 체크리스트 + 회고 + 빌드 로그 |
 | `vhk doctor` | `환경`, `진단` | Node / npm / pnpm / Git 환경 점검 |
 | `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에 |
 | `vhk undo` | `되돌리기`, `취소` | 최근 커밋 soft reset (변경은 staged 유지) |
@@ -91,6 +91,10 @@ vhk 기획 끝났고 바로 시작
 | `vhk status` | `상태`, `현황` | 브랜치·변경·커밋·원격·버전 대시보드 |
 | `vhk mcp` | — | MCP 서버 시작 (Cursor 등 MCP 클라이언트용, stdio) |
 | `vhk mcp-init` | `mcp설정` | Cursor `.cursor/mcp.json` 자동 생성 |
+| `vhk deploy` | `배포` | 프로덕션 배포 (Vercel / Netlify / Cloudflare 자동 감지) |
+| `vhk env` | `환경변수` | `.env` → `.env.example` 동기화 + `.gitignore`에 `.env` 자동 추가 |
+| `vhk env-check` | `환경변수점검` | `.env.example` 기준 누락 환경변수 검사 |
+| `vhk publish` | `출시` | npm 배포 자동화 (버전 범프 → 빌드 → 테스트 → publish → git tag) |
 
 ### init 옵션
 
