@@ -11,6 +11,7 @@ export type NlpCommand =
   | 'undo'
   | 'diff'
   | 'status'
+  | 'mcp-init'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -69,6 +70,12 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     test: t =>
       /프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t),
+  },
+  {
+    command: 'mcp-init',
+    explanation: 'Cursor MCP 연동 설정 (vhk mcp-init)',
+    confidence: 'high',
+    test: t => /mcp.*(설정|연동|초기|init)|커서.*(연동|설정|mcp)|cursor.*mcp/.test(t),
   },
   {
     command: 'secure',
