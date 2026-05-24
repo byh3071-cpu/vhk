@@ -68,4 +68,28 @@ describe('자연어 라우팅', () => {
     const result = routeNaturalLanguage('asdfqwer')
     expect(result).toBeNull()
   })
+
+  it('"디자인 토큰 만들어줘" → design', () => {
+    expect(routeNaturalLanguage('디자인 토큰 만들어줘')?.command).toBe('design')
+  })
+
+  it('"팔레트 골라줘" → design-palette', () => {
+    expect(routeNaturalLanguage('팔레트 골라줘')?.command).toBe('design-palette')
+  })
+
+  it('"다크 모드 적용" → theme', () => {
+    expect(routeNaturalLanguage('다크 모드 적용')?.command).toBe('theme')
+  })
+
+  it('"레퍼런스 보여줘" → ref', () => {
+    expect(routeNaturalLanguage('레퍼런스 보여줘')?.command).toBe('ref')
+  })
+
+  it('"ref add https://x.com" → null (commander 서브커맨드 보호)', () => {
+    expect(routeNaturalLanguage('ref add https://x.com')).toBeNull()
+  })
+
+  it('"레퍼런스 추가해줘" → null (NL에서 의도적으로 배제)', () => {
+    expect(routeNaturalLanguage('레퍼런스 추가해줘')).toBeNull()
+  })
 })

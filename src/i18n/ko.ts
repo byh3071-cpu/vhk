@@ -249,6 +249,17 @@ export const ko = {
     changelogMissing:
       'CHANGELOG.md가 없어요. 만들면 ship이 자동으로 [Unreleased] → 버전 섹션으로 옮겨줍니다.',
   },
+  design: {
+    title: '디자인 토큰 생성',
+    selectPalette: '컬러 팔레트를 선택하세요:',
+  },
+  theme: {
+    title: '테마 설정 (다크/라이트 모드)',
+  },
+  ref: {
+    addTitle: '레퍼런스 추가',
+    listTitle: '레퍼런스 목록',
+  },
   mcp: {
     initTitle: 'Cursor MCP 연동 설정',
     serverStarted: 'VHK MCP 서버 시작됨',
