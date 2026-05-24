@@ -77,7 +77,8 @@ const RULES: NlpRule[] = [
     explanation: '프로젝트 시작 (vhk 시작)',
     confidence: 'high',
     test: t =>
-      /프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t),
+      (/프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|하네스|초기화/.test(t) || /^시작$/.test(t)) &&
+      !/디자인|design|팔레트|palette|테마|theme|레퍼런스|reference|다크\s*모드|라이트\s*모드|색상\s*모드/.test(t),
   },
   {
     command: 'mcp-init',
@@ -97,14 +98,16 @@ const RULES: NlpRule[] = [
     explanation: '디자인 토큰 생성 (vhk design)',
     confidence: 'high',
     test: t =>
-      /디자인\s*(토큰|시스템|만들|생성|셋업|설정)|design\s*(token|system|setup)|토큰\s*만들|css\s*변수.*만들|tailwind\s*(컬러|설정)/.test(t),
+      (/디자인\s*(토큰|시스템|만들|생성|셋업|설정)|design\s*(token|system|setup)|토큰\s*만들|css\s*변수.*만들|tailwind\s*(컬러|설정)/.test(t)) &&
+      !/배포|deploy|vercel|netlify|cloudflare|wrangler|출시|publish|npm/.test(t),
   },
   {
     command: 'theme',
     explanation: '다크/라이트 테마 적용 (vhk theme)',
     confidence: 'high',
     test: t =>
-      /테마(?!\s*(파일|이름))|theme|다크\s*모드|라이트\s*모드|dark\s*mode|light\s*mode|색상\s*모드|모드\s*전환/.test(t),
+      (/테마(?!\s*(파일|이름))|theme|다크\s*모드|라이트\s*모드|dark\s*mode|light\s*mode|색상\s*모드|모드\s*전환/.test(t)) &&
+      !/보안|시크릿|비밀|키\s*유출|secure|scan|스캔|배포|deploy/.test(t),
   },
   {
     command: 'ref',
