@@ -42,11 +42,13 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── save ───────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'save',
-    '변경사항 저장 (git add → commit → push)',
     {
-      message: z.string().optional().describe('커밋 메시지 (비우면 자동 생성)'),
+      description: '변경사항 저장 (git add → commit → push)',
+      inputSchema: {
+        message: z.string().optional().describe('커밋 메시지 (비우면 자동 생성)'),
+      },
     },
     async ({ message }) => {
       if (!isGitRepo()) {
@@ -90,7 +92,7 @@ export function createVhkMcpServer(): McpServer {
   )
 
   // ─── undo ───────────────────────────────────────────────
-  server.tool('undo', '최근 커밋 되돌리기 (soft reset, 변경사항은 유지)', {}, async () => {
+  server.registerTool('undo', { description: '최근 커밋 되돌리기 (soft reset, 변경사항은 유지)' }, async () => {
     if (!isGitRepo()) {
       return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
     }
@@ -116,7 +118,7 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── status ─────────────────────────────────────────────
-  server.tool('status', '프로젝트 상태 대시보드 (브랜치/변경사항/최근 커밋)', {}, async () => {
+  server.registerTool('status', { description: '프로젝트 상태 대시보드 (브랜치/변경사항/최근 커밋)' }, async () => {
     const lines: string[] = []
 
     if (existsSync('package.json')) {
@@ -163,7 +165,7 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── diff ───────────────────────────────────────────────
-  server.tool('diff', '변경사항 확인 (staged/unstaged/새파일 + 총 변경 요약)', {}, async () => {
+  server.registerTool('diff', { description: '변경사항 확인 (staged/unstaged/새파일 + 총 변경 요약)' }, async () => {
     if (!isGitRepo()) {
       return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
     }
@@ -214,7 +216,7 @@ export function createVhkMcpServer(): McpServer {
 
   // ─── ship ───────────────────────────────────────────────
   // TODO(v0.6.1): execa로 비동기 전환 — ship 장시간 블로킹 방지
-  server.tool('ship', '배포 체크리스트 실행 (빌드 + 테스트 + 버전 + git 상태)', {}, async () => {
+  server.registerTool('ship', { description: '배포 체크리스트 실행 (빌드 + 테스트 + 버전 + git 상태)' }, async () => {
     const checks: string[] = []
 
     const build = safeExecFile('pnpm', ['build'])
@@ -247,7 +249,7 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── doctor ─────────────────────────────────────────────
-  server.tool('doctor', '개발 환경 점검 (Node/Git/npm/pnpm/TypeScript)', {}, async () => {
+  server.registerTool('doctor', { description: '개발 환경 점검 (Node/Git/npm/pnpm/TypeScript)' }, async () => {
     const checks: string[] = []
 
     const node = safeExecFile('node', ['--version'])
@@ -269,7 +271,7 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── check ──────────────────────────────────────────────
-  server.tool('check', '프로젝트 구조 점검 (필수 파일 + VHK 하네스 파일)', {}, async () => {
+  server.registerTool('check', { description: '프로젝트 구조 점검 (필수 파일 + VHK 하네스 파일)' }, async () => {
     const required = ['package.json', 'tsconfig.json', 'README.md', '.gitignore']
     const recommended = ['CLAUDE.md', '.cursorrules', 'docs/PRD.md', 'docs/ARCHITECTURE.md']
 
@@ -286,11 +288,13 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── recap ──────────────────────────────────────────────
-  server.tool(
+  server.registerTool(
     'recap',
-    '최근 작업 요약 (커밋 히스토리 기반, 날짜 포함)',
     {
-      count: z.number().optional().describe('표시할 커밋 수 (기본: 10)'),
+      description: '최근 작업 요약 (커밋 히스토리 기반, 날짜 포함)',
+      inputSchema: {
+        count: z.number().optional().describe('표시할 커밋 수 (기본: 10)'),
+      },
     },
     async ({ count }) => {
       if (!isGitRepo()) {
