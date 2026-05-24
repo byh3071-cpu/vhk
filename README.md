@@ -83,7 +83,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md |
 | `vhk check` | `점검`, `린트` | RULES.md 규칙 위반 검사 |
 | `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
-| `vhk ship` | `출하`, `릴리즈` | 배포 체크리스트 + 회고 + 빌드 로그 |
+| `vhk ship` | `출하` | 배포 체크리스트 + 회고 + 빌드 로그 |
 | `vhk doctor` | `환경`, `진단` | Node / npm / pnpm / Git 환경 점검 |
 | `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에 |
 | `vhk undo` | `되돌리기`, `취소` | 최근 커밋 soft reset (변경은 staged 유지) |
