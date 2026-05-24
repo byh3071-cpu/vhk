@@ -268,10 +268,20 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── check ──────────────────────────────────────────────
-  server.tool('check', '프로젝트 구조 점검 (필수 파일 존재 여부)', {}, async () => {
+  server.tool('check', '프로젝트 구조 점검 (필수 파일 + VHK 하네스 파일)', {}, async () => {
     const required = ['package.json', 'tsconfig.json', 'README.md', '.gitignore']
-    const results = required.map((f) => `${existsSync(f) ? '✅' : '❌'} ${f}`)
-    return { content: [{ type: 'text', text: '🔍 프로젝트 점검\n' + results.join('\n') }] }
+    const recommended = ['CLAUDE.md', '.cursorrules', 'docs/PRD.md', 'docs/ARCHITECTURE.md']
+
+    const lines: string[] = ['🔍 프로젝트 점검', '', '필수:']
+    required.forEach((f) => {
+      lines.push(`  ${existsSync(f) ? '✅' : '❌'} ${f}`)
+    })
+    lines.push('', '권장 (VHK 하네스):')
+    recommended.forEach((f) => {
+      lines.push(`  ${existsSync(f) ? '✅' : '⚠️'} ${f}`)
+    })
+
+    return { content: [{ type: 'text', text: lines.join('\n') }] }
   })
 
   // ─── recap ──────────────────────────────────────────────
