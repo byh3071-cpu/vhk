@@ -5,7 +5,7 @@ import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs
 import { safeExecFile } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
 
-const SERVER_VERSION = '0.7.0'
+const SERVER_VERSION = '0.7.1'
 
 function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
