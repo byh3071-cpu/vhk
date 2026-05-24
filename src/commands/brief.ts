@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 const BRIEF_PATH = '.vhk/brief.md'
 
@@ -21,15 +22,15 @@ export async function brief(): Promise<void> {
   lines.push(`> 생성: ${new Date().toLocaleString('ko-KR')}`)
   lines.push('')
 
-  // 1. 프로젝트 정보
+  // 1. 프로젝트 정보 — readJsonFile로 BOM 안전 처리
   try {
-    const pkg = JSON.parse(readFileSync('package.json', 'utf-8')) as {
+    const pkg = readJsonFile<{
       name?: string
       version?: string
       description?: string
       dependencies?: Record<string, string>
       devDependencies?: Record<string, string>
-    }
+    }>('package.json')
     lines.push('## 프로젝트 정보')
     lines.push('')
     lines.push(`- **이름**: ${pkg.name ?? '미정'}`)
@@ -67,9 +68,7 @@ export async function brief(): Promise<void> {
   // 3. 결정사항
   if (existsSync('.vhk/memory.json')) {
     try {
-      const memories = JSON.parse(readFileSync('.vhk/memory.json', 'utf-8')) as Array<{
-        content: string
-      }>
+      const memories = readJsonFile<Array<{ content: string }>>('.vhk/memory.json')
       if (Array.isArray(memories) && memories.length > 0) {
         lines.push(`## 저장된 결정사항 (${memories.length}개)`)
         lines.push('')
@@ -89,10 +88,7 @@ export async function brief(): Promise<void> {
   // 4. 레퍼런스
   if (existsSync('.vhk/refs.json')) {
     try {
-      const refs = JSON.parse(readFileSync('.vhk/refs.json', 'utf-8')) as Array<{
-        url: string
-        memo?: string
-      }>
+      const refs = readJsonFile<Array<{ url: string; memo?: string }>>('.vhk/refs.json')
       if (Array.isArray(refs) && refs.length > 0) {
         lines.push(`## 레퍼런스 (${refs.length}개)`)
         lines.push('')

@@ -10,6 +10,7 @@ import { join } from 'node:path'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
 
@@ -58,12 +59,13 @@ type DepMap = Record<string, string>
 function extractTechStack(): Record<string, string> {
   const stack: Record<string, string> = {}
   try {
-    const pkg = JSON.parse(readFileSync('package.json', 'utf-8')) as {
+    // PowerShell `Out-File -Encoding utf8`로 만든 package.json은 BOM 포함 → readJsonFile로 stripBom.
+    const pkg = readJsonFile<{
       name?: string
       version?: string
       dependencies?: DepMap
       devDependencies?: DepMap
-    }
+    }>('package.json')
     const all: DepMap = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
 
     if (all.next) stack['프레임워크'] = `Next.js ${all.next}`
@@ -169,10 +171,9 @@ export async function context(): Promise<void> {
 
   if (existsSync('.vhk/memory.json')) {
     try {
-      const memories = JSON.parse(readFileSync('.vhk/memory.json', 'utf-8')) as Array<{
-        content: string
-        addedAt: string
-      }>
+      const memories = readJsonFile<Array<{ content: string; addedAt: string }>>(
+        '.vhk/memory.json'
+      )
       if (Array.isArray(memories) && memories.length > 0) {
         lines.push('## 저장된 결정사항')
         lines.push('')

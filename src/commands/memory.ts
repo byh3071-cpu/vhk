@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 interface MemoryEntry {
   content: string
@@ -14,8 +15,7 @@ const MEMORY_PATH = '.vhk/memory.json'
 function loadMemories(): MemoryEntry[] {
   if (!existsSync(MEMORY_PATH)) return []
   try {
-    const raw = readFileSync(MEMORY_PATH, 'utf-8')
-    const parsed = JSON.parse(raw)
+    const parsed = readJsonFile<unknown>(MEMORY_PATH)
     return Array.isArray(parsed) ? (parsed as MemoryEntry[]) : []
   } catch {
     return []
