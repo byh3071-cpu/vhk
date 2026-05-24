@@ -277,7 +277,7 @@ export function createVhkMcpServer(): McpServer {
   // ─── recap ──────────────────────────────────────────────
   server.tool(
     'recap',
-    '최근 작업 요약 (커밋 히스토리 기반)',
+    '최근 작업 요약 (커밋 히스토리 기반, 날짜 포함)',
     {
       count: z.number().optional().describe('표시할 커밋 수 (기본: 10)'),
     },
@@ -286,7 +286,7 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
       const n = count && count > 0 ? Math.floor(count) : 10
-      const log = safeExecFile('git', ['log', '--oneline', `-${n}`])
+      const log = safeExecFile('git', ['log', '--format=%h %ad %s', '--date=short', `-${n}`])
       if (!log.ok) {
         return { content: [{ type: 'text', text: `❌ git log 실패: ${log.err}` }] }
       }
