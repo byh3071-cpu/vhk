@@ -121,4 +121,32 @@ describe('자연어 라우팅', () => {
   it('"디자인 토큰 npm 출시" → publish (design 가드)', () => {
     expect(routeNaturalLanguage('디자인 토큰 npm 출시')?.command).toBe('publish')
   })
+
+  it('"품질 점검해줘" → harness', () => {
+    expect(routeNaturalLanguage('품질 점검해줘')?.command).toBe('harness')
+  })
+
+  it('"통합 점검 돌려" → harness', () => {
+    expect(routeNaturalLanguage('통합 점검 돌려')?.command).toBe('harness')
+  })
+
+  it('"규칙 점검" → check (harness 아님)', () => {
+    expect(routeNaturalLanguage('규칙 점검')?.command).toBe('check')
+  })
+
+  it('"보안 감사 해줘" → audit', () => {
+    expect(routeNaturalLanguage('보안 감사 해줘')?.command).toBe('audit')
+  })
+
+  it('"취약점 확인" → audit', () => {
+    expect(routeNaturalLanguage('취약점 확인')?.command).toBe('audit')
+  })
+
+  it('"패키지 매니저 전환" → migrate', () => {
+    expect(routeNaturalLanguage('패키지 매니저 전환')?.command).toBe('migrate')
+  })
+
+  it('"vhk 업데이트 해줘" → update', () => {
+    expect(routeNaturalLanguage('vhk 업데이트 해줘')?.command).toBe('update')
+  })
 })
