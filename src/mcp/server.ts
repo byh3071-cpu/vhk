@@ -1,8 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
 import { safeExecFile } from '../lib/exec.js'
+import { parseEnvKeys } from '../commands/env.js'
 
 const SERVER_VERSION = '0.7.0'
 
@@ -284,6 +285,75 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '📭 커밋 히스토리가 없습니다.' }] }
       }
       return { content: [{ type: 'text', text: `📋 최근 작업 (${n}개):\n${log.out}` }] }
+    }
+  )
+
+  // ─── env ────────────────────────────────────────────────
+  server.registerTool(
+    'env',
+    {
+      description: '.env → .env.example 동기화 + .gitignore에 .env 자동 추가',
+    },
+    async () => {
+      if (!existsSync('.env')) {
+        return { content: [{ type: 'text', text: '⚠️  .env 파일이 없습니다. 먼저 .env를 만들어주세요.' }] }
+      }
+      const keys = parseEnvKeys(readFileSync('.env', 'utf-8'))
+      if (keys.length === 0) {
+        return { content: [{ type: 'text', text: '📭 .env에 환경변수가 없습니다.' }] }
+      }
+      const exampleContent = keys.map((k) => `${k}=`).join('\n') + '\n'
+      writeFileSync('.env.example', exampleContent, 'utf-8')
+
+      // gitignore 보장
+      const gitignoreLines: string[] = []
+      if (existsSync('.gitignore')) {
+        const content = readFileSync('.gitignore', 'utf-8')
+        if (!content.split('\n').some((l) => l.trim() === '.env')) {
+          appendFileSync('.gitignore', '\n.env\n')
+          gitignoreLines.push('🔒 .gitignore에 .env 추가됨')
+        }
+      } else {
+        writeFileSync('.gitignore', '.env\nnode_modules/\ndist/\n')
+        gitignoreLines.push('🔒 .gitignore 생성 (.env 포함)')
+      }
+
+      const lines = [`✅ .env.example 생성 (${keys.length}개 키)`, ...keys.map((k) => `   ${k}`)]
+      if (gitignoreLines.length) lines.push('', ...gitignoreLines)
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
+    }
+  )
+
+  // ─── env-check ──────────────────────────────────────────
+  server.registerTool(
+    'env-check',
+    {
+      description: '필수 환경변수 누락 검사 (.env.example 기준)',
+    },
+    async () => {
+      if (!existsSync('.env.example')) {
+        return { content: [{ type: 'text', text: '⚠️  .env.example이 없습니다. 먼저 env 도구를 실행하세요.' }] }
+      }
+      const requiredKeys = parseEnvKeys(readFileSync('.env.example', 'utf-8'))
+      const currentKeys = existsSync('.env')
+        ? parseEnvKeys(readFileSync('.env', 'utf-8'))
+        : []
+
+      const missing = requiredKeys.filter((k) => !currentKeys.includes(k))
+      const extra = currentKeys.filter((k) => !requiredKeys.includes(k))
+
+      const lines: string[] = [`📋 필수 환경변수: ${requiredKeys.length}개`]
+      if (missing.length === 0) {
+        lines.push('✅ 모든 필수 환경변수가 설정되어 있습니다!')
+      } else {
+        lines.push(`❌ 누락된 환경변수 (${missing.length}개):`)
+        missing.forEach((k) => lines.push(`   • ${k}`))
+      }
+      if (extra.length > 0) {
+        lines.push(`💡 .env.example에 없는 추가 변수 (${extra.length}개):`)
+        extra.forEach((k) => lines.push(`   • ${k}`))
+      }
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
     }
   )
 
