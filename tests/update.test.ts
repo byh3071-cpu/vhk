@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockExecSync = vi.fn()
 const mockReadFileSync = vi.fn()
+const mockExistsSync = vi.fn(() => true)
 
 vi.mock('node:child_process', () => ({
   execSync: (...a: unknown[]) => mockExecSync(...a),
@@ -9,6 +10,7 @@ vi.mock('node:child_process', () => ({
 
 vi.mock('node:fs', () => ({
   readFileSync: (...a: unknown[]) => mockReadFileSync(...a),
+  existsSync: (...a: unknown[]) => mockExistsSync(...a),
 }))
 
 vi.mock('ora', () => ({

@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
@@ -9,15 +9,20 @@ import { t } from '../i18n/ko.js'
 const PACKAGE = '@byh3071/vhk'
 
 function getCurrentVersion(): string {
-  try {
-    const dir = dirname(fileURLToPath(import.meta.url))
-    const pkg = JSON.parse(readFileSync(join(dir, '../../package.json'), 'utf-8')) as {
-      version?: string
+  const dir = dirname(fileURLToPath(import.meta.url))
+  // tsup 번들: dist/index.js → ../package.json
+  // 소스 직접 실행: src/commands/update.ts → ../../package.json
+  for (const pkgPath of [join(dir, '../package.json'), join(dir, '../../package.json')]) {
+    try {
+      if (existsSync(pkgPath)) {
+        const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8')) as { version?: string }
+        if (pkg.version) return pkg.version
+      }
+    } catch {
+      continue
     }
-    return pkg.version ?? '0.0.0'
-  } catch {
-    return '0.0.0'
   }
+  return '0.0.0'
 }
 
 function getLatestVersion(): string | null {
@@ -30,6 +35,16 @@ function getLatestVersion(): string | null {
   } catch {
     return null
   }
+}
+
+/** semver 비교: a >= b면 true (a가 같거나 더 높으면 true) */
+function isUpToDate(current: string, latest: string): boolean {
+  const parse = (v: string) => v.split('.').map(n => parseInt(n, 10) || 0)
+  const [ca, cb, cc] = parse(current)
+  const [la, lb, lc] = parse(latest)
+  if (ca !== la) return ca > la
+  if (cb !== lb) return cb > lb
+  return cc >= lc
 }
 
 export async function update(): Promise<void> {
@@ -52,7 +67,7 @@ export async function update(): Promise<void> {
   spinner.stop()
   console.log(chalk.cyan(`🆕 최신 버전: v${latest}`))
 
-  if (current === latest) {
+  if (isUpToDate(current, latest)) {
     console.log(chalk.green('\n✅ 이미 최신 버전입니다!'))
     return
   }
