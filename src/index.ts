@@ -1,11 +1,9 @@
 import { Command, Help } from 'commander'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
-import fs from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
+import { getVhkVersion } from './lib/version.js'
 import { ko } from './i18n/ko.js'
 import { gate } from './commands/gate.js'
 import { init } from './commands/init.js'
@@ -34,24 +32,6 @@ import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
 import { brief } from './commands/brief.js'
-
-// 런타임에 package.json에서 버전 읽기 — src와 dist 둘 다 동작.
-// dist/index.js: ../package.json (npm 글로벌 + 로컬 빌드 동일)
-// src/index.ts (dev): ../package.json (repo root)
-function getVersion(): string {
-  const dir = path.dirname(fileURLToPath(import.meta.url))
-  for (const pkgPath of [path.join(dir, '../package.json'), path.join(dir, '../../package.json')]) {
-    try {
-      if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string }
-        if (pkg.version) return pkg.version
-      }
-    } catch {
-      continue
-    }
-  }
-  return '0.0.0'
-}
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -90,7 +70,7 @@ const KO_ALIASES: Record<string, string> = {
 program
   .name('vhk')
   .description('VHK — 바이브코딩 프로젝트 코치 (한국어로 안내합니다)')
-  .version(getVersion())
+  .version(getVhkVersion())
 
 program.configureHelp({
   formatHelp(cmd, helper) {
