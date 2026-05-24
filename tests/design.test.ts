@@ -64,4 +64,31 @@ describe('design', () => {
 
     expect(mockWriteFileSync).toHaveBeenCalled()
   })
+
+  it('기존 tokens.css 있고 덮어쓰기 거부하면 파일 안 씀', async () => {
+    // tailwind 없음 → tokens.css 타겟. 그 파일이 존재
+    mockExistsSync.mockImplementation((p: unknown) => String(p).includes('tokens.css'))
+    // 첫 prompt = 팔레트 선택, 두 번째 prompt = 덮어쓰기 확인 (false)
+    mockPrompt
+      .mockResolvedValueOnce({ paletteIndex: 0 })
+      .mockResolvedValueOnce({ overwrite: false })
+
+    const { design } = await import('../src/commands/design.js')
+    await design()
+
+    expect(mockWriteFileSync).not.toHaveBeenCalled()
+  })
+
+  it('기존 tokens.css 있고 덮어쓰기 승인하면 새로 씀', async () => {
+    mockExistsSync.mockImplementation((p: unknown) => String(p).includes('tokens.css'))
+    mockPrompt
+      .mockResolvedValueOnce({ paletteIndex: 0 })
+      .mockResolvedValueOnce({ overwrite: true })
+
+    const { design } = await import('../src/commands/design.js')
+    await design()
+
+    expect(mockWriteFileSync).toHaveBeenCalledTimes(1)
+    expect(String(mockWriteFileSync.mock.calls[0][0])).toContain('tokens.css')
+  })
 })

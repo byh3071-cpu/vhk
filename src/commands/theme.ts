@@ -1,5 +1,6 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import chalk from 'chalk'
+import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 
@@ -63,13 +64,30 @@ export async function theme(): Promise<void> {
   console.log(chalk.bold('\n🌙 ' + t('theme.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
+  const cssPath = 'src/styles/theme.css'
+  const togglePath = 'src/lib/theme-toggle.ts'
+  const conflicts = [cssPath, togglePath].filter((p) => existsSync(p))
+
+  if (conflicts.length > 0) {
+    const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([{
+      type: 'confirm',
+      name: 'overwrite',
+      message: `다음 파일이 이미 있어요. 덮어쓸까요?\n   ${conflicts.join('\n   ')}`,
+      default: false,
+    }])
+    if (!overwrite) {
+      console.log(chalk.yellow('\n⏭️  생성 취소 — 기존 파일 유지.'))
+      return
+    }
+  }
+
   mkdirSync('src/styles', { recursive: true })
   mkdirSync('src/lib', { recursive: true })
 
-  writeFileSync('src/styles/theme.css', generateDarkCSS(), 'utf-8')
+  writeFileSync(cssPath, generateDarkCSS(), 'utf-8')
   console.log(chalk.green('\n✅ src/styles/theme.css 생성 (다크/라이트 모드)'))
 
-  writeFileSync('src/lib/theme-toggle.ts', generateToggleUtil(), 'utf-8')
+  writeFileSync(togglePath, generateToggleUtil(), 'utf-8')
   console.log(chalk.green('✅ src/lib/theme-toggle.ts 생성 (토글 유틸리티)'))
 
   console.log(chalk.bold('\n📖 사용법:'))

@@ -102,14 +102,29 @@ export async function design(): Promise<void> {
   const palette = PALETTES[paletteIndex]
   console.log(chalk.cyan(`\n🎨 선택된 팔레트: ${palette.name}`))
 
+  const targetPath = hasTailwind() ? 'src/styles/vhk-colors.ts' : 'src/styles/tokens.css'
+  const content = hasTailwind() ? generateTailwindExtend(palette) : generateCSSTokens(palette)
+
+  if (existsSync(targetPath)) {
+    const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([{
+      type: 'confirm',
+      name: 'overwrite',
+      message: `${targetPath} 이미 있어요. 덮어쓸까요?`,
+      default: false,
+    }])
+    if (!overwrite) {
+      console.log(chalk.yellow('\n⏭️  생성 취소 — 기존 파일 유지.'))
+      return
+    }
+  }
+
   mkdirSync('src/styles', { recursive: true })
+  writeFileSync(targetPath, content, 'utf-8')
 
   if (hasTailwind()) {
-    writeFileSync('src/styles/vhk-colors.ts', generateTailwindExtend(palette), 'utf-8')
     console.log(chalk.green('\n✅ src/styles/vhk-colors.ts 생성'))
     console.log(chalk.gray('   tailwind.config의 extend.colors에 import 해서 사용하세요.'))
   } else {
-    writeFileSync('src/styles/tokens.css', generateCSSTokens(palette), 'utf-8')
     console.log(chalk.green('\n✅ src/styles/tokens.css 생성'))
     console.log(chalk.gray('   HTML에 <link>로 추가하거나 CSS에서 @import 하세요.'))
   }
