@@ -82,6 +82,7 @@ describe('cli NL e2e', () => {
 
   it('vhk --version', () => {
     const r = spawnSync(process.execPath, [bin, '--version'], { encoding: 'utf-8' })
-    expect(r.stdout?.trim()).toMatch(/0\.5\./)
+    const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8')) as { version: string }
+    expect(r.stdout?.trim()).toBe(pkg.version)
   })
 })

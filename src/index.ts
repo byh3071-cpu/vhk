@@ -16,6 +16,8 @@ import { save } from './commands/save.js'
 import { undo } from './commands/undo.js'
 import { diff } from './commands/diff.js'
 import { status } from './commands/status.js'
+import { startMcpServer } from './mcp/server.js'
+import { mcpInit } from './commands/mcp-init.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -38,7 +40,7 @@ const KO_ALIASES: Record<string, string> = {
 program
   .name('vhk')
   .description('VHK — 바이브코딩 프로젝트 코치 (한국어로 안내합니다)')
-  .version('0.5.3')
+  .version('0.6.0')
 
 program.configureHelp({
   formatHelp(cmd, helper) {
@@ -47,7 +49,10 @@ program.configureHelp({
     }
 
     const subs = helper.visibleCommands(cmd).filter((c) => c.name() !== 'help')
-    const terms = subs.map((c) => `${c.name()} (${KO_ALIASES[c.name()]})`)
+    const terms = subs.map((c) => {
+      const alias = KO_ALIASES[c.name()]
+      return alias ? `${c.name()} (${alias})` : c.name()
+    })
     const termWidth = Math.max(...terms.map((t) => t.length), 0)
 
     const lines = [
@@ -160,6 +165,21 @@ program
   .alias('차이')
   .description('Git 변경사항 한국어 요약 (staged / unstaged / 새 파일)')
   .action(diff)
+
+program
+  .command('mcp')
+  .description('MCP 서버 시작 (Cursor 등 MCP 클라이언트용)')
+  .action(async () => {
+    await startMcpServer()
+  })
+
+program
+  .command('mcp-init')
+  .alias('mcp설정')
+  .description('Cursor MCP 연동 설정 자동 생성 (.cursor/mcp.json)')
+  .action(async () => {
+    await mcpInit()
+  })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''

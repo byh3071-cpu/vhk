@@ -1,9 +1,10 @@
 {
   "name": "@byh3071/vhk",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "Vibe Harness Kit — 바이브코딩 풀사이클 CLI",
   "bin": {
-    "vhk": "dist/index.js"
+    "vhk": "dist/index.js",
+    "vhk-mcp": "dist/mcp/index.js"
   },
   "type": "module",
   "scripts": {
@@ -42,13 +43,15 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@notionhq/client": "^5.22.0",
     "chalk": "^5.6.2",
     "commander": "^14.0.3",
     "handlebars": "^4.7.9",
     "inquirer": "^9.3.8",
     "ora": "^9.4.0",
-    "simple-git": "^3.36.0"
+    "simple-git": "^3.36.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/inquirer": "^9.0.9",

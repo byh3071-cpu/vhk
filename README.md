@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
-date: 2026-05-23
-tags: [vhk, cli, readme, v0.5.3]
+date: 2026-05-24
+tags: [vhk, cli, readme, v0.6.0]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.5.3)
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v0.6.0)
 >
 > 🍽️ **VHK는 VHK로 부트스트랩됨** — 이 레포의 `docs/`, `CLAUDE.md`, `.cursorrules`도 `vhk init`이 만들었습니다.
 
@@ -89,6 +89,8 @@ vhk 기획 끝났고 바로 시작
 | `vhk undo` | `되돌리기`, `취소` | 최근 커밋 soft reset (변경은 staged 유지) |
 | `vhk diff` | `변경`, `차이` | staged / unstaged / 새 파일 요약 (줄 수 합계는 tracked·HEAD 기준) |
 | `vhk status` | `상태`, `현황` | 브랜치·변경·커밋·원격·버전 대시보드 |
+| `vhk mcp` | — | MCP 서버 시작 (Cursor 등 MCP 클라이언트용, stdio) |
+| `vhk mcp-init` | `mcp설정` | Cursor `.cursor/mcp.json` 자동 생성 |
 
 ### init 옵션
 
@@ -104,6 +106,33 @@ vhk 기획 끝났고 바로 시작
 | 옵션 | 설명 |
 |------|------|
 | `--since YYYY-MM-DD` | 분석 시작일 (기본: 오늘) |
+
+## Cursor와 MCP로 연동하기
+
+`v0.6.0`부터 vhk는 [Model Context Protocol](https://modelcontextprotocol.io) 서버를 내장합니다. Cursor 채팅에서 자연어로 vhk 도구를 호출할 수 있습니다.
+
+```powershell
+vhk mcp-init           # .cursor/mcp.json 자동 생성
+# → Cursor 재시작 후 채팅에서 자연어로 vhk 도구 호출 가능
+# 예: "상태 알려줘" → Cursor가 vhk status 도구 호출
+```
+
+노출되는 MCP 도구 8개: `save`, `undo`, `status`, `diff`, `ship`, `doctor`, `check`, `recap`.
+
+MCP 서버를 수동으로 띄우려면:
+
+```powershell
+vhk mcp                # stdio 서버 시작 (Cursor가 자동으로 호출)
+```
+
+## v0.6.0 하이라이트
+
+| 기능 | 설명 |
+|------|------|
+| **MCP 서버** | `vhk mcp` — 8개 도구(save/undo/status/diff/ship/doctor/check/recap)를 stdio로 노출. Cursor 등 MCP 클라이언트에서 자연어로 호출 |
+| **mcp-init** | `vhk mcp-init` — Cursor `.cursor/mcp.json` 자동 생성. 재시작 한 번으로 연동 완료 |
+| **자연어 라우팅 확장** | `vhk mcp설정` → `vhk mcp-init` 별칭 |
+| **보안** | MCP save 도구의 shell injection 차단 — 모든 git 호출에 `execFileSync` 사용 |
 
 ## v0.5.3 하이라이트
 
