@@ -11,6 +11,9 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { listGoals } from '../lib/goal-frontmatter.js'
+import { selectActiveId } from './goal.js'
+import { getRecentLearnings, isHardStopActive } from '../lib/state-files.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
 
@@ -186,6 +189,40 @@ export async function context(): Promise<void> {
     } catch {
       // memory.json 파싱 실패 → 무시
     }
+  }
+
+  // Goal 2 (자율 루프): active goal + 최근 learnings 3건 자동 포함.
+  // SoT 는 goals/<n>.md frontmatter + docs/state/learnings.md.
+  const goals = listGoals('goals')
+  const activeId = selectActiveId(goals)
+  if (activeId !== null) {
+    const active = goals.find((g) => g.frontmatter.id === activeId)
+    if (active) {
+      lines.push('## Active Goal')
+      lines.push('')
+      lines.push(`- **id**: ${activeId}`)
+      lines.push(`- **title**: ${active.frontmatter.title ?? '(untitled)'}`)
+      lines.push(`- **status**: ${active.frontmatter.status ?? 'NOT_STARTED'}`)
+      lines.push(`- **priority**: ${active.frontmatter.priority ?? '--'}`)
+      lines.push(`- **file**: ${active.filePath}`)
+      lines.push('')
+    }
+  }
+
+  const recent = getRecentLearnings(3)
+  if (recent.length > 0) {
+    lines.push('## Recent Learnings')
+    lines.push('')
+    for (const r of recent) lines.push(r)
+    lines.push('')
+  }
+
+  if (isHardStopActive()) {
+    lines.push('## ⚠️ HARD_STOP 활성')
+    lines.push('')
+    lines.push('`.vhk/HARD_STOP` 파일 존재 — 모든 자동화 중단 상태.')
+    lines.push('해제: `vhk resume --confirm` (사람 확인 후만)')
+    lines.push('')
   }
 
   lines.push('---')
