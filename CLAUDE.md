@@ -32,3 +32,20 @@ tags: [process, documentation]
 
 ## 종료 전 체크리스트
 1. ADR 2. 작업 로그 3. 트러블슈팅 4. TIL 5. /done
+
+## Safety — HARD_STOP
+
+- 매 작업 시작 시: `.vhk/HARD_STOP` 파일 존재 여부 확인. 존재하면 모든 자동화 즉시 중단.
+  - PowerShell: `if (Test-Path .vhk/HARD_STOP) { Write-Host '🛑 HARD STOP'; exit 1 }`
+  - bash: `[ -f .vhk/HARD_STOP ] && echo "🛑 HARD STOP" && exit 1`
+- 자동 생성 조건: 블로커 3 개 누적 (`docs/state/blockers.md`) / 토큰 예산 초과 감지
+- 해제: `vhk resume --confirm` 만 가능 (사람이 직접 실행, 자동 호출 금지)
+- 게이트 스크립트 (`scripts/check-*.sh`) 는 시작 시 이 파일을 검사한다
+- `.vhk/HARD_STOP` 자체는 `.gitignore` 에 등록되어 로컬 전용 신호로 동작
+
+## Goals / State 체계 (v1.1+)
+
+- 단계별 미션은 `goals/<n>-<name>.md` (YAML frontmatter + 표준 섹션)
+- 공통 게이트는 `goals/_meta.md` + `scripts/check-meta.sh`
+- 현재 상태 SoT 는 `docs/state/next-task.md` / `blockers.md` / `learnings.md`
+- 자세한 규약은 `goals/_meta.md` 와 `goals/0-mcp-full-coverage.md` 참조
