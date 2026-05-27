@@ -7,6 +7,7 @@ import { parseEnvKeys } from '../commands/env.js'
 import { detectPlatform } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 
 const SERVER_VERSION = '1.1.0'
 
@@ -65,6 +66,31 @@ export function createVhkMcpServer(): McpServer {
       }
 
       const files = status.out.split('\n')
+
+      // MCP 모드는 inquirer 프롬프트가 동작하지 않으므로 CLI 의 확인 단계 없이
+      // severe(critical/high) 시크릿이 발견되면 commit 자체를 거부한다.
+      // 사용자가 CLI 에서 `vhk save` 를 실행해 명시적으로 진행 의사를 표현해야 함.
+      const severe = filterSevereFindings(scanProjectForSecrets(process.cwd()).findings)
+      if (severe.length > 0) {
+        const preview = severe
+          .slice(0, 5)
+          .map((f) => `  ${f.file}:${f.line} — ${f.patternName}`)
+          .join('\n')
+        const more =
+          severe.length > 5 ? `\n  ... 외 ${severe.length - 5}건` : ''
+        return {
+          content: [
+            {
+              type: 'text',
+              text:
+                `🛑 시크릿 의심 ${severe.length}건 발견 — MCP 모드에서는 commit 거부.\n` +
+                `${preview}${more}\n\n` +
+                `해결: 시크릿을 제거하거나 .gitignore 처리 후, 의식적으로 진행하려면 터미널에서 \`vhk save\` (CLI 확인 프롬프트 통과 후 진행 가능).`,
+            },
+          ],
+        }
+      }
+
       const now = new Date()
       const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
