@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { printNextStep } from '../lib/next-step.js'
 
 type McpEntry = { command: string; args: string[] }
 type McpConfig = { mcpServers: Record<string, McpEntry> }
@@ -93,8 +94,9 @@ export async function mcpInit(): Promise<void> {
   console.log(chalk.green('\n✅ Cursor MCP 설정 완료!'))
   console.log(chalk.cyan('📁 생성된 파일:'))
   console.log(`   ${configPath}`)
-  console.log(chalk.cyan('\n🔄 다음 단계:'))
-  console.log('   1. Cursor를 재시작하세요')
-  console.log('   2. Cursor 채팅에서 vhk 도구를 사용할 수 있습니다')
-  console.log(chalk.gray('\n💡 예: "프로젝트 상태 알려줘" → Cursor가 vhk status 호출'))
+  printNextStep({
+    message: t('mcp.nextMessage'),
+    command: 'vhk mcp',
+    cursorHint: t('mcp.nextCursor'),
+  })
 }

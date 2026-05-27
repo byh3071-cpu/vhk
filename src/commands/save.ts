@@ -12,6 +12,7 @@ import {
   getExecErrorMessage,
 } from '../lib/git-repo.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
+import { printNextStep } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 
 export function formatDefaultCommitMessage(date = new Date()): string {
@@ -112,8 +113,18 @@ export async function save(): Promise<void> {
 
     if (process.exitCode !== 1) {
       console.log(chalk.green(`\n✅ ${t('save.done', lines.length)}`))
+      printNextStep({
+        message: t('save.nextOkMessage'),
+        command: 'vhk recap',
+        cursorHint: t('save.nextOkCursor'),
+      })
     } else {
       console.log(chalk.green(`\n✅ ${t('save.doneLocalOnly', lines.length)}`))
+      printNextStep({
+        message: t('save.nextPushFailMessage'),
+        command: 'vhk doctor',
+        cursorHint: t('save.nextPushFailCursor'),
+      })
     }
   } catch (err) {
     spinner.fail(t('save.failed'))
