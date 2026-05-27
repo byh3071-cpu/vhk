@@ -110,6 +110,21 @@ vhk 기획 끝났고 바로 시작
 | `vhk memory` | `기억` | 결정사항 기억 관리 (`add` / `list` / `remove`, `.vhk/memory.json` 기반, 태그 지원) |
 | `vhk brief` | `브리핑` | 프로젝트 정보 + git 상태 + 결정사항 + 레퍼런스 통합 보고서 `.vhk/brief.md` |
 | `vhk goal` | `목표` | Goal 단계별 미션 관리 (`init` / `list` / `next` / `check` / `done`) — vspec/vooster 패턴 |
+| `vhk blocker <설명>` | `블로커` | 블로커 1건 → `docs/state/blockers.md` append. 3건 누적 시 `.vhk/HARD_STOP` 자동 생성 |
+| `vhk learn <교훈>` | `교훈` | 교훈 1건 → `docs/state/learnings.md` append (memory.json 과 별도 SoT) |
+| `vhk resume --confirm` | `재개` | `.vhk/HARD_STOP` 해제 (사람 확인 필요, 자동 호출 금지) |
+
+### 자율 루프 (v1.3+)
+
+`AGENTS.md` 의 Loop Protocol 참조. 단방향 사이클:
+
+```text
+vhk context → vhk goal next → (작업) → vhk goal check → vhk goal done
+                                          ↓ FAIL × 3 cycle
+                                   vhk blocker "<증상>"
+                                          ↓ 3건 누적
+                                   .vhk/HARD_STOP 자동 → 사람 검토 → vhk resume --confirm
+```
 
 ### goal 서브커맨드 (v1.2+)
 

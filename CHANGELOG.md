@@ -6,6 +6,18 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- **자율 루프 (v1.3 Phase 5 / Goal 2 DONE)** — `context → goal next → 작업 → check → done` 사이클 + 트립와이어:
+  - `vhk blocker <설명>` — `docs/state/blockers.md` 에 [date goal-N] tag + append-only. 3건 누적 시 `.vhk/HARD_STOP` 자동 생성 + exit 2
+  - `vhk learn <교훈>` — `docs/state/learnings.md` 에 append-only. **memory.json 과 분리된 SoT** (Forbidden 이중 기록 금지)
+  - `vhk resume --confirm` — `.vhk/HARD_STOP` 해제. `--confirm` 없으면 거부 (Forbidden 자동 호출 금지)
+  - `vhk context` 출력 확장: `## Active Goal` (id/title/status/priority/file) + `## Recent Learnings` (최근 3건) + `## ⚠️ HARD_STOP 활성` (트립 시)
+  - `AGENTS.md` 신규 — 자율 루프 에이전트 작동 규약 (Working Principles 5 + Loop Protocol + Forbidden Actions)
+  - `src/lib/state-files.ts` — appendBlocker/appendLearning/getRecentLearnings/writeHardStop/clearHardStop + HARD_STOP_BLOCKER_THRESHOLD=3
+  - 한국어 alias: `블로커` / `교훈` / `재개`
+  - 테스트: state-files 15 + agent 8 + context-loop 3 = 26 신규. 전체 293/293
+  - `scripts/check-goal-2.sh` — G2.1~G2.5 게이트
+  - Dogfooding: `vhk goal done --id 2` 로 자기 자신 DONE 마킹. `vhk learn` 으로 Goal 2 교훈 기록
+
 - **`vhk goal` 명령어 (v1.2 Phase 4 / Goal 1)** — vspec/vooster goals/ 체계를 사용자 CLI 로 노출:
   - `vhk goal init` — 현재 프로젝트에 `goals/_meta.md` + `docs/state/{next-task,blockers,learnings}.md` 스캐폴딩 (기존 파일 보존)
   - `vhk goal list` — `goals/*.md` frontmatter 파싱 → id 순 목록 (status icon + priority + version + title)
