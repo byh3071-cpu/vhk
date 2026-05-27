@@ -3,6 +3,13 @@ import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
+// safeExecFile 을 mock — Windows 에서 실제 bash 서브프로세스 spawn 시 후속 rmSync 가
+// 파일 핸들 race 로 EPERM 떨어지는 문제 회피. goalDone 의 게이트 결과는 mock 으로 제어.
+const mockSafeExecFile = vi.fn()
+vi.mock('../src/lib/exec.js', () => ({
+  safeExecFile: (...a: unknown[]) => mockSafeExecFile(...a),
+}))
+
 function tmpProject(label: string): string {
   const dir = join(
     tmpdir(),
@@ -203,6 +210,7 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
   beforeEach(() => {
     origCwd = process.cwd()
     origExitCode = process.exitCode
+    mockSafeExecFile.mockReset()
     vi.spyOn(console, 'log').mockImplementation(() => {})
   })
   afterEach(() => {
@@ -232,11 +240,9 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
     const dir = tmpProject('done-fail')
     makeGoalFile(dir, 3, 'NOT_STARTED')
     mkdirSync(join(dir, 'scripts'), { recursive: true })
-    writeFileSync(
-      join(dir, 'scripts/check-goal-3.sh'),
-      '#!/usr/bin/env bash\necho "gate failed"\nexit 1\n',
-      'utf-8'
-    )
+    // 실제 bash 실행 없이 스크립트 파일만 존재 시키고 mock 으로 결과 강제.
+    writeFileSync(join(dir, 'scripts/check-goal-3.sh'), '#!/usr/bin/env bash\nexit 1\n', 'utf-8')
+    mockSafeExecFile.mockReturnValue({ ok: false, out: 'gate failed', err: 'exit 1' })
     const before = readFileSync(join(dir, 'goals/3-test.md'), 'utf-8')
     process.chdir(dir)
     try {
@@ -255,11 +261,8 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
     const dir = tmpProject('done-pass')
     makeGoalFile(dir, 5, 'IN_PROGRESS')
     mkdirSync(join(dir, 'scripts'), { recursive: true })
-    writeFileSync(
-      join(dir, 'scripts/check-goal-5.sh'),
-      '#!/usr/bin/env bash\necho "all good"\nexit 0\n',
-      'utf-8'
-    )
+    writeFileSync(join(dir, 'scripts/check-goal-5.sh'), '#!/usr/bin/env bash\nexit 0\n', 'utf-8')
+    mockSafeExecFile.mockReturnValue({ ok: true, out: 'all good', err: '' })
     process.chdir(dir)
     try {
       const { goalDone } = await import('../src/commands/goal.js')
