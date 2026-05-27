@@ -6,6 +6,14 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- **goals/ 구조 (v1.1 Phase 2.5)** — vspec/vooster 패턴 dogfooding:
+  - `goals/_meta.md` — 공통 게이트 (typecheck/tests/build) 정의
+  - `goals/0-mcp-full-coverage.md` — MCP 풀 커버리지 (10→24 tool) 미션 명세
+  - `goals/1-goal-command.md` — v1.2 `vhk goal init/list/next/check/done` 명세
+  - `goals/2-agent-loop.md` — v1.3 자율 루프 (`blocker/learn/resume`) 명세
+  - `scripts/check-meta.sh` + `scripts/check-goal-0.sh` — 게이트 검증
+  - `docs/state/{next-task,blockers,learnings}.md` — 상태 머신 SoT
+  - `.vhk/HARD_STOP` 안전장치 규칙 + `CLAUDE.md` Safety 섹션
 - `vhk start` (한국어 alias `시작`, `새프로젝트`) — 새 프로젝트 시작 올인원 마법사. 4단계 자동 진행:
   1. `git init` — 이미 repo면 스킵
   2. `vhk init` — `--skip-gate` 자동 적용, 문서/하네스 파일 생성
