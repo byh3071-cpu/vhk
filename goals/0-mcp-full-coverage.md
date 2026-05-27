@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 0
 title: MCP 풀 커버리지 — 10 tool → 24 tool 확장
-status: NOT_STARTED
+status: DONE
 priority: P0
 version: v1.1
+completed: 2026-05-27
 ---
 
 # Mission: Expose every CLI command through MCP (Goal 0 dogfooding)
