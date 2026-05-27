@@ -5,3 +5,6 @@ dist/
 
 # VHK runtime tripwire — local-only, never commit
 .vhk/HARD_STOP
+
+# EnterWorktree 가 .claude/worktrees/ 에 isolated 복사본 생성 — 커밋 금지
+.claude/worktrees/

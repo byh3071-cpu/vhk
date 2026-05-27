@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { execSync, execFileSync } from 'node:child_process'
 import { parseDiffStat, summarizeNumstat } from '../src/commands/diff.js'
 
-vi.mock('node:child_process')
+const mockSafeExecFile = vi.fn()
+
+vi.mock('../src/lib/exec.js', () => ({
+  safeExecFile: (...a: unknown[]) => mockSafeExecFile(...a),
+}))
 
 describe('diff', () => {
   beforeEach(() => {
@@ -11,17 +14,16 @@ describe('diff', () => {
   })
 
   it('git 저장소가 아니면 에러 메시지 출력', async () => {
-    vi.mocked(execSync).mockImplementationOnce(() => {
-      throw new Error('not a git repo')
-    })
+    // rev-parse 실패 → not git repo 경로 진입
+    mockSafeExecFile.mockReturnValueOnce({ ok: false, err: 'not a git repo', out: '' })
     const { diff } = await import('../src/commands/diff.js')
     await expect(diff()).resolves.not.toThrow()
-    expect(execSync).toHaveBeenCalled()
+    expect(mockSafeExecFile).toHaveBeenCalledWith('git', ['rev-parse', '--is-inside-work-tree'])
   })
 
   it('변경 없으면 안내 메시지 출력', async () => {
-    vi.mocked(execSync).mockReturnValueOnce(Buffer.from('true'))
-    vi.mocked(execFileSync).mockReturnValue('')
+    // rev-parse ok, 이후 모든 git 호출은 빈 출력 → no changes 경로
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
     const { diff } = await import('../src/commands/diff.js')
     await expect(diff()).resolves.not.toThrow()
   })

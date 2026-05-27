@@ -1,13 +1,10 @@
-import { execFileSync, execSync } from 'node:child_process'
 import chalk from 'chalk'
+import { safeExecFile } from '../lib/exec.js'
 import { t } from '../i18n/ko.js'
 
 function gitOut(args: string[]): string {
-  try {
-    return execFileSync('git', args, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim()
-  } catch {
-    return ''
-  }
+  const r = safeExecFile('git', args)
+  return r.ok ? r.out : ''
 }
 
 export interface DiffFile {
@@ -70,9 +67,7 @@ export async function diff(): Promise<void> {
   console.log(chalk.bold(`\n🔍 ${t('diff.title')}`))
   console.log(chalk.gray('─'.repeat(40)))
 
-  try {
-    execSync('git rev-parse --is-inside-work-tree', { stdio: 'pipe' })
-  } catch {
+  if (!safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok) {
     console.log(chalk.red(`❌ ${t('diff.notGitRepo')}`))
     return
   }
