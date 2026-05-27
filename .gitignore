@@ -2,3 +2,6 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# VHK runtime tripwire — local-only, never commit
+.vhk/HARD_STOP
