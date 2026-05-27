@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 2
 title: 자율 루프 — context → goal → check 사이클 + 안전장치
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P1
 version: v1.3
+started: 2026-05-28
 ---
 
 # Mission: Close the autonomous loop — context, goal, check, learn, stop
