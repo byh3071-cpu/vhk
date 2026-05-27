@@ -6,9 +6,9 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
 
-type PackageManager = 'npm' | 'yarn' | 'pnpm'
+export type PackageManager = 'npm' | 'yarn' | 'pnpm'
 
-interface AuditSummary {
+export interface AuditSummary {
   critical: number
   high: number
   moderate: number
@@ -16,13 +16,13 @@ interface AuditSummary {
   total: number
 }
 
-function detectCurrentPM(): PackageManager {
+export function detectCurrentPM(): PackageManager {
   if (existsSync('pnpm-lock.yaml')) return 'pnpm'
   if (existsSync('yarn.lock')) return 'yarn'
   return 'npm'
 }
 
-function parseAuditOutput(output: string, pm: PackageManager): AuditSummary {
+export function parseAuditOutput(output: string, pm: PackageManager): AuditSummary {
   const empty: AuditSummary = { critical: 0, high: 0, moderate: 0, low: 0, total: 0 }
   if (!output) return empty
   try {
@@ -53,7 +53,7 @@ function parseAuditOutput(output: string, pm: PackageManager): AuditSummary {
   }
 }
 
-function runAuditJson(pm: PackageManager): string {
+export function runAuditJson(pm: PackageManager): string {
   // 취약점 발견 시 exit code !=0지만 stdout에 JSON 출력. safeExecFile은 err 경로에서도 out 반환.
   const result = safeExecFile(pm, ['audit', '--json'])
   return result.out

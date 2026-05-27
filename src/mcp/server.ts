@@ -6,6 +6,7 @@ import { safeExecFile } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
 import { detectPlatform } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
+import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/audit.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 
@@ -425,8 +426,38 @@ export function createVhkMcpServer(): McpServer {
   // ─── audit ──────────────────────────────────────────────
   server.registerTool(
     'audit',
-    { description: 'npm/pnpm/yarn 보안 취약점 감사 (자동 fix 없음 — MCP non-interactive)' },
-    async () => runVhkCli(['audit'], 'audit')
+    {
+      description:
+        'npm/pnpm/yarn 보안 취약점 감사 — 요약만 (MCP 모드: 실제 fix 미수행, `vhk audit` 안내)',
+    },
+    async () => {
+      // CLI `vhk audit` 는 critical/high 발견 시 inquirer prompt 로 fix 여부를 묻는다.
+      // MCP 는 TTY 없어 prompt 가 영구 hang → CLI 위임 금지. 여기서 직접 audit JSON 만 호출.
+      const pm = detectCurrentPM()
+      const output = runAuditJson(pm)
+      const summary = parseAuditOutput(output, pm)
+      if (summary.total === 0) {
+        return {
+          content: [{ type: 'text', text: `🎉 ${pm}: 취약점 0건.` }],
+        }
+      }
+      const breakdown = [
+        summary.critical > 0 ? `🔴 critical ${summary.critical}` : null,
+        summary.high > 0 ? `🟠 high ${summary.high}` : null,
+        summary.moderate > 0 ? `🟡 moderate ${summary.moderate}` : null,
+        summary.low > 0 ? `⚪ low ${summary.low}` : null,
+      ]
+        .filter(Boolean)
+        .join('  ')
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `📦 PM: ${pm}\n📊 총 ${summary.total}건\n  ${breakdown}\n\n실제 fix 는 터미널에서: vhk audit (또는 ${pm} audit fix)`,
+          },
+        ],
+      }
+    }
   )
 
   // ─── harness ────────────────────────────────────────────
