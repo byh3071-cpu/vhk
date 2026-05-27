@@ -30,7 +30,7 @@ version: v1.1
 
 1. **Every TypeScript source file** in `src/` 와 `tests/` 가 `tsc --noEmit`
    기준으로 컴파일된다 (`pnpm exec tsc --noEmit`).
-2. **Every vitest test** 가 통과한다 (`pnpm test:run`). 현재 baseline 223+.
+2. **Every vitest test** 가 통과한다 (`pnpm test:run`). 현재 baseline 267+ (Goal 1 머지 후).
 3. **tsup build** 가 성공한다 (`pnpm build`). `dist/index.js` 와
    `dist/mcp/index.js` 가 생성된다.
 4. **새 기능에 대한 테스트가 최소 1개 이상** 추가됨 (PR 단위).

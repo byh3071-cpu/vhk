@@ -1,6 +1,6 @@
 ---
 id: claude-md-vhk
-date: 2026-05-27
+date: 2026-05-28
 tags: [process, documentation]
 ---
 
@@ -13,17 +13,17 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.0.0 GA
-- **MCP tool:** 16/24 (Goal 0 진행 중)
-- **테스트:** 243+ pass (vitest)
+- **버전:** v1.0.2 (package.json) — MCP server.ts 는 SERVER_VERSION 1.1.0 (내부 식별용, 의도적 불일치)
+- **MCP tool:** 24/24 (Goal 0 DONE)
+- **테스트:** 267+ pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 3 — MCP 풀 커버리지 (Goal 0 IN_PROGRESS)
-- **블로커:** typecheck 4건 에러 (start.ts, lib/git.ts, lib/notion-import.ts)
-- **다음 액션:** PR #16 머지 → typecheck fix → Goal 0 2차 iteration (MCP 16→24)
-- **마지막 업데이트:** 2026-05-27
+- **Phase:** Phase 5 — 자율 루프 (Goal 2 진입 예정)
+- **블로커:** 없음 (PR #17 에서 사전존재 tsc 4건 해결)
+- **다음 액션:** Pre-Goal-1 cleanup 머지 → Goal 2 (`vhk blocker / learn / resume`)
+- **마지막 업데이트:** 2026-05-28
 
 ## 코딩 컨벤션
 

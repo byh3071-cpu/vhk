@@ -147,7 +147,16 @@ vhk mcp-init           # .cursor/mcp.json 자동 생성
 # 예: "상태 알려줘" → Cursor가 vhk status 도구 호출
 ```
 
-노출되는 MCP 도구 8개: `save`, `undo`, `status`, `diff`, `ship`, `doctor`, `check`, `recap`.
+노출되는 MCP 도구 **24개** (v1.1):
+
+- **git 워크플로 (8)**: `save`, `undo`, `status`, `diff`, `ship`, `doctor`, `check`, `recap`
+- **환경/규칙 (4)**: `env`, `env-check`, `sync`, `secure`
+- **품질/감사 (3)**: `audit`, `harness`, `mcp-init`
+- **컨텍스트/기록 (4)**: `context`, `context-show`, `memory-list`, `brief`
+- **dry-info (4)**: `deploy`, `publish`, `migrate`, `update` — 인터랙티브 본질이라 실제 실행 안 함, 진단/안내만
+- **레퍼런스 (1)**: `ref-list`
+
+MCP 제외 확정 커맨드 (대화형 본질): `gate`, `init`, `start`, `design palette`, `theme`, `goal` (각각 CLI 에서만 동작).
 
 MCP 서버를 수동으로 띄우려면:
 
@@ -190,7 +199,7 @@ vhk brief               # 세션 종료 시 상태 보고서
 - **공개 API 안정성**: 명령어 이름, CLI 인자, `.vhk/` 파일 포맷은 v2.0까지 breaking change 없음
 - **deprecation 절차**: 명령어/옵션 제거 전 1개 마이너 버전(1.x.0)에서 deprecation 경고
 - **i18n 키**: `ko.ts`의 `t()` 키 이름은 안정. 신규 키 누적, 기존 키 미제거
-- **MCP 서버 도구**: 8개 도구(save/undo/status/diff/ship/doctor/check/recap) 인터페이스 안정
+- **MCP 서버 도구**: v1.0 GA 의 8개 baseline 도구(save/undo/status/diff/ship/doctor/check/recap) 인터페이스 안정 — v1.1 에서 16개 추가되어 총 24개
 
 > **`vhk memory` vs Claude Code `auto memory`** — `vhk memory`는 **프로젝트 단위** 결정사항(`.vhk/memory.json`, 팀 공유). Claude Code의 `auto memory`는 **사용자 단위** (`~/.claude/projects/.../memory/`, 개인 컨텍스트). 둘은 별개.
 

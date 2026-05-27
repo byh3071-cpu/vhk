@@ -6,7 +6,9 @@ import { safeExecFile } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
 import { detectPlatform } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
+import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/audit.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 
 const SERVER_VERSION = '1.1.0'
 
@@ -65,6 +67,31 @@ export function createVhkMcpServer(): McpServer {
       }
 
       const files = status.out.split('\n')
+
+      // MCP 모드는 inquirer 프롬프트가 동작하지 않으므로 CLI 의 확인 단계 없이
+      // severe(critical/high) 시크릿이 발견되면 commit 자체를 거부한다.
+      // 사용자가 CLI 에서 `vhk save` 를 실행해 명시적으로 진행 의사를 표현해야 함.
+      const severe = filterSevereFindings(scanProjectForSecrets(process.cwd()).findings)
+      if (severe.length > 0) {
+        const preview = severe
+          .slice(0, 5)
+          .map((f) => `  ${f.file}:${f.line} — ${f.patternName}`)
+          .join('\n')
+        const more =
+          severe.length > 5 ? `\n  ... 외 ${severe.length - 5}건` : ''
+        return {
+          content: [
+            {
+              type: 'text',
+              text:
+                `🛑 시크릿 의심 ${severe.length}건 발견 — MCP 모드에서는 commit 거부.\n` +
+                `${preview}${more}\n\n` +
+                `해결: 시크릿을 제거하거나 .gitignore 처리 후, 의식적으로 진행하려면 터미널에서 \`vhk save\` (CLI 확인 프롬프트 통과 후 진행 가능).`,
+            },
+          ],
+        }
+      }
+
       const now = new Date()
       const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
@@ -399,8 +426,38 @@ export function createVhkMcpServer(): McpServer {
   // ─── audit ──────────────────────────────────────────────
   server.registerTool(
     'audit',
-    { description: 'npm/pnpm/yarn 보안 취약점 감사 (자동 fix 없음 — MCP non-interactive)' },
-    async () => runVhkCli(['audit'], 'audit')
+    {
+      description:
+        'npm/pnpm/yarn 보안 취약점 감사 — 요약만 (MCP 모드: 실제 fix 미수행, `vhk audit` 안내)',
+    },
+    async () => {
+      // CLI `vhk audit` 는 critical/high 발견 시 inquirer prompt 로 fix 여부를 묻는다.
+      // MCP 는 TTY 없어 prompt 가 영구 hang → CLI 위임 금지. 여기서 직접 audit JSON 만 호출.
+      const pm = detectCurrentPM()
+      const output = runAuditJson(pm)
+      const summary = parseAuditOutput(output, pm)
+      if (summary.total === 0) {
+        return {
+          content: [{ type: 'text', text: `🎉 ${pm}: 취약점 0건.` }],
+        }
+      }
+      const breakdown = [
+        summary.critical > 0 ? `🔴 critical ${summary.critical}` : null,
+        summary.high > 0 ? `🟠 high ${summary.high}` : null,
+        summary.moderate > 0 ? `🟡 moderate ${summary.moderate}` : null,
+        summary.low > 0 ? `⚪ low ${summary.low}` : null,
+      ]
+        .filter(Boolean)
+        .join('  ')
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `📦 PM: ${pm}\n📊 총 ${summary.total}건\n  ${breakdown}\n\n실제 fix 는 터미널에서: vhk audit (또는 ${pm} audit fix)`,
+          },
+        ],
+      }
+    }
   )
 
   // ─── harness ────────────────────────────────────────────

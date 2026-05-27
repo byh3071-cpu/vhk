@@ -108,8 +108,8 @@ describe('ref', () => {
     // 플랫폼별 cmd는 다르나 args에 URL이 별도 토큰으로 전달돼야 함 (shell injection 차단)
     expect(Array.isArray(args)).toBe(true)
     expect((args as string[]).includes('https://a.com')).toBe(true)
-    // cmd 자체는 'open' / 'cmd.exe' / 'xdg-open' 중 하나
-    expect(['open', 'cmd.exe', 'xdg-open']).toContain(String(cmd))
+    // cmd 자체는 'open' / 'rundll32.exe' / 'xdg-open' 중 하나
+    expect(['open', 'rundll32.exe', 'xdg-open']).toContain(String(cmd))
   })
 
   it('refOpen — http(s) 외 프로토콜은 차단', async () => {
@@ -122,8 +122,10 @@ describe('ref', () => {
     expect(mockSafeExecFile).not.toHaveBeenCalled()
   })
 
-  it('refOpen — URL injection 시도(따옴표/세미콜론)는 argv로 전달되어 shell 해석 안 됨', async () => {
-    const malicious = 'https://x.com"; rm -rf /'
+  it('refOpen — cmd metachar 포함 URL 도 argv 분리 + 비-shell binary 로 차단', async () => {
+    // Windows: rundll32.exe 가 cmd 파싱 없이 ShellExecute 호출 → & | > < % 인젝션 무효.
+    // POSIX: open / xdg-open 모두 argv 분리.
+    const malicious = 'https://x.com/?a=1&calc.exe'
     mockExistsSync.mockReturnValue(true)
     mockReadFileSync.mockReturnValue(
       JSON.stringify([{ url: malicious, memo: '', addedAt: '2026-01-01' }])
@@ -138,7 +140,7 @@ describe('ref', () => {
     if (mockSafeExecFile.mock.calls.length > 0) {
       const args = mockSafeExecFile.mock.calls[0][1] as string[]
       // URL이 args의 한 요소로 들어감 → shell metachar 분리 안 됨
-      expect(args.some((a) => a.includes('rm -rf'))).toBe(false)
+      expect(args.some((a) => a.includes('calc.exe') && !a.includes('http'))).toBe(false)
       expect(args.includes(malicious)).toBe(true)
     }
   })
