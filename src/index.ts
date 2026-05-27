@@ -34,6 +34,7 @@ import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
 import { goalCheck, goalDone, goalInit, goalList, goalNext } from './commands/goal.js'
+import { blocker, learn, resume } from './commands/agent.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -69,6 +70,9 @@ const KO_ALIASES: Record<string, string> = {
   memory: '기억',
   brief: '브리핑',
   goal: '목표',
+  blocker: '블로커',
+  learn: '교훈',
+  resume: '재개',
 }
 
 program
@@ -403,6 +407,25 @@ goalCmd
   .option('--id <id>', 'goal id 지정 (생략 시 active goal)')
   .description('게이트 재검증 → 통과 시 frontmatter status=DONE 으로 전이')
   .action(async (opts: { id?: string }) => { await goalDone(opts) })
+
+program
+  .command('blocker <description>')
+  .alias('블로커')
+  .description('블로커 기록 → docs/state/blockers.md append (3건 누적 시 HARD_STOP 자동 생성)')
+  .action(async (description: string) => { await blocker(description) })
+
+program
+  .command('learn <lesson>')
+  .alias('교훈')
+  .description('교훈 기록 → docs/state/learnings.md append (memory.json 과 별도 SoT)')
+  .action(async (lesson: string) => { await learn(lesson) })
+
+program
+  .command('resume')
+  .alias('재개')
+  .option('--confirm', '사람 확인 — 자동 호출 금지 (Forbidden 위반)')
+  .description('.vhk/HARD_STOP 해제 (사용자가 사유 확인 후 --confirm 필요)')
+  .action(async (opts: { confirm?: boolean }) => { await resume(opts) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''

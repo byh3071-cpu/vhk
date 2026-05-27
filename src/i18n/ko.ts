@@ -324,6 +324,11 @@ export const ko = {
     checkTitle: '✅ Goal 게이트 검증',
     doneTitle: '🏁 Goal 완료 처리',
   },
+  agent: {
+    blockerTitle: '🛑 Blocker 기록',
+    learnTitle: '🧠 Learning 기록',
+    resumeTitle: '▶️  HARD_STOP 해제',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)
