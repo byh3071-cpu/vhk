@@ -23,12 +23,24 @@ function resolveCmd(cmd: string, args: string[]): { bin: string; argv: string[] 
   return { bin: platformCmd(cmd), argv: args }
 }
 
-export function safeExecFile(cmd: string, args: string[]): ExecResult {
+export interface SafeExecOptions {
+  // process.env 위에 병합할 환경변수. MCP 모드 ANSI 차단 (FORCE_COLOR=0, NO_COLOR=1) 등에 사용.
+  // 전체 교체 아닌 병합 — process.env 의 PATH/HOME 등을 잃지 않음.
+  env?: Record<string, string>
+}
+
+export function safeExecFile(
+  cmd: string,
+  args: string[],
+  opts: SafeExecOptions = {}
+): ExecResult {
   const { bin, argv } = resolveCmd(cmd, args)
+  const env = opts.env ? { ...process.env, ...opts.env } : undefined
   try {
     const out = execFileSync(bin, argv, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      env,
     }).toString()
     return { ok: true, out: out.trim() }
   } catch (err) {
