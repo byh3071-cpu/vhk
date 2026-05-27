@@ -6,10 +6,23 @@ import { safeExecFile } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
 import { readJsonFile } from '../lib/read-json.js'
 
-const SERVER_VERSION = '0.7.1'
+const SERVER_VERSION = '1.1.0'
 
 function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
+}
+
+// vhk CLI 자체를 서브프로세스로 호출해서 결과를 MCP content로 변환.
+// MCP 모드에서는 inquirer/ora 프롬프트가 동작하지 않으므로 비대화형 커맨드만 위임.
+// 호출 측은 stdout을 받아 그대로 반환 — chalk ANSI는 클라이언트에서 적당히 처리.
+function runVhkCli(
+  args: string[],
+  headline: string
+): { content: [{ type: 'text'; text: string }] } {
+  const result = safeExecFile('vhk', args)
+  const body = result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`)
+  const prefix = result.ok ? `✅ ${headline}` : `❌ ${headline} 실패`
+  return { content: [{ type: 'text', text: `${prefix}\n${body}`.trim() }] }
 }
 
 export function createVhkMcpServer(): McpServer {
@@ -356,6 +369,48 @@ export function createVhkMcpServer(): McpServer {
       }
       return { content: [{ type: 'text', text: lines.join('\n') }] }
     }
+  )
+
+  // ─── sync ───────────────────────────────────────────────
+  server.registerTool(
+    'sync',
+    { description: 'RULES.md → .cursorrules + CLAUDE.md 자동 동기화' },
+    async () => runVhkCli(['sync'], 'sync')
+  )
+
+  // ─── secure ─────────────────────────────────────────────
+  server.registerTool(
+    'secure',
+    { description: '시크릿/환경변수 보안 스캔 (.env 노출 + 키 패턴 탐지)' },
+    async () => runVhkCli(['secure'], 'secure')
+  )
+
+  // ─── audit ──────────────────────────────────────────────
+  server.registerTool(
+    'audit',
+    { description: 'npm/pnpm/yarn 보안 취약점 감사 (자동 fix 없음 — MCP non-interactive)' },
+    async () => runVhkCli(['audit'], 'audit')
+  )
+
+  // ─── harness ────────────────────────────────────────────
+  server.registerTool(
+    'harness',
+    { description: 'lint + typecheck + test + build 통합 품질 점검' },
+    async () => runVhkCli(['harness'], 'harness')
+  )
+
+  // ─── context ────────────────────────────────────────────
+  server.registerTool(
+    'context',
+    { description: '프로젝트 맥락 파일(.vhk/context.md) 생성 — 기술 스택 + 디렉토리 + 명령어 + 결정사항' },
+    async () => runVhkCli(['context'], 'context')
+  )
+
+  // ─── brief ──────────────────────────────────────────────
+  server.registerTool(
+    'brief',
+    { description: '프로젝트 브리핑(.vhk/brief.md) 생성 — git 상태 + 결정사항 + 다음 단계 제안' },
+    async () => runVhkCli(['brief'], 'brief')
   )
 
   return server
