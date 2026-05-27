@@ -35,6 +35,9 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'memory', '기억',
   'brief', '브리핑',
   'goal', '목표',
+  'blocker', '블로커',
+  'learn', '교훈',
+  'resume', '재개',
   'help',
 ])
 
