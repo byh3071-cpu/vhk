@@ -6,6 +6,14 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- **MCP 풀 커버리지 1차 (v1.1 Phase 3 / Goal 0 진행 중)** — MCP tool 10 → 16:
+  - 신규 6 tool: `sync`, `secure`, `audit`, `harness`, `context`, `brief`
+  - 모두 비대화형. `runVhkCli()` 헬퍼로 `vhk` CLI 서브프로세스 위임 (MCP 모드에서 inquirer/ora 차단)
+  - `audit` 는 fix 프롬프트 비활성화 (MCP non-interactive 보장)
+  - 기존 10 tool 시그니처 무변경 (v1.0 GA 안정성 약속 유지)
+  - `tests/mcp-server.test.ts` — 등록 tool 개수 + 이름 단언 (`_registeredTools` introspection)
+  - MCP 서버 버전 0.7.1 → 1.1.0
+  - 남은 후보 (다음 iteration): `gate`/`init`/`start` (대화형 → MCP OUT 또는 비대화형 wrap), `deploy`, `env-sync`, `publish`, `design`, `theme`, `ref`, `migrate`, `update`, `memory`
 - **goals/ 구조 (v1.1 Phase 2.5)** — vspec/vooster 패턴 dogfooding:
   - `goals/_meta.md` — 공통 게이트 (typecheck/tests/build) 정의
   - `goals/0-mcp-full-coverage.md` — MCP 풀 커버리지 (10→24 tool) 미션 명세
