@@ -159,8 +159,9 @@ program
   .command('check')
   .alias('점검')
   .alias('린트')
-  .description('RULES.md 규칙 점검 — 코드 위반 검사')
-  .action(check)
+  .option('--goal <id>', 'goal id 지정 시 scripts/check-goal-<id>.sh 게이트 실행')
+  .description('RULES.md 규칙 점검 — 코드 위반 검사 (또는 --goal <id> 로 goal 게이트)')
+  .action(async (opts: { goal?: string }) => { await check(opts) })
 
 const secureCmd = program
   .command('secure')
