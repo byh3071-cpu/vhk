@@ -1,5 +1,5 @@
 import path from 'node:path'
-import simpleGit, { type SimpleGit } from 'simple-git'
+import { simpleGit, type SimpleGit } from 'simple-git'
 import { filterTrackedPaths } from './check-secure.js'
 
 const git: SimpleGit = simpleGit()
@@ -80,7 +80,18 @@ export async function getSessionDiff(since?: string): Promise<SessionDiff> {
   const sinceDate = since || new Date().toISOString().split('T')[0]
   try {
     const diffSummary = await git.diffSummary([`--since=${sinceDate}`])
-    return buildSessionDiffFromSummary(diffSummary)
+    // simple-git DiffResult.files 는 text/binary/name-status 의 union.
+    // binary/name-status 항목은 insertions/deletions 가 없으므로 0 으로 정규화.
+    const normalized = diffSummary.files.map((f) => ({
+      file: f.file,
+      insertions: 'insertions' in f ? f.insertions : 0,
+      deletions: 'deletions' in f ? f.deletions : 0,
+    }))
+    return buildSessionDiffFromSummary({
+      insertions: diffSummary.insertions,
+      deletions: diffSummary.deletions,
+      files: normalized,
+    })
   } catch {
     return { filesChanged: 0, insertions: 0, deletions: 0, files: [] }
   }
