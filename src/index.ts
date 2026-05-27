@@ -219,7 +219,7 @@ program
 
 program
   .command('mcp')
-  .description('MCP 서버 시작 (Cursor 등 MCP 클라이언트용)')
+  .description('MCP 서버 시작 (24 tool stdio — Cursor·Claude Desktop 등)')
   .action(async () => {
     await startMcpServer()
   })
@@ -227,7 +227,7 @@ program
 program
   .command('mcp-init')
   .alias('mcp설정')
-  .description('Cursor MCP 연동 설정 자동 생성 (.cursor/mcp.json)')
+  .description('Cursor·Claude Desktop MCP 연동 설정 자동 생성 (.cursor/mcp.json)')
   .action(async () => {
     await mcpInit()
   })

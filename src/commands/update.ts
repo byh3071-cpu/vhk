@@ -6,6 +6,7 @@ import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
+import { printNextStep } from '../lib/next-step.js'
 
 const PACKAGE = '@byh3071/vhk'
 
@@ -72,10 +73,20 @@ export async function update(): Promise<void> {
     updateSpinner.succeed(`v${latest}으로 업데이트 완료!`)
     console.log(chalk.green.bold(`\n🎉 VHK CLI v${latest} 업데이트 완료!`))
     console.log(chalk.gray('   변경 사항은 GitHub Releases를 확인하세요.'))
+    printNextStep({
+      message: t('update.nextOkMessage'),
+      command: 'vhk --version',
+      cursorHint: t('update.nextOkCursor'),
+    })
   } else {
     updateSpinner.fail('업데이트 실패')
     console.log(chalk.red(upd.err.slice(0, 300)))
     console.log(chalk.yellow('\n수동으로 업데이트하세요:'))
     console.log(chalk.gray(`   npm update -g ${PACKAGE}`))
+    printNextStep({
+      message: t('update.nextFailMessage'),
+      command: 'vhk doctor',
+      cursorHint: t('update.nextFailCursor'),
+    })
   }
 }

@@ -8,6 +8,7 @@ import {
   gitRun,
   hasGitRemote,
 } from '../lib/git-repo.js'
+import { printNextStep } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 
 export function parseRecentCommits(logOutput: string): string[] {
@@ -122,6 +123,11 @@ export async function undo(): Promise<void> {
     if (risky) {
       console.log(chalk.yellow(`\n💡 ${t('undo.forcePushHint')}`))
     }
+    printNextStep({
+      message: t('undo.nextMessage'),
+      command: 'vhk save',
+      cursorHint: t('undo.nextCursor'),
+    })
   } catch (err) {
     console.log(chalk.red(`❌ ${t('undo.failed')}`))
     const msg = err instanceof Error ? err.message : String(err)
