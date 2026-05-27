@@ -10,7 +10,7 @@ import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/aud
 import { readJsonFile } from '../lib/read-json.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 
-const SERVER_VERSION = '1.1.0'
+const SERVER_VERSION = '1.3.0'
 
 function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
