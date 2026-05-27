@@ -13,16 +13,16 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.0.2 (package.json) — MCP server.ts 는 SERVER_VERSION 1.1.0 (내부 식별용, 의도적 불일치)
+- **버전:** v1.3.0 (package.json + MCP SERVER_VERSION 정합)
 - **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 267+ pass (vitest)
+- **테스트:** 293+ pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 5 — 자율 루프 (Goal 2 진입 예정)
-- **블로커:** 없음 (PR #17 에서 사전존재 tsc 4건 해결)
-- **다음 액션:** Pre-Goal-1 cleanup 머지 → Goal 2 (`vhk blocker / learn / resume`)
+- **Phase:** Phase 5 종료 — Goal 0/1/2 모두 DONE. v1.3.0 릴리즈 prep.
+- **블로커:** 없음
+- **다음 액션:** v1.3.0 npm publish → Goal 3 또는 Phase 6 (Product Hunt) 분기점
 - **마지막 업데이트:** 2026-05-28
 
 ## 코딩 컨벤션

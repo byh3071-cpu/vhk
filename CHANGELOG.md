@@ -4,6 +4,13 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+(다음 릴리즈 누적 영역)
+
+## [1.3.0] - 2026-05-28
+
+> **Goal 0 + Goal 1 + Goal 2 모두 DONE.** Phase 3~5 (MCP 풀 커버리지 / vhk goal 명령어 / 자율 루프) 누적 릴리즈.
+> 마지막 publish (v1.0.2) 이후 모든 v1.1 / v1.2 / v1.3 기능 + tsc 블로커 해결 + 코덱스 리뷰 cleanup 포함.
+
 ### Added
 
 - **자율 루프 (v1.3 Phase 5 / Goal 2 DONE)** — `context → goal next → 작업 → check → done` 사이클 + 트립와이어:
