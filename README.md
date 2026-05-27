@@ -1,56 +1,89 @@
 ---
 id: vhk-readme
-date: 2026-05-24
-tags: [vhk, cli, readme, v1.0.0, ga]
+date: 2026-05-28
+tags: [vhk, cli, readme, v1.3.0, ga]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> 🎉 **v1.0.0 GA** — 바이브코더의 올인원 CLI. 공개 API 안정성 보장.
+> 🎉 **v1.3.0** — 바이브코더의 올인원 CLI. 컨텍스트 + 자율 하네스.
 >
-> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI** (v1.0.0)
+> AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI**.
 >
 > 🍽️ **VHK는 VHK로 부트스트랩됨** — 이 레포의 `docs/`, `CLAUDE.md`, `.cursorrules`도 `vhk init`이 만들었습니다.
 
 명령어를 외우지 않아도 됩니다. `vhk`만 치면 메뉴가 나오고, 한국어로 말해도 알아듣습니다.
 
-## 설치
+## 3분 안에 시작하기 (Getting Started)
+
+### 1. 설치
 
 ```bash
 npm install -g @byh3071/vhk
-```
-
-```bash
-# 한 번만 쓸 때
-npx @byh3071/vhk
-```
-
-로컬 개발 중:
-
-```powershell
-cd vhk-cli
-pnpm install
-pnpm build
-pnpm link --global
 vhk --version
 ```
 
-## 빠른 시작
+> Node.js ≥ 20 필요. `npx @byh3071/vhk` 로 1회성 실행도 가능.
+
+### 2. 첫 프로젝트 — `vhk start` (마법사)
+
+```bash
+mkdir my-app && cd my-app
+vhk start
+```
+
+`vhk start` 한 번이면 **git init → 문서 생성 → MCP 등록 → 컨텍스트 파일** 까지 자동으로 끝납니다.
+
+기획이 막 떠올랐다면 검증부터:
+
+```bash
+vhk gate          # 퀵 5문항 — GO / 다듬기 / 다른 아이디어
+```
+
+### 3. v1.3 핵심 기능 한눈에
+
+| 기능 | 한 줄 요약 | 진입 명령 |
+|------|-----------|-----------|
+| 🎯 **Goals 체계** | 단계별 미션 + 게이트 스크립트로 AI가 목표를 스스로 추적 | `vhk goal init` |
+| ▶️ **자율 루프** | `goal next → 작업 → goal check → goal done`. FAIL 3회면 자동 블로커 | `vhk goal next` |
+| 🚧 **HARD_STOP 안전장치** | 블로커 3건 누적 → `.vhk/HARD_STOP` 트립와이어. `vhk resume --confirm` 만 해제 | `vhk blocker "<증상>"` |
+| 🔌 **MCP 24 tool** | Cursor·Claude Desktop 등에서 vhk를 채팅으로 호출 | `vhk mcp-init` |
+| 📋 **컨텍스트 영속화** | `.vhk/context.md` + `memory.json` + `brief.md` 로 세션 간 맥락 유지 | `vhk context` |
+
+### 4. 권장 일일 사이클
+
+```text
+세션 시작 :  vhk context          # AI에 줄 프로젝트 맥락 갱신
+            vhk goal next         # 오늘 작업할 미션 자동 선택
+
+   개발 ...
+
+세션 종료 :  vhk goal check        # 게이트 스크립트로 통과 검증
+            vhk goal done         # 통과 시 status: DONE 으로 전이
+            vhk save              # add → commit → push 한 번에
+            vhk recap             # docs/log/ 에 오늘 기록
+```
+
+### 5. 자연어로도 됩니다
+
+```bash
+vhk 프로젝트 만들고 싶어
+vhk 기획 끝났고 바로 시작
+vhk 오늘 한 일 정리
+vhk 저장해줘
+vhk 다음 목표
+vhk 블로커 "API 호출 실패"
+```
+
+---
+
+## 빠른 시작 (인터랙티브 메뉴)
 
 ```bash
 vhk
 ```
 
 인자 없이 실행하면 **「뭘 도와드릴까요?」** 메뉴가 열립니다.
-
-```bash
-# 자연어로도 가능
-vhk 프로젝트 만들고 싶어
-vhk 기획 끝났고 바로 시작
-vhk 오늘 한 일 정리
-vhk 저장해줘
-vhk 변경사항 보여줘
-```
 
 ## 워크플로우 (권장 순서)
 

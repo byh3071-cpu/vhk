@@ -15,6 +15,10 @@ export const ko = {
     noPackage: 'package.json 없음',
     detached: '(detached HEAD)',
     unknownBranch: '(알 수 없음)',
+    nextWithChangesMessage: '변경사항이 있어요. 커밋·푸시를 진행하세요.',
+    nextWithChangesCursor: '저장해줘',
+    nextCleanMessage: '클린 상태! 다음 미션으로 넘어가세요.',
+    nextCleanCursor: '다음 목표 알려줘',
   },
   save: {
     title: '저장하기',
@@ -38,6 +42,10 @@ export const ko = {
     commitOkPushFailed: '로컬 커밋은 됐지만 원격 push에 실패했습니다. git push를 직접 확인하세요.',
     done: (n: number) => `${n}개 파일 저장 완료!`,
     doneLocalOnly: (n: number) => `${n}개 파일 로컬 저장됨 (push는 실패)`,
+    nextOkMessage: '저장 완료! 오늘 작업을 정리해두면 좋아요.',
+    nextOkCursor: '오늘 한 일 정리해줘',
+    nextPushFailMessage: '커밋은 됐지만 push 실패. 원격을 확인하세요.',
+    nextPushFailCursor: '왜 push 실패인지 알려줘',
   },
   undo: {
     title: '되돌리기',
@@ -58,6 +66,8 @@ export const ko = {
     forcePushHint:
       '원격과 맞추려면: git push --force-with-lease (혼자 작업한 브랜치에서만, 팀과 합의 후)',
     failed: '되돌리기 실패',
+    nextMessage: '변경사항이 스테이징 영역에 남았어요. 메시지 고쳐서 다시 저장하세요.',
+    nextCursor: '커밋 메시지 바꿔서 저장해줘',
   },
   diff: {
     title: '변경사항 확인',
@@ -272,6 +282,8 @@ export const ko = {
   mcp: {
     initTitle: 'Cursor MCP 연동 설정',
     serverStarted: 'VHK MCP 서버 시작됨',
+    nextMessage: 'Cursor / Claude Desktop 을 재시작한 뒤 채팅에서 vhk 도구를 호출하세요.',
+    nextCursor: '프로젝트 상태 알려줘',
   },
   deploy: {
     title: '배포하기',
@@ -309,6 +321,10 @@ export const ko = {
   },
   update: {
     title: 'VHK CLI 업데이트',
+    nextOkMessage: '업데이트 완료! 새 버전 확인하세요.',
+    nextOkCursor: 'vhk 버전 알려줘',
+    nextFailMessage: '업데이트 실패. 환경 점검부터 해보세요.',
+    nextFailCursor: 'vhk doctor 실행해줘',
   },
   context: {
     title: '프로젝트 컨텍스트 생성',

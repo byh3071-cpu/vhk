@@ -5,6 +5,7 @@ import chalk from 'chalk'
 import { normalizePorcelain } from '../lib/git-porcelain.js'
 import { getGitRoot, gitOut } from '../lib/git-repo.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { printNextStep } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 
 export interface FileChangeCounts {
@@ -156,5 +157,18 @@ export async function status(): Promise<void> {
     console.log(chalk.dim(`📦 ${t('status.noPackage')}`))
   }
 
-  console.log('')
+  const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0
+  if (hasChanges) {
+    printNextStep({
+      message: t('status.nextWithChangesMessage'),
+      command: 'vhk save',
+      cursorHint: t('status.nextWithChangesCursor'),
+    })
+  } else {
+    printNextStep({
+      message: t('status.nextCleanMessage'),
+      command: 'vhk goal next',
+      cursorHint: t('status.nextCleanCursor'),
+    })
+  }
 }
