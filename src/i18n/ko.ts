@@ -317,6 +317,13 @@ export const ko = {
   brief: {
     title: '프로젝트 브리핑',
   },
+  goal: {
+    listTitle: '🎯 Goal 목록',
+    nextTitle: '➡️  다음 Goal',
+    initTitle: '🏗️  goals/ 구조 스캐폴딩',
+    checkTitle: '✅ Goal 게이트 검증',
+    doneTitle: '🏁 Goal 완료 처리',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)
