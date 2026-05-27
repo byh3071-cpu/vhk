@@ -14,15 +14,24 @@ function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
 }
 
+// ANSI escape sequence (color / cursor / formatting). MCP 클라이언트 일부가
+// raw escape 를 그대로 노출해서 가독성 깨짐 → defensive strip.
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /\x1B\[[0-9;?]*[ -/]*[@-~]/g
+
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_RE, '')
+}
+
 // vhk CLI 자체를 서브프로세스로 호출해서 결과를 MCP content로 변환.
 // MCP 모드에서는 inquirer/ora 프롬프트가 동작하지 않으므로 비대화형 커맨드만 위임.
-// 호출 측은 stdout을 받아 그대로 반환 — chalk ANSI는 클라이언트에서 적당히 처리.
+// chalk 가 색을 안 쓰도록 FORCE_COLOR=0 + NO_COLOR=1 강제 + 잔여 ANSI 는 regex strip.
 function runVhkCli(
   args: string[],
   headline: string
 ): { content: [{ type: 'text'; text: string }] } {
-  const result = safeExecFile('vhk', args)
-  const body = result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`)
+  const result = safeExecFile('vhk', args, { env: { FORCE_COLOR: '0', NO_COLOR: '1' } })
+  const body = stripAnsi(result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`))
   const prefix = result.ok ? `✅ ${headline}` : `❌ ${headline} 실패`
   return { content: [{ type: 'text', text: `${prefix}\n${body}`.trim() }] }
 }
