@@ -14,3 +14,4 @@ _Format: `- [YYYY-MM-DD goal-N] 한 줄 교훈.`_
 - [2026-05-27 goal-1] Windows 에서 process.chdir(tmpDir) 후 rmSync 호출 시 EPERM. finally 절에서 chdir(origCwd) 를 rmSync 보다 먼저 수행해야 핸들 해제됨.
 - [2026-05-27 goal-1] NLP 규칙은 한국어 표현만 매칭하고 영문 서브커맨드 (goal list / goal next) 는 commander 가 직접 처리하도록 KNOWN_COMMAND_TOKENS 에 추가 + NLP rule 영문 제거. 그렇지 않으면 `vhk goal list` 가 NLP 가로채기로 routed 됨.
 - [2026-05-27 goal-1] Goal 1 dogfooding: `vhk goal done --id 1` 으로 자기 자신을 DONE 마킹. Self-referential 사이클 동작 확인.
+- [2026-05-27 no-goal] 자율 루프 — vhk resume 는 반드시 --confirm 강제 (자동 호출 금지). HARD_STOP 트립와이어 = 3 블로커 누적 자동.
