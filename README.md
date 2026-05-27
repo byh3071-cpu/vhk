@@ -109,6 +109,18 @@ vhk 기획 끝났고 바로 시작
 | `vhk context-show` | `맥락보기` | 현재 컨텍스트 파일 내용 출력 |
 | `vhk memory` | `기억` | 결정사항 기억 관리 (`add` / `list` / `remove`, `.vhk/memory.json` 기반, 태그 지원) |
 | `vhk brief` | `브리핑` | 프로젝트 정보 + git 상태 + 결정사항 + 레퍼런스 통합 보고서 `.vhk/brief.md` |
+| `vhk goal` | `목표` | Goal 단계별 미션 관리 (`init` / `list` / `next` / `check` / `done`) — vspec/vooster 패턴 |
+
+### goal 서브커맨드 (v1.2+)
+
+| 서브 | 설명 |
+|------|------|
+| `vhk goal init` | 현재 프로젝트에 `goals/` + `docs/state/` 스캐폴딩 (기존 파일 보존) |
+| `vhk goal list` | `goals/*.md` frontmatter 파싱 → id 순 목록 (status/priority/title) |
+| `vhk goal next` | active goal (IN_PROGRESS → 첫 NOT_STARTED) 선택 → `docs/state/next-task.md` 갱신 |
+| `vhk goal check [--id N]` | `scripts/check-goal-<id>.sh` 실행 (생략 시 active goal) |
+| `vhk goal done [--id N]` | 게이트 재검증 → 통과 시 frontmatter `status: DONE` + `completed: YYYY-MM-DD` |
+| `vhk check --goal N` | 위 `goal check` 의 별칭 (기존 `check` 시그니처 무변경 + optional 옵션) |
 
 ### init 옵션
 

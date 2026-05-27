@@ -34,6 +34,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'context-show', '맥락보기',
   'memory', '기억',
   'brief', '브리핑',
+  'goal', '목표',
   'help',
 ])
 

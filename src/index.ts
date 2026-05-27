@@ -33,6 +33,7 @@ import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
+import { goalCheck, goalDone, goalInit, goalList, goalNext } from './commands/goal.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -67,6 +68,7 @@ const KO_ALIASES: Record<string, string> = {
   'context-show': '맥락보기',
   memory: '기억',
   brief: '브리핑',
+  goal: '목표',
 }
 
 program
@@ -157,8 +159,9 @@ program
   .command('check')
   .alias('점검')
   .alias('린트')
-  .description('RULES.md 규칙 점검 — 코드 위반 검사')
-  .action(check)
+  .option('--goal <id>', 'goal id 지정 시 scripts/check-goal-<id>.sh 게이트 실행')
+  .description('RULES.md 규칙 점검 — 코드 위반 검사 (또는 --goal <id> 로 goal 게이트)')
+  .action(async (opts: { goal?: string }) => { await check(opts) })
 
 const secureCmd = program
   .command('secure')
@@ -362,6 +365,44 @@ program
   .alias('브리핑')
   .description('프로젝트 상태 요약 보고서 생성 (.vhk/brief.md)')
   .action(async () => { await brief() })
+
+const goalCmd = program
+  .command('goal')
+  .alias('목표')
+  .description('Goal 단계별 미션 관리 (init / list / next / check / done)')
+  .action(async () => { await goalList() })
+
+goalCmd
+  .command('list')
+  .alias('목록')
+  .description('goals/*.md 목록 (id, status, priority, title)')
+  .action(async () => { await goalList() })
+
+goalCmd
+  .command('next')
+  .alias('다음')
+  .description('active goal 자동 선택 → docs/state/next-task.md 갱신')
+  .action(async () => { await goalNext() })
+
+goalCmd
+  .command('init')
+  .alias('초기화')
+  .description('현재 프로젝트에 goals/ + docs/state/ 스캐폴딩 (기존 파일 보존)')
+  .action(async () => { await goalInit() })
+
+goalCmd
+  .command('check')
+  .alias('검증')
+  .option('--id <id>', 'goal id 지정 (생략 시 active goal)')
+  .description('scripts/check-goal-<id>.sh 실행 + exit code 전달')
+  .action(async (opts: { id?: string }) => { await goalCheck(opts) })
+
+goalCmd
+  .command('done')
+  .alias('완료')
+  .option('--id <id>', 'goal id 지정 (생략 시 active goal)')
+  .description('게이트 재검증 → 통과 시 frontmatter status=DONE 으로 전이')
+  .action(async (opts: { id?: string }) => { await goalDone(opts) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''

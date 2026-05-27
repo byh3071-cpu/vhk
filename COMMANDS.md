@@ -14,6 +14,16 @@ Cursor에게 한국어로 말해도 됩니다.
 | 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |
 | 배포 | `vhk 배포` | "배포해" |
 
+## Goal 단계별 미션 (v1.2+)
+
+| 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
+|-------------|-----------|------------------|
+| goals/ 스캐폴딩 | `vhk goal init` | (대상 프로젝트에서 직접) |
+| goal 목록 | `vhk goal list` | "목표 목록" |
+| 다음 goal | `vhk goal next` | "다음 목표" |
+| 게이트 검증 | `vhk goal check --id 0` 또는 `vhk check --goal 0` | "목표 점검" |
+| 완료 처리 | `vhk goal done --id 0` | "목표 완료" |
+
 ## 환경 점검
 
 ```bash
