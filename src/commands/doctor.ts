@@ -1,11 +1,11 @@
 import chalk from 'chalk'
-import { execSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { printNextStep } from '../lib/next-step.js'
 import { ko } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { safeExecFile } from '../lib/exec.js'
 
 export interface CheckResult {
   name: string
@@ -16,12 +16,10 @@ export interface CheckResult {
 }
 
 export function checkCommand(name: string, command: string, hint: string): CheckResult {
-  try {
-    const version = execSync(`${command} --version`, { encoding: 'utf-8' }).trim().split('\n')[0]
-    return { name, command, version, ok: true, hint }
-  } catch {
-    return { name, command, ok: false, hint }
-  }
+  const result = safeExecFile(command, ['--version'])
+  if (!result.ok) return { name, command, ok: false, hint }
+  const version = result.out.split('\n')[0]
+  return { name, command, version, ok: true, hint }
 }
 
 function getVhkVersion(): string | undefined {
@@ -45,17 +43,14 @@ function getVhkVersion(): string | undefined {
 }
 
 export function fetchLatestNpmVersion(packageName: string): string | undefined {
-  try {
-    const result = execSync(`npm view ${packageName} version`, {
-      encoding: 'utf-8',
-      timeout: 5000,
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim()
-    if (/^\d+\.\d+\.\d+/.test(result)) return result
-    return undefined
-  } catch {
-    return undefined
-  }
+  // safeExecFile 은 argv 분리 (packageName 의 shell metachar 인젝션 차단).
+  // timeout 옵션은 미지원 — npm view 는 일반적으로 빠르나 네트워크 장애 시 hang 가능.
+  // 필요 시 lib/exec 에 timeout 추가 검토.
+  const result = safeExecFile('npm', ['view', packageName, 'version'])
+  if (!result.ok) return undefined
+  const out = result.out
+  if (/^\d+\.\d+\.\d+/.test(out)) return out
+  return undefined
 }
 
 export function compareSemver(a: string, b: string): number {

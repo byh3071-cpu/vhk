@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -6,6 +5,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { safeExecFile } from '../lib/exec.js'
 
 const PACKAGE = '@byh3071/vhk'
 
@@ -27,15 +27,8 @@ function getCurrentVersion(): string {
 }
 
 function getLatestVersion(): string | null {
-  try {
-    const out = execSync(`npm view ${PACKAGE} version`, {
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    }).toString()
-    return out.trim()
-  } catch {
-    return null
-  }
+  const r = safeExecFile('npm', ['view', PACKAGE, 'version'])
+  return r.ok ? r.out : null
 }
 
 /** semver 비교: a >= b면 true (a가 같거나 더 높으면 true) */
@@ -74,15 +67,14 @@ export async function update(): Promise<void> {
   }
 
   const updateSpinner = ora(`v${latest}으로 업데이트 중...`).start()
-  try {
-    execSync(`npm update -g ${PACKAGE}`, { stdio: ['pipe', 'pipe', 'pipe'] })
+  const upd = safeExecFile('npm', ['update', '-g', PACKAGE])
+  if (upd.ok) {
     updateSpinner.succeed(`v${latest}으로 업데이트 완료!`)
     console.log(chalk.green.bold(`\n🎉 VHK CLI v${latest} 업데이트 완료!`))
     console.log(chalk.gray('   변경 사항은 GitHub Releases를 확인하세요.'))
-  } catch (err) {
+  } else {
     updateSpinner.fail('업데이트 실패')
-    const msg = err instanceof Error ? err.message.slice(0, 300) : String(err)
-    console.log(chalk.red(msg))
+    console.log(chalk.red(upd.err.slice(0, 300)))
     console.log(chalk.yellow('\n수동으로 업데이트하세요:'))
     console.log(chalk.gray(`   npm update -g ${PACKAGE}`))
   }
