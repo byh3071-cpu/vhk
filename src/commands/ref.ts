@@ -105,12 +105,15 @@ export async function refOpen(indexStr: string): Promise<void> {
 
   console.log(chalk.cyan(`\n🌐 열기: ${ref.url}`))
 
-  // safeExecFile — shell 없이 argv 분리 호출 → URL injection 차단
+  // safeExecFile — shell 없이 argv 분리 호출 → URL injection 차단.
+  // Windows: cmd.exe /c start 는 url 의 cmd metachar (`&`, `|`, `>`, `<`, `%`, `^`)
+  // 가 명령 분리자로 해석되어 인젝션 위험. rundll32 url.dll,FileProtocolHandler 는
+  // 쉘 없이 직접 ShellExecute 호출 → cmd 파싱 자체가 없음. argv 분리 + 비-쉘 = 이중 차단.
   let result
   if (process.platform === 'darwin') {
     result = safeExecFile('open', [ref.url])
   } else if (process.platform === 'win32') {
-    result = safeExecFile('cmd.exe', ['/c', 'start', '', ref.url])
+    result = safeExecFile('rundll32.exe', ['url.dll,FileProtocolHandler', ref.url])
   } else {
     result = safeExecFile('xdg-open', [ref.url])
   }
