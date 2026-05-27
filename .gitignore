@@ -3,6 +3,11 @@ dist/
 *.tsbuildinfo
 .DS_Store
 
+# Local env — never commit secrets
+.env
+.env.local
+.env.*.local
+
 # VHK runtime tripwire — local-only, never commit
 .vhk/HARD_STOP
 
