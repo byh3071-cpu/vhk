@@ -6,6 +6,23 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- **`vhk goal` 명령어 (v1.2 Phase 4 / Goal 1)** — vspec/vooster goals/ 체계를 사용자 CLI 로 노출:
+  - `vhk goal init` — 현재 프로젝트에 `goals/_meta.md` + `docs/state/{next-task,blockers,learnings}.md` 스캐폴딩 (기존 파일 보존)
+  - `vhk goal list` — `goals/*.md` frontmatter 파싱 → id 순 목록 (status icon + priority + version + title)
+  - `vhk goal next` — active goal 자동 선택 (IN_PROGRESS 우선 → 첫 NOT_STARTED) → `docs/state/next-task.md` 멱등 갱신
+  - `vhk goal check [--id N]` — `scripts/check-goal-<id>.sh` 실행, exit code passthrough
+  - `vhk goal done [--id N]` — 게이트 재검증 → 통과 시 frontmatter `status: DONE` + `completed: YYYY-MM-DD`. **실패 시 frontmatter 무변경** (Forbidden: 실패 = 보존)
+  - `vhk check --goal N` — 기존 `check` 의 optional 옵션 추가, goal-aware 게이트 위임
+  - YAML frontmatter 파서: `src/lib/goal-frontmatter.ts` — 정규식 기반 (gray-matter 의존성 X)
+  - NLP 한국어 4 규칙: "다음 목표" / "목표 점검" / "목표 완료" / "목표 목록"
+  - 한국어 alias: `목표`, 서브: `목록/다음/초기화/검증/완료`
+  - 테스트 23 (parser 10 + goal 13). 전체 267 → 280 (예정)
+  - `scripts/check-goal-1.sh` — Goal 1 게이트 (G1.1 ~ G1.5)
+
+### Internal
+
+- **PR #17 follow-up — D**: `tests/helpers/mcp-introspect.ts` 추출 — SDK private `_registeredTools` 캐스팅 1 곳 격리. SDK 변경 시 패치 표면 최소.
+
 - **MCP 풀 커버리지 완료 (v1.1 Phase 3 / Goal 0 DONE)** — MCP tool 16 → 24:
   - 신규 8 tool:
     - `deploy`, `publish`, `migrate`, `update` — dry-info 핸들러 (인터랙티브 본질이라 실제 실행 미수행, 진단/안내만)
