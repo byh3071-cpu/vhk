@@ -4,6 +4,8 @@ import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
 import { safeExecFile } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
+import { detectPlatform } from '../commands/deploy.js'
+import { bumpVersion } from '../commands/publish.js'
 import { readJsonFile } from '../lib/read-json.js'
 
 const SERVER_VERSION = '1.1.0'
@@ -12,15 +14,24 @@ function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
 }
 
+// ANSI escape sequence (color / cursor / formatting). MCP 클라이언트 일부가
+// raw escape 를 그대로 노출해서 가독성 깨짐 → defensive strip.
+// eslint-disable-next-line no-control-regex
+const ANSI_RE = /\x1B\[[0-9;?]*[ -/]*[@-~]/g
+
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_RE, '')
+}
+
 // vhk CLI 자체를 서브프로세스로 호출해서 결과를 MCP content로 변환.
 // MCP 모드에서는 inquirer/ora 프롬프트가 동작하지 않으므로 비대화형 커맨드만 위임.
-// 호출 측은 stdout을 받아 그대로 반환 — chalk ANSI는 클라이언트에서 적당히 처리.
+// chalk 가 색을 안 쓰도록 FORCE_COLOR=0 + NO_COLOR=1 강제 + 잔여 ANSI 는 regex strip.
 function runVhkCli(
   args: string[],
   headline: string
 ): { content: [{ type: 'text'; text: string }] } {
-  const result = safeExecFile('vhk', args)
-  const body = result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`)
+  const result = safeExecFile('vhk', args, { env: { FORCE_COLOR: '0', NO_COLOR: '1' } })
+  const body = stripAnsi(result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`))
   const prefix = result.ok ? `✅ ${headline}` : `❌ ${headline} 실패`
   return { content: [{ type: 'text', text: `${prefix}\n${body}`.trim() }] }
 }
@@ -411,6 +422,155 @@ export function createVhkMcpServer(): McpServer {
     'brief',
     { description: '프로젝트 브리핑(.vhk/brief.md) 생성 — git 상태 + 결정사항 + 다음 단계 제안' },
     async () => runVhkCli(['brief'], 'brief')
+  )
+
+  // ─── deploy ─────────────────────────────────────────────
+  // 실제 배포는 inquirer 프롬프트가 필수이므로 MCP 모드에서는 정보 조회만 제공.
+  server.registerTool(
+    'deploy',
+    {
+      description:
+        '배포 플랫폼 자동 감지 + CLI 설치 확인 (MCP 모드: 실제 배포 미수행 — `vhk deploy` 안내)',
+    },
+    async () => {
+      const platform = detectPlatform()
+      if (!platform) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: '❌ 배포 플랫폼 미감지 (vercel.json / netlify.toml / wrangler.toml 없음).\n플랫폼 설정 파일 추가 후 다시 시도.',
+            },
+          ],
+        }
+      }
+      const cliCheck = safeExecFile(platform, ['--version'])
+      const cliStatus = cliCheck.ok
+        ? `✓ ${platform} CLI 설치됨 (${cliCheck.out})`
+        : `✗ ${platform} CLI 미설치 — npm i -g ${platform}`
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `🚀 감지된 플랫폼: ${platform}\n${cliStatus}\n\n실제 배포는 터미널에서: vhk deploy`,
+          },
+        ],
+      }
+    }
+  )
+
+  // ─── publish ────────────────────────────────────────────
+  // bump type + 최종 confirm 이 inquirer 필수 → MCP 는 dry-info 만 제공.
+  server.registerTool(
+    'publish',
+    {
+      description:
+        '현재 버전 + bump 후보 표시 (MCP 모드: 실제 npm publish 미수행 — `vhk publish` 안내)',
+    },
+    async () => {
+      if (!existsSync('package.json')) {
+        return { content: [{ type: 'text', text: '❌ package.json 없음.' }] }
+      }
+      try {
+        const pkg = readJsonFile<{ version?: string; name?: string }>('package.json')
+        const v = pkg.version ?? '0.0.0'
+        const lines = [
+          `📦 ${pkg.name ?? '(이름 없음)'} 현재 v${v}`,
+          `  patch → v${bumpVersion(v, 'patch')}`,
+          `  minor → v${bumpVersion(v, 'minor')}`,
+          `  major → v${bumpVersion(v, 'major')}`,
+          '',
+          '실제 배포는 터미널에서: vhk publish',
+        ]
+        return { content: [{ type: 'text', text: lines.join('\n') }] }
+      } catch (e) {
+        return {
+          content: [{ type: 'text', text: `❌ package.json 파싱 실패: ${String(e)}` }],
+        }
+      }
+    }
+  )
+
+  // ─── migrate ────────────────────────────────────────────
+  // 전환 = lock/node_modules 삭제 + install. 실수 시 영향 큼 → MCP 는 진단만.
+  server.registerTool(
+    'migrate',
+    {
+      description:
+        '패키지 매니저 감지 + 전환 후보 가용성 (MCP 모드: 실제 전환 미수행 — `vhk migrate <target>` 안내)',
+    },
+    async () => {
+      const current = existsSync('pnpm-lock.yaml')
+        ? 'pnpm'
+        : existsSync('yarn.lock')
+          ? 'yarn'
+          : existsSync('package-lock.json')
+            ? 'npm'
+            : null
+      const candidates = (['npm', 'yarn', 'pnpm'] as const).filter((pm) => pm !== current)
+      const lines = [`현재 PM: ${current ?? '감지 불가 (lock 파일 없음)'}`]
+      for (const pm of candidates) {
+        const r = safeExecFile(pm, ['--version'])
+        lines.push(`  ${pm}: ${r.ok ? `✓ v${r.out}` : '✗ 미설치'}`)
+      }
+      lines.push('', '실제 전환은 터미널에서: vhk migrate <pnpm|npm|yarn>')
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
+    }
+  )
+
+  // ─── update ─────────────────────────────────────────────
+  // npm update -g 는 글로벌 영향. MCP 는 버전 비교만 (--check 의미).
+  server.registerTool(
+    'update',
+    {
+      description:
+        'VHK 현재/최신 버전 비교 (MCP 모드: --check 만 — 실제 업데이트 미수행)',
+    },
+    async () => {
+      const cur = safeExecFile('vhk', ['--version'])
+      const latest = safeExecFile('npm', ['view', '@byh3071/vhk', 'version'])
+      const lines = [
+        `현재: ${cur.ok ? `v${cur.out.replace(/^v/, '')}` : '확인 실패'}`,
+        `최신: ${latest.ok ? `v${latest.out.replace(/^v/, '')}` : '확인 실패 (네트워크 또는 npm registry)'}`,
+      ]
+      if (cur.ok && latest.ok) {
+        const same = cur.out.replace(/^v/, '') === latest.out.replace(/^v/, '')
+        lines.push(
+          same
+            ? '✓ 최신 버전입니다.'
+            : '⬆️  업데이트 가능. 터미널에서: vhk update (또는 npm update -g @byh3071/vhk)'
+        )
+      }
+      return { content: [{ type: 'text', text: lines.join('\n') }] }
+    }
+  )
+
+  // ─── ref-list ───────────────────────────────────────────
+  server.registerTool(
+    'ref-list',
+    { description: '저장된 레퍼런스 URL 목록 보기 (add/open 은 인자/대화형 → CLI 전용)' },
+    async () => runVhkCli(['ref', 'list'], 'ref list')
+  )
+
+  // ─── memory-list ────────────────────────────────────────
+  server.registerTool(
+    'memory-list',
+    { description: '저장된 결정사항(memory) 목록 보기 (add/remove 는 인자 필요 → CLI 전용)' },
+    async () => runVhkCli(['memory', 'list'], 'memory list')
+  )
+
+  // ─── context-show ───────────────────────────────────────
+  server.registerTool(
+    'context-show',
+    { description: '.vhk/context.md 파일 내용 보기 (없으면 `vhk context` 안내)' },
+    async () => runVhkCli(['context-show'], 'context-show')
+  )
+
+  // ─── mcp-init ───────────────────────────────────────────
+  server.registerTool(
+    'mcp-init',
+    { description: '.cursor/mcp.json 생성/갱신 — vhk MCP 서버 등록 (Cursor 재시작 필요)' },
+    async () => runVhkCli(['mcp-init'], 'mcp-init')
   )
 
   return server

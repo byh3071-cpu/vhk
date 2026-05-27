@@ -76,7 +76,10 @@ async function fetchAllBlocks(client: Client, blockId: string): Promise<NotionBl
 
 function extractText(block: NotionBlock): string {
   const type = block.type
-  const data = block[type] as { rich_text?: Array<{ plain_text: string }> } | undefined
+  // Notion BlockObjectResponse 는 discriminated union — 동적 키 접근에는 Record 캐스팅 필요.
+  const data = (block as unknown as Record<string, { rich_text?: Array<{ plain_text: string }> }>)[
+    type
+  ]
   if (!data?.rich_text) return ''
   return data.rich_text.map(t => t.plain_text).join('')
 }

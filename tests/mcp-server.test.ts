@@ -27,15 +27,31 @@ describe('MCP Server', () => {
     }
   })
 
-  it('Goal 0 v1.1 신규 6 tool이 등록되어 있다', async () => {
+  it('Goal 0 1차 — 신규 6 tool (sync/secure/audit/harness/context/brief)', async () => {
     const names = await getRegisteredToolNames()
     for (const t of ['sync', 'secure', 'audit', 'harness', 'context', 'brief']) {
       expect(names).toContain(t)
     }
   })
 
-  it('총 16+ tool이 등록되어 있다 (Goal 0 진행 중 baseline)', async () => {
+  it('Goal 0 2차 — 신규 8 tool (deploy/publish/migrate/update/ref-list/memory-list/context-show/mcp-init)', async () => {
     const names = await getRegisteredToolNames()
-    expect(names.length).toBeGreaterThanOrEqual(16)
+    for (const t of [
+      'deploy',
+      'publish',
+      'migrate',
+      'update',
+      'ref-list',
+      'memory-list',
+      'context-show',
+      'mcp-init',
+    ]) {
+      expect(names).toContain(t)
+    }
+  })
+
+  it('Goal 0 완료 baseline — registerTool 24개 이상', async () => {
+    const names = await getRegisteredToolNames()
+    expect(names.length).toBeGreaterThanOrEqual(24)
   })
 })

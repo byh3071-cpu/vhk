@@ -6,6 +6,24 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- **MCP 풀 커버리지 완료 (v1.1 Phase 3 / Goal 0 DONE)** — MCP tool 16 → 24:
+  - 신규 8 tool:
+    - `deploy`, `publish`, `migrate`, `update` — dry-info 핸들러 (인터랙티브 본질이라 실제 실행 미수행, 진단/안내만)
+    - `ref-list`, `memory-list`, `context-show`, `mcp-init` — `runVhkCli()` 서브프로세스 위임
+  - **G0.1**: registerTool 24 개 도달 (Goal 0 목표 달성)
+  - **G0.2**: server.ts inquirer import 0 (MCP 모드 안전성)
+  - **G0.3**: server.ts execSync 0 (safeExecFile 통일)
+  - `_meta` 게이트 통과 (typecheck/tests/build 모두 ✓)
+  - 대화형 본질 4 커맨드 (`gate`, `init`, `design palette`, `theme`, `start`) 는 MCP 제외 확정
+  - 테스트: 244/244 pass (mcp-server.test.ts 4 → 5 테스트, 24+ 단언 추가)
+
+### Fixed
+
+- **사전존재 typecheck 4 건 해결** (`_meta` M.1 영구 블로커):
+  - `src/commands/start.ts` + `src/lib/git.ts`: `import simpleGit` default → named export `{ simpleGit }` 로 전환 (simple-git 3.x dual export 호환)
+  - `src/lib/git.ts:83`: `DiffResult.files` union 정규화 — binary/name-status 항목 insertions/deletions 0 fallback
+  - `src/lib/notion-import.ts:79`: `BlockObjectResponse` discriminated union 인덱싱 시 `Record<string, ...>` 캐스팅
+
 - **MCP 풀 커버리지 1차 (v1.1 Phase 3 / Goal 0 진행 중)** — MCP tool 10 → 16:
   - 신규 6 tool: `sync`, `secure`, `audit`, `harness`, `context`, `brief`
   - 모두 비대화형. `runVhkCli()` 헬퍼로 `vhk` CLI 서브프로세스 위임 (MCP 모드에서 inquirer/ora 차단)
