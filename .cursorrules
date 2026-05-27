@@ -3,26 +3,47 @@
 > 코딩/디자인 전용. 기록/운영 → CLAUDE.md 참조.
 
 ## 프로젝트 정체성
+
 - 한 줄 설명: 바이브코딩 풀사이클 CLI
-- 스택: Node.js + TypeScript + commander + inquirer + chalk
+- 레포: https://github.com/byh3071-cpu/vhk (public)
+- npm: @byh3071/vhk
 
 ## 필수 참조
-- docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md
+
+- CLAUDE.md · docs/PRD.md · docs/ARCHITECTURE.md
+- goals/_meta.md · docs/state/next-task.md
 
 ## 기술 스택 (변경 시 ADR 필수)
-- Node.js
-- TypeScript
-- commander
-- inquirer
-- chalk
+
+- Node.js + TypeScript
+- commander (CLI) + inquirer (인터랙티브) + chalk (출력)
+- tsup (빌드) + vitest (테스트)
+- @modelcontextprotocol/sdk + zod (MCP)
+- pnpm (패키지 매니저)
+- src/i18n/ko.ts (한국어 i18n)
+- src/nlp-router.ts (자연어 라우팅)
 
 ## 코딩 규칙
+
 - TypeScript strict (any 금지)
 - try-catch 필수, 빈 catch 금지
 - console.log 프로덕션 제거
 - 커밋: feat: / fix: / refactor: / docs: / chore:
+- `execSync` 신규 사용 금지 → `safeExecFile` 사용
+- 모든 커맨드 파일에 `printNextStep()` 패턴 사용
+- 한국어 별칭 `.alias()` + `ko.ts` 메시지 필수
+- 신규 커맨드 시 `nlp-router.ts` 키워드 추가 필수
+
+## MCP 규칙
+
+- handler 내부 `process.exit()` 금지
+- MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
+- 신규 handler는 `runVhkCli(args, headline)` 헬퍼 패턴 사용
+- 대화형 커맨드 (gate/init/design palette/theme) 는 MCP 제외
+- 기존 tool API 시그니처 변경 금지 (GA 안정성)
 
 ## 디자인 Anti-patterns
+
 - 보라-파랑 기본 그라디언트 금지
 - 과도한 둥근 모서리 (>16px) 금지
 - 그림자 중첩 · 장식 SVG 남발 금지
