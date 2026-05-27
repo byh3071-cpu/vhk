@@ -29,6 +29,7 @@ import { context, contextShow } from '../commands/context.js'
 import { memoryList } from '../commands/memory.js'
 import { brief } from '../commands/brief.js'
 import { start } from '../commands/start.js'
+import { goalCheck, goalDone, goalList, goalNext } from '../commands/goal.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -101,6 +102,13 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return memoryList()
     case 'brief':
       return brief()
+    case 'goal': {
+      const sub = route.args?.[0]
+      if (sub === 'next') return goalNext()
+      if (sub === 'check') return goalCheck({})
+      if (sub === 'done') return goalDone({})
+      return goalList()
+    }
   }
 }
 
