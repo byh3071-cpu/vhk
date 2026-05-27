@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import inquirer from 'inquirer'
-import simpleGit from 'simple-git'
+import { simpleGit } from 'simple-git'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { init } from './init.js'
