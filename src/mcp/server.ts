@@ -9,8 +9,11 @@ import { bumpVersion } from '../commands/publish.js'
 import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/audit.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
+import { getVhkVersion } from '../lib/version.js'
 
-const SERVER_VERSION = '1.3.0'
+// package.json 의 version 을 런타임에 읽음 (lib/version 재사용) — drift 방지.
+// dist/index.js 와 dist/mcp/index.js 둘 다 lib/version 의 candidate 경로로 해석됨.
+const SERVER_VERSION = getVhkVersion()
 
 function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok

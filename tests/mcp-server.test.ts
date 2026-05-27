@@ -45,4 +45,16 @@ describe('MCP Server', () => {
     const names = await getRegisteredToolNames()
     expect(names.length).toBeGreaterThanOrEqual(24)
   })
+
+  it('SERVER_VERSION 이 package.json 과 정합 (lib/version SoT)', async () => {
+    const { getVhkVersion } = await import('../src/lib/version.js')
+    const pkgVersion = getVhkVersion()
+    expect(pkgVersion).toMatch(/^\d+\.\d+\.\d+/)
+    // SDK private 멤버 _serverInfo.version 으로 비교 — 1.29.0 에서 노출.
+    const { createVhkMcpServer } = await import('../src/mcp/server.js')
+    const server = createVhkMcpServer() as unknown as {
+      server: { _serverInfo: { version: string } }
+    }
+    expect(server.server._serverInfo.version).toBe(pkgVersion)
+  })
 })

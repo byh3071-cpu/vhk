@@ -152,9 +152,26 @@ export async function goalInit(): Promise<void> {
   }
 }
 
-function runGate(scriptPath: string): { ok: boolean; out: string; err: string } {
-  const r = safeExecFile('bash', [scriptPath])
-  return { ok: r.ok, out: r.out, err: r.ok ? '' : r.err }
+// 게이트 스크립트 찾기 — .mjs 우선 (cross-platform), .sh fallback (POSIX 호환).
+// Windows 기본 환경에 bash/WSL 없어도 .mjs 가 있으면 통과.
+export function findGateScript(id: number | string): string | null {
+  const mjs = join(SCRIPTS_DIR, `check-goal-${id}.mjs`)
+  if (existsSync(mjs)) return mjs
+  const sh = join(SCRIPTS_DIR, `check-goal-${id}.sh`)
+  if (existsSync(sh)) return sh
+  return null
+}
+
+function runGate(scriptPath: string): {
+  ok: boolean
+  out: string
+  err: string
+  runner: 'node' | 'bash'
+} {
+  const isMjs = scriptPath.endsWith('.mjs')
+  const runner: 'node' | 'bash' = isMjs ? 'node' : 'bash'
+  const r = safeExecFile(runner, [scriptPath])
+  return { ok: r.ok, out: r.out, err: r.ok ? '' : r.err, runner }
 }
 
 export async function goalCheck(opts: { id?: string }): Promise<void> {
@@ -168,14 +185,16 @@ export async function goalCheck(opts: { id?: string }): Promise<void> {
     process.exitCode = 1
     return
   }
-  const scriptPath = join(SCRIPTS_DIR, `check-goal-${id}.sh`)
-  if (!existsSync(scriptPath)) {
-    console.log(chalk.red(`  ❌ 게이트 스크립트 없음: ${scriptPath}`))
+  const scriptPath = findGateScript(id)
+  if (!scriptPath) {
+    console.log(
+      chalk.red(`  ❌ 게이트 스크립트 없음: scripts/check-goal-${id}.{mjs,sh}`)
+    )
     process.exitCode = 1
     return
   }
-  console.log(chalk.dim(`  ▶ bash ${scriptPath}\n`))
   const gate = runGate(scriptPath)
+  console.log(chalk.dim(`  ▶ ${gate.runner} ${scriptPath}\n`))
   if (gate.out) console.log(gate.out)
   if (gate.ok) {
     console.log(chalk.green(`\n  ✅ Goal ${id} 게이트 통과`))
@@ -203,14 +222,18 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
     process.exitCode = 1
     return
   }
-  const scriptPath = join(SCRIPTS_DIR, `check-goal-${id}.sh`)
-  if (!existsSync(scriptPath)) {
-    console.log(chalk.red(`  ❌ 게이트 스크립트 없음 — done 처리 거부: ${scriptPath}`))
+  const scriptPath = findGateScript(id)
+  if (!scriptPath) {
+    console.log(
+      chalk.red(
+        `  ❌ 게이트 스크립트 없음 — done 처리 거부: scripts/check-goal-${id}.{mjs,sh}`
+      )
+    )
     process.exitCode = 1
     return
   }
-  console.log(chalk.dim(`  ▶ 게이트 검증: bash ${scriptPath}\n`))
   const gate = runGate(scriptPath)
+  console.log(chalk.dim(`  ▶ 게이트 검증: ${gate.runner} ${scriptPath}\n`))
   if (gate.out) console.log(gate.out)
   if (!gate.ok) {
     // Forbidden: 게이트 실패에도 done 으로 마킹 금지. frontmatter 변경 없이 종료.
