@@ -29,6 +29,7 @@ export type NlpCommand =
   | 'context-show'
   | 'memory'
   | 'brief'
+  | 'goal'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -287,6 +288,36 @@ const RULES: NlpRule[] = [
     test: t =>
       /^출시$|출시\s*해|^publish$|퍼블리시|npm\s*(배포|출시)|버전\s*올|^릴리즈$|^release$/.test(t) &&
       !/체크|준비|회고/.test(t),
+  },
+  // NLP 규칙은 한국어 표현만 매칭. 영문 `goal <sub>` 은 commander 가 직접 처리하도록
+  // 가로채기 금지 — vhk goal list / next / check / done 그대로 동작.
+  {
+    command: 'goal',
+    explanation: '다음 goal 자동 선택 (vhk goal next)',
+    confidence: 'high',
+    args: ['next'],
+    test: t => /다음\s*목표|목표\s*다음/.test(t),
+  },
+  {
+    command: 'goal',
+    explanation: '목표 게이트 검증 (vhk goal check)',
+    confidence: 'high',
+    args: ['check'],
+    test: t => /목표\s*(점검|검증|체크)/.test(t),
+  },
+  {
+    command: 'goal',
+    explanation: '목표 완료 처리 (vhk goal done)',
+    confidence: 'high',
+    args: ['done'],
+    test: t => /목표\s*(완료|마감)/.test(t),
+  },
+  {
+    command: 'goal',
+    explanation: '목표 목록 (vhk goal list)',
+    confidence: 'high',
+    args: ['list'],
+    test: t => /목표\s*(목록|리스트)/.test(t),
   },
 ]
 
