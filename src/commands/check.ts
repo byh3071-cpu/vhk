@@ -4,8 +4,21 @@ import fs from 'node:fs'
 import { parseRules, type RuleViolation } from '../lib/rules-parser.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { goalCheck } from './goal.js'
 
-export async function check() {
+export interface CheckOptions {
+  goal?: string
+}
+
+export async function check(opts: CheckOptions = {}) {
+  // --goal <id> 지정 시 goal-aware 게이트로 우회 (RULES.md 점검 대신).
+  if (opts.goal !== undefined) {
+    return goalCheck({ id: opts.goal })
+  }
+  return checkRules()
+}
+
+async function checkRules() {
   console.log(chalk.bold(`\n${ko.check.title}\n`))
 
   const cwd = process.cwd()
