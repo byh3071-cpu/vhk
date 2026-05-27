@@ -6,6 +6,38 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.3.1] - 2026-05-28
+
+> **Windows 릴리즈 품질 패치.** 1.3.0 publish 직후 발견된 4 publish-blocker + 2 잔여 리스크 + DX polish.
+> 기능 변화 없음 — 모두 fix / refactor / docs.
+
+### Fixed
+
+- **bash 의존성 제거** — `vhk goal check` 가 Windows 기본 환경에서 깨지던 문제 해결
+  - `src/commands/goal.ts`: `findGateScript(id)` — `.mjs` 우선, `.sh` fallback. runner (node/bash) 동적 선택
+  - 신규 `scripts/_lib.mjs` + `scripts/check-meta.mjs` + `scripts/check-goal-{0,1,2}.mjs` (cross-platform)
+  - 기존 `.sh` 4 개는 1줄 wrapper 로 축소 (`exec node ../check-*.mjs "$@"`) — dual-maintenance 부담 0
+- **vhk secure 자기 레포 fail** — 테스트의 fake AWS key literal 이 자체 스캔에 걸리던 문제
+  - `tests/scan-secrets.test.ts` / `scan-files.test.ts` / `secure.test.ts`: literal `"AKIAIOSFODNN7EXAMPLE"` → `'AKIA' + 'IOSFODNN7EXAMPLE'` 조각합성
+  - scanner regex (`/AKIA[0-9A-Z]{16}/`) 는 contiguous 매칭만 잡으므로 무해. 런타임 값/테스트 의미 무변경
+- **MCP SERVER_VERSION 하드코드 제거** — package.json 과 정합
+  - `src/mcp/server.ts`: `const SERVER_VERSION = '1.3.0'` → `getVhkVersion()` (lib/version SoT)
+  - 신규 회귀 테스트 — server.version 이 package.json 과 자동 일치
+
+### Changed
+
+- **README MCP 섹션 일관성** — v0.6.0 historical 섹션을 "(당시 8개) → 현재 v1.3 기준 24개" 명시
+- **SDK private 멤버 접근 격리** — `tests/helpers/mcp-introspect.ts` 에 `getServerVersion / getServerName` 추가
+  - `_registeredTools` + `_serverInfo` 모두 헬퍼 1 파일에 격리 → SDK 메이저 업그레이드 시 1 곳만 패치
+
+### DX
+
+- `printNextStep()` 누락 5 커맨드 추가 (status / update / save / undo / mcp-init)
+- `docs/ARCHITECTURE.md` 신규 — 실제 구조 반영
+- `--help` 출력 24 명령 최신화
+- `README.md` Getting Started 섹션 강화
+- `.gitignore` 에 `.env` 추가
+
 ## [1.3.0] - 2026-05-28
 
 > **Goal 0 + Goal 1 + Goal 2 모두 DONE.** Phase 3~5 (MCP 풀 커버리지 / vhk goal 명령어 / 자율 루프) 누적 릴리즈.

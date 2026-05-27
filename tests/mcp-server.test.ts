@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getRegisteredToolNames } from './helpers/mcp-introspect.js'
+import { getRegisteredToolNames, getServerVersion } from './helpers/mcp-introspect.js'
 
 vi.mock('node:child_process')
 vi.mock('node:fs')
@@ -44,5 +44,13 @@ describe('MCP Server', () => {
   it('Goal 0 완료 baseline — registerTool 24개 이상', async () => {
     const names = await getRegisteredToolNames()
     expect(names.length).toBeGreaterThanOrEqual(24)
+  })
+
+  it('SERVER_VERSION 이 package.json 과 정합 (lib/version SoT)', async () => {
+    const { getVhkVersion } = await import('../src/lib/version.js')
+    const pkgVersion = getVhkVersion()
+    expect(pkgVersion).toMatch(/^\d+\.\d+\.\d+/)
+    // SDK private 접근은 mcp-introspect 헬퍼로 격리 — SDK 변경 시 헬퍼 1 곳만 패치.
+    expect(await getServerVersion()).toBe(pkgVersion)
   })
 })
