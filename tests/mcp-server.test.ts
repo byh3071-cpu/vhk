@@ -1,17 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
+import { getRegisteredToolNames } from './helpers/mcp-introspect.js'
 
 vi.mock('node:child_process')
 vi.mock('node:fs')
-
-interface ToolRegistryShape {
-  _registeredTools: Record<string, unknown>
-}
-
-async function getRegisteredToolNames(): Promise<string[]> {
-  const { createVhkMcpServer } = await import('../src/mcp/server.js')
-  const server = createVhkMcpServer() as unknown as ToolRegistryShape
-  return Object.keys(server._registeredTools)
-}
 
 describe('MCP Server', () => {
   it('서버 인스턴스가 생성된다', async () => {
