@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getRegisteredToolNames } from './helpers/mcp-introspect.js'
+import { getRegisteredToolNames, getServerVersion } from './helpers/mcp-introspect.js'
 
 vi.mock('node:child_process')
 vi.mock('node:fs')
@@ -50,11 +50,7 @@ describe('MCP Server', () => {
     const { getVhkVersion } = await import('../src/lib/version.js')
     const pkgVersion = getVhkVersion()
     expect(pkgVersion).toMatch(/^\d+\.\d+\.\d+/)
-    // SDK private 멤버 _serverInfo.version 으로 비교 — 1.29.0 에서 노출.
-    const { createVhkMcpServer } = await import('../src/mcp/server.js')
-    const server = createVhkMcpServer() as unknown as {
-      server: { _serverInfo: { version: string } }
-    }
-    expect(server.server._serverInfo.version).toBe(pkgVersion)
+    // SDK private 접근은 mcp-introspect 헬퍼로 격리 — SDK 변경 시 헬퍼 1 곳만 패치.
+    expect(await getServerVersion()).toBe(pkgVersion)
   })
 })

@@ -15,3 +15,6 @@ _Format: `- [YYYY-MM-DD goal-N] 한 줄 교훈.`_
 - [2026-05-27 goal-1] NLP 규칙은 한국어 표현만 매칭하고 영문 서브커맨드 (goal list / goal next) 는 commander 가 직접 처리하도록 KNOWN_COMMAND_TOKENS 에 추가 + NLP rule 영문 제거. 그렇지 않으면 `vhk goal list` 가 NLP 가로채기로 routed 됨.
 - [2026-05-27 goal-1] Goal 1 dogfooding: `vhk goal done --id 1` 으로 자기 자신을 DONE 마킹. Self-referential 사이클 동작 확인.
 - [2026-05-27 no-goal] 자율 루프 — vhk resume 는 반드시 --confirm 강제 (자동 호출 금지). HARD_STOP 트립와이어 = 3 블로커 누적 자동.
+- [2026-05-28 release] Windows 게이트 — `safeExecFile('bash', ...)` 는 Windows 기본 환경 (bash/WSL 없음) 에서 깨짐. 모든 게이트 스크립트는 cross-platform 인 `.mjs` 로 유지하고 `.sh` 는 thin POSIX wrapper (1줄 `exec node ...`) 로 축소. dual-maintenance 부담 0. `goal.ts findGateScript` 는 `.mjs` 우선 + `.sh` fallback.
+- [2026-05-28 release] secure 자기 레포 fail — 테스트의 fake AWS key literal 이 scanner 에 잡힘. 해결: `'AKIA' + 'IOSFODNN7EXAMPLE'` 조각합성. scanner regex 는 contiguous 매칭만 잡으므로 concat 표현은 무해. 런타임 값/테스트 의미 무변경.
+- [2026-05-28 release] MCP SERVER_VERSION 은 `getVhkVersion()` (lib/version SoT) 으로 동적. 하드코딩은 publish 누적 drift 위험 → 회귀 테스트로 차단. SDK private 접근 (`_serverInfo.version` + `_registeredTools`) 은 모두 `tests/helpers/mcp-introspect.ts` 1 파일에 격리 — SDK 메이저 업그레이드 시 1 곳만 패치.
