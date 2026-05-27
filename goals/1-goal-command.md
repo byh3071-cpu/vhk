@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 1
 title: vhk goal 명령어 — goals/ 체계를 CLI 로 노출
-status: NOT_STARTED
+status: DONE
 priority: P0
 version: v1.2
+completed: 2026-05-27
 ---
 
 # Mission: Ship `vhk goal` — the dogfooded goals/ workflow as a first-class CLI
