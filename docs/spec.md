@@ -31,6 +31,11 @@ updated: 2026-05-29
 | `memory.json` | JSON | ❌ 로컬 전용 | `vhk memory add` (lazy) | 프로젝트 의사결정 메모 (개인/세션 기록) |
 | `refs.json` | JSON | ❌ 로컬 전용 | `vhk ref add` (lazy) | 참고 URL + 메모 모음 |
 | `HARD_STOP` | (내용 없음) | ❌ 로컬 전용 | 게이트/사용자 | 존재하면 모든 자동화 즉시 중단 |
+| `cloud.json` | JSON | ✅ 커밋 | `vhk cloud push/pull` | 클라우드 백업 gist 포인터 `{ "gistId": "..." }` (비밀 아님) |
+
+> 프로젝트 루트의 `.vhkignore` (선택, 커밋) 는 `vhk cloud push` 백업에서 제외할
+> `.vhk/` 파일을 한 줄에 하나씩 적는다. 기본 제외(자동): `memory.json`·`refs.json`·
+> `HARD_STOP`·`cloud.json`·`.gitignore`.
 
 > **트래킹 정책 요약**
 > - `README.md`·`context.md`·`brief.md` → 팀 공유용, 커밋 권장.
@@ -79,6 +84,14 @@ updated: 2026-05-29
 - **해제:** `vhk resume --confirm` (사람이 직접 실행, 자동 호출 금지).
 - 게이트 스크립트(`scripts/check-*`)는 시작 시 이 파일을 검사하고
   존재하면 `exit 1` 한다.
+
+## 3.5 클라우드 동기화 (cloud sync)
+
+- `vhk cloud push` — `.vhk/` 공유 파일을 GitHub **secret gist** 로 백업하고
+  gist id 를 `cloud.json` 에 저장한다. 인증은 `gh` CLI 가 담당(코드에 토큰 없음).
+- `vhk cloud pull [gistId]` — gist 에서 `.vhk/` 를 복원한다. id 생략 시 `cloud.json` 사용.
+- 백업 대상은 `collectVhkFiles` 가 결정: `.vhk/` 평면 파일 중 기본 제외 + `.vhkignore` 적용 후.
+- 개인 메모(`memory.json`)·참고링크(`refs.json`)·`HARD_STOP` 은 기본 제외(프라이버시).
 
 ## 4. 호환성 정책
 
