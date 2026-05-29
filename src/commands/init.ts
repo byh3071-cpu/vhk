@@ -9,7 +9,7 @@ import { PRD_TEMPLATE } from '../templates/prd.js'
 import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
-import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED } from '../templates/vhk-dir.js'
+import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE } from '../templates/vhk-dir.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
@@ -208,6 +208,7 @@ export function generateFiles(
     // .vhk/ 씨앗 — 규격: docs/spec.md (spec_version 1.0)
     '.vhk/README.md': VHK_README_TEMPLATE(),
     '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack),
+    '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),
   }
 }
 

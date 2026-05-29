@@ -30,6 +30,20 @@ export function VHK_README_TEMPLATE(): string {
 }
 
 /**
+ * `.vhk/.gitignore` — 로컬 전용 파일을 폴더 단위로 자기방어.
+ * init 으로 만든 프로젝트 어디서나 docs/spec.md 의 트래킹 정책을 자동 이행한다.
+ */
+export function VHK_GITIGNORE_TEMPLATE(): string {
+  return [
+    '# VHK 로컬 전용 — 개인 메모/참고링크/안전신호 (docs/spec.md 트래킹 정책)',
+    'memory.json',
+    'refs.json',
+    'HARD_STOP',
+    '',
+  ].join('\n')
+}
+
+/**
  * `.vhk/context.md` 씨앗 — 유형별 스택 정보를 담아 처음부터 의미 있게 채운다.
  * 이후 `vhk context` 가 git/디렉토리 스캔으로 갱신한다.
  */

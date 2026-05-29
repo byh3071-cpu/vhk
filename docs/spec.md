@@ -25,6 +25,7 @@ updated: 2026-05-29
 | 파일 | 포맷 | 트래킹 | 생성 주체 | 목적 |
 | --- | --- | --- | --- | --- |
 | `README.md` | Markdown | ✅ 커밋 | `vhk init` (씨앗) | 폴더 안내 + 트래킹 정책 |
+| `.gitignore` | gitignore | ✅ 커밋 | `vhk init` (씨앗) | 로컬 전용 파일을 폴더 단위로 무시 (memory/refs/HARD_STOP) |
 | `context.md` | Markdown | ✅ 커밋 | `vhk init`(씨앗) → `vhk context`(갱신) | 프로젝트 맥락: 기술 스택·디렉토리·명령어·결정사항 |
 | `brief.md` | Markdown | ✅ 커밋 | `vhk brief` (lazy) | 상태 요약 브리핑: git 상태·결정사항·다음 단계 |
 | `memory.json` | JSON | ❌ 로컬 전용 | `vhk memory add` (lazy) | 프로젝트 의사결정 메모 (개인/세션 기록) |

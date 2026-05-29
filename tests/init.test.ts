@@ -117,6 +117,14 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     expect(readme).toContain('로컬 전용')
     expect(readme).toContain('docs/spec.md')
   })
+
+  it('.vhk/.gitignore 씨앗으로 로컬 전용 파일을 폴더 단위 자기방어한다', () => {
+    const ignore = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitignore']
+    expect(ignore).toBeDefined()
+    expect(ignore).toContain('memory.json')
+    expect(ignore).toContain('refs.json')
+    expect(ignore).toContain('HARD_STOP')
+  })
 })
 
 describe('docs/spec.md 규격', () => {
