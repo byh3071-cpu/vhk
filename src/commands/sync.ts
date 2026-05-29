@@ -69,6 +69,35 @@ export function toCursorrules(sections: RulesSection[], projectName: string): st
 }
 
 /**
+ * RULES.md 섹션을 .windsurfrules 포맷으로 변환
+ * Windsurf(Cascade)도 Cursor처럼 코딩 규칙 파일을 읽으므로 .cursorrules와 동일 섹션을 미러링한다.
+ */
+export function toWindsurfrules(sections: RulesSection[], projectName: string): string {
+  const codingSections = sections.filter(s =>
+    CURSORRULES_KEYS.some(k => s.title.includes(k))
+  )
+
+  const lines = [
+    `# ${projectName} — Windsurf Rules`,
+    '',
+    '> 코딩/디자인 전용. 기록/운영 → CLAUDE.md 참조.',
+    '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.',
+    '',
+    '## 필수 참조',
+    '- docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md · RULES.md',
+    '',
+  ]
+
+  for (const section of codingSections) {
+    lines.push(`## ${section.title}`)
+    lines.push(section.content)
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+/**
  * RULES.md 섹션을 CLAUDE.md 포맷으로 변환
  */
 export function toClaudeMd(sections: RulesSection[], existing: string): string {
@@ -136,8 +165,12 @@ export async function sync() {
   fs.writeFileSync(claudePath, toClaudeMd(sections, existingClaude), 'utf-8')
   console.log(chalk.green(`  ${ko.sync.claudeDone}`))
 
+  const windsurfPath = path.join(cwd, '.windsurfrules')
+  fs.writeFileSync(windsurfPath, toWindsurfrules(sections, projectName), 'utf-8')
+  console.log(chalk.green(`  ${ko.sync.windsurfDone}`))
+
   console.log(chalk.bold.green(`\n${ko.sync.done}`))
-  console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md (자동 생성)'))
+  console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md + .windsurfrules (자동 생성)'))
   console.log(chalk.dim('  규칙 변경은 항상 RULES.md에서만 하세요.'))
 
   printNextStep({

@@ -221,6 +221,7 @@ export const ko = {
     noRules: '⚠️ RULES.md 파일이 없어요.',
     cursorrulesDone: '✅ .cursorrules 맞춤 완료',
     claudeDone: '✅ CLAUDE.md 맞춤 완료',
+    windsurfDone: '✅ .windsurfrules 맞춤 완료',
     done: '🔄 맞추기 완료!',
   },
   ship: {
