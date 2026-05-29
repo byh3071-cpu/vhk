@@ -344,6 +344,7 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 - `COMMANDS.md`, `BACKLOG.md` (프로젝트 유형에 따라)
 - `.vhk/README.md` + `.vhk/context.md` (유형별 씨앗 — 규격: [`docs/spec.md`](docs/spec.md))
 - `.vhk/.gitignore` + `.vhkignore` (로컬 전용·클라우드 제외 규칙)
+- 루트 `.gitignore` (`.env`·`node_modules`·`dist` 보호 — 기존 파일은 보존하고 누락분만 추가)
 - `package.json` scripts: `save`, `check`, `scan`, `recap`, `ship`, `doctor` → `vhk` 호출
 
 ## 클라우드 백업 (vhk cloud)
