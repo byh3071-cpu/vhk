@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-05-28
-tags: [vhk, cli, readme, v1.3.0, ga]
+tags: [vhk, cli, readme, v1.4.0, ga]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> 🎉 **v1.3.0** — 바이브코더의 올인원 CLI. 컨텍스트 + 자율 하네스.
+> 🎉 **v1.4.0** — 바이브코더의 올인원 CLI. 컨텍스트 + 자율 하네스 + 포터빌리티.
 >
 > AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI**.
 >
