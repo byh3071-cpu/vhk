@@ -6,6 +6,34 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.4.0] - 2026-05-29
+
+> **포터빌리티 릴리즈.** AI 도구·컴퓨터가 바뀌어도 프로젝트 맥락이 따라온다.
+> `.vhk/` 표준화 + 멀티 IDE 규칙 동기화 + 클라우드 백업.
+
+### Added
+
+- **`vhk cloud push` / `vhk cloud pull`** — GitHub secret gist 로 `.vhk/` 백업·복원.
+  컴퓨터를 바꿔도 `vhk cloud pull` 로 맥락 복원. 인증은 `gh` CLI(코드에 토큰 0),
+  개인 메모(`memory.json`)·참고링크(`refs.json`)·`HARD_STOP` 은 기본 제외.
+  추가 제외는 루트 `.vhkignore`. 한국어 별칭 `클라우드`/`올리기`/`내리기`.
+- **`docs/spec.md`** (spec_version 1.0) — `.vhk/` 디렉토리 공식 규격서.
+  파일별 트래킹 정책 + `memory`/`refs` JSON 스키마 + `HARD_STOP` 규칙.
+- **`vhk init` 프리셋 씨앗** — 프로젝트 유형별로 `.vhk/README.md`, `.vhk/context.md`,
+  `.vhk/.gitignore`, 루트 `.vhkignore` 를 자동 생성.
+- **`vhk sync` Windsurf 지원** — `RULES.md` → `.cursorrules` + `CLAUDE.md` +
+  **`.windsurfrules`** (3개). IDE 가 바뀌어도 규칙이 따라온다.
+
+### Fixed
+
+- **`vhk init` 루트 `.gitignore` 생성** — 없으면 생성, 있으면 누락 항목만 append
+  (기존 내용 보존). `.env`·`node_modules`·`dist` 노출 방지.
+
+### Security
+
+- `cloud` 백업은 secret gist + 개인 메모 기본 제외로 프라이버시 보호.
+- `.vhk/memory.json`·`refs.json` 로컬 전용(`.gitignore`).
+
 ## [1.3.1] - 2026-05-28
 
 > **Windows 릴리즈 품질 패치.** 1.3.0 publish 직후 발견된 4 publish-blocker + 2 잔여 리스크 + DX polish.
