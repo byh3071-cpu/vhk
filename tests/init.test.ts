@@ -16,6 +16,8 @@ const EXPECTED_FILES = [
   'docs/troubleshooting/.gitkeep',
   'docs/til.md',
   'BACKLOG.md',
+  '.vhk/README.md',
+  '.vhk/context.md',
 ]
 
 describe('vhk init', () => {
@@ -82,5 +84,55 @@ describe('vhk init', () => {
     const md = COMMANDS_MD_TEMPLATE()
     expect(md).toContain('vhk doctor')
     expect(md).toContain('vhk 보안 scan')
+  })
+})
+
+describe('vhk init — .vhk/ 프리셋 씨앗', () => {
+  it('.vhk/README.md 와 context.md 를 생성한다', () => {
+    const files = generateFiles('my-app', '설명', ['Node.js'], {}, 'cli')
+    expect(files['.vhk/README.md']).toBeDefined()
+    expect(files['.vhk/context.md']).toBeDefined()
+  })
+
+  it('context.md 씨앗에 자동생성 안내와 프로젝트 유형이 들어간다', () => {
+    const files = generateFiles('my-app', '설명', ['Next.js', 'Supabase'], {}, 'webapp')
+    const ctx = files['.vhk/context.md']
+    expect(ctx).toContain('vhk init 이 생성한 씨앗')
+    expect(ctx).toContain('vhk context')
+    expect(ctx).toContain('webapp')
+    expect(ctx).toContain('Next.js')
+  })
+
+  it('유형별로 씨앗 내용이 다르다 (프리셋)', () => {
+    const webapp = generateFiles('p', 'd', ['Next.js', 'Supabase'], {}, 'webapp')['.vhk/context.md']
+    const cli = generateFiles('p', 'd', ['Node.js', 'commander'], {}, 'cli')['.vhk/context.md']
+    expect(webapp).not.toBe(cli)
+    expect(webapp).toContain('Supabase')
+    expect(cli).toContain('commander')
+  })
+
+  it('README 씨앗에 memory/refs 로컬 전용 정책이 명시된다', () => {
+    const readme = generateFiles('p', 'd', ['Node.js'])['.vhk/README.md']
+    expect(readme).toContain('memory.json')
+    expect(readme).toContain('로컬 전용')
+    expect(readme).toContain('docs/spec.md')
+  })
+
+  it('.vhk/.gitignore 씨앗으로 로컬 전용 파일을 폴더 단위 자기방어한다', () => {
+    const ignore = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitignore']
+    expect(ignore).toBeDefined()
+    expect(ignore).toContain('memory.json')
+    expect(ignore).toContain('refs.json')
+    expect(ignore).toContain('HARD_STOP')
+  })
+})
+
+describe('docs/spec.md 규격', () => {
+  it('spec_version 1.0 과 핵심 파일을 명시한다', () => {
+    const spec = fs.readFileSync(path.join(process.cwd(), 'docs', 'spec.md'), 'utf-8')
+    expect(spec).toContain('spec_version: "1.0"')
+    expect(spec).toContain('context.md')
+    expect(spec).toContain('memory.json')
+    expect(spec).toContain('HARD_STOP')
   })
 })

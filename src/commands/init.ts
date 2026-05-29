@@ -9,6 +9,7 @@ import { PRD_TEMPLATE } from '../templates/prd.js'
 import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
+import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE } from '../templates/vhk-dir.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
@@ -134,7 +135,7 @@ export async function init(options: InitOptions = {}) {
   }
 
   const cwd = process.cwd()
-  const files = generateFiles(answers.name, answers.description, stack, prdContent)
+  const files = generateFiles(answers.name, answers.description, stack, prdContent, answers.type)
 
   log.step(ko.init.filesGenerating)
   for (const [filePath, content] of Object.entries(files)) {
@@ -185,7 +186,8 @@ export function generateFiles(
   name: string,
   description: string,
   stack: string[],
-  prdContent: Partial<PrdContent> = {}
+  prdContent: Partial<PrdContent> = {},
+  type = ''
 ): Record<string, string> {
   const stackStr = stack.join(' + ')
   const prd: Partial<PrdContent> = {
@@ -203,6 +205,10 @@ export function generateFiles(
     'docs/troubleshooting/.gitkeep': '',
     'docs/til.md': `# TIL (Today I Learned)\n\n- [${new Date().toISOString().split('T')[0]}] 프로젝트 시작\n`,
     'BACKLOG.md': `# BACKLOG\n\n> v1 OUT 기능은 여기에 기록. 범위 수비 필수.\n\n## v1.1 후보\n\n- \n`,
+    // .vhk/ 씨앗 — 규격: docs/spec.md (spec_version 1.0)
+    '.vhk/README.md': VHK_README_TEMPLATE(),
+    '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack),
+    '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),
   }
 }
 
