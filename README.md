@@ -115,7 +115,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk gate` | `검증`, `아이디어` | 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵) |
 | `vhk init` | `시작`, `만들기` | 프로젝트 초기화 + 하네스 생성 |
 | `vhk recap` | `정리`, `오늘` | Git 변경 → `docs/log/` 세션 로그 |
-| `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md |
+| `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md + `.windsurfrules` |
 | `vhk check` | `점검`, `린트` | RULES.md 규칙 위반 검사 |
 | `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
 | `vhk ship` | `출하` | 배포 체크리스트 + 회고 + 빌드 로그 |
