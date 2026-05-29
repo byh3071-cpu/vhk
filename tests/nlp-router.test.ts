@@ -180,4 +180,25 @@ describe('자연어 라우팅', () => {
   it('"오늘 한 일 정리" → recap (brief 아님)', () => {
     expect(routeNaturalLanguage('오늘 한 일 정리')?.command).toBe('recap')
   })
+
+  // 클라우드 — 한국어 표현만 NLP, 영문 서브커맨드는 commander 가 처리(가로채기 금지)
+  it('"클라우드에 백업해줘" → cloud-push', () => {
+    expect(routeNaturalLanguage('클라우드에 백업해줘')?.command).toBe('cloud-push')
+  })
+
+  it('"백업해줘" → cloud-push', () => {
+    expect(routeNaturalLanguage('백업해줘')?.command).toBe('cloud-push')
+  })
+
+  it('"클라우드에서 복원해줘" → cloud-pull', () => {
+    expect(routeNaturalLanguage('클라우드에서 복원해줘')?.command).toBe('cloud-pull')
+  })
+
+  it('"cloud push" → null (commander 직접 처리, save 로 새지 않음)', () => {
+    expect(routeNaturalLanguage('cloud push')).toBeNull()
+  })
+
+  it('"cloud pull 8fa29db959b3" → null (gistId 인자 보존 위해 commander)', () => {
+    expect(routeNaturalLanguage('cloud pull 8fa29db959b3')).toBeNull()
+  })
 })

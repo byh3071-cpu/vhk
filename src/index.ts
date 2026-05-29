@@ -33,6 +33,7 @@ import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
+import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalInit, goalList, goalNext } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
 
@@ -178,6 +179,25 @@ secureCmd
   .alias('스캔')
   .description('시크릿/키 유출 스캔')
   .action(secure)
+
+const cloudCmd = program
+  .command('cloud')
+  .alias('클라우드')
+  .description('.vhk/ 클라우드 백업·복원 (GitHub gist) — push: 올리기, pull: 내리기')
+  .action(() => { cloudCmd.help() })
+
+cloudCmd
+  .command('push')
+  .alias('올리기')
+  .description('.vhk/ 를 secret gist 로 백업')
+  .action(async () => { await cloudPush() })
+
+cloudCmd
+  .command('pull')
+  .alias('내리기')
+  .argument('[gistId]', '복원할 gist id (생략 시 .vhk/cloud.json 사용)')
+  .description('gist 에서 .vhk/ 복원')
+  .action(async (gistId?: string) => { await cloudPull(gistId) })
 
 program
   .command('ship')

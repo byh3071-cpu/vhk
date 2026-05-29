@@ -44,6 +44,21 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
 }
 
 /**
+ * 루트 `.vhkignore` 씨앗 — `vhk cloud push` 백업에서 제외할 .vhk/ 파일 지정.
+ * 기본 제외(memory.json·refs.json·HARD_STOP·cloud.json·.gitignore)는 코드에 내장되어
+ * 있으므로, 이 파일은 사용자가 추가로 제외할 항목을 적는 용도다.
+ */
+export function VHK_IGNORE_TEMPLATE(): string {
+  return [
+    '# vhk cloud push 백업에서 제외할 .vhk/ 파일 (한 줄에 하나)',
+    '# 기본 제외(자동): memory.json, refs.json, HARD_STOP, cloud.json, .gitignore',
+    '# 예) 아래 주석을 풀면 brief.md 도 백업에서 제외됩니다.',
+    '# brief.md',
+    '',
+  ].join('\n')
+}
+
+/**
  * `.vhk/context.md` 씨앗 — 유형별 스택 정보를 담아 처음부터 의미 있게 채운다.
  * 이후 `vhk context` 가 git/디렉토리 스캔으로 갱신한다.
  */
