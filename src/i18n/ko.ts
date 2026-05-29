@@ -165,6 +165,8 @@ export const ko = {
     startDev: '이제 개발해 보세요! 🚀',
     commandsMdDone: '📋 COMMANDS.md 생성',
     scriptsDone: '📦 package.json scripts 추가',
+    gitignoreCreated: '🔒 .gitignore 생성 (.env·node_modules·dist 제외)',
+    gitignoreUpdated: '🔒 .gitignore 보강 (누락 항목 추가)',
   },
   recap: {
     title: '📝 오늘 한 일 정리',
