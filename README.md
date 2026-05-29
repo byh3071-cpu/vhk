@@ -340,6 +340,7 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 - `docs/PRD.md`, `docs/ARCHITECTURE.md`
 - `docs/adr/`, `docs/log/`, `docs/troubleshooting/`
 - `COMMANDS.md`, `BACKLOG.md` (프로젝트 유형에 따라)
+- `.vhk/README.md` + `.vhk/context.md` (유형별 씨앗 — 규격: [`docs/spec.md`](docs/spec.md))
 - `package.json` scripts: `save`, `check`, `scan`, `recap`, `ship`, `doctor` → `vhk` 호출
 
 ## 자연어 예시
