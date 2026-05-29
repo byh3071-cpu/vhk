@@ -222,6 +222,39 @@ const VHK_PACKAGE_SCRIPTS: Record<string, string> = {
   doctor: 'vhk doctor',
 }
 
+/** 프로젝트 루트 .gitignore 기본 항목 (비밀·빌드 산출물 노출 방지) */
+export const ROOT_GITIGNORE_ENTRIES = [
+  '.env',
+  '.env.local',
+  '.env.*.local',
+  'node_modules/',
+  'dist/',
+  '*.tsbuildinfo',
+  '.DS_Store',
+]
+
+/**
+ * 루트 .gitignore 보장 — 없으면 생성, 있으면 누락 항목만 append (기존 내용 보존).
+ * 반환: 'created' | 'updated' | 'unchanged'
+ */
+export function ensureRootGitignore(projectDir: string): 'created' | 'updated' | 'unchanged' {
+  const gitignorePath = path.join(projectDir, '.gitignore')
+
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, ROOT_GITIGNORE_ENTRIES.join('\n') + '\n', 'utf-8')
+    return 'created'
+  }
+
+  const content = fs.readFileSync(gitignorePath, 'utf-8')
+  const existing = new Set(content.split('\n').map(l => l.trim()))
+  const missing = ROOT_GITIGNORE_ENTRIES.filter(e => !existing.has(e))
+  if (missing.length === 0) return 'unchanged'
+
+  const prefix = content.endsWith('\n') ? '' : '\n'
+  fs.appendFileSync(gitignorePath, `${prefix}\n# vhk init\n${missing.join('\n')}\n`, 'utf-8')
+  return 'updated'
+}
+
 export function enhancePackageScripts(projectDir: string): boolean {
   const pkgPath = path.join(projectDir, 'package.json')
   if (!fs.existsSync(pkgPath)) return false
@@ -256,5 +289,12 @@ async function writeInitExtras(projectDir: string) {
 
   if (enhancePackageScripts(projectDir)) {
     log.success(ko.init.scriptsDone)
+  }
+
+  const gitignoreResult = ensureRootGitignore(projectDir)
+  if (gitignoreResult === 'created') {
+    log.success(ko.init.gitignoreCreated)
+  } else if (gitignoreResult === 'updated') {
+    log.success(ko.init.gitignoreUpdated)
   }
 }
