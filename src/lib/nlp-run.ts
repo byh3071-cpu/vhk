@@ -30,6 +30,7 @@ import { memoryList } from '../commands/memory.js'
 import { brief } from '../commands/brief.js'
 import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext } from '../commands/goal.js'
+import { cloudPush, cloudPull } from '../commands/cloud.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -102,6 +103,10 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return memoryList()
     case 'brief':
       return brief()
+    case 'cloud-push':
+      return cloudPush()
+    case 'cloud-pull':
+      return cloudPull()
     case 'goal': {
       const sub = route.args?.[0]
       if (sub === 'next') return goalNext()

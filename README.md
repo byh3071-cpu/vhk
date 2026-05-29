@@ -120,6 +120,8 @@ vhk 기획 끝났고 바로 시작
 | `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
 | `vhk ship` | `출하` | 배포 체크리스트 + 회고 + 빌드 로그 |
 | `vhk doctor` | `환경`, `진단` | Node / npm / pnpm / Git 환경 점검 |
+| `vhk cloud push` | `클라우드`, `올리기` | `.vhk/` 를 GitHub secret gist 로 백업 (gh CLI 인증 사용) |
+| `vhk cloud pull` | `내리기` | gist 에서 `.vhk/` 복원 (`vhk cloud pull <gistId>` 또는 cloud.json) |
 | `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에 |
 | `vhk undo` | `되돌리기`, `취소` | 최근 커밋 soft reset (변경은 staged 유지) |
 | `vhk diff` | `변경`, `차이` | staged / unstaged / 새 파일 요약 (줄 수 합계는 tracked·HEAD 기준) |
@@ -341,7 +343,23 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 - `docs/adr/`, `docs/log/`, `docs/troubleshooting/`
 - `COMMANDS.md`, `BACKLOG.md` (프로젝트 유형에 따라)
 - `.vhk/README.md` + `.vhk/context.md` (유형별 씨앗 — 규격: [`docs/spec.md`](docs/spec.md))
+- `.vhk/.gitignore` + `.vhkignore` (로컬 전용·클라우드 제외 규칙)
 - `package.json` scripts: `save`, `check`, `scan`, `recap`, `ship`, `doctor` → `vhk` 호출
+
+## 클라우드 백업 (vhk cloud)
+
+`.vhk/` 프로젝트 맥락을 GitHub **secret gist** 로 백업·복원합니다. 컴퓨터를 바꿔도
+규칙·맥락이 따라옵니다. 규격은 [`docs/spec.md`](docs/spec.md) 참조.
+
+```bash
+vhk cloud push          # .vhk/ → secret gist 백업 (gist id 는 .vhk/cloud.json 에 저장)
+vhk cloud pull          # cloud.json 의 gist 에서 복원
+vhk cloud pull <gistId> # 새 환경에서 gist id 로 직접 복원
+```
+
+- **인증:** `gh` CLI 사용 (`gh auth login`, gist 권한). 코드·설정에 토큰을 저장하지 않습니다.
+- **프라이버시:** gist 는 secret(비공개). 개인 메모(`memory.json`)·참고링크(`refs.json`)·
+  `HARD_STOP` 은 기본 제외됩니다. 추가 제외는 루트 `.vhkignore` 에 한 줄씩 적으세요.
 
 ## 자연어 예시
 

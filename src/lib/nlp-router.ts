@@ -30,6 +30,8 @@ export type NlpCommand =
   | 'memory'
   | 'brief'
   | 'goal'
+  | 'cloud-push'
+  | 'cloud-pull'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -67,6 +69,25 @@ function matchesKeywords(text: string, command: NlpCommand): boolean {
 }
 
 const RULES: NlpRule[] = [
+  // 영문 `vhk cloud push|pull [id]` 은 commander 가 직접 처리(가로채기 금지) — 한국어 표현만 매칭.
+  {
+    command: 'cloud-pull',
+    explanation: '클라우드에서 .vhk 복원 (vhk cloud pull)',
+    confidence: 'high',
+    test: t =>
+      (/(클라우드|gist)\s*(에서)?\s*(복원|내려받?|내리|받아)/.test(t) ||
+        /(\.?vhk\s*)?(복원해|복구해|복원\s*하|복구\s*하)/.test(t)) &&
+      !/백업|올려|올리/.test(t),
+  },
+  {
+    command: 'cloud-push',
+    explanation: '.vhk 를 클라우드에 백업 (vhk cloud push)',
+    confidence: 'high',
+    test: t =>
+      (/(클라우드|gist)\s*(에)?\s*(백업|올려|올리)/.test(t) ||
+        /(\.?vhk\s*)?백업\s*해|(\.?vhk\s*)?백업하/.test(t)) &&
+      !/복원|내려|내리|복구/.test(t),
+  },
   {
     command: 'start',
     explanation: '노션에서 가져와 새 프로젝트 시작 마법사 (vhk start --from-notion)',
@@ -233,7 +254,7 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     test: t =>
       (matchesKeywords(t, 'save') || /깃허브|github/.test(t)) &&
-      !/정리|recap|되돌|취소|rollback|reset|리셋|롤백|원래대로/.test(t),
+      !/정리|recap|되돌|취소|rollback|reset|리셋|롤백|원래대로|클라우드|cloud|gist/.test(t),
   },
   {
     command: 'recap',

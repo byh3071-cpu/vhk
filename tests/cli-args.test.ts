@@ -53,6 +53,16 @@ describe('detectNaturalLanguageInput', () => {
     const input = detectNaturalLanguageInput(['node', 'vhk', '뭐', '바뀌었어'])
     expect(routeNaturalLanguage(input!)?.command).toBe('diff')
   })
+
+  it('vhk cloud push → null (commander 직접 처리)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'cloud', 'push'])).toBeNull()
+  })
+
+  it('vhk cloud pull <id> → null (gistId 인자 보존)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'cloud', 'pull', '7af5d007e7f9'])
+    ).toBeNull()
+  })
 })
 
 describe('read-json BOM', () => {
