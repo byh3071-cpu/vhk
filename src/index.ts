@@ -1,4 +1,5 @@
 import { Command, Help } from 'commander'
+import { pathToFileURL } from 'node:url'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
@@ -34,6 +35,8 @@ import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
+import { mode } from './commands/mode.js'
+import { verify } from './commands/verify.js'
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalInit, goalList, goalNext } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
@@ -364,6 +367,18 @@ program
   .action(async (opts: { compact?: boolean }) => { await context({ compact: opts.compact }) })
 
 program
+  .command('mode [target]')
+  .alias('모드')
+  .description('Safety Mode 조회/변경 (lite|standard|strict) — 위험 작업 가드 강도')
+  .action(async (target?: string) => { await mode(target) })
+
+program
+  .command('verify')
+  .alias('사전점검')
+  .description('저장/위험 작업 전 검증 묶음 안내 (lite)')
+  .action(async () => { await verify() })
+
+program
   .command('context-show')
   .alias('맥락보기')
   .description('현재 컨텍스트 파일 내용 출력')
@@ -517,9 +532,18 @@ program.action(async () => {
   }
 })
 
-const nlInput = detectNaturalLanguageInput(process.argv)
-if (nlInput !== null) {
-  await runNaturalLanguageRoute(nlInput)
-} else {
-  await program.parseAsync(process.argv)
+// 메인 모듈로 직접 실행될 때만 파싱한다(import 되면 program 만 노출).
+// env 가 아니라 import.meta.url ↔ argv[1] 비교라, VITEST 환경을 물려받은 spawn 자식도 정상 실행.
+const isMainModule =
+  !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+
+if (isMainModule) {
+  const nlInput = detectNaturalLanguageInput(process.argv)
+  if (nlInput !== null) {
+    await runNaturalLanguageRoute(nlInput)
+  } else {
+    await program.parseAsync(process.argv)
+  }
 }
+
+export { program }

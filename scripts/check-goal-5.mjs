@@ -28,7 +28,14 @@ for (const id of [0, 1, 2, 3, 4]) {
 must(existsSync(join(root, "src/commands/start.ts")), "vhk start 커맨드");
 const status = read("src/commands/status.ts") || "";
 must(/도움말|help/i.test(status + (read("src/lib/nlp-router.ts") || "")), "자연어 도움말 라우팅");
-must(grepRepo(/(가로채|명령어 우선|command.*priorit|restore.*router)/i), "R1 라우터 명령어 가드");
+// R1 가드: 주석 문구 grep 이 아니라 실제 가드 코드 구조를 검증(가드 삭제 시 게이트 실패).
+const cliArgsSrc = read("src/lib/cli-args.ts") || "";
+must(
+  /function isRealSubcommandPath/.test(cliArgsSrc) &&
+    /isRealSubcommandPath\(/.test(cliArgsSrc.replace(/function isRealSubcommandPath/, "")) &&
+    /COMMAND_SUBCOMMANDS/.test(cliArgsSrc),
+  "R1 라우터 명령어 가드(isRealSubcommandPath 정의+호출+레지스트리)"
+);
 must(/diff/.test(status), "status diff 우선");
 must(/AGENTS\.md/.test(read("src/commands/sync.ts") || ""), "AGENTS.md sync 타겟");
 must(/dist\/index\.js|fallback|resolve/i.test(read("src/mcp/index.ts") || ""), "MCP PATH fallback");

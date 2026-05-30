@@ -33,6 +33,11 @@ import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext } from '../commands/goal.js'
 import { cloudPush, cloudPull } from '../commands/cloud.js'
 import { quickActions } from '../commands/help.js'
+import { mode } from '../commands/mode.js'
+import { verify } from '../commands/verify.js'
+import { readConfig } from './config.js'
+import { resolveGuard } from './risk-policy.js'
+import type { SafetyMode } from './safety-mode.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -120,6 +125,10 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
     }
     case 'help':
       return quickActions()
+    case 'mode':
+      return mode()
+    case 'verify':
+      return verify()
   }
 }
 
@@ -135,6 +144,33 @@ const STATE_CHANGING_COMMANDS: ReadonlySet<NlpCommand> = new Set([
 /** NL 라우트 실행 전 확인 프롬프트가 필요한가 — low confidence 또는 상태변경 명령. */
 export function requiresConfirmation(route: NlpRoute): boolean {
   return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command)
+}
+
+/** 자연어 명령 → high-risk 액션(risk-policy) 매핑. 자연어로 부를 수 있는 위험 작업만. */
+const NL_RISK_ACTION: Partial<Record<NlpCommand, string>> = {
+  undo: 'undo',
+  deploy: 'deploy',
+  publish: 'publish',
+  migrate: 'migrate',
+  'cloud-pull': 'cloud-pull',
+}
+
+/**
+ * 자연어로 high-risk 작업을 부를 때 Safety Mode 에 따른 안내 문구.
+ * 자연어 채널은 confirm 대신 preview(무엇을 할지 안내) — 에이전트/자연어의 "그냥 실행" 방지.
+ * 저위험이면 null.
+ */
+export function nlSafetyNotice(command: NlpCommand, mode: SafetyMode): string | null {
+  const action = NL_RISK_ACTION[command]
+  if (!action) return null
+  const guard = resolveGuard(action, mode, 'nl')
+  if (guard === 'warn') {
+    return `⚠️ 위험 작업(${action}) — lite 모드라 경고만 하고 진행합니다.`
+  }
+  if (guard === 'preview') {
+    return `🔎 위험 작업(${action}) 미리보기 — 실행 전 무엇을 할지 확인하세요. (Safety Mode: ${mode})`
+  }
+  return null
 }
 
 export async function runNaturalLanguageRoute(input: string): Promise<void> {
@@ -161,6 +197,10 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
       return
     }
   }
+  // 자연어로 부른 high-risk 작업은 Safety Mode 에 따라 preview/경고를 먼저 보여준다.
+  const notice = nlSafetyNotice(route.command, readConfig().safetyMode)
+  if (notice) console.log(chalk.yellow(`  ${notice}`))
+
   console.log('')
 
   await dispatchNlpRoute(route, input)

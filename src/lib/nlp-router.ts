@@ -34,6 +34,8 @@ export type NlpCommand =
   | 'cloud-push'
   | 'cloud-pull'
   | 'help'
+  | 'mode'
+  | 'verify'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -122,6 +124,20 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     test: t =>
       /도움말|사용법|help|^명령어$|뭐\s*(할\s*수\s*있|하면\s*(돼|되|좋)|해야)|처음\s*(뭐|어떻게|시작|할)|어떻게\s*시작|뭐부터/.test(t),
+  },
+  // Safety Mode — 위험 작업 가드 강도 조회/변경.
+  {
+    command: 'mode',
+    explanation: 'Safety Mode 조회/변경 (vhk mode)',
+    confidence: 'high',
+    test: t =>
+      /안전\s*모드|safety\s*mode|모드\s*(바꿔|변경|설정|확인|보여|뭐)|위험\s*작업\s*(가드|모드)/.test(t),
+  },
+  {
+    command: 'verify',
+    explanation: '저장/위험 작업 전 검증 묶음 (vhk verify)',
+    confidence: 'high',
+    test: t => /검증\s*묶음|사전\s*검증|저장\s*전\s*(검증|확인)|^verify$/.test(t),
   },
   {
     command: 'init',
