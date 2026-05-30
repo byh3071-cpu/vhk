@@ -6,7 +6,7 @@ tags: [vhk, cli, readme, v1.4.0, ga]
 
 # 🔧 VHK — Vibe Harness Kit
 
-> 🎉 **v1.4.0** — **규칙은 한 벌로 Cursor·Claude·Windsurf에, 맥락은 클라우드로.**
+> 🎉 **v1.4.0** — **규칙은 한 벌로 Cursor·Claude·Windsurf·Copilot·Antigravity에, 맥락은 클라우드로.**
 > 도구·기기를 옮겨도 `vhk` 명령으로 그대로 불러옵니다. (포터빌리티)
 >
 > AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI**.
@@ -17,15 +17,17 @@ tags: [vhk, cli, readme, v1.4.0, ga]
 
 ## 왜 VHK? — 포터빌리티
 
-AI 코딩 도구는 저마다 규칙 파일이 다르고(`.cursorrules`·`CLAUDE.md`·`.windsurfrules`…), 컴퓨터를 바꾸면 프로젝트 맥락을 처음부터 다시 모읍니다. VHK는 이 둘을 한 곳에서 관리합니다.
+AI 코딩 도구는 저마다 규칙 파일이 다르고(`.cursorrules`·`CLAUDE.md`·`.windsurfrules`·`.github/copilot-instructions.md`·`.agents/rules/`…), 컴퓨터를 바꾸면 프로젝트 맥락을 처음부터 다시 모읍니다. VHK는 이 둘을 한 곳에서 관리합니다.
 
 | 문제 | VHK 해결 | 명령 |
 |------|----------|------|
-| 도구마다 규칙 파일이 따로 논다 | `RULES.md` 한 벌 → Cursor·Claude·Windsurf 규칙 동시 생성 | `vhk sync` |
+| 도구마다 규칙 파일이 따로 논다 | `RULES.md` 한 벌 → Cursor·Claude·Windsurf·Copilot·Antigravity 규칙 동시 생성 | `vhk sync` |
 | 컴퓨터·환경 바뀌면 맥락 유실 | `.vhk/` 맥락을 GitHub gist로 백업·복원 | `vhk cloud push` / `pull` |
 | 새 프로젝트 세팅 반복 | 유형별 문서·규칙·맥락 뼈대를 한 번에 | `vhk init` |
 
 > 규칙·맥락은 **자동이 아니라 명령으로** 동기화됩니다(한 줄이면 충분). 개인 메모(`memory.json`)·참고링크(`refs.json`)는 프라이버시 위해 기본 제외, 새 PC의 코드 자체는 `git clone` 으로 받습니다.
+>
+> ℹ️ Windsurf·Copilot·Antigravity 출력 경로·포맷은 각 도구의 **공식 문서 기준**으로 생성합니다(`.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/`). Antigravity 는 파일당 12,000자 제한이 있어 초과 시 안전하게 절삭하고 전체는 `RULES.md` 에 남습니다.
 
 ## 3분 안에 시작하기 (Getting Started)
 
@@ -128,7 +130,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk gate` | `검증`, `아이디어` | 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵) |
 | `vhk init` | `시작`, `만들기` | 프로젝트 초기화 + 하네스 생성 |
 | `vhk recap` | `정리`, `오늘` | Git 변경 → `docs/log/` 세션 로그 |
-| `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md + `.windsurfrules` |
+| `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md + `.windsurfrules` + `.github/copilot-instructions.md` + `.agents/rules/vhk-rules.md` (5개) |
 | `vhk check` | `점검`, `린트` | RULES.md 규칙 위반 검사 |
 | `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
 | `vhk ship` | `출하` | 배포 체크리스트 + 회고 + 빌드 로그 |
