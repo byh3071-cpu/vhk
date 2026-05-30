@@ -82,6 +82,8 @@ export async function envCheck(): Promise<void> {
   } else {
     console.log(chalk.red(`\n❌ 누락된 환경변수 (${missing.length}개):`))
     missing.forEach((k) => console.log(chalk.red(`   • ${k}`)))
+    // 필수 변수 누락 → 비-0 종료(CI 게이트 의미). VHK-010.
+    process.exitCode = 1
   }
 
   if (extra.length > 0) {
