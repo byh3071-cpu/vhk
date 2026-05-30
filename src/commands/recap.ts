@@ -9,6 +9,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
 import { ensureInteractive } from '../lib/interactive.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { localDate } from '../lib/date.js'
 
 export type RecapOptions = {
   since?: string
@@ -32,7 +33,7 @@ export async function recap(options: RecapOptions = {}) {
   printSecurityWarnings()
 
   console.log(chalk.dim(`${ko.recap.analyzing}\n`))
-  const since = options.since || new Date().toISOString().split('T')[0]
+  const since = options.since || localDate()
   const diff = await getSessionDiff(since)
   const commits = await getRecentCommits(10, since)
 
@@ -94,7 +95,7 @@ export async function recap(options: RecapOptions = {}) {
     },
   ])
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = localDate()
   const logDir = path.join(process.cwd(), 'docs', 'log')
   if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true })
 

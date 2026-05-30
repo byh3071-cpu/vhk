@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { SessionDiff } from './git.js'
+import { localDate } from './date.js'
 
 export type AdrCandidate = {
   title: string
@@ -92,7 +93,7 @@ export function createAdrFile(
   if (!fs.existsSync(adrDir)) fs.mkdirSync(adrDir, { recursive: true })
 
   const num = nextAdrNumber(adrDir)
-  const today = new Date().toISOString().split('T')[0]
+  const today = localDate() // VHK-019
   const fileName = `ADR-${String(num).padStart(3, '0')}-${slugify(title)}.md`
   const filePath = path.join(adrDir, fileName)
 
