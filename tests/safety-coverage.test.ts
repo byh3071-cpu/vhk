@@ -33,11 +33,21 @@ describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () 
     }
   })
 
-  it('CLI 등록: 가드대상 + CLI 커맨드 있는 action 은 전부 guardCli 경유 (index.ts)', () => {
+  it('CLI 등록: 가드대상 + CLI 커맨드 있는 action 은 전부 guardCli/guardCliDefer 경유 (index.ts)', () => {
     const idx = readFileSync('src/index.ts', 'utf-8')
     const CLI_ACTIONS = ['deploy', 'publish', 'migrate', 'env-write', 'cloud-pull', 'undo', 'resume', 'save', 'sync']
     for (const a of CLI_ACTIONS) {
-      expect(idx.includes(`guardCli('${a}'`), `CLI '${a}' guardCli 미경유`).toBe(true)
+      // undo/resume 는 guardCliDefer(명령 자체확인 위임), 나머지는 guardCli
+      expect(new RegExp(`guardCli(Defer)?\\('${a}'`).test(idx), `CLI '${a}' 가드 미경유`).toBe(true)
+    }
+  })
+
+  it('가드대상 action(예약 delete 제외)은 전부 HANDLER_ACTION 에 핸들러 매핑됨 (완전성 매핑 누락 방지)', () => {
+    // 새 high-risk action 이 risk-policy 에 추가되면 HANDLER_ACTION 도 갱신해야 dispatch/직접호출 검사가 동작.
+    const mapped = new Set(Object.values(HANDLER_ACTION))
+    for (const a of GUARDED) {
+      if (a === 'delete') continue // 진입점 없는 예약 액션
+      expect(mapped.has(a), `action '${a}' 핸들러 매핑 없음 → 완전성 검사 누락(드리프트)`).toBe(true)
     }
   })
 

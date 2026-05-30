@@ -29,7 +29,7 @@ must(guard && /confirm/.test(guard) && /approved/.test(guard) && /preview|미리
 const idx = read("src/index.ts") || "";
 // 가드대상(high-risk + strict-extra) CLI 진입점 전체가 guardCli 경유 (5개 아니라 9개)
 const EXECUTING = ["deploy", "publish", "migrate", "env-write", "cloud-pull", "undo", "resume", "save", "sync"];
-must(EXECUTING.every((a) => idx.includes(`guardCli('${a}'`)), "CLI 가드대상 9종 전부 guardCli 경유(undo/resume/save/sync 포함)");
+must(EXECUTING.every((a) => new RegExp(`guardCli(Defer)?\\('${a}'`).test(idx)), "CLI 가드대상 9종 전부 guardCli/guardCliDefer 경유(undo/resume/save/sync 포함)");
 must(/runGuarded/.test(idx), "index.ts guardCli → runGuarded");
 // 인라인 메뉴 switch 등 가드대상 핸들러 직접 호출(바이패스) 없음
 must(![...idx.matchAll(/return\s+(undo|save|sync|deploy|publish|migrate|env|cloudPull|resume)\(/g)].length, "메뉴/직접 호출 가드 미경유 없음");
