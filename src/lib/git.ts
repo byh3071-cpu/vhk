@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { simpleGit, type SimpleGit } from 'simple-git'
 import { filterTrackedPaths } from './check-secure.js'
+import { localDate } from './date.js'
 
 const git: SimpleGit = simpleGit()
 
@@ -80,7 +81,7 @@ export function buildSessionDiffFromSummary(diffSummary: {
 const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
 export async function getSessionDiff(since?: string): Promise<SessionDiff> {
-  const sinceDate = since || new Date().toISOString().split('T')[0]
+  const sinceDate = since || localDate() // VHK-019: 기본 since 는 로컬 '오늘'
   try {
     // VHK-015: `git diff --since` 는 무효(--since 는 log 옵션) → 워킹트리만 diff 해 항상 0.
     // since 직전 커밋(boundary)..HEAD 의 커밋 범위를 diff 해 실제 변경 통계를 낸다.

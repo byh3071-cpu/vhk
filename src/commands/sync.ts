@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
 import inquirer from 'inquirer'
+import { localDate } from '../lib/date.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { normalizeForCompare } from '../lib/drift.js'
@@ -326,7 +327,7 @@ export function buildSyncPlan(
   const claudeExists = fs.existsSync(claudePath)
   const existingClaude = claudeExists
     ? fs.readFileSync(claudePath, 'utf-8')
-    : `# 기록 규칙 (${projectName})\n\n## 현재 상태\n- **Phase:** **FILL**\n- **블로커:** 없음\n- **다음 액션:** **FILL**\n- **마지막 업데이트:** ${new Date().toISOString().split('T')[0]}`
+    : `# 기록 규칙 (${projectName})\n\n## 현재 상태\n- **Phase:** **FILL**\n- **블로커:** 없음\n- **다음 액션:** **FILL**\n- **마지막 업데이트:** ${localDate()}`
   const claudeNew = toClaudeMd(sections, existingClaude)
   const claudeDrift = claudeExists
     ? normalizeForCompare(existingClaude) !== normalizeForCompare(claudeNew)
