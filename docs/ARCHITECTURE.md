@@ -45,7 +45,7 @@
 | 프롬프트 UX | `inquirer` | TTY 전용 (MCP 모드 차단) |
 | 출력 | `chalk`, `ora` | 색상 + 스피너 |
 | MCP | `@modelcontextprotocol/sdk` | stdio transport |
-| 테스트 | `vitest` | 349 pass |
+| 테스트 | `vitest` | 356 pass |
 | 패키지 매니저 | `pnpm` | `pnpm build` / `pnpm test` |
 
 ## 3. 레이어별 책임

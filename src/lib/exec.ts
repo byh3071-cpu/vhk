@@ -46,13 +46,12 @@ function resolveTimeout(timeoutMs: number | undefined, fallback: number): number
 }
 
 // execFileSync(=spawnSync) 가 timeout 으로 죽인 경우 식별.
-// spawnSync timeout 은 err.code='ETIMEDOUT' 로 던진다 (killed/signal 은 플랫폼별 차이).
-function isTimeoutError(
-  e: { killed?: boolean; signal?: string; code?: string },
-  timeout?: number
-): boolean {
+// spawnSync 는 timeout 발사 시 err.code='ETIMEDOUT' 를 크로스플랫폼으로 설정한다.
+// killed/signal 로도 판별하면 외부 시그널(Ctrl+C 등)에 의한 종료를 timeout 으로 오라벨할 수
+// 있으므로 ETIMEDOUT 만 신뢰한다.
+function isTimeoutError(e: { code?: string }, timeout?: number): boolean {
   if (!timeout) return false
-  return e.code === 'ETIMEDOUT' || (e.killed === true && Boolean(e.signal))
+  return e.code === 'ETIMEDOUT'
 }
 
 export function safeExecFile(
