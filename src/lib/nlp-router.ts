@@ -33,6 +33,7 @@ export type NlpCommand =
   | 'goal'
   | 'cloud-push'
   | 'cloud-pull'
+  | 'help'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -112,11 +113,12 @@ const RULES: NlpRule[] = [
       (/프로젝트.*(만들|시작)|폴더.*만들|만들고\s*싶|새\s*프로젝트|^시작$|마법사|기획.*(끝|완료)|검증.*(스킵|건너)|gate.*(스킵|건너)|바로.*시작/.test(t)) &&
       !/디자인|design|팔레트|palette|테마|theme|레퍼런스|reference|다크\s*모드|라이트\s*모드|색상\s*모드|브리핑|brief|컨텍스트|context|맥락|기억|memory|^초기화$|하네스.*만/.test(t),
   },
-  // 도움말/온보딩 — 초보자가 "뭐부터/도움말/명령어" 라고 물으면 vhk start(quick actions)로 안내.
-  // 실제 서브커맨드(restore/sync 등)는 cli-args R1 가드가 먼저 commander 로 보내므로 가로채지 않음.
+  // 도움말 — 초보자가 "뭐부터/도움말/명령어" 라고 물으면 읽기전용 quick actions 를 출력.
+  // (적대 리뷰 HIGH 수정: 이전엔 start 마법사로 라우팅돼 도움말이 scaffold 를 유발했음.
+  //  도움말은 절대 상태를 바꾸지 않는다.) 실제 서브커맨드는 cli-args R1 가드가 먼저 commander 로 보냄.
   {
-    command: 'start',
-    explanation: '처음이라면 — vhk start 로 quick actions(상태/저장/정리/동기화…) 보기',
+    command: 'help',
+    explanation: '자연어로 vhk 쓰는 법 — quick actions 출력(상태변경 없음)',
     confidence: 'high',
     test: t =>
       /도움말|사용법|help|^명령어$|뭐\s*(할\s*수\s*있|하면\s*(돼|되|좋)|해야)|처음\s*(뭐|어떻게|시작|할)|어떻게\s*시작|뭐부터/.test(t),

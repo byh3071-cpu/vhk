@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 import inquirer from 'inquirer'
-import { routeNaturalLanguage, extractNotionUrl, type NlpRoute } from './nlp-router.js'
+import { routeNaturalLanguage, extractNotionUrl, type NlpRoute, type NlpCommand } from './nlp-router.js'
 import { ko } from '../i18n/ko.js'
 import { gate } from '../commands/gate.js'
 import { init } from '../commands/init.js'
@@ -32,6 +32,7 @@ import { brief } from '../commands/brief.js'
 import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext } from '../commands/goal.js'
 import { cloudPush, cloudPull } from '../commands/cloud.js'
+import { quickActions } from '../commands/help.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -117,7 +118,23 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       if (sub === 'done') return goalDone({})
       return goalList()
     }
+    case 'help':
+      return quickActions()
   }
+}
+
+/**
+ * 상태(파일/git)를 바꾸는 NL 명령 — 자연어 매칭은 오탐이 있을 수 있으므로
+ * confidence 가 high 라도 실행 전 반드시 사용자 confirm 을 거친다.
+ * (적대 리뷰 HIGH 수정: 자연어 한 마디가 곧장 scaffold/배포 등으로 이어지지 않게.)
+ */
+const STATE_CHANGING_COMMANDS: ReadonlySet<NlpCommand> = new Set([
+  'start', 'init',
+])
+
+/** NL 라우트 실행 전 확인 프롬프트가 필요한가 — low confidence 또는 상태변경 명령. */
+export function requiresConfirmation(route: NlpRoute): boolean {
+  return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command)
 }
 
 export async function runNaturalLanguageRoute(input: string): Promise<void> {
@@ -132,7 +149,7 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
   console.log(chalk.cyan(`  💬 "${input}"`))
   console.log(chalk.cyan(`  → ${route.explanation}`))
 
-  if (route.confidence === 'low') {
+  if (requiresConfirmation(route)) {
     const { confirm } = await inquirer.prompt<{ confirm: boolean }>([{
       type: 'confirm',
       name: 'confirm',
