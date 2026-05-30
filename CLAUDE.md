@@ -13,17 +13,17 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.3.0 (package.json + MCP SERVER_VERSION 정합)
+- **버전:** v1.4.0 (package.json + MCP SERVER_VERSION 정합)
 - **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 293+ pass (vitest)
+- **테스트:** 349 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 5 종료 — Goal 0/1/2 모두 DONE. v1.3.0 릴리즈 prep.
+- **Phase:** Phase 5 종료 — Goal 0/1/2 모두 DONE. v1.4.0 릴리즈 prep.
 - **블로커:** 없음
-- **다음 액션:** v1.3.0 npm publish → Goal 3 또는 Phase 6 (Product Hunt) 분기점
-- **마지막 업데이트:** 2026-05-28
+- **다음 액션:** v1.4.0 npm publish → Goal 3 또는 Phase 6 (Product Hunt) 분기점
+- **마지막 업데이트:** 2026-05-30
 
 ## 코딩 컨벤션
 
@@ -80,3 +80,11 @@ tags: [process, documentation]
 - 공통 게이트는 `goals/_meta.md` + `scripts/check-meta.sh`
 - 현재 상태 SoT 는 `docs/state/next-task.md` / `blockers.md` / `learnings.md`
 - 자세한 규약은 `goals/_meta.md` 와 `goals/0-mcp-full-coverage.md` 참조
+
+## Stability Gates (v1.3.1+)
+
+- 모든 PR/작업 전: `npm run build && npm test` 통과 필수
+- MCP 핸들러 수정 시: 시크릿 가드 체크리스트 확인
+- 새 이벤트 리스너 등록 시: 해제 로직 반드시 짝으로 작성
+- 캐시(Map/Set) 신규 추가 시: TTL 또는 maxSize 필수
+- 문서 관련 코드 변경 시: README/CLAUDE.md 동시 업데이트

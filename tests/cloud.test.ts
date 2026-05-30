@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -6,10 +6,19 @@ import {
   DEFAULT_CLOUD_EXCLUDES,
   collectVhkFiles,
   loadVhkignore,
+  partitionGistFiles,
   readCloudConfig,
   writeCloudConfig,
 } from '../src/lib/vhk-cloud.js'
 import { parseGistId } from '../src/commands/cloud.js'
+
+// gh 호출 가로채기 — cloud E2E 에서 실제 gh CLI 없이 push/pull 와이어링 검증.
+const mockSafeExecFile = vi.fn()
+vi.mock('../src/lib/exec.js', () => ({
+  safeExecFile: (...a: unknown[]) => mockSafeExecFile(...a),
+  NETWORK_EXEC_TIMEOUT_MS: 30_000,
+  DEFAULT_EXEC_TIMEOUT_MS: 600_000,
+}))
 
 function makeRepo(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-cloud-'))
@@ -81,6 +90,46 @@ describe('vhk-cloud — cloud.json 읽기/쓰기', () => {
   })
 })
 
+describe('vhk-cloud — partitionGistFiles (privacy purge / 복원 스킵)', () => {
+  let repo: string
+  beforeEach(() => { repo = makeRepo() })
+  afterEach(() => { fs.rmSync(repo, { recursive: true, force: true }) })
+
+  it('과거에 올라간 제외 대상은 excluded, 공유 파일은 keep 으로 분리', () => {
+    const gistFiles = ['context.md', 'README.md', 'memory.json', 'refs.json', 'HARD_STOP', 'cloud.json']
+    const { keep, excluded } = partitionGistFiles(gistFiles, loadVhkignore(repo))
+    expect(keep.sort()).toEqual(['README.md', 'context.md'])
+    expect(excluded.sort()).toEqual(['HARD_STOP', 'cloud.json', 'memory.json', 'refs.json'])
+  })
+
+  it('.vhkignore 추가 패턴도 excluded 로 분리 (retroactive purge)', () => {
+    fs.writeFileSync(path.join(repo, '.vhkignore'), 'secret.md\n')
+    const gistFiles = ['context.md', 'secret.md', 'memory.json']
+    const { keep, excluded } = partitionGistFiles(gistFiles, loadVhkignore(repo))
+    expect(keep).toEqual(['context.md'])
+    expect(excluded.sort()).toEqual(['memory.json', 'secret.md'])
+  })
+
+  it('제외 대상이 없으면 excluded 는 빈 배열', () => {
+    const { keep, excluded } = partitionGistFiles(['context.md', 'README.md'], loadVhkignore(repo))
+    expect(keep.sort()).toEqual(['README.md', 'context.md'])
+    expect(excluded).toEqual([])
+  })
+
+  it('빈 문자열 항목은 무시', () => {
+    const { keep, excluded } = partitionGistFiles(['context.md', ''], loadVhkignore(repo))
+    expect(keep).toEqual(['context.md'])
+    expect(excluded).toEqual([])
+  })
+
+  it('백업 대상(keep)과 제외 대상(excluded)은 서로소 — push 후 gist 마지막 파일 보존 보장', () => {
+    const gistFiles = ['context.md', 'memory.json']
+    const { keep, excluded } = partitionGistFiles(gistFiles, loadVhkignore(repo))
+    const intersection = keep.filter(n => excluded.includes(n))
+    expect(intersection).toEqual([])
+  })
+})
+
 describe('cloud — parseGistId', () => {
   it('gist URL 에서 id 추출', () => {
     expect(parseGistId('https://gist.github.com/byh3071-cpu/abc123def456789')).toBe('abc123def456789')
@@ -92,5 +141,124 @@ describe('cloud — parseGistId', () => {
 
   it('id 없으면 null', () => {
     expect(parseGistId('error: not found')).toBeNull()
+  })
+})
+
+// gh CLI 를 stateful 하게 흉내내는 mock. gist 파일 목록을 Set 으로 들고
+// -r(remove)/-a(add) 에 따라 갱신 → push 의 purge + 재검증 경로를 사실적으로 검증.
+function installGhMock(initialGistFiles: string[]) {
+  const state = new Set(initialGistFiles)
+  mockSafeExecFile.mockImplementation((cmd: string, args: string[]) => {
+    if (cmd !== 'gh') return { ok: true, out: '' }
+    if (args[0] === '--version') return { ok: true, out: 'gh version 2.92.0' }
+    if (args[0] === 'auth') return { ok: true, out: 'Logged in' }
+    if (args[0] === 'gist' && args[1] === 'view' && args.includes('--files')) {
+      return { ok: true, out: [...state].join('\n') }
+    }
+    if (args[0] === 'gist' && args[1] === 'view' && args.includes('-f')) {
+      const name = args[args.indexOf('-f') + 1]
+      return { ok: true, out: `content of ${name}\n` }
+    }
+    if (args[0] === 'gist' && args[1] === 'edit') {
+      const ai = args.indexOf('-a')
+      if (ai >= 0) { state.add(path.basename(args[ai + 1])); return { ok: true, out: '' } }
+      return { ok: true, out: '' } // -f 덮어쓰기
+    }
+    // 원자적 purge: gh api --method PATCH /gists/{id} --input <body.json>
+    if (args[0] === 'api' && args.includes('PATCH')) {
+      const ii = args.indexOf('--input')
+      if (ii >= 0) {
+        const body = JSON.parse(fs.readFileSync(args[ii + 1], 'utf-8')) as {
+          files?: Record<string, unknown>
+        }
+        for (const [name, val] of Object.entries(body.files ?? {})) {
+          if (val === null) state.delete(name)
+        }
+      }
+      return { ok: true, out: '' }
+    }
+    return { ok: true, out: '' }
+  })
+  return state
+}
+
+describe('cloud — cloudPush 기존 gist privacy purge (gh mock)', () => {
+  let repo: string
+  let origCwd: string
+  beforeEach(() => {
+    mockSafeExecFile.mockReset()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    repo = makeRepo()
+    fs.writeFileSync(path.join(repo, '.vhk', 'cloud.json'), JSON.stringify({ gistId: 'abc123' }) + '\n')
+    origCwd = process.cwd()
+    process.chdir(repo)
+  })
+  afterEach(() => {
+    process.chdir(origCwd) // rmSync 전에 chdir 복귀 (Windows EPERM 회피)
+    fs.rmSync(repo, { recursive: true, force: true })
+    vi.restoreAllMocks()
+    process.exitCode = 0
+  })
+
+  it('과거 누수 제외 파일(memory.json·refs.json)을 단일 gh api PATCH 로 원자적 제거', async () => {
+    const state = installGhMock(['context.md', 'README.md', 'brief.md', 'memory.json', 'refs.json'])
+    const { cloudPush } = await import('../src/commands/cloud.js')
+    await cloudPush()
+
+    // purge 는 PATCH /gists/{id} 단일 호출 (파일당 -r 루프 아님)
+    const patchCalls = mockSafeExecFile.mock.calls.filter(
+      c => c[0] === 'gh' && (c[1] as string[])[0] === 'api' && (c[1] as string[]).includes('PATCH')
+    )
+    expect(patchCalls.length).toBe(1)
+    // -r flag 는 더 이상 사용하지 않는다 (flag 의존 제거)
+    const rFlag = mockSafeExecFile.mock.calls.filter(c => (c[1] as string[]).includes('-r'))
+    expect(rFlag).toEqual([])
+    // 최종 gist 상태에 제외 파일이 남지 않는다
+    expect(state.has('memory.json')).toBe(false)
+    expect(state.has('refs.json')).toBe(false)
+    expect(state.has('context.md')).toBe(true)
+  })
+
+  it('제외 파일이 gist 에 없으면 purge(PATCH)를 호출하지 않는다', async () => {
+    installGhMock(['context.md', 'README.md', 'brief.md'])
+    const { cloudPush } = await import('../src/commands/cloud.js')
+    await cloudPush()
+    const patchCalls = mockSafeExecFile.mock.calls
+      .filter(c => c[0] === 'gh' && (c[1] as string[])[0] === 'api')
+    expect(patchCalls).toEqual([])
+  })
+})
+
+describe('cloud — cloudPull 제외 복원 스킵 (gh mock)', () => {
+  let repo: string
+  let origCwd: string
+  beforeEach(() => {
+    mockSafeExecFile.mockReset()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-pull-'))
+    origCwd = process.cwd()
+    process.chdir(repo)
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    fs.rmSync(repo, { recursive: true, force: true })
+    vi.restoreAllMocks()
+    process.exitCode = 0
+  })
+
+  it('gist 에 제외 파일이 있어도 fetch/복원하지 않는다', async () => {
+    installGhMock(['context.md', 'memory.json', 'refs.json'])
+    const { cloudPull } = await import('../src/commands/cloud.js')
+    await cloudPull('abc123')
+
+    // 제외 파일은 -f --raw fetch 시도조차 없어야 한다
+    const fetched = mockSafeExecFile.mock.calls
+      .filter(c => (c[1] as string[]).includes('-f') && (c[1] as string[]).includes('--raw'))
+      .map(c => { const a = c[1] as string[]; return a[a.indexOf('-f') + 1] })
+    expect(fetched).toEqual(['context.md'])
+    // 디스크에도 공유 파일만 복원
+    expect(fs.existsSync(path.join(repo, '.vhk', 'context.md'))).toBe(true)
+    expect(fs.existsSync(path.join(repo, '.vhk', 'memory.json'))).toBe(false)
+    expect(fs.existsSync(path.join(repo, '.vhk', 'refs.json'))).toBe(false)
   })
 })
