@@ -7,7 +7,14 @@ import {
   parseGoalFile,
   listGoals,
   updateFrontmatterStatus,
+  findDuplicateIds,
+  type ParsedGoal,
 } from '../src/lib/goal-frontmatter.js'
+
+// 테스트용 최소 ParsedGoal 생성 (id 만 의미 있음).
+function goalWithId(id: number): ParsedGoal {
+  return { filePath: `${id}.md`, frontmatter: { id }, body: '' }
+}
 
 function tmpDir(name: string): string {
   const dir = join(tmpdir(), `vhk-goal-test-${name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
@@ -61,6 +68,18 @@ title: 한국어 제목 with spaces
 body`
     const { frontmatter } = parseFrontmatter(content)
     expect(frontmatter.title).toBe('한국어 제목 with spaces')
+  })
+
+  // 특성화 테스트 — 기존 동작 가드 (즉시 통과). title 값에 콜론이 있어도
+  // 첫 콜론만 키 구분에 쓰이고 나머지는 값으로 보존됨을 못박는다.
+  it('title 값의 콜론 보존 (첫 콜론만 키 구분)', () => {
+    const content = `---
+type: goal
+title: 도구: 맥락 동기화
+---
+body`
+    const { frontmatter } = parseFrontmatter(content)
+    expect(frontmatter.title).toBe('도구: 맥락 동기화')
   })
 })
 
@@ -141,5 +160,25 @@ describe('listGoals', () => {
 
   it('디렉토리 없으면 빈 배열', () => {
     expect(listGoals('/nonexistent/dir')).toEqual([])
+  })
+})
+
+describe('findDuplicateIds', () => {
+  it('id 가 겹치는 goal 들의 중복 id 를 오름차순 반환', () => {
+    const goals = [goalWithId(2), goalWithId(1), goalWithId(1), goalWithId(2)]
+    expect(findDuplicateIds(goals)).toEqual([1, 2])
+  })
+
+  it('중복 없으면 빈 배열', () => {
+    expect(findDuplicateIds([goalWithId(0), goalWithId(1), goalWithId(2)])).toEqual([])
+  })
+
+  it('각 중복 id 는 한 번만 보고 (3개 겹쳐도 단일 항목)', () => {
+    const goals = [goalWithId(1), goalWithId(1), goalWithId(1)]
+    expect(findDuplicateIds(goals)).toEqual([1])
+  })
+
+  it('빈 입력은 빈 배열', () => {
+    expect(findDuplicateIds([])).toEqual([])
   })
 })
