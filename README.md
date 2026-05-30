@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-05-28
-tags: [vhk, cli, readme, v1.5.1, ga]
+tags: [vhk, cli, readme, v1.6.0, ga]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> 🎉 **v1.5.1** — **규칙은 한 벌로 Cursor·Claude·Windsurf·Copilot·Antigravity에, 맥락은 클라우드로.**
+> 🎉 **v1.6.0** — **규칙은 한 벌로 Cursor·Claude·Windsurf·Copilot·Antigravity에, 맥락은 클라우드로.**
 > 도구·기기를 옮겨도 `vhk` 명령으로 그대로 불러옵니다. (포터빌리티)
 >
 > AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI**.
@@ -55,7 +55,7 @@ vhk start
 vhk gate          # 퀵 5문항 — GO / 다듬기 / 다른 아이디어
 ```
 
-### 3. 그 외 기능 한눈에 (v1.5)
+### 3. 그 외 기능 한눈에 (v1.6)
 
 | 기능 | 한 줄 요약 | 진입 명령 |
 |------|-----------|-----------|
@@ -64,6 +64,7 @@ vhk gate          # 퀵 5문항 — GO / 다듬기 / 다른 아이디어
 | 🚧 **HARD_STOP 안전장치** | 블로커 3건 누적 → `.vhk/HARD_STOP` 트립와이어. `vhk resume --confirm` 만 해제 | `vhk blocker "<증상>"` |
 | 🔌 **MCP 24 tool** | Cursor·Claude Desktop 등에서 vhk를 채팅으로 호출 | `vhk mcp-init` |
 | 📋 **컨텍스트 영속화** | `.vhk/context.md` + `memory.json` + `brief.md` 로 세션 간 맥락 유지 | `vhk context` |
+| 🔀 **드리프트 감지** | 규칙 파일이 RULES.md와 어긋나거나 context가 코드보다 낡으면 자동 경고 (읽기전용) | `vhk doctor` |
 
 ### 4. 권장 일일 사이클
 
@@ -315,7 +316,7 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 
 | 기능 | 설명 |
 |------|------|
-| **MCP 서버** | `vhk mcp` — stdio MCP 서버 첫 도입 (v0.6.0 당시 8개 도구 — save/undo/status/diff/ship/doctor/check/recap). 현재 v1.5 기준 **24개** 로 확장 — 위 "Cursor와 MCP로 연동하기" 섹션 참조 |
+| **MCP 서버** | `vhk mcp` — stdio MCP 서버 첫 도입 (v0.6.0 당시 8개 도구 — save/undo/status/diff/ship/doctor/check/recap). 현재 v1.6 기준 **24개** 로 확장 — 위 "Cursor와 MCP로 연동하기" 섹션 참조 |
 | **mcp-init** | `vhk mcp-init` — Cursor `.cursor/mcp.json` 자동 생성. 재시작 한 번으로 연동 완료 |
 | **자연어 라우팅 확장** | `vhk mcp설정` → `vhk mcp-init` 별칭 |
 | **보안** | MCP save 도구의 shell injection 차단 — 모든 git 호출에 shell 미경유 `safeExecFile` 사용 |

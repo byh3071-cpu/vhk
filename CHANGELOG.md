@@ -6,6 +6,30 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.6.0] - 2026-05-30
+
+> **L2 첫 삽 — 드리프트 감지 + 견고성.** sync 한 규칙·맥락이 원본과 조용히
+> 어긋나는 걸 vhk doctor 가 스스로 잡아낸다. cloud·publish·exec 견고성 보강 동반.
+
+### Added
+
+- **드리프트 감지 (`vhk doctor`)** — 규칙 드리프트(생성 파일이 RULES.md와 어긋남)와
+  맥락 드리프트(`context.md` 가 코드보다 낡음)를 자동 경고. **읽기전용**(자동수정 X),
+  `--check` 플래그 아닌 passive(이미 쓰는 doctor 안에서). CRLF 정규화로 거짓경보 방지.
+  sync 출력 대상은 `SYNC_TARGETS` 단일 레지스트리로 통합(목록 하드코딩 제거).
+
+### Changed
+
+- **exec timeout backstop** — `safeExecFile` 에 기본 10분 timeout(정상 build/test 무영향),
+  네트워크 호출 30초. 스트리밍(deploy·publish 2FA)은 면제(opt-in만). hang 방지.
+
+### Fixed
+
+- **cloud purge 원자화** — `vhk cloud push` 가 과거 gist 에 남은 제외 대상
+  (`memory.json`·`refs.json`)을 제거. 백업 파일 우선 반영 + PATCH 후 재검증. 프라이버시 보강.
+- **publish git 가드** — npm publish 후처리(add→commit→tag→push)를 단계별로 가드,
+  중간 실패 시 중단·안내(반쪽 릴리즈 방지).
+
 ## [1.5.1] - 2026-05-30
 
 > **메타데이터 패치.** 기능 변화 없음 — npm 페이지 안내문을 포지셔닝에 맞춰 즉시 반영하기 위한 재게시.
