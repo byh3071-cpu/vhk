@@ -38,6 +38,7 @@ import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
 import { runGuarded } from './lib/safety-guard.js'
+import { isPromptAbortError } from './lib/interactive.js'
 
 /**
  * CLI high-risk 작업 가드 — 단일 chokepoint(runGuarded) 경유.
@@ -600,11 +601,22 @@ const isMainModule =
   !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
 
 if (isMainModule) {
-  const nlInput = detectNaturalLanguageInput(process.argv)
-  if (nlInput !== null) {
-    await runNaturalLanguageRoute(nlInput)
-  } else {
-    await program.parseAsync(process.argv)
+  // VHK-014: parseAsync 를 try/catch 로 감싸 unsettled top-level await 경고 제거 +
+  // 비-TTY/EOF 프롬프트 크래시(ERR_USE_AFTER_CLOSE)를 friendly 종료로 처리.
+  try {
+    const nlInput = detectNaturalLanguageInput(process.argv)
+    if (nlInput !== null) {
+      await runNaturalLanguageRoute(nlInput)
+    } else {
+      await program.parseAsync(process.argv)
+    }
+  } catch (err) {
+    if (isPromptAbortError(err)) {
+      console.error(chalk.yellow('\n  ⚠️  대화형 입력이 취소/종료됐습니다. (비대화형 환경에서는 해당 명령을 쓸 수 없어요)'))
+    } else {
+      console.error(chalk.red(`\n❌ ${err instanceof Error ? err.message : String(err)}`))
+    }
+    process.exitCode = 1
   }
 }
 

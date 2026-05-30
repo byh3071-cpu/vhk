@@ -117,6 +117,12 @@ describe('detectNaturalLanguageInput — 서브커맨드 명령 경로 가드 (R
   it('vhk memory list → null', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', 'memory', 'list'])).toBeNull()
   })
+
+  it('VHK-016: vhk memory add "<한국어 intent 키워드 포함>" → null (NL 흡수 금지)', () => {
+    // content 에 '상태' 같은 키워드 있어도 서브커맨드 add 가 매칭 → commander 처리
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'memory', 'add', '교주 v0.7 상태 기록'])).toBeNull()
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'memory', 'add', '저장 결정'])).toBeNull()
+  })
   // 회귀: 한국어 자연어는 서브커맨드가 아니므로 여전히 NL 로 라우팅돼야 한다.
   it('vhk 보안 확인 → 여전히 자연어 ("확인"은 secure 서브커맨드 아님)', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '보안', '확인'])).toBe('보안 확인')

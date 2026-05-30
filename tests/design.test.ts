@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+
+// VHK-014 가드(ensureInteractive)는 비-TTY 면 design() 을 막는다 → 대화형 테스트는 TTY 모사 필요.
+let origTTY: boolean | undefined
 
 const mockExistsSync = vi.fn()
 const mockMkdirSync = vi.fn()
@@ -19,12 +22,35 @@ describe('design', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    origTTY = process.stdin.isTTY
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+  })
+  afterEach(() => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: origTTY, configurable: true })
   })
 
   it('모듈을 import 할 수 있다', async () => {
     const mod = await import('../src/commands/design.js')
     expect(mod.design).toBeDefined()
     expect(mod.designPalette).toBeDefined()
+  })
+
+  it('VHK-018: isTailwindV4Deps — @tailwindcss/vite 또는 tailwindcss ^4 감지', async () => {
+    const { isTailwindV4Deps } = await import('../src/commands/design.js')
+    expect(isTailwindV4Deps({ '@tailwindcss/vite': '^4' })).toBe(true)
+    expect(isTailwindV4Deps({ tailwindcss: '^4.1.0' })).toBe(true)
+    expect(isTailwindV4Deps({ tailwindcss: '~4' })).toBe(true)
+    expect(isTailwindV4Deps({ tailwindcss: '^3.4.0' })).toBe(false)
+    expect(isTailwindV4Deps({})).toBe(false)
+  })
+
+  it('VHK-018: generateTailwindV4Theme — @theme + @custom-variant dark + --color-*', async () => {
+    const { generateTailwindV4Theme } = await import('../src/commands/design.js')
+    const out = generateTailwindV4Theme({ name: 'X', colors: { primary: '#ffffff', background: '#0a0a0c' } })
+    expect(out).toContain('@theme {')
+    expect(out).toContain('--color-primary: #ffffff;')
+    expect(out).toContain('--color-background: #0a0a0c;')
+    expect(out).toContain('@custom-variant dark')
   })
 
   it('tailwind.config 없으면 CSS 토큰 파일을 생성한다', async () => {

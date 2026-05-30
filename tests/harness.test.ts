@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockSafeExecFile = vi.fn()
 const mockReadFileSync = vi.fn()
@@ -28,6 +28,11 @@ describe('harness', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    process.exitCode = 0
+  })
+  afterEach(() => {
+    // 누수 방지 — process.exitCode 가 남으면 vitest 프로세스가 비-0 종료
+    process.exitCode = 0
   })
 
   it('모듈을 import 할 수 있다', async () => {
@@ -70,6 +75,27 @@ describe('harness', () => {
     const { harness } = await import('../src/commands/harness.js')
     await harness()
     expect(mockSafeExecFile).toHaveBeenCalledTimes(2)
+  })
+
+  it('VHK-010: 하위 점검 ≥1 실패 시 process.exitCode=1 (CI 게이트)', async () => {
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { test: 'vitest', build: 'tsup' } }))
+    mockExistsSync.mockReturnValue(false)
+    mockSafeExecFile.mockImplementation((_bin: unknown, args: unknown) => {
+      if ((args as string[]).join(' ').includes('test')) return { ok: false, err: 'fail', out: '' }
+      return { ok: true, out: '' }
+    })
+    const { harness } = await import('../src/commands/harness.js')
+    await harness()
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('VHK-010: 전부 통과 시 exitCode 0 유지', async () => {
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { build: 'tsup' } }))
+    mockExistsSync.mockReturnValue(false)
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
+    const { harness } = await import('../src/commands/harness.js')
+    await harness()
+    expect(process.exitCode).toBe(0)
   })
 
   it('pnpm-lock.yaml 감지 시 pnpm으로 실행', async () => {

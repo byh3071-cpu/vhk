@@ -1,6 +1,6 @@
 import type { PrdContent, ScreenItem, V1InItem } from '../types/prd.js'
 
-const FILL = '__FILL__'
+const FILL = '**FILL**'
 
 function fill(value: string | undefined, fallback = FILL): string {
   return value?.trim() || fallback

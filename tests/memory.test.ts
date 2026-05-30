@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockExistsSync = vi.fn()
 const mockReadFileSync = vi.fn()
@@ -16,6 +16,10 @@ describe('memory', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    process.exitCode = 0
+  })
+  afterEach(() => {
+    process.exitCode = 0
   })
 
   it('모듈을 import 할 수 있다', async () => {
@@ -25,10 +29,11 @@ describe('memory', () => {
     expect(mod.memoryRemove).toBeDefined()
   })
 
-  it('memoryAdd — 빈 content면 쓰지 않음', async () => {
+  it('memoryAdd — 빈 content면 쓰지 않음 + exitCode=1 (VHK-016 저장실패 비-0)', async () => {
     const { memoryAdd } = await import('../src/commands/memory.js')
     await memoryAdd('')
     expect(mockWriteFileSync).not.toHaveBeenCalled()
+    expect(process.exitCode).toBe(1)
   })
 
   it('memoryAdd — 새 content면 .vhk/memory.json에 추가', async () => {

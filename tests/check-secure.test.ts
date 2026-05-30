@@ -34,6 +34,19 @@ describe('check-secure', () => {
     fs.rmSync(tmp, { recursive: true })
   })
 
+  it('VHK-005: .env.example/.sample 템플릿은 민감파일 아님 (false positive 0)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-secure-'))
+    fs.writeFileSync(path.join(tmp, '.gitignore'), 'node_modules/\n.env\n!.env.example\n')
+    fs.writeFileSync(path.join(tmp, '.env.example'), 'API_KEY=\n')
+    fs.writeFileSync(path.join(tmp, '.env.sample'), 'API_KEY=\n')
+
+    const exposed = findExposedSensitiveFiles(tmp)
+    expect(exposed).not.toContain('.env.example')
+    expect(exposed).not.toContain('.env.sample')
+
+    fs.rmSync(tmp, { recursive: true })
+  })
+
   it('checkProjectSecurity — .gitignore 없으면 warning', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-secure-'))
     const result = checkProjectSecurity(tmp)

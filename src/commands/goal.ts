@@ -75,6 +75,12 @@ export async function goalList(): Promise<void> {
 export async function goalNext(): Promise<void> {
   console.log(chalk.bold(`\n${ko.goal.nextTitle}\n`))
   const goals = listGoals(GOALS_DIR)
+  // VHK-017: goal 0개와 '전부 완료'를 구분(같은 상태를 정반대로 묘사하던 오보 제거).
+  if (goals.length === 0) {
+    console.log(chalk.yellow('  📭 정의된 goal 이 없습니다.'))
+    console.log(chalk.dim('  vhk goal init 으로 시작하세요.'))
+    return
+  }
   const activeId = selectActiveId(goals)
   if (activeId === null) {
     console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
