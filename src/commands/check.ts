@@ -31,7 +31,8 @@ async function checkRules() {
   }
 
   const rules = parseRules(rulesPath)
-  console.log(chalk.dim(`  📏 ${rules.length}개 검증 가능한 규칙 감지\n`))
+  // VHK-011: '검증 가능한' = 코드로 자동 검사되는 일부만. 나머지(any 금지·빈 catch 등)는 수동 확인.
+  console.log(chalk.dim(`  📏 자동 검증 가능한 규칙 ${rules.length}개 감지 (나머지 규칙은 수동/도구 확인)\n`))
 
   if (rules.length === 0) {
     console.log(chalk.yellow(ko.check.noAutoRules))
@@ -65,7 +66,9 @@ async function checkRules() {
   const warnings = allViolations.filter(v => v.severity === 'warning').length
 
   if (allViolations.length === 0) {
-    console.log(chalk.green.bold(`${ko.check.allPassed} (${passCount}/${rules.length})`))
+    // VHK-011: "모든 규칙 통과" 거짓안심 금지 — 자동 검증된 부분만 통과라고 명시.
+    console.log(chalk.green.bold(`✅ 자동 검증 가능한 규칙 ${passCount}개 통과`))
+    console.log(chalk.dim('   (RULES.md 의 나머지 규칙은 코드 자동 검사 불가 — 직접/도구로 확인하세요.)'))
     printNextStep({
       message: '모든 규칙 통과! 보안 스캔도 해볼까요?',
       command: 'vhk 보안 scan',
