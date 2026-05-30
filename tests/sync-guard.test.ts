@@ -116,4 +116,30 @@ describe('buildSyncPlan — drift 판정', () => {
     const plan = buildSyncPlan(dir, sections, name)
     expect(plan.map((p) => p.path)).toContain('CLAUDE.md')
   })
+
+  // 회귀: toClaudeMd 비멱등 → 매 sync 마다 CLAUDE.md drift → 백업 churn → pruneBackups 가
+  // 진짜 사용자 백업을 밀어내 영구 소실. 멱등성으로 churn 차단.
+  it('CLAUDE.md 멱등 — 반복 sync 가 drift 를 만들지 않음 (백업 churn 방지)', async () => {
+    await syncCore(dir, {}, alwaysYes) // 1회차
+    const after1 = read('CLAUDE.md')
+    await syncCore(dir, {}, alwaysYes) // 2회차 (원본 무변경)
+    const after2 = read('CLAUDE.md')
+    expect(after2).toBe(after1) // 바이트 동일 = 멱등 (배너 누적 없음)
+    const sections = parseRulesMd(read('RULES.md'))
+    const plan = buildSyncPlan(dir, sections, deriveProjectName(read('RULES.md')))
+    expect(plan.find((p) => p.path === 'CLAUDE.md')?.drift).toBe(false)
+  })
+
+  it('반복 sync 가 백업을 churn 하지 않음 — 사용자 원본 백업 보존', async () => {
+    fs.writeFileSync(path.join(dir, '.cursorrules'), '6개월 튜닝한 손글 규칙\n', 'utf-8')
+    await syncCore(dir, {}, alwaysYes) // Day1 — 원본 백업
+    const day1 = listBackups(dir)[0]
+    expect(
+      fs.readFileSync(path.join(day1.dir, '.cursorrules'), 'utf-8')
+    ).toBe('6개월 튜닝한 손글 규칙\n')
+    // 원본 무변경 상태로 sync 12회 더 — CLAUDE.md 가 churn 하면 Day1 백업이 evict 됨
+    for (let i = 0; i < 12; i++) await syncCore(dir, {}, alwaysYes)
+    const stillThere = listBackups(dir).some((b) => b.id === day1.id)
+    expect(stillThere).toBe(true) // Day1 백업이 남아있어야 (멱등이면 백업 자체가 1회만)
+  })
 })

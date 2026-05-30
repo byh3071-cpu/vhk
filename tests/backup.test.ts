@@ -84,6 +84,18 @@ describe('saveBackup', () => {
       .filter((l) => l.trim() === 'backups/').length
     expect(count).toBe(1)
   })
+
+  // 회귀: 같은 ms 타임스탬프로 연속 백업 시 디렉터리 충돌로 첫 백업이 덮여 영구 유실되면 안 됨.
+  it('같은 stamp 재호출 → 유니크 디렉터리 (첫 백업 덮어쓰기 방지)', () => {
+    write('.cursorrules', 'FIRST')
+    const a = saveBackup(['.cursorrules'], dir, '2026-09-09T00-00-00-000Z')
+    write('.cursorrules', 'SECOND')
+    const b = saveBackup(['.cursorrules'], dir, '2026-09-09T00-00-00-000Z')
+    expect(a.id).not.toBe(b.id)
+    expect(fs.readFileSync(path.join(a.dir, '.cursorrules'), 'utf-8')).toBe('FIRST')
+    expect(fs.readFileSync(path.join(b.dir, '.cursorrules'), 'utf-8')).toBe('SECOND')
+    expect(listBackups(dir).length).toBe(2)
+  })
 })
 
 describe('listBackups', () => {

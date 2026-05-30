@@ -65,7 +65,14 @@ function walkRelFiles(baseDir: string, cur = baseDir): string[] {
  * 첫 호출에서 `.vhk/.gitignore` 에 backups/ 보장.
  */
 export function saveBackup(files: string[], rootDir: string, stamp?: string): BackupInfo {
-  const id = stamp ?? fsSafeStamp(new Date())
+  // 충돌 방지: 같은 ms(또는 같은 명시 stamp)로 재호출 시 기존 백업을 덮어쓰면 직전 원본이
+  // 영구 유실된다. 디렉터리가 이미 있으면 suffix 를 붙여 유니크화(시간순 정렬도 보존).
+  const baseId = stamp ?? fsSafeStamp(new Date())
+  let id = baseId
+  let n = 1
+  while (fs.existsSync(path.join(rootDir, BACKUPS_REL, id))) {
+    id = `${baseId}-${n++}`
+  }
   const backupDir = path.join(rootDir, BACKUPS_REL, id)
   const saved: string[] = []
 

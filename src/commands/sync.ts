@@ -148,8 +148,10 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
     CLAUDE_MD_KEYS.some(k => s.title.includes(k))
   )
 
-  const statusMatch = existing.match(/## 현재 상태[\s\S]*?(?=\n## |$)/)
-  const statusSection = statusMatch ? statusMatch[0] : ''
+  // 멱등성: '## 현재 상태' 캡처가 자동생성 배너(> ⚡ …)까지 흡수하면 toClaudeMd 가 매번
+  // 배너를 또 추가해 CLAUDE.md 가 무한 증가 → 매 sync drift → 백업 churn. 배너 경계에서 멈춘다.
+  const statusMatch = existing.match(/## 현재 상태[\s\S]*?(?=\n## |\n> ⚡|$)/)
+  const statusSection = statusMatch ? statusMatch[0].trimEnd() : ''
   const header = existing.split('## ')[0].trim()
 
   const lines = [
@@ -247,6 +249,8 @@ export function buildSyncPlan(
     const fullPath = path.join(rootDir, target.path)
     const exists = fs.existsSync(fullPath)
     const newContent = target.generate(sections, projectName)
+    // drift = 정규화 후 비교. 공백/EOL(CRLF)-only 차이는 의도적으로 drift 아님(거짓경보·백업 churn 방지)
+    // → 그 차이는 백업 없이 덮어써질 수 있으나 규칙 본문은 절대 손실 안 됨(범위 한정).
     const drift = exists
       ? normalizeForCompare(fs.readFileSync(fullPath, 'utf-8')) !== normalizeForCompare(newContent)
       : false
