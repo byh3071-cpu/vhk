@@ -1,4 +1,5 @@
 import { routeNaturalLanguage } from './nlp-router.js'
+import { CONTAINER_SUBCOMMANDS, CONTAINER_ALIASES } from './command-registry.js'
 
 /** Commander에 등록된 서브커맨드·별칭 (첫 토큰) */
 export const KNOWN_COMMAND_TOKENS = new Set([
@@ -40,6 +41,8 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'blocker', '블로커',
   'learn', '교훈',
   'resume', '재개',
+  'mode', '모드',
+  'verify', '사전점검',
   'help',
 ])
 
@@ -51,24 +54,18 @@ function isOptionToken(token: string): boolean {
  * 서브커맨드를 갖는 컨테이너 명령 → 실제 서브커맨드 이름 목록.
  * `goal check` · `ref add` · `memory list` 처럼 rest[1] 이 실제 서브커맨드면
  * commander 가 직접 처리한다(자연어 라우터가 가로채지 못하게 — R1: 명령어 매칭 우선).
- * 서브커맨드는 영문(commander 정의)이고, 첫 토큰은 영문/한글 별칭 둘 다 허용한다.
+ *
+ * 단일 소스: `command-registry.ts` 에서 파생(영문) + 한글 별칭도 같은 집합을 공유.
+ * (이전엔 여기 하드코딩 복제였다 → commander 정의와 드리프트 → R1 재발 위험. 레지스트리로 통일.)
  */
-const COMMAND_SUBCOMMANDS: Record<string, readonly string[]> = {
-  goal: ['list', 'next', 'check', 'init', 'done'],
-  목표: ['list', 'next', 'check', 'init', 'done'],
-  ref: ['add', 'list', 'open'],
-  레퍼런스: ['add', 'list', 'open'],
-  memory: ['add', 'list', 'remove'],
-  기억: ['add', 'list', 'remove'],
-  cloud: ['push', 'pull'],
-  클라우드: ['push', 'pull'],
-  secure: ['scan'],
-  보안: ['scan'],
-  design: ['palette'],
-  디자인: ['palette'],
-  env: ['check'],
-  환경변수: ['check'],
-}
+const COMMAND_SUBCOMMANDS: Record<string, readonly string[]> = (() => {
+  const map: Record<string, readonly string[]> = { ...CONTAINER_SUBCOMMANDS }
+  for (const [alias, canonical] of Object.entries(CONTAINER_ALIASES)) {
+    const subs = CONTAINER_SUBCOMMANDS[canonical]
+    if (subs) map[alias] = subs
+  }
+  return map
+})()
 
 /** rest[0]/rest[1] 이 실제 명령 경로(예: goal check)인가 — 맞으면 NL 가로채기 금지. */
 function isRealSubcommandPath(first: string, second: string | undefined): boolean {

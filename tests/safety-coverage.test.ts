@@ -1,0 +1,76 @@
+import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import {
+  HIGH_RISK_ACTIONS,
+  STRICT_EXTRA_ACTIONS,
+  NL_GUARDED_ACTIONS,
+} from '../src/lib/risk-policy.js'
+
+// 가드가 필요한 action 전체 = high-risk ∪ strict-extra(save/sync).
+const GUARDED = new Set<string>([...HIGH_RISK_ACTIONS, ...STRICT_EXTRA_ACTIONS])
+
+// 가드 대상 핸들러 함수명 → action. dispatch/메뉴에서 이 함수를 호출하면 위험 작업이 실행된다.
+const HANDLER_ACTION: Record<string, string> = {
+  undo: 'undo', deploy: 'deploy', publish: 'publish', migrate: 'migrate',
+  cloudPull: 'cloud-pull', env: 'env-write', save: 'save', sync: 'sync', resume: 'resume',
+}
+
+describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () => {
+  it('NL_GUARDED_ACTIONS 의 모든 action 은 가드대상(HIGH_RISK ∪ STRICT_EXTRA)', () => {
+    for (const a of Object.values(NL_GUARDED_ACTIONS)) {
+      expect(GUARDED.has(a), `${a} 가 가드대상 아님`).toBe(true)
+    }
+  })
+
+  it('자연어 dispatch: 가드대상 핸들러 호출 case 는 전부 NL_GUARDED_ACTIONS 등록(caller 가 runGuarded)', () => {
+    const src = readFileSync('src/lib/nlp-run.ts', 'utf-8')
+    const cases = [...src.matchAll(/case\s+'([^']+)':\s*\n?\s*return\s+(\w+)\(/g)]
+    for (const [, cmd, handler] of cases) {
+      const action = HANDLER_ACTION[handler]
+      if (action && GUARDED.has(action)) {
+        expect(Object.keys(NL_GUARDED_ACTIONS), `NL '${cmd}'→${handler}() 가드 미경유`).toContain(cmd)
+      }
+    }
+  })
+
+  it('CLI 등록: 가드대상 + CLI 커맨드 있는 action 은 전부 guardCli 경유 (index.ts)', () => {
+    const idx = readFileSync('src/index.ts', 'utf-8')
+    const CLI_ACTIONS = ['deploy', 'publish', 'migrate', 'env-write', 'cloud-pull', 'undo', 'resume', 'save', 'sync']
+    for (const a of CLI_ACTIONS) {
+      expect(idx.includes(`guardCli('${a}'`), `CLI '${a}' guardCli 미경유`).toBe(true)
+    }
+  })
+
+  it('인라인 메뉴 switch 등: 가드대상 핸들러 직접 호출 없음(전부 guardCli 경유)', () => {
+    const idx = readFileSync('src/index.ts', 'utf-8')
+    const direct = [...idx.matchAll(/return\s+(undo|save|sync|deploy|publish|migrate|env|cloudPull|resume)\(/g)]
+    expect(direct.map((m) => m[1]), '가드 미경유 직접 호출 발견').toEqual([])
+  })
+
+  it('mode 강등은 NL/MCP 로 불가 — 조회전용(NL mode() 무인자 + MCP mode 툴 없음)', () => {
+    const nlp = readFileSync('src/lib/nlp-run.ts', 'utf-8')
+    // 자연어 dispatch 의 mode 는 무인자 호출(조회) — mode('lite') 같은 변경 호출 없음
+    expect(nlp).toMatch(/case 'mode':\s*\n?\s*return mode\(\)/)
+    const server = readFileSync('src/mcp/server.ts', 'utf-8')
+    expect(/registerTool\(\s*['"]mode['"]/.test(server), 'MCP mode 툴 존재 → 강등 가능').toBe(false)
+  })
+
+  it("'delete' 는 진입점 없는 예약 액션(라이브 바이패스 아님)", () => {
+    const idx = readFileSync('src/index.ts', 'utf-8')
+    expect(idx.includes("guardCli('delete'")).toBe(false)
+    expect(idx.includes(".command('delete'")).toBe(false)
+    expect(Object.keys(NL_GUARDED_ACTIONS)).not.toContain('delete')
+  })
+
+  it('high-risk 별도 나열 리스트는 risk-policy 외에 없음(드리프트 소스 감사)', () => {
+    const files = ['src/lib/nlp-run.ts', 'src/index.ts', 'src/mcp/server.ts']
+    const names = ['undo', 'deploy', 'publish', 'migrate', 'cloud-pull', 'resume', 'env-write']
+    for (const f of files) {
+      const src = readFileSync(f, 'utf-8')
+      for (const lit of src.match(/\[[^\]]*\]/g) ?? []) {
+        const hit = names.filter((n) => lit.includes(`'${n}'`))
+        expect(hit.length, `${f} 에 high-risk 별도 나열 의심: ${lit.slice(0, 60)}`).toBeLessThan(3)
+      }
+    }
+  })
+})
