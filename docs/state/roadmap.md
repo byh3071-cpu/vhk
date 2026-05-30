@@ -71,3 +71,27 @@
 - **스테이지:** v1.4.0 출시 직후 = 포지셔닝 싸움(rulesync 상대). 보이는 것(포터빌리티 셀링·CI 초록불)이 출시 바늘을 움직임.
 - **goal 보강:** 견고성은 좋으나 사용자 눈에 안 보이고, 3개 모두 크래시·데이터손실 없는 구석 papercut. 당장 안 부딪힘.
 - **결론:** 로드맵(sync/CI) 먼저. goal 보강은 적어두고 정리 패스로.
+
+---
+
+## 6. Deferred — 적대 자기검증(PR #52) 잔여 MED
+
+> PR #52(배치1-3, goals 3·4·5) 머지 전 적대 자기검증으로 확인된 MED 6건. **머지 안 막음**(실손실 없음·단위테스트가 실보호). HIGH 1건(도움말→start scaffold)은 PR #52 에서 수정·머지 완료.
+
+### 배치5 대상 (R1 관련 2건 — 먼저)
+
+| # | 구멍 | 현재 동작 | 보강 방향 | 파일 |
+|---|------|-----------|-----------|------|
+| ① | `COMMAND_SUBCOMMANDS` 핸드싱크 | commander 서브커맨드 정의의 하드코딩 복제본 → 새 서브커맨드 추가 시 누락하면 R1(자연어 라우터가 명령 가로채기) 재발 | 단일 소스화(추출) 또는 드리프트 감지 스냅샷 가드 테스트 | `src/lib/cli-args.ts` (+ 테스트) |
+| ② | `check-goal-5.mjs` R1 게이트가 주석 grep | 가드 코드 삭제돼도 주석에 "가로채" 남으면 통과(거짓 게이트). 실제 보호는 단위테스트(cli-args)가 함 | grep → `isRealSubcommandPath` 정의+호출 코드구조 검증으로 교체 | `scripts/check-goal-5.mjs` |
+
+### 후속 (나머지 4건)
+
+| # | 구멍 | 보강 방향 | 파일 |
+|---|------|-----------|------|
+| ③ | `toAgentsMd`/`buildCodingDoc` 가 `CURSORRULES_KEYS`/`CLAUDE_MD_KEYS` 미매칭 섹션 조용히 누락 (`RULES_MD_TEMPLATE` 의 `## 프로젝트 정체성` 이 sync 산출물에서 사라짐, 원본 RULES.md엔 남음) | 키에 추가하거나 누락 시 경고 로그 | `src/commands/sync.ts` |
+| ④ | init adopt 대화형 경로 e2e 무테스트(순수함수만 단위테스트) | inquirer mock e2e 추가 | `tests/init.test.ts` |
+| ⑤ | MCP `runVhkCli` fallback **실행** 경로 무테스트(`pickCliInvocation` 결정로직만) | `composeInvocation` 추출 + 테스트 | `src/mcp/cli-path.ts` (+ 테스트) |
+| ⑥ | rules-import: 첫 `##` 이전 인트로 본문 손실(의도적·문서화됨), 빈 섹션 출처주석 오염 | 경고/문서화 또는 빈 섹션 스킵 | `src/lib/rules-import.ts` |
+
+작업 규칙(§4 와 동일): 각 케이스 **실패 테스트부터(TDD)** → 구현. `pnpm build && pnpm test:run` 통과. 새 의존성 금지.
