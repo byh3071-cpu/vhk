@@ -201,4 +201,22 @@ describe('자연어 라우팅', () => {
   it('"cloud pull 8fa29db959b3" → null (gistId 인자 보존 위해 commander)', () => {
     expect(routeNaturalLanguage('cloud pull 8fa29db959b3')).toBeNull()
   })
+
+  // restore(로컬 sync 백업) — "백업" + 복원동사. cloud-pull/undo 보다 우선.
+  it('"백업 복원해줘" → restore (cloud-pull 로 안 샘)', () => {
+    expect(routeNaturalLanguage('백업 복원해줘')?.command).toBe('restore')
+  })
+  it('"백업 되돌려" → restore (undo 로 안 샘)', () => {
+    expect(routeNaturalLanguage('백업 되돌려')?.command).toBe('restore')
+  })
+  it('"sync 백업 복구" → restore', () => {
+    expect(routeNaturalLanguage('sync 백업 복구')?.command).toBe('restore')
+  })
+  // 회귀 가드 — "백업" 없는 표현은 종전대로
+  it('"백업해줘" 는 여전히 cloud-push (복원동사 없음)', () => {
+    expect(routeNaturalLanguage('백업해줘')?.command).toBe('cloud-push')
+  })
+  it('"롤백해줘" 는 여전히 undo (백업 없음)', () => {
+    expect(routeNaturalLanguage('롤백해줘')?.command).toBe('undo')
+  })
 })

@@ -234,6 +234,31 @@ export const ko = {
     antigravityDone: '✅ .agents/rules/vhk-rules.md 맞춤 완료',
     antigravityTruncated: 'Antigravity 12,000자 제한으로 일부 절삭됨 — 전체는 RULES.md 참조',
     done: '🔄 맞추기 완료!',
+    // 안전 가드 (배치 0) — 덮어쓰기 전 백업·드리프트 확인·미리보기
+    backupSaved: (n: number, id: string) =>
+      `🛟 덮어쓰기 전 ${n}개 파일 백업함 → .vhk/backups/${id} (복원: vhk restore)`,
+    firstSync: '🛟 첫 sync — 기존 파일을 백업한 뒤 생성합니다.',
+    driftWarn: (p: string) =>
+      `⚠️ ${p} 가 RULES.md 생성본과 다릅니다 (직접 수정했을 수 있어요).`,
+    driftConfirm: (n: number) =>
+      `위 ${n}개 파일의 기존 내용을 덮어쓸까요? (백업은 이미 저장됨)`,
+    skipped: (p: string) => `⏭️  건너뜀: ${p} (덮어쓰기 거부 — 백업만 보관)`,
+    dryRunHeader: '🔎 미리보기 (--dry-run) — 실제 파일 변경 없음',
+    dryRunWouldWrite: (p: string, drift: boolean) =>
+      `  ${drift ? '✏️  변경됨' : '·  동일'} : ${p}`,
+    nonTtyAuto: (n: number, id: string) =>
+      `🤖 비대화형(CI/에이전트) — ${n}개 백업 후 진행. 복원: vhk restore ${id}`,
+  },
+  restore: {
+    title: '🛟 백업 복원',
+    notGitNote: '백업은 .vhk/backups/ 의 로컬 복사본에서 복원됩니다 (git 무관).',
+    noBackups: '복원할 백업이 없습니다. (vhk sync 가 덮어쓰기 전 자동 생성)',
+    selectPrompt: '복원할 백업을 선택하세요:',
+    listHeader: '📋 사용 가능한 백업 (최신순):',
+    restored: (n: number, id: string) => `✅ ${n}개 파일 복원 완료 (백업 ${id})`,
+    notFound: (id: string) => `❌ 백업을 찾을 수 없습니다: ${id}`,
+    nonTtyHint: '비대화형 모드 — 복원할 백업 id 를 인자로 지정하세요: vhk restore <id>',
+    cancelled: '복원 취소됨',
   },
   cloud: {
     pushTitle: '☁️ .vhk 클라우드 백업 (gist 올리기)',

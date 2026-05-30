@@ -15,6 +15,7 @@ import { doctor } from './commands/doctor.js'
 import { ship } from './commands/ship.js'
 import { save } from './commands/save.js'
 import { undo } from './commands/undo.js'
+import { restore } from './commands/restore.js'
 import { diff } from './commands/diff.js'
 import { status } from './commands/status.js'
 import { startMcpServer } from './mcp/server.js'
@@ -52,6 +53,7 @@ const KO_ALIASES: Record<string, string> = {
   doctor: '환경',
   save: '저장',
   undo: '되돌리기',
+  restore: '복원',
   status: '상태',
   diff: '변경',
   deploy: '배포',
@@ -157,8 +159,10 @@ program
   .command('sync')
   .alias('맞추기')
   .alias('규칙')
-  .description('RULES.md → .cursorrules + CLAUDE.md 동기화')
-  .action(sync)
+  .option('--dry-run', '미리보기만 — 파일 변경 없음')
+  .option('-y, --yes', 'drift 확인 프롬프트 생략(덮어쓰기 동의)')
+  .description('RULES.md → .cursorrules + CLAUDE.md 동기화 (덮어쓰기 전 자동 백업)')
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => { await sync(opts) })
 
 program
   .command('check')
@@ -223,6 +227,13 @@ program
   .alias('되돌리기')
   .description('최근 커밋 되돌리기')
   .action(async () => { await undo() })
+
+program
+  .command('restore')
+  .alias('복원')
+  .argument('[id]', '복원할 백업 id (생략 시 목록에서 선택)')
+  .description('sync 백업 복원 (.vhk/backups/ — 언커밋 덮어쓰기 복구)')
+  .action(async (id?: string) => { await restore(id) })
 
 program
   .command('status')
