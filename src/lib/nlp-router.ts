@@ -10,6 +10,7 @@ export type NlpCommand =
   | 'doctor'
   | 'save'
   | 'undo'
+  | 'restore'
   | 'diff'
   | 'status'
   | 'mcp-init'
@@ -69,6 +70,14 @@ function matchesKeywords(text: string, command: NlpCommand): boolean {
 }
 
 const RULES: NlpRule[] = [
+  // restore 는 cloud-pull/undo 보다 먼저 평가 — "백업 복원/되돌려" 가 클라우드 복원이나
+  // 커밋 되돌리기로 새지 않도록. "백업" 한정이라 bare "복원해"(=cloud-pull)·"되돌려"(=undo)는 안 가로챔.
+  {
+    command: 'restore',
+    explanation: 'sync 백업 복원 (vhk restore)',
+    confidence: 'high',
+    test: t => /백업/.test(t) && /(복원|복구|되돌려|되살려|롤백|restore)/.test(t),
+  },
   // 영문 `vhk cloud push|pull [id]` 은 commander 가 직접 처리(가로채기 금지) — 한국어 표현만 매칭.
   {
     command: 'cloud-pull',

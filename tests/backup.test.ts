@@ -1,0 +1,145 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import {
+  saveBackup,
+  listBackups,
+  restoreBackup,
+  pruneBackups,
+  fsSafeStamp,
+} from '../src/lib/backup.js'
+
+let dir: string
+beforeEach(() => {
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-backup-'))
+})
+afterEach(() => {
+  fs.rmSync(dir, { recursive: true, force: true })
+})
+
+function write(rel: string, content: string): void {
+  const full = path.join(dir, rel)
+  fs.mkdirSync(path.dirname(full), { recursive: true })
+  fs.writeFileSync(full, content, 'utf-8')
+}
+function read(rel: string): string {
+  return fs.readFileSync(path.join(dir, rel), 'utf-8')
+}
+
+describe('fsSafeStamp', () => {
+  it('콜론·점 제거 — Windows 파일명 금지문자 안전', () => {
+    const s = fsSafeStamp(new Date('2026-05-30T09:19:17.358Z'))
+    expect(s).not.toMatch(/[:.]/)
+    expect(s).toBe('2026-05-30T09-19-17-358Z')
+  })
+})
+
+describe('saveBackup', () => {
+  it('존재 파일 백업 + 중첩 구조 보존', () => {
+    write('.cursorrules', 'orig cursor')
+    write('.github/copilot-instructions.md', 'orig copilot')
+    const info = saveBackup(
+      ['.cursorrules', '.github/copilot-instructions.md'],
+      dir,
+      '2026-01-01T00-00-00-000Z'
+    )
+    expect(info.id).toBe('2026-01-01T00-00-00-000Z')
+    expect(info.files.sort()).toEqual(
+      ['.cursorrules', '.github/copilot-instructions.md'].sort()
+    )
+    expect(read('.vhk/backups/2026-01-01T00-00-00-000Z/.cursorrules')).toBe('orig cursor')
+    expect(read('.vhk/backups/2026-01-01T00-00-00-000Z/.github/copilot-instructions.md')).toBe(
+      'orig copilot'
+    )
+  })
+
+  it('존재하지 않는 파일은 건너뜀', () => {
+    write('.cursorrules', 'x')
+    const info = saveBackup(['.cursorrules', '.windsurfrules'], dir, '2026-01-01T00-00-00-000Z')
+    expect(info.files).toEqual(['.cursorrules'])
+  })
+
+  it('.vhk/.gitignore 에 backups/ 자동 추가 (없을 때 생성)', () => {
+    write('.cursorrules', 'x')
+    saveBackup(['.cursorrules'], dir, '2026-01-01T00-00-00-000Z')
+    expect(read('.vhk/.gitignore')).toMatch(/(^|\n)backups\/(\n|$)/)
+  })
+
+  it('기존 .vhk/.gitignore 보존하며 append', () => {
+    write('.vhk/.gitignore', 'memory.json\nrefs.json\n')
+    write('.cursorrules', 'x')
+    saveBackup(['.cursorrules'], dir, '2026-01-01T00-00-00-000Z')
+    const gi = read('.vhk/.gitignore')
+    expect(gi).toContain('memory.json')
+    expect(gi).toContain('backups/')
+  })
+
+  it('이미 backups/ 있으면 중복 추가 안 함', () => {
+    write('.vhk/.gitignore', 'backups/\n')
+    write('.cursorrules', 'x')
+    saveBackup(['.cursorrules'], dir, '2026-01-01T00-00-00-000Z')
+    const count = read('.vhk/.gitignore')
+      .split('\n')
+      .filter((l) => l.trim() === 'backups/').length
+    expect(count).toBe(1)
+  })
+})
+
+describe('listBackups', () => {
+  it('최신순 정렬', () => {
+    write('.cursorrules', 'x')
+    saveBackup(['.cursorrules'], dir, '2026-01-01T00-00-00-000Z')
+    saveBackup(['.cursorrules'], dir, '2026-02-01T00-00-00-000Z')
+    expect(listBackups(dir).map((b) => b.id)).toEqual([
+      '2026-02-01T00-00-00-000Z',
+      '2026-01-01T00-00-00-000Z',
+    ])
+  })
+  it('백업 폴더 없으면 빈 배열', () => {
+    expect(listBackups(dir)).toEqual([])
+  })
+})
+
+describe('restoreBackup', () => {
+  it('백업 내용으로 복원 — 현재 파일 덮어씀', () => {
+    write('.cursorrules', 'orig')
+    saveBackup(['.cursorrules'], dir, '2026-01-01T00-00-00-000Z')
+    write('.cursorrules', 'modified by user')
+    const restored = restoreBackup('2026-01-01T00-00-00-000Z', dir)
+    expect(restored).toEqual(['.cursorrules'])
+    expect(read('.cursorrules')).toBe('orig')
+  })
+  it('중첩 경로 복원 (삭제된 파일도)', () => {
+    write('.github/copilot-instructions.md', 'orig')
+    saveBackup(['.github/copilot-instructions.md'], dir, '2026-01-01T00-00-00-000Z')
+    fs.rmSync(path.join(dir, '.github/copilot-instructions.md'))
+    restoreBackup('2026-01-01T00-00-00-000Z', dir)
+    expect(read('.github/copilot-instructions.md')).toBe('orig')
+  })
+  it('없는 id → throw', () => {
+    expect(() => restoreBackup('nope', dir)).toThrow()
+  })
+})
+
+describe('pruneBackups', () => {
+  it('최근 N개만 유지, 나머지 삭제', () => {
+    write('.cursorrules', 'x')
+    for (const m of ['01', '02', '03', '04']) {
+      saveBackup(['.cursorrules'], dir, `2026-${m}-01T00-00-00-000Z`)
+    }
+    const deleted = pruneBackups(2, dir)
+    expect(listBackups(dir).map((b) => b.id)).toEqual([
+      '2026-04-01T00-00-00-000Z',
+      '2026-03-01T00-00-00-000Z',
+    ])
+    expect(deleted.sort()).toEqual(
+      ['2026-01-01T00-00-00-000Z', '2026-02-01T00-00-00-000Z'].sort()
+    )
+  })
+  it('N 이하면 삭제 0', () => {
+    write('.cursorrules', 'x')
+    saveBackup(['.cursorrules'], dir, '2026-01-01T00-00-00-000Z')
+    expect(pruneBackups(5, dir)).toEqual([])
+  })
+})

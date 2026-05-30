@@ -123,30 +123,60 @@ export function createVhkMcpServer(): McpServer {
   )
 
   // ─── undo ───────────────────────────────────────────────
-  server.registerTool('undo', { description: '최근 커밋 되돌리기 (soft reset, 변경사항은 유지)' }, async () => {
-    if (!isGitRepo()) {
-      return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
-    }
+  // 안전화: 에이전트 채팅창에서 즉시 git reset 은 위험 → 기본 dry-run.
+  // 되돌릴 대상을 먼저 보고하고, confirm:true 일 때만 실제 reset 실행.
+  server.registerTool(
+    'undo',
+    {
+      description: '최근 커밋 되돌리기 (soft reset). 기본은 미리보기 — confirm:true 일 때만 실제 실행.',
+      inputSchema: {
+        confirm: z
+          .boolean()
+          .optional()
+          .describe('true 일 때만 실제 git reset 실행 (기본 false = 미리보기만)'),
+      },
+    },
+    async ({ confirm }) => {
+      if (!isGitRepo()) {
+        return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
+      }
 
-    const last = safeExecFile('git', ['log', '--oneline', '-1'])
-    if (!last.ok || !last.out) {
-      return { content: [{ type: 'text', text: '📭 되돌릴 커밋이 없습니다.' }] }
-    }
+      const last = safeExecFile('git', ['log', '--oneline', '-1'])
+      if (!last.ok || !last.out) {
+        return { content: [{ type: 'text', text: '📭 되돌릴 커밋이 없습니다.' }] }
+      }
 
-    const reset = safeExecFile('git', ['reset', '--soft', 'HEAD~1'])
-    if (!reset.ok) {
-      return { content: [{ type: 'text', text: `❌ reset 실패: ${reset.err}` }] }
-    }
+      // 기본 dry-run — 명시적 confirm 없이는 reset 하지 않는다.
+      if (!confirm) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text:
+                `🔎 미리보기 — 되돌릴 커밋:\n${last.out}\n\n` +
+                `실제로 되돌리려면 confirm: true 로 다시 호출하세요.\n` +
+                `(soft reset — 변경사항은 스테이징 영역에 보존됩니다.)\n` +
+                `또는 터미널에서 \`vhk undo\` (대화형 확인).`,
+            },
+          ],
+        }
+      }
 
-    return {
-      content: [
-        {
-          type: 'text',
-          text: `✅ 되돌리기 완료!\n취소된 커밋: ${last.out}\n💡 변경사항은 스테이징 영역에 남아있습니다.`,
-        },
-      ],
+      const reset = safeExecFile('git', ['reset', '--soft', 'HEAD~1'])
+      if (!reset.ok) {
+        return { content: [{ type: 'text', text: `❌ reset 실패: ${reset.err}` }] }
+      }
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `✅ 되돌리기 완료!\n취소된 커밋: ${last.out}\n💡 변경사항은 스테이징 영역에 남아있습니다.`,
+          },
+        ],
+      }
     }
-  })
+  )
 
   // ─── status ─────────────────────────────────────────────
   server.registerTool('status', { description: '프로젝트 상태 대시보드 (브랜치/변경사항/최근 커밋)' }, async () => {

@@ -1,8 +1,11 @@
 import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
+import inquirer from 'inquirer'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { normalizeForCompare } from '../lib/drift.js'
+import { saveBackup, pruneBackups, ensureVhkIgnored } from '../lib/backup.js'
 
 interface RulesSection {
   title: string
@@ -197,7 +200,152 @@ export const SYNC_TARGETS: SyncTarget[] = [
   { path: '.agents/rules/vhk-rules.md', generate: toAntigravityRules, doneMessage: ko.sync.antigravityDone },
 ]
 
-export async function sync() {
+/** 보존할 백업 개수 — 무한 증식 방지(스케일/팀 고려). */
+const BACKUP_KEEP = 10
+/** 로컬 전용 sync 마커 — 존재 여부로 첫 sync 판정. 추적/클라우드 제외. */
+const SYNCED_MARKER_REL = path.join('.vhk', '.synced')
+
+export interface SyncOptions {
+  /** 미리보기만 — 디스크 변경 없음 */
+  dryRun?: boolean
+  /** drift 확인 프롬프트 생략(덮어쓰기 동의 간주) */
+  yes?: boolean
+}
+
+export interface SyncPlanItem {
+  path: string
+  newContent: string
+  doneMessage: string
+  /** 디스크에 이미 존재? */
+  exists: boolean
+  /** 기존 파일이 RULES.md 생성본과 다름(=수작업 수정 가능성). 정규화 비교(거짓 드리프트 방지). */
+  drift: boolean
+}
+
+export interface SyncResult {
+  dryRun: boolean
+  firstSync: boolean
+  backupId: string | null
+  backedUp: string[]
+  written: string[]
+  skipped: string[]
+  truncated: string[]
+  plan: SyncPlanItem[]
+}
+
+/**
+ * SYNC_TARGETS(순수 미러) + CLAUDE.md(하이브리드) 를 균일한 계획으로.
+ * drift 판정은 `normalizeForCompare`(lib/drift) 재활용 — CRLF/끝공백 거짓경보 방지.
+ */
+export function buildSyncPlan(
+  rootDir: string,
+  sections: RulesSection[],
+  projectName: string
+): SyncPlanItem[] {
+  const plan: SyncPlanItem[] = []
+  for (const target of SYNC_TARGETS) {
+    const fullPath = path.join(rootDir, target.path)
+    const exists = fs.existsSync(fullPath)
+    const newContent = target.generate(sections, projectName)
+    const drift = exists
+      ? normalizeForCompare(fs.readFileSync(fullPath, 'utf-8')) !== normalizeForCompare(newContent)
+      : false
+    plan.push({ path: target.path, newContent, doneMessage: target.doneMessage, exists, drift })
+  }
+  // CLAUDE.md — 하이브리드(현재 상태 보존 + 병합). 레지스트리 밖이지만 같은 가드 적용.
+  const claudePath = path.join(rootDir, 'CLAUDE.md')
+  const claudeExists = fs.existsSync(claudePath)
+  const existingClaude = claudeExists
+    ? fs.readFileSync(claudePath, 'utf-8')
+    : `# 기록 규칙 (${projectName})\n\n## 현재 상태\n- **Phase:** __FILL__\n- **블로커:** 없음\n- **다음 액션:** __FILL__\n- **마지막 업데이트:** ${new Date().toISOString().split('T')[0]}`
+  const claudeNew = toClaudeMd(sections, existingClaude)
+  const claudeDrift = claudeExists
+    ? normalizeForCompare(existingClaude) !== normalizeForCompare(claudeNew)
+    : false
+  plan.push({
+    path: 'CLAUDE.md',
+    newContent: claudeNew,
+    doneMessage: ko.sync.claudeDone,
+    exists: claudeExists,
+    drift: claudeDrift,
+  })
+  return plan
+}
+
+/**
+ * sync 핵심 — fs 작업 + 안전 가드. **콘솔 출력 없이 결과만 반환**(테스트 가능 seam).
+ * 절대 손실 금지: 덮어쓰기 전 (drift || 첫 sync) 파일을 무조건 백업.
+ * confirmOverwrite: drift 파일을 덮어쓸지 결정 — TTY면 inquirer, 비대화형/--yes면 자동 true 를 호출부가 주입.
+ * 백업이 먼저라 confirm 결과와 무관하게 원본은 항상 복구 가능.
+ */
+export async function syncCore(
+  rootDir: string,
+  opts: SyncOptions,
+  confirmOverwrite: (drifted: SyncPlanItem[]) => Promise<boolean>
+): Promise<SyncResult> {
+  const rulesContent = fs.readFileSync(path.join(rootDir, 'RULES.md'), 'utf-8')
+  const sections = parseRulesMd(rulesContent)
+  const projectName = deriveProjectName(rulesContent)
+  const plan = buildSyncPlan(rootDir, sections, projectName)
+  const firstSync = !fs.existsSync(path.join(rootDir, SYNCED_MARKER_REL))
+
+  // --dry-run — 어떤 디스크 변경도 하지 않는다(백업·쓰기·마커 전부 생략)
+  if (opts.dryRun) {
+    return {
+      dryRun: true,
+      firstSync,
+      backupId: null,
+      backedUp: [],
+      written: [],
+      skipped: [],
+      truncated: [],
+      plan,
+    }
+  }
+
+  // 덮어쓰기 전 백업 — 존재 && (drift || 첫 sync)
+  const toBackup = plan.filter((p) => p.exists && (p.drift || firstSync)).map((p) => p.path)
+  let backupId: string | null = null
+  let backedUp: string[] = []
+  if (toBackup.length) {
+    const info = saveBackup(toBackup, rootDir)
+    pruneBackups(BACKUP_KEEP, rootDir)
+    backupId = info.id
+    backedUp = info.files
+  }
+
+  // drift 동의 — drift 있을 때만 묻는다(백업은 이미 저장됨)
+  const drifted = plan.filter((p) => p.drift)
+  const overwriteDrift = drifted.length ? await confirmOverwrite(drifted) : true
+
+  const written: string[] = []
+  const skipped: string[] = []
+  const truncated: string[] = []
+  for (const item of plan) {
+    // drift 인데 덮어쓰기 거부 → 사용자 수정 보존(쓰기 스킵). 신규·무드리프트는 항상 쓴다.
+    if (item.drift && !overwriteDrift) {
+      skipped.push(item.path)
+      continue
+    }
+    const fullPath = path.join(rootDir, item.path)
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true }) // 중첩 경로(.github/·.agents/rules/) 보장
+    fs.writeFileSync(fullPath, item.newContent, 'utf-8')
+    written.push(item.path)
+    // 절삭 마커는 antigravity 만 생성 — 전체 마커 문구로 한정(오탐 방지)
+    if (item.newContent.includes('Antigravity 12,000자 제한으로 절삭됨')) {
+      truncated.push(item.path)
+    }
+  }
+
+  // 동기화 마커(로컬 전용) — 다음 실행 firstSync 판정용
+  fs.mkdirSync(path.join(rootDir, '.vhk'), { recursive: true })
+  fs.writeFileSync(path.join(rootDir, SYNCED_MARKER_REL), new Date().toISOString() + '\n', 'utf-8')
+  ensureVhkIgnored(rootDir, '.synced')
+
+  return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan }
+}
+
+export async function sync(opts: SyncOptions = {}): Promise<void> {
   console.log(chalk.bold(`\n${ko.sync.title}\n`))
 
   const cwd = process.cwd()
@@ -217,33 +365,60 @@ export async function sync() {
     return
   }
 
-  const rulesContent = fs.readFileSync(rulesPath, 'utf-8')
-  const sections = parseRulesMd(rulesContent)
+  const sections = parseRulesMd(fs.readFileSync(rulesPath, 'utf-8'))
   console.log(chalk.dim(`  📄 RULES.md 파싱 완료 — ${sections.length}개 섹션`))
 
-  const projectName = deriveProjectName(rulesContent)
-
-  // 순수 미러 대상 — SYNC_TARGETS 레지스트리 루프 (드리프트 점검과 동일 출처)
-  for (const target of SYNC_TARGETS) {
-    const fullPath = path.join(cwd, target.path)
-    fs.mkdirSync(path.dirname(fullPath), { recursive: true }) // 중첩 경로(.github/·.agents/rules/) 보장
-    const content = target.generate(sections, projectName)
-    fs.writeFileSync(fullPath, content, 'utf-8')
-    console.log(chalk.green(`  ${target.doneMessage}`))
-    // 절삭 마커는 antigravity 만 생성 — 느슨한 '절삭됨' 매칭은 사용자 규칙에 그 단어가
-    // 있을 때 오탐 → 전체 마커 문구로 한정.
-    if (content.includes('Antigravity 12,000자 제한으로 절삭됨')) {
-      console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))
-    }
+  // 비대화형(CI/MCP subprocess: isTTY=false)·--yes → 자동 덮어쓰기(멈춤 금지).
+  // TTY → drift 시 inquirer 확인(기본 거부). 어느 쪽이든 백업이 먼저라 손실 0.
+  const interactive = !!process.stdout.isTTY && !opts.yes
+  const confirmOverwrite = async (drifted: SyncPlanItem[]): Promise<boolean> => {
+    if (!interactive) return true
+    for (const d of drifted) console.log(chalk.yellow(`  ${ko.sync.driftWarn(d.path)}`))
+    const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+      {
+        type: 'confirm',
+        name: 'confirm',
+        message: ko.sync.driftConfirm(drifted.length),
+        default: false,
+      },
+    ])
+    return confirm
   }
 
-  // CLAUDE.md — 하이브리드(현재 상태 보존 + 병합)라 레지스트리 밖에서 별도 처리
-  const claudePath = path.join(cwd, 'CLAUDE.md')
-  const existingClaude = fs.existsSync(claudePath)
-    ? fs.readFileSync(claudePath, 'utf-8')
-    : `# 기록 규칙 (${projectName})\n\n## 현재 상태\n- **Phase:** __FILL__\n- **블로커:** 없음\n- **다음 액션:** __FILL__\n- **마지막 업데이트:** ${new Date().toISOString().split('T')[0]}`
-  fs.writeFileSync(claudePath, toClaudeMd(sections, existingClaude), 'utf-8')
-  console.log(chalk.green(`  ${ko.sync.claudeDone}`))
+  const result = await syncCore(cwd, opts, confirmOverwrite)
+
+  if (result.dryRun) {
+    console.log(chalk.cyan(`\n${ko.sync.dryRunHeader}`))
+    for (const item of result.plan) {
+      console.log(ko.sync.dryRunWouldWrite(item.path, item.exists && item.drift))
+    }
+    const wouldBackup = result.plan
+      .filter((p) => p.exists && (p.drift || result.firstSync))
+      .map((p) => p.path)
+    if (wouldBackup.length) {
+      console.log(chalk.dim(`\n  백업 예정(${wouldBackup.length}): ${wouldBackup.join(', ')}`))
+    }
+    return
+  }
+
+  if (result.backupId) {
+    if (result.firstSync) console.log(chalk.cyan(`  ${ko.sync.firstSync}`))
+    if (!process.stdout.isTTY) {
+      console.log(chalk.yellow(`  ${ko.sync.nonTtyAuto(result.backedUp.length, result.backupId)}`))
+    } else {
+      console.log(chalk.cyan(`  ${ko.sync.backupSaved(result.backedUp.length, result.backupId)}`))
+    }
+  }
+  for (const p of result.written) {
+    const item = result.plan.find((i) => i.path === p)
+    if (item) console.log(chalk.green(`  ${item.doneMessage}`))
+  }
+  for (const _ of result.truncated) {
+    console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))
+  }
+  for (const p of result.skipped) {
+    console.log(chalk.gray(`  ${ko.sync.skipped(p)}`))
+  }
 
   console.log(chalk.bold.green(`\n${ko.sync.done}`))
   console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md + .windsurfrules'))
