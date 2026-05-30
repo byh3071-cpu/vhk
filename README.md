@@ -26,6 +26,8 @@ AI 코딩 도구는 저마다 규칙 파일이 다르고(`.cursorrules`·`CLAUDE
 | 새 프로젝트 세팅 반복 | 유형별 문서·규칙·맥락 뼈대를 한 번에 | `vhk init` |
 
 > 규칙·맥락은 **자동이 아니라 명령으로** 동기화됩니다(한 줄이면 충분). 개인 메모(`memory.json`)·참고링크(`refs.json`)는 프라이버시 위해 기본 제외, 새 PC의 코드 자체는 `git clone` 으로 받습니다.
+>
+> ℹ️ Windsurf·Copilot·Antigravity 출력 경로·포맷은 각 도구의 **공식 문서 기준**으로 생성합니다(`.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/`). Antigravity 는 파일당 12,000자 제한이 있어 초과 시 안전하게 절삭하고 전체는 `RULES.md` 에 남습니다.
 
 ## 3분 안에 시작하기 (Getting Started)
 
