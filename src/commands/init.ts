@@ -20,6 +20,7 @@ import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { detectExistingRuleFiles, buildAdoptedRules } from '../lib/rules-import.js'
+import { detectProjectStack } from '../lib/stack-detect.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -121,7 +122,11 @@ export async function init(options: InitOptions = {}) {
     process.exit(1)
   }
 
-  const stack = STACK_PRESETS[answers.type]
+  // VHK-001: 기존 프로젝트면 package.json 의존성에서 실제 스택 감지(프리셋 하드코딩 대신).
+  // 감지 실패(deps 없음/greenfield)면 --type 프리셋으로 폴백.
+  const detected = detectProjectStack(process.cwd())
+  const stack = detected ?? STACK_PRESETS[answers.type]
+  if (detected) console.log(chalk.dim('  🔎 package.json 의존성에서 실제 스택 감지'))
   console.log(chalk.dim(`\n${ko.init.recommendedStack} ${stack.join(' + ')}\n`))
 
   if (!options.yes) {
