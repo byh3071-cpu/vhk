@@ -10,7 +10,7 @@ import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/aud
 import { readJsonFile } from '../lib/read-json.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 import { getVhkVersion } from '../lib/version.js'
-import { resolveVhkCliInvocation, type VhkCliInvocation } from './cli-path.js'
+import { resolveVhkCliInvocation, composeInvocation, type VhkCliInvocation } from './cli-path.js'
 
 // package.json 의 version 을 런타임에 읽음 (lib/version 재사용) — drift 방지.
 // dist/index.js 와 dist/mcp/index.js 둘 다 lib/version 의 candidate 경로로 해석됨.
@@ -42,8 +42,8 @@ function runVhkCli(
   args: string[],
   headline: string
 ): { content: [{ type: 'text'; text: string }] } {
-  const cli = getVhkCli()
-  const result = safeExecFile(cli.bin, [...cli.prefixArgs, ...args], {
+  const { bin, args: fullArgs } = composeInvocation(getVhkCli(), args)
+  const result = safeExecFile(bin, fullArgs, {
     env: { FORCE_COLOR: '0', NO_COLOR: '1' },
   })
   const body = stripAnsi(result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`))

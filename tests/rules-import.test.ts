@@ -91,3 +91,18 @@ describe('rules-import — RULES.md 표준 섹션 병합', () => {
     expect(out).toContain('Node.js')
   })
 })
+
+describe('rules-import — ⑥ 인트로 보존 + 빈 섹션 0 (회귀)', () => {
+  it('첫 ## 이전 인트로를 서문으로 보존한다 (버리지 않음 → 잃으면 FAIL)', () => {
+    const files = [{ path: '.cursorrules', content: '# C\n\n중관리자 인트로 메모입니다\n\n## 코딩 규칙\n- a\n' }]
+    const out = buildAdoptedRules(files, 'P')
+    expect(out).toContain('중관리자 인트로 메모입니다')
+  })
+
+  it('본문 없는 빈 섹션은 제목/출처주석을 만들지 않는다 (오염 0)', () => {
+    const files = [{ path: '.cursorrules', content: '## 빈섹션\n\n## 코딩 규칙\n- a\n' }]
+    const out = buildAdoptedRules(files, 'P')
+    expect(out).not.toContain('## 빈섹션')
+    expect(out).toContain('## 코딩 규칙')
+  })
+})
