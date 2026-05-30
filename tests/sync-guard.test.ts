@@ -60,6 +60,28 @@ describe('syncCore — 첫 sync', () => {
   })
 })
 
+describe('syncCore — ③ 미매칭 섹션 노출 (조용히 누락 방지, 회귀)', () => {
+  it('매핑 안 되는 섹션이 있으면 result.unmapped 에 노출 — 조용히 사라지면 FAIL', async () => {
+    fs.writeFileSync(
+      path.join(dir, 'RULES.md'),
+      '# 데모 — Rules\n\n## 프로젝트 정체성\n- 한 줄: x\n\n## 코딩 규칙\n- a\n',
+      'utf-8'
+    )
+    const r = await syncCore(dir, {}, alwaysYes)
+    expect(r.unmapped).toContain('프로젝트 정체성')
+  })
+
+  it('표준 섹션 + 서문만이면 unmapped 0 (정상 sync 경고 노이즈 0)', async () => {
+    fs.writeFileSync(
+      path.join(dir, 'RULES.md'),
+      '# 데모 — Rules\n\n## 서문\n인트로\n\n## 코딩 규칙\n- a\n\n## 기록 규칙\n- b\n',
+      'utf-8'
+    )
+    const r = await syncCore(dir, {}, alwaysYes)
+    expect(r.unmapped).toEqual([])
+  })
+})
+
 describe('syncCore — 5-tool 산출 검증 (배치1 §C)', () => {
   it('copilot-instructions · vhk-rules · windsurfrules 가 실제 생성된다', async () => {
     const r = await syncCore(dir, {}, alwaysYes)

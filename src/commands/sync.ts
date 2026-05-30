@@ -6,6 +6,7 @@ import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { normalizeForCompare } from '../lib/drift.js'
 import { saveBackup, pruneBackups, ensureVhkIgnored } from '../lib/backup.js'
+import { PREAMBLE_TITLE } from '../lib/rules-import.js'
 
 interface RulesSection {
   title: string
@@ -23,7 +24,8 @@ const CLAUDE_MD_KEYS = ['기록', '로그', 'ADR', '트러블슈팅', 'TIL', '/d
 export function findUnmappedSections(sections: RulesSection[]): string[] {
   const allKeys = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
   return sections
-    .filter((s) => !allKeys.some((k) => s.title.includes(k)))
+    // PREAMBLE_TITLE(서문)은 도구 산출물 대상이 아니라 RULES.md 보존용 → 미매칭 경고에서 제외(노이즈 0).
+    .filter((s) => s.title !== PREAMBLE_TITLE && !allKeys.some((k) => s.title.includes(k)))
     .map((s) => s.title)
 }
 
@@ -294,6 +296,8 @@ export interface SyncResult {
   skipped: string[]
   truncated: string[]
   plan: SyncPlanItem[]
+  /** ③ 어느 타깃에도 매핑 안 돼 산출물에서 빠지는 섹션 제목 — 조용히 버리지 않게 호출자에 노출. */
+  unmapped: string[]
 }
 
 /**
@@ -353,6 +357,9 @@ export async function syncCore(
   const projectName = deriveProjectName(rulesContent)
   const plan = buildSyncPlan(rootDir, sections, projectName)
   const firstSync = !fs.existsSync(path.join(rootDir, SYNCED_MARKER_REL))
+  // ③ 실제 누락 발생 지점(섹션 → 타깃 매핑)에서 미매칭 섹션을 집계해 결과에 노출.
+  // 콘솔 출력은 호출자(sync()/MCP)가 result.unmapped 로 한다(syncCore 는 순수 seam 유지).
+  const unmapped = findUnmappedSections(sections)
 
   // --dry-run — 어떤 디스크 변경도 하지 않는다(백업·쓰기·마커 전부 생략)
   if (opts.dryRun) {
@@ -365,6 +372,7 @@ export async function syncCore(
       skipped: [],
       truncated: [],
       plan,
+      unmapped,
     }
   }
 
@@ -407,7 +415,7 @@ export async function syncCore(
   fs.writeFileSync(path.join(rootDir, SYNCED_MARKER_REL), new Date().toISOString() + '\n', 'utf-8')
   ensureVhkIgnored(rootDir, '.synced')
 
-  return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan }
+  return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan, unmapped }
 }
 
 export async function sync(opts: SyncOptions = {}): Promise<void> {
@@ -433,17 +441,6 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   const sections = parseRulesMd(fs.readFileSync(rulesPath, 'utf-8'))
   console.log(chalk.dim(`  📄 RULES.md 파싱 완료 — ${sections.length}개 섹션`))
 
-  // ③ 미매칭 섹션은 어느 산출물에도 안 실려 조용히 사라진다 → 경고(stderr)로 알린다.
-  const unmapped = findUnmappedSections(sections)
-  if (unmapped.length) {
-    console.error(
-      chalk.yellow(
-        `  ⚠️  ${unmapped.length}개 섹션이 어느 타깃에도 매핑 안 돼 산출물에서 제외됨: ${unmapped.join(', ')}` +
-          `\n     (코딩 규칙/기술 스택/커밋/기록 등 표준 제목을 쓰거나, 이 섹션은 RULES.md 에만 보존됩니다.)`
-      )
-    )
-  }
-
   // 비대화형(CI/MCP subprocess: isTTY=false)·--yes → 자동 덮어쓰기(멈춤 금지).
   // TTY → drift 시 inquirer 확인(기본 거부). 어느 쪽이든 백업이 먼저라 손실 0.
   const interactive = !!process.stdout.isTTY && !opts.yes
@@ -462,6 +459,16 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   }
 
   const result = await syncCore(cwd, opts, confirmOverwrite)
+
+  // ③ 누락 발생 지점(syncCore)이 집계한 미매칭 섹션을 호출자가 경고 — 조용히 사라지지 않게.
+  if (result.unmapped.length) {
+    console.error(
+      chalk.yellow(
+        `  ⚠️  ${result.unmapped.length}개 섹션이 어느 타깃에도 매핑 안 돼 산출물에서 제외됨: ${result.unmapped.join(', ')}` +
+          `\n     (코딩 규칙/기술 스택/커밋/기록 등 표준 제목을 쓰거나, 이 섹션은 RULES.md 에만 보존됩니다.)`
+      )
+    )
+  }
 
   if (result.dryRun) {
     console.log(chalk.cyan(`\n${ko.sync.dryRunHeader}`))

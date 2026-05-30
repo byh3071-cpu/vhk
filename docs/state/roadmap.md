@@ -85,14 +85,14 @@
 | ① | `COMMAND_SUBCOMMANDS` 핸드싱크 | commander 서브커맨드 정의의 하드코딩 복제본 → 새 서브커맨드 추가 시 누락하면 R1(자연어 라우터가 명령 가로채기) 재발 | 단일 소스화(추출) 또는 드리프트 감지 스냅샷 가드 테스트 | `src/lib/cli-args.ts` (+ 테스트) |
 | ② | `check-goal-5.mjs` R1 게이트가 주석 grep | 가드 코드 삭제돼도 주석에 "가로채" 남으면 통과(거짓 게이트). 실제 보호는 단위테스트(cli-args)가 함 | grep → `isRealSubcommandPath` 정의+호출 코드구조 검증으로 교체 | `scripts/check-goal-5.mjs` |
 
-### 후속 (나머지 4건)
+### 후속 (③④⑤⑥) — ✅ PR #58 + 마무리 PR 로 완료
 
-| # | 구멍 | 보강 방향 | 파일 |
+| # | 구멍 | 보강 방향 | 상태 |
 |---|------|-----------|------|
-| ③ | `toAgentsMd`/`buildCodingDoc` 가 `CURSORRULES_KEYS`/`CLAUDE_MD_KEYS` 미매칭 섹션 조용히 누락 (`RULES_MD_TEMPLATE` 의 `## 프로젝트 정체성` 이 sync 산출물에서 사라짐, 원본 RULES.md엔 남음) | 키에 추가하거나 누락 시 경고 로그 | `src/commands/sync.ts` |
-| ④ | init adopt 대화형 경로 e2e 무테스트(순수함수만 단위테스트) | inquirer mock e2e 추가 | `tests/init.test.ts` |
-| ⑤ | MCP `runVhkCli` fallback **실행** 경로 무테스트(`pickCliInvocation` 결정로직만) | `composeInvocation` 추출 + 테스트 | `src/mcp/cli-path.ts` (+ 테스트) |
-| ⑥ | rules-import: 첫 `##` 이전 인트로 본문 손실(의도적·문서화됨), 빈 섹션 출처주석 오염 | 경고/문서화 또는 빈 섹션 스킵 | `src/lib/rules-import.ts` |
+| ③ | sync 가 미매칭 섹션(`## 프로젝트 정체성`)을 조용히 누락 | `findUnmappedSections()` → **syncCore.result.unmapped** 노출 + sync()/MCP 경고(누락 발생 지점) | ✅ 회귀테스트(syncCore 경로): 조용히 사라지면 FAIL |
+| ④ | init adopt 대화형 경로 e2e 무테스트 | `tests/init-adopt.test.ts` inquirer mock e2e(감지→adopt→RULES.md 채택, 채택본 판별) | ✅ |
+| ⑤ | MCP `runVhkCli` fallback 실행 경로 무테스트 | `composeInvocation()` 순수 추출 + server 사용 + 단위테스트(인자 합성) | ✅ |
+| ⑥ | rules-import 첫 `##` 이전 인트로 손실·빈 섹션 오염 | 인트로 → `PREAMBLE_TITLE`('서문') 보존, 빈 섹션 생성 금지, 서문은 sync 미매칭 경고 제외(노이즈 0) | ✅ |
 
 > ✅ **배치4 대상(R1 2건)은 PR #55(goal 6)에서 완료** — `command-registry.ts` 단일소스 + program-introspect 드리프트 가드, check-goal-5 코드구조 검증.
 
