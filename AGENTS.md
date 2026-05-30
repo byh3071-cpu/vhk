@@ -3,6 +3,9 @@
 > VHK 의 자율 루프(`context → goal next → 작업 → goal check → goal done`) 안에서
 > 동작하는 모든 에이전트(사람·LLM·CI 봇)가 따라야 하는 공통 규약.
 > vspec/vooster `AGENTS.md` 패턴 차용, VHK 단일 패키지 맥락에 맞춰 축소.
+>
+> ⚡ **빠른 시작(토큰 절감):** 전체를 매번 읽기 부담되면 짧은 요약
+> `docs/context/agent-compact.md` 를 먼저 읽으세요. `vhk context --compact` 도 같은 규약을 참조합니다.
 
 ## You Are
 

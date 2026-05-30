@@ -4,6 +4,7 @@ import {
   countFileChanges,
   parseSyncCounts,
   formatSyncLabel,
+  selectStatusNextStep,
 } from '../src/commands/status.js'
 
 vi.mock('node:child_process')
@@ -55,5 +56,20 @@ describe('vhk status helpers', () => {
       behind: 1,
       hasUpstream: true,
     })
+  })
+})
+
+describe('status — 안전한 다음 액션 (배치3 §2: diff 우선)', () => {
+  it('변경사항이 있으면 vhk save 가 아니라 vhk diff 를 먼저 추천', () => {
+    const step = selectStatusNextStep(true)
+    expect(step.command).toBe('vhk diff')
+    expect(step.command).not.toBe('vhk save')
+    // 저장은 그 다음(대안) 액션으로만 안내
+    expect(step.alternative ?? '').toMatch(/save|저장/)
+  })
+
+  it('클린 상태면 다음 미션(goal next) 추천', () => {
+    const step = selectStatusNextStep(false)
+    expect(step.command).toBe('vhk goal next')
   })
 })

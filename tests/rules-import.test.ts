@@ -1,0 +1,93 @@
+import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import {
+  detectExistingRuleFiles,
+  buildAdoptedRules,
+  ADOPT_SOURCES,
+} from '../src/lib/rules-import.js'
+
+function tmp(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-adopt-'))
+}
+
+describe('rules-import — 기존 설정 파일 감지', () => {
+  it('존재하는 규칙 파일만 골라 경로+내용을 돌려준다', () => {
+    const dir = tmp()
+    fs.writeFileSync(path.join(dir, '.cursorrules'), '# c\n## 코딩 규칙\n- a\n', 'utf-8')
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), '# m\n## 기록 규칙\n- b\n', 'utf-8')
+    // .windsurfrules 는 없음 → 결과에서 제외돼야 함
+
+    const found = detectExistingRuleFiles(dir)
+    const paths = found.map((f) => f.path)
+    expect(paths).toContain('.cursorrules')
+    expect(paths).toContain('CLAUDE.md')
+    expect(paths).not.toContain('.windsurfrules')
+    expect(found.find((f) => f.path === '.cursorrules')?.content).toContain('- a')
+
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('중첩 경로(.github/copilot-instructions.md)도 감지한다', () => {
+    const dir = tmp()
+    fs.mkdirSync(path.join(dir, '.github'), { recursive: true })
+    fs.writeFileSync(
+      path.join(dir, '.github', 'copilot-instructions.md'),
+      '# x\n## 코딩 규칙\n- c\n',
+      'utf-8'
+    )
+    const found = detectExistingRuleFiles(dir)
+    expect(found.map((f) => f.path)).toContain('.github/copilot-instructions.md')
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('감지 대상 목록(ADOPT_SOURCES)에 5개 도구 파일이 들어있다', () => {
+    expect(ADOPT_SOURCES).toContain('.cursorrules')
+    expect(ADOPT_SOURCES).toContain('CLAUDE.md')
+    expect(ADOPT_SOURCES).toContain('AGENTS.md')
+    expect(ADOPT_SOURCES).toContain('.windsurfrules')
+    expect(ADOPT_SOURCES).toContain('.github/copilot-instructions.md')
+  })
+})
+
+describe('rules-import — RULES.md 표준 섹션 병합', () => {
+  it('각 출처 섹션을 출처 주석과 함께 RULES.md 로 병합한다', () => {
+    const files = [
+      { path: '.cursorrules', content: '# c\n## 코딩 규칙\n- execSync 금지\n' },
+      { path: 'CLAUDE.md', content: '# m\n## 기록 규칙\n- docs/log 작성\n' },
+    ]
+    const out = buildAdoptedRules(files, '데모')
+    expect(out).toContain('# 데모 — Rules')
+    expect(out).toContain('## 코딩 규칙')
+    expect(out).toContain('execSync 금지')
+    expect(out).toContain('## 기록 규칙')
+    expect(out).toContain('docs/log 작성')
+    // 출처 주석
+    expect(out).toContain('.cursorrules')
+    expect(out).toContain('CLAUDE.md')
+    expect(out).toMatch(/<!--[^>]*출처/)
+  })
+
+  it('같은 제목 섹션이 여러 출처에 있으면 한 제목 아래 병합한다', () => {
+    const files = [
+      { path: '.cursorrules', content: '## 코딩 규칙\n- a\n' },
+      { path: '.windsurfrules', content: '## 코딩 규칙\n- b\n' },
+    ]
+    const out = buildAdoptedRules(files, 'P')
+    // 제목은 한 번만, 두 출처 본문 모두 포함
+    expect(out.match(/^## 코딩 규칙$/gm)?.length).toBe(1)
+    expect(out).toContain('- a')
+    expect(out).toContain('- b')
+    expect(out).toContain('.cursorrules')
+    expect(out).toContain('.windsurfrules')
+  })
+
+  it('병합 결과가 sync 파서로 다시 파싱 가능하다', () => {
+    const files = [{ path: '.cursorrules', content: '## 기술 스택\n- Node.js\n' }]
+    const out = buildAdoptedRules(files, 'P')
+    // parseRulesMd 가 읽을 수 있는 ## 섹션 구조 유지
+    expect(out).toContain('## 기술 스택')
+    expect(out).toContain('Node.js')
+  })
+})

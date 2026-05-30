@@ -20,6 +20,17 @@ describe('자연어 라우팅', () => {
     expect(result?.command).toBe('start')
   })
 
+  describe('도움말 라우팅 — 읽기전용(스캐폴딩 금지) (배치3 §1 + 적대리뷰 HIGH 수정)', () => {
+    for (const phrase of ['도움말', '사용법', '명령어', '뭐 할 수 있어', '처음 뭐 해', 'help']) {
+      it(`"${phrase}" → help (start/scaffold 아님)`, () => {
+        const cmd = routeNaturalLanguage(phrase)?.command
+        expect(cmd).toBe('help')
+        // 회귀 가드: 도움말 요청이 절대 스캐폴딩(start)로 새지 않는다.
+        expect(cmd).not.toBe('start')
+      })
+    }
+  })
+
   it('"오늘 한 일 정리" → recap', () => {
     const result = routeNaturalLanguage('오늘 한 일 정리')
     expect(result?.command).toBe('recap')
