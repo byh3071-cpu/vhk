@@ -4,18 +4,21 @@ const mockExistsSync = vi.fn()
 const mockReadFileSync = vi.fn()
 const mockWriteFileSync = vi.fn()
 const mockAppendFileSync = vi.fn()
+const mockReaddirSync = vi.fn(() => [] as string[])
 
 vi.mock('node:fs', () => ({
   existsSync: (...a: unknown[]) => mockExistsSync(...a),
   readFileSync: (...a: unknown[]) => mockReadFileSync(...a),
   writeFileSync: (...a: unknown[]) => mockWriteFileSync(...a),
   appendFileSync: (...a: unknown[]) => mockAppendFileSync(...a),
+  readdirSync: (...a: unknown[]) => mockReaddirSync(...a),
 }))
 
 describe('env', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockReaddirSync.mockReturnValue([]) // 기본 — env 파일 없음
     process.exitCode = 0
   })
   afterEach(() => {
@@ -77,6 +80,7 @@ describe('env', () => {
       const s = String(p)
       return s === '.env.example' || s === '.env' || s === '.gitignore'
     })
+    mockReaddirSync.mockReturnValue(['.env.example', '.env'])
     mockReadFileSync.mockImplementation((p: unknown) => {
       const s = String(p)
       if (s === '.env.example') return 'API_KEY=\nDB_URL=\nMISSING_KEY='
@@ -96,6 +100,7 @@ describe('env', () => {
       const s = String(p)
       return s === '.env.example' || s === '.env' || s === '.gitignore'
     })
+    mockReaddirSync.mockReturnValue(['.env.example', '.env'])
     mockReadFileSync.mockImplementation((p: unknown) => {
       const s = String(p)
       if (s === '.env.example') return 'API_KEY=\nMISSING_KEY='
@@ -108,11 +113,52 @@ describe('env', () => {
     expect(process.exitCode).toBe(1)
   })
 
+  it('VHK-009: .env 없고 .env.local 에 키 정의 → 누락 아님(거짓양성 0) + exitCode 0', async () => {
+    mockExistsSync.mockImplementation((p: unknown) => {
+      const s = String(p)
+      return s === '.env.example' || s === '.env.local' || s === '.gitignore'
+    })
+    mockReaddirSync.mockReturnValue(['.env.example', '.env.local']) // .env 없음
+    mockReadFileSync.mockImplementation((p: unknown) => {
+      const s = String(p)
+      if (s === '.env.example') return 'ANTHROPIC_API_KEY=\nGYO_MODEL='
+      if (s === '.env.local') return 'ANTHROPIC_API_KEY=sk-x\nGYO_MODEL=opus'
+      if (s === '.gitignore') return '.env.local\n'
+      return ''
+    })
+    const logSpy = vi.spyOn(console, 'log')
+    const { envCheck } = await import('../src/commands/env.js')
+    await envCheck()
+    const logs = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(logs).toContain('모든 필수 환경변수') // 누락 0
+    expect(logs).not.toContain('누락된 환경변수')
+    expect(process.exitCode).toBe(0)
+  })
+
+  it('loadDefinedEnvKeys: .env + .env.local 머지, .example 제외', async () => {
+    mockReaddirSync.mockReturnValue(['.env', '.env.local', '.env.example', '.env.sample'])
+    mockReadFileSync.mockImplementation((p: unknown) => {
+      const s = String(p)
+      if (s === '.env') return 'A='
+      if (s === '.env.local') return 'B='
+      if (s === '.env.example') return 'SHOULD_NOT_APPEAR='
+      if (s === '.env.sample') return 'NOR_THIS='
+      return ''
+    })
+    const { loadDefinedEnvKeys } = await import('../src/commands/env.js')
+    const keys = loadDefinedEnvKeys()
+    expect(keys).toContain('A')
+    expect(keys).toContain('B')
+    expect(keys).not.toContain('SHOULD_NOT_APPEAR')
+    expect(keys).not.toContain('NOR_THIS')
+  })
+
   it('VHK-010: envCheck 누락 없으면 exitCode 0 유지', async () => {
     mockExistsSync.mockImplementation((p: unknown) => {
       const s = String(p)
       return s === '.env.example' || s === '.env' || s === '.gitignore'
     })
+    mockReaddirSync.mockReturnValue(['.env.example', '.env'])
     mockReadFileSync.mockImplementation((p: unknown) => {
       const s = String(p)
       if (s === '.env.example') return 'API_KEY=\nDB_URL='
