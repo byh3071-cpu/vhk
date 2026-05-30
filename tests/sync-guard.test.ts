@@ -7,6 +7,7 @@ import {
   buildSyncPlan,
   parseRulesMd,
   deriveProjectName,
+  toClaudeMd,
 } from '../src/commands/sync.js'
 import { listBackups } from '../src/lib/backup.js'
 
@@ -141,5 +142,40 @@ describe('buildSyncPlan — drift 판정', () => {
     for (let i = 0; i < 12; i++) await syncCore(dir, {}, alwaysYes)
     const stillThere = listBackups(dir).some((b) => b.id === day1.id)
     expect(stillThere).toBe(true) // Day1 백업이 남아있어야 (멱등이면 백업 자체가 1회만)
+  })
+})
+
+describe('toClaudeMd — 멱등성 + 사용자 콘텐츠 보존 (라운드2 회귀)', () => {
+  const sections = parseRulesMd(RULES)
+  const name = deriveProjectName(RULES)
+  const bannerCount = (s: string) => (s.match(/⚡ 아래 규칙 섹션은/g) || []).length
+
+  it('정상(현재 상태 有) 멱등 + 배너 1개', () => {
+    const a = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- **Phase:** P5\n\n## 기록 규칙\n- 세션 로그\n`)
+    expect(toClaudeMd(sections, a)).toBe(a)
+    expect(bannerCount(a)).toBe(1)
+  })
+
+  it("'## 현재 상태' 섹션 없는 CLAUDE.md 도 멱등 (배너 header 흡수 churn 방지)", () => {
+    const a = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 기록 규칙\n- 세션 로그\n`)
+    expect(toClaudeMd(sections, a)).toBe(a)
+    expect(bannerCount(a)).toBe(1)
+  })
+
+  it('이미 배너 여러 개 누적된(옛 버그 오염) CLAUDE.md → 1개로 수렴', () => {
+    const banner = '> ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.'
+    const a = toClaudeMd(
+      sections,
+      `# 기록 규칙 (${name})\n\n## 현재 상태\n- **Phase:** P5\n\n${banner}\n\n${banner}\n\n## 기록 규칙\n- 세션 로그\n`
+    )
+    expect(bannerCount(a)).toBe(1)
+  })
+
+  it("사용자가 '현재 상태'에 직접 쓴 '> ⚡' 인용줄 보존 (이전 수정의 절단 회귀 제거)", () => {
+    const c = `# 기록 규칙 (${name})\n\n## 현재 상태\n- **Phase:** P5\n> ⚡ 사용자가 직접 쓴 강조 메모\n- **다음 액션:** 출시\n\n## 기록 규칙\n- 세션 로그\n`
+    const out = toClaudeMd(sections, c)
+    expect(out).toContain('사용자가 직접 쓴 강조 메모')
+    expect(out).toContain('다음 액션')
+    expect(toClaudeMd(sections, out)).toBe(out) // 보존하면서도 멱등
   })
 })

@@ -70,8 +70,10 @@ export function saveBackup(files: string[], rootDir: string, stamp?: string): Ba
   const baseId = stamp ?? fsSafeStamp(new Date())
   let id = baseId
   let n = 1
+  // suffix 는 zero-pad — listBackups 의 문자열 정렬이 시간순과 어긋나지 않게
+  // (base-10 < base-2 같은 렉시컬 뒤틀림 방지 → pruneBackups 가 진짜 최신을 안 지움).
   while (fs.existsSync(path.join(rootDir, BACKUPS_REL, id))) {
-    id = `${baseId}-${n++}`
+    id = `${baseId}-${String(n++).padStart(3, '0')}`
   }
   const backupDir = path.join(rootDir, BACKUPS_REL, id)
   const saved: string[] = []

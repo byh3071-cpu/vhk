@@ -140,6 +140,9 @@ export function toAntigravityRules(sections: RulesSection[], projectName: string
   return truncateForAntigravity(buildCodingDoc('Antigravity Rules', sections, projectName))
 }
 
+/** CLAUDE.md 자동생성 규칙 섹션 경고 배너 — 출력과 멱등 dedup 이 공유하는 단일 출처. */
+const CLAUDE_AUTOGEN_BANNER = '> ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.'
+
 /**
  * RULES.md 섹션을 CLAUDE.md 포맷으로 변환
  */
@@ -148,18 +151,25 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
     CLAUDE_MD_KEYS.some(k => s.title.includes(k))
   )
 
-  // 멱등성: '## 현재 상태' 캡처가 자동생성 배너(> ⚡ …)까지 흡수하면 toClaudeMd 가 매번
-  // 배너를 또 추가해 CLAUDE.md 가 무한 증가 → 매 sync drift → 백업 churn. 배너 경계에서 멈춘다.
-  const statusMatch = existing.match(/## 현재 상태[\s\S]*?(?=\n## |\n> ⚡|$)/)
+  // 멱등성: 기존 본문에서 이전 자동생성 배너(정확히 일치하는 줄)를 모두 제거 후 정확히 1개만
+  // 재삽입. 이러면 배너가 header/현재상태 어디에 끼었든 누적되지 않고(매 sync drift→백업 churn
+  // 방지), 사용자가 '## 현재 상태'에 직접 쓴 임의 '> ⚡' 인용줄은 배너 문구 전체와 일치하지 않아
+  // 보존된다. (배너 접두만 보던 이전 수정의 사용자-인용줄 절단 회귀를 제거.)
+  const cleaned = existing
+    .split('\n')
+    .filter(line => line.trim() !== CLAUDE_AUTOGEN_BANNER)
+    .join('\n')
+
+  const statusMatch = cleaned.match(/## 현재 상태[\s\S]*?(?=\n## |$)/)
   const statusSection = statusMatch ? statusMatch[0].trimEnd() : ''
-  const header = existing.split('## ')[0].trim()
+  const header = cleaned.split('## ')[0].trim()
 
   const lines = [
     header,
     '',
     statusSection,
     '',
-    '> ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.',
+    CLAUDE_AUTOGEN_BANNER,
     '',
   ]
 

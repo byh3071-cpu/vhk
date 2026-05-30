@@ -96,6 +96,19 @@ describe('saveBackup', () => {
     expect(fs.readFileSync(path.join(b.dir, '.cursorrules'), 'utf-8')).toBe('SECOND')
     expect(listBackups(dir).length).toBe(2)
   })
+
+  // 회귀: suffix 가 zero-pad 안 되면 base-10 < base-2 (렉시컬) 라 11회+ 충돌 시 listBackups
+  // 최신순이 뒤틀려 pruneBackups 가 진짜 최신을 지운다. zero-pad 로 정렬 안정화 확인.
+  it('동일 stamp 12회 충돌 → listBackups 최신순 유지 (suffix zero-pad)', () => {
+    write('.cursorrules', 'x')
+    let lastId = ''
+    for (let i = 0; i < 12; i++) {
+      lastId = saveBackup(['.cursorrules'], dir, '2026-09-09T00-00-00-000Z').id
+    }
+    const list = listBackups(dir)
+    expect(list.length).toBe(12)
+    expect(list[0].id).toBe(lastId) // 가장 최근 생성본이 목록 최상단(최신순)
+  })
 })
 
 describe('listBackups', () => {
