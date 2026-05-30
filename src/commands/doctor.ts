@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { printNextStep } from '../lib/next-step.js'
 import { ko } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
-import { safeExecFile } from '../lib/exec.js'
+import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
 
 export interface CheckResult {
@@ -45,9 +45,10 @@ function getVhkVersion(): string | undefined {
 
 export function fetchLatestNpmVersion(packageName: string): string | undefined {
   // safeExecFile 은 argv 분리 (packageName 의 shell metachar 인젝션 차단).
-  // timeout 옵션은 미지원 — npm view 는 일반적으로 빠르나 네트워크 장애 시 hang 가능.
-  // 필요 시 lib/exec 에 timeout 추가 검토.
-  const result = safeExecFile('npm', ['view', packageName, 'version'])
+  // 네트워크 호출 — 레지스트리 장애/오프라인 시 hang 방지 위해 NETWORK_EXEC_TIMEOUT_MS 적용.
+  const result = safeExecFile('npm', ['view', packageName, 'version'], {
+    timeoutMs: NETWORK_EXEC_TIMEOUT_MS,
+  })
   if (!result.ok) return undefined
   const out = result.out
   if (/^\d+\.\d+\.\d+/.test(out)) return out

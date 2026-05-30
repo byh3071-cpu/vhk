@@ -26,6 +26,72 @@ interface Pkg {
   [key: string]: unknown
 }
 
+export interface GitReleaseResult {
+  // git add 성공 여부
+  added: boolean
+  // git commit 성공 여부
+  committed: boolean
+  // git tag 생성 성공 여부
+  tagged: boolean
+  // git push + push --tags 모두 성공 여부
+  pushed: boolean
+  // 사용자에게 보여줄 경고 (실패 단계 안내). 정상이면 undefined.
+  warning?: string
+}
+
+/**
+ * npm publish 성공 후 git 후처리 (add → commit → tag → push).
+ * 중요: commit 실패 시 tag 를 만들지 않는다 — 잘못된 HEAD 에 tag 가 박히는 것을 방지.
+ * npm publish 는 이미 성공했으므로 어떤 실패에서도 package.json 롤백은 하지 않는다.
+ */
+export function gitPostRelease(newVersion: string): GitReleaseResult {
+  const add = safeExecFile('git', ['add', 'package.json'])
+  if (!add.ok) {
+    return {
+      added: false,
+      committed: false,
+      tagged: false,
+      pushed: false,
+      warning: `git add 실패 — 커밋/태그/푸시를 건너뜁니다. 수동으로 처리하세요.`,
+    }
+  }
+
+  const commit = safeExecFile('git', ['commit', '-m', `chore: release v${newVersion}`])
+  if (!commit.ok) {
+    // commit hook 실패 / dirty state / nothing-to-commit 등 → tag 생성 금지 (HEAD 가 잘못된 곳을 가리킴).
+    return {
+      added: true,
+      committed: false,
+      tagged: false,
+      pushed: false,
+      warning:
+        `git commit 실패 — git tag 를 건너뜁니다 (잘못된 HEAD 에 태그 방지).\n` +
+        `    ${commit.err.slice(0, 300)}\n` +
+        `    수동 처리: git commit && git tag v${newVersion} && git push --tags`,
+    }
+  }
+
+  const tag = safeExecFile('git', ['tag', `v${newVersion}`])
+  if (!tag.ok) {
+    return {
+      added: true,
+      committed: true,
+      tagged: false,
+      pushed: false,
+      warning: `git tag 생성 실패 (수동: git tag v${newVersion}). ${tag.err.slice(0, 200)}`,
+    }
+  }
+
+  const push = safeExecFile('git', ['push'])
+  const pushTags = safeExecFile('git', ['push', '--tags'])
+  return {
+    added: true,
+    committed: true,
+    tagged: true,
+    pushed: push.ok && pushTags.ok,
+  }
+}
+
 export async function publish(): Promise<void> {
   console.log(chalk.bold('\n📦 ' + t('publish.title')))
   console.log(chalk.gray('─'.repeat(40)))
@@ -123,20 +189,15 @@ export async function publish(): Promise<void> {
   }
   console.log(chalk.green(`\n✔ ${t('publish.publishSuccess')}`))
 
-  // git tag (옵션 — 실패해도 publish는 성공)
-  const addResult = safeExecFile('git', ['add', 'package.json'])
-  if (addResult.ok) {
-    safeExecFile('git', ['commit', '-m', `chore: release v${newVersion}`])
-    const tagResult = safeExecFile('git', ['tag', `v${newVersion}`])
-    if (tagResult.ok) {
-      const pushResult = safeExecFile('git', ['push'])
-      const pushTagsResult = safeExecFile('git', ['push', '--tags'])
-      if (pushResult.ok && pushTagsResult.ok) {
-        console.log(chalk.green(`\n🏷️  git tag v${newVersion} 생성 + push 완료`))
-      } else {
-        console.log(chalk.yellow(`\n🏷️  git tag v${newVersion} 생성됨 (push는 수동으로)`))
-      }
-    }
+  // git 후처리 (옵션 — 실패해도 npm publish 는 이미 성공, package.json 롤백 안 함)
+  const git = gitPostRelease(newVersion)
+  if (git.warning) {
+    console.log(chalk.yellow(`\n⚠️  ${git.warning}`))
+    console.log(chalk.dim(`    npm 배포는 이미 성공했습니다 (v${newVersion}).`))
+  } else if (git.tagged && git.pushed) {
+    console.log(chalk.green(`\n🏷️  git tag v${newVersion} 생성 + push 완료`))
+  } else if (git.tagged) {
+    console.log(chalk.yellow(`\n🏷️  git tag v${newVersion} 생성됨 (push는 수동으로)`))
   }
 
   console.log(chalk.green.bold(`\n🎉 v${newVersion} 배포 완료!`))

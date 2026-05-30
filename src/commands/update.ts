@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
-import { safeExecFile } from '../lib/exec.js'
+import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import { printNextStep } from '../lib/next-step.js'
 
 const PACKAGE = '@byh3071/vhk'
@@ -28,7 +28,8 @@ function getCurrentVersion(): string {
 }
 
 function getLatestVersion(): string | null {
-  const r = safeExecFile('npm', ['view', PACKAGE, 'version'])
+  // 네트워크 호출 — 오프라인/레지스트리 장애 시 hang 방지.
+  const r = safeExecFile('npm', ['view', PACKAGE, 'version'], { timeoutMs: NETWORK_EXEC_TIMEOUT_MS })
   return r.ok ? r.out : null
 }
 
