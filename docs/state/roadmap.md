@@ -94,4 +94,16 @@
 | ⑤ | MCP `runVhkCli` fallback **실행** 경로 무테스트(`pickCliInvocation` 결정로직만) | `composeInvocation` 추출 + 테스트 | `src/mcp/cli-path.ts` (+ 테스트) |
 | ⑥ | rules-import: 첫 `##` 이전 인트로 본문 손실(의도적·문서화됨), 빈 섹션 출처주석 오염 | 경고/문서화 또는 빈 섹션 스킵 | `src/lib/rules-import.ts` |
 
+> ✅ **배치4 대상(R1 2건)은 PR #55(goal 6)에서 완료** — `command-registry.ts` 단일소스 + program-introspect 드리프트 가드, check-goal-5 코드구조 검증.
+
+### 배치4 적대리뷰(PR #55) 후속 — R2 MED (이번 범위 X, 기록만)
+
+> goal 6 안전가드 R2 적대검증 수렴 후 남긴 MED. **머지 안 막음**(설계상 의도/known, '보장 아님' 표기). 모두 후속 배치 후보.
+
+| # | 구멍 | 보강 방향 | 파일 |
+|---|------|-----------|------|
+| ⑦ | `HANDLER_ACTION` 테스트-로컬 매핑 — 완전성 가드가 *이 목록에도* 빠진 신규 핸들러는 못 잡음 | risk-policy 소스에서 파생하거나 "모든 risk-policy 액션에 핸들러 매핑 존재" 체크 추가 | `tests/safety-coverage.test.ts` |
+| ⑧ | 머지 게이트에 "untracked 무관 파일 0개" 미검증 — 리뷰 에이전트 stray 파일(theme-toggle 등) 재발 가능 | 게이트/CI 에 untracked 무관 파일 0개 체크 추가 | `scripts/check-*.mjs` 또는 CI |
+| ⑨ | undo/resume 가 `guardCli`(runGuarded) 경유하나 내부 자체 confirm(`--confirm`/대화형)과 중복 — 이중 가드 | undo/resume 의 가드 로직을 runGuarded 로 통합(일관성) | `src/commands/undo.ts`·`agent.ts` |
+
 작업 규칙(§4 와 동일): 각 케이스 **실패 테스트부터(TDD)** → 구현. `pnpm build && pnpm test:run` 통과. 새 의존성 금지.
