@@ -13,7 +13,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
-import { getRecentLearnings, isHardStopActive } from '../lib/state-files.js'
+import { getRecentLearnings, getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
 import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
 
@@ -138,12 +138,18 @@ function getVhkCommands(): string[] {
   ]
 }
 
-export async function context(): Promise<void> {
+/**
+ * vhk context — LLM 부팅 컨텍스트(.vhk/context.md) 생성.
+ * compact 모드(--compact): 토큰 절감형. 전체 명령 목록/깊은 트리 대신 Active Goal +
+ * 최근 learnings/blockers/memories + 참조 문서 링크만 담는다. 기본(full)은 기존 호환 유지.
+ */
+export async function context(opts: { compact?: boolean } = {}): Promise<void> {
+  const compact = opts.compact === true
   console.log(chalk.bold('\n🧠 ' + t('context.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
   const stack = extractTechStack()
-  const tree = buildTree('.').join('\n')
+  const tree = buildTree('.', '', compact ? 2 : 3).join('\n')
   const commands = getVhkCommands()
 
   const lines: string[] = []
@@ -167,12 +173,20 @@ export async function context(): Promise<void> {
   lines.push('```')
   lines.push('')
 
-  lines.push('## VHK CLI 명령어')
-  lines.push('')
-  for (const cmd of commands) {
-    lines.push(`- \`vhk ${cmd}\``)
+  // compact: 전체 명령 목록(~28줄)은 토큰만 먹으므로 한 줄 참조로 대체. full: 기존대로 전체.
+  if (compact) {
+    lines.push('## 명령어 (요약)')
+    lines.push('')
+    lines.push('- 전체 목록은 `vhk help` 또는 `COMMANDS.md` 참조 (compact 모드는 생략)')
+    lines.push('')
+  } else {
+    lines.push('## VHK CLI 명령어')
+    lines.push('')
+    for (const cmd of commands) {
+      lines.push(`- \`vhk ${cmd}\``)
+    }
+    lines.push('')
   }
-  lines.push('')
 
   if (existsSync('.vhk/memory.json')) {
     try {
@@ -180,9 +194,15 @@ export async function context(): Promise<void> {
         '.vhk/memory.json'
       )
       if (Array.isArray(memories) && memories.length > 0) {
+        // 토큰 절감: 전체가 아니라 최근 5개만 삽입 (full/compact 공통).
+        const recentMemories = memories.slice(-5)
         lines.push('## 저장된 결정사항')
         lines.push('')
-        for (const m of memories) {
+        if (memories.length > recentMemories.length) {
+          lines.push(`_최근 ${recentMemories.length}개만 표시 (전체 ${memories.length}개)_`)
+          lines.push('')
+        }
+        for (const m of recentMemories) {
           const date = new Date(m.addedAt).toLocaleDateString('ko-KR')
           lines.push(`- ${m.content} _(${date})_`)
         }
@@ -216,6 +236,28 @@ export async function context(): Promise<void> {
     lines.push('## Recent Learnings')
     lines.push('')
     for (const r of recent) lines.push(r)
+    lines.push('')
+  }
+
+  // 활성 blocker 최근 3건 — "지금 막힌 것"만. 해결(~~취소선~~) 항목은 제외.
+  const activeBlockers = getActiveBlockers(3)
+  if (activeBlockers.length > 0) {
+    lines.push('## Active Blockers')
+    lines.push('')
+    for (const b of activeBlockers) lines.push(b)
+    lines.push('')
+  }
+
+  // compact: 상세 문서를 통째로 넣지 않고 "필요시 열람할 파일" 참조 링크만 제공(토큰 절감).
+  if (compact) {
+    lines.push('## 참조 문서 (필요시 열람)')
+    lines.push('')
+    lines.push('- 작동 규약(요약): `docs/context/agent-compact.md`')
+    lines.push('- 규약 상세: `AGENTS.md`')
+    lines.push('- 기록 규칙: `CLAUDE.md`')
+    lines.push('- 명령 상세: `COMMANDS.md`')
+    lines.push('- 구조 상세: `docs/ARCHITECTURE.md`')
+    lines.push('- 현재 상태: `docs/state/next-task.md`')
     lines.push('')
   }
 

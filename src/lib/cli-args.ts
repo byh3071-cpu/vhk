@@ -48,6 +48,36 @@ function isOptionToken(token: string): boolean {
 }
 
 /**
+ * 서브커맨드를 갖는 컨테이너 명령 → 실제 서브커맨드 이름 목록.
+ * `goal check` · `ref add` · `memory list` 처럼 rest[1] 이 실제 서브커맨드면
+ * commander 가 직접 처리한다(자연어 라우터가 가로채지 못하게 — R1: 명령어 매칭 우선).
+ * 서브커맨드는 영문(commander 정의)이고, 첫 토큰은 영문/한글 별칭 둘 다 허용한다.
+ */
+const COMMAND_SUBCOMMANDS: Record<string, readonly string[]> = {
+  goal: ['list', 'next', 'check', 'init', 'done'],
+  목표: ['list', 'next', 'check', 'init', 'done'],
+  ref: ['add', 'list', 'open'],
+  레퍼런스: ['add', 'list', 'open'],
+  memory: ['add', 'list', 'remove'],
+  기억: ['add', 'list', 'remove'],
+  cloud: ['push', 'pull'],
+  클라우드: ['push', 'pull'],
+  secure: ['scan'],
+  보안: ['scan'],
+  design: ['palette'],
+  디자인: ['palette'],
+  env: ['check'],
+  환경변수: ['check'],
+}
+
+/** rest[0]/rest[1] 이 실제 명령 경로(예: goal check)인가 — 맞으면 NL 가로채기 금지. */
+function isRealSubcommandPath(first: string, second: string | undefined): boolean {
+  if (second === undefined) return false
+  const subs = COMMAND_SUBCOMMANDS[first]
+  return subs !== undefined && subs.includes(second)
+}
+
+/**
  * `vhk "보안 확인"`, `vhk 보안 확인`, `vhk 프로젝트 현황` 등
  * 서브커맨드가 아닌 자연어 입력을 감지. 감지 시 전체 문장 반환.
  */
@@ -71,7 +101,10 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
   if (firstIsKnown && rest.length === 1) return null
 
   if (firstIsKnown && rest.length > 1) {
-    // vhk 보안 확인 → secure 단독이 아니라 문장 전체를 NLP로
+    // R1 가드: 실제 서브커맨드 경로(goal check, ref add, memory list 등)는
+    // 명령어 매칭을 우선해 commander 가 처리한다 — 자연어 라우터가 절대 가로채지 않는다.
+    if (isRealSubcommandPath(first, rest[1])) return null
+    // vhk 보안 확인 → secure 단독이 아니라 문장 전체를 NLP로 (자연어는 fallback)
     if (routeNaturalLanguage(input)) return input
     return null
   }

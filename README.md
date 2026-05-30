@@ -29,6 +29,20 @@ AI 코딩 도구는 저마다 규칙 파일이 다르고(`.cursorrules`·`CLAUDE
 >
 > ℹ️ Windsurf·Copilot·Antigravity 출력 경로·포맷은 각 도구의 **공식 문서 기준**으로 생성합니다(`.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/`). Antigravity 는 파일당 12,000자 제한이 있어 초과 시 안전하게 절삭하고 전체는 `RULES.md` 에 남습니다.
 
+### Cursor / Copilot / Antigravity 에서 이렇게 말하세요
+
+규칙 파일을 동기화하면, 에이전트 채팅창에서 명령을 외우지 않고 한국어로 말해도 됩니다:
+
+| 하고 싶은 일 | 채팅창에 이렇게 | 실행되는 명령 |
+|------|------|------|
+| 규칙 한 벌로 동기화 | "규칙 동기화해줘" | `vhk sync` |
+| 지금 상태 보기 | "상태 알려줘" | `vhk status` |
+| 뭐 바뀌었는지 | "뭐 바뀌었어?" | `vhk diff` |
+| 처음이라 막막함 | "처음 뭐 해?" / "도움말" | `vhk start` |
+| 저장(커밋) | "저장해줘" | `vhk save` |
+
+> MCP를 등록하면(`vhk mcp-init`) 위 문장이 곧바로 vhk 도구 호출로 이어집니다. RULES.md 한 벌이 다섯 도구에 같은 규칙을 깔아줍니다.
+
 ## 3분 안에 시작하기 (Getting Started)
 
 ### 1. 설치
@@ -156,7 +170,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk audit` | `감사` | npm/pnpm/yarn 보안 취약점 감사 (`--fix`로 자동 수정, npm만) |
 | `vhk migrate [target]` | `전환` | 패키지 매니저 전환 (`npm` / `yarn` / `pnpm`, lockfile + node_modules 재구성) |
 | `vhk update` | `업데이트` | VHK CLI 최신 버전으로 셀프 업데이트 |
-| `vhk context` | `맥락` | 프로젝트 트리·스택·CLI 명령 목록을 `.vhk/context.md`로 자동 생성 (AI 어시스턴트용) |
+| `vhk context` | `맥락` | 프로젝트 트리·스택·CLI 명령 목록을 `.vhk/context.md`로 자동 생성 (AI 어시스턴트용). `--compact` 로 토큰 절감형(Active Goal + 최근 blockers/learnings/memories + 참조 링크) 출력 |
 | `vhk context-show` | `맥락보기` | 현재 컨텍스트 파일 내용 출력 |
 | `vhk memory` | `기억` | 결정사항 기억 관리 (`add` / `list` / `remove`, `.vhk/memory.json` 기반, 태그 지원) |
 | `vhk brief` | `브리핑` | 프로젝트 정보 + git 상태 + 결정사항 + 레퍼런스 통합 보고서 `.vhk/brief.md` |

@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { CLAUDE_MD_TEMPLATE } from '../templates/claude-md.js'
 import { CURSORRULES_TEMPLATE } from '../templates/cursorrules.js'
+import { RULES_MD_TEMPLATE } from '../templates/rules-md.js'
 import { PRD_TEMPLATE } from '../templates/prd.js'
 import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
@@ -18,6 +19,7 @@ import { writeFile, fileExists } from '../utils/file.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { detectExistingRuleFiles, buildAdoptedRules } from '../lib/rules-import.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -135,7 +137,32 @@ export async function init(options: InitOptions = {}) {
   }
 
   const cwd = process.cwd()
+
+  // adopt 모드(브라운필드) — 기존 도구별 규칙 파일을 RULES.md(SoT)로 가져오기 제안.
+  // 비대화형(--yes/notion)은 건너뛰고 greenfield 템플릿 RULES.md 를 그대로 쓴다.
+  let adoptedRules: string | null = null
+  if (!options.yes && !options.fromNotion) {
+    const existingRules = detectExistingRuleFiles(cwd)
+    if (existingRules.length > 0) {
+      const { adopt } = await inquirer.prompt([{
+        type: 'confirm',
+        name: 'adopt',
+        message: ko.init.adoptPrompt(
+          existingRules.length,
+          existingRules.map(f => f.path).join(', ')
+        ),
+        default: true,
+      }])
+      if (adopt) {
+        adoptedRules = buildAdoptedRules(existingRules, answers.name)
+        console.log(chalk.dim(`  ${ko.init.adoptPreview(existingRules.length)}`))
+      }
+    }
+  }
+
   const files = generateFiles(answers.name, answers.description, stack, prdContent, answers.type)
+  // adopt 채택 시 greenfield 템플릿 RULES.md 를 병합본으로 교체.
+  if (adoptedRules) files['RULES.md'] = adoptedRules
 
   log.step(ko.init.filesGenerating)
   for (const [filePath, content] of Object.entries(files)) {
@@ -198,6 +225,8 @@ export function generateFiles(
   return {
     'CLAUDE.md': CLAUDE_MD_TEMPLATE(name, stackStr),
     '.cursorrules': CURSORRULES_TEMPLATE(name, description, stackStr),
+    // RULES.md — 규칙 SoT. init 이 항상 생성해 sync 와 흐름을 연결한다.
+    'RULES.md': RULES_MD_TEMPLATE(name, description, stackStr),
     'docs/PRD.md': PRD_TEMPLATE(name, description, prd),
     'docs/ARCHITECTURE.md': ARCHITECTURE_TEMPLATE(name, stackStr),
     'docs/adr/ADR-000-template.md': ADR_TEMPLATE(),

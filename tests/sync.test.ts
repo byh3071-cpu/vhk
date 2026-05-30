@@ -5,8 +5,10 @@ import {
   toWindsurfrules,
   toCopilotInstructions,
   toAntigravityRules,
+  toAgentsMd,
   truncateForAntigravity,
   ANTIGRAVITY_CHAR_LIMIT,
+  SYNC_TARGETS,
 } from '../src/commands/sync.js'
 
 const SAMPLE_RULES = `# 데모 프로젝트 — Rules
@@ -77,6 +79,30 @@ describe('vhk sync — GitHub Copilot 변환', () => {
     expect(out.split('\n').slice(0, 5).join('\n')).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
     expect(out).toContain('execSync 금지')
     expect(out).not.toContain('docs/log/ 작성')
+  })
+})
+
+describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
+  it('toAgentsMd — Loop Protocol + 자동생성 경고 + 코딩 규칙 + compact 포인터 포함', () => {
+    const sections = parseRulesMd(SAMPLE_RULES)
+    const out = toAgentsMd(sections, '데모 프로젝트')
+    expect(out).toContain('# 데모 프로젝트 — AGENTS')
+    expect(out).toContain('Loop Protocol')
+    expect(out).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
+    expect(out).toContain('execSync 금지') // 코딩 규칙 섹션 본문
+    // compact 안내는 AGENTS.md 에 하드코딩이 아니라 생성기(toAgentsMd)를 거쳐 들어간다.
+    expect(out).toContain('agent-compact.md')
+  })
+
+  it('SYNC_TARGETS 레지스트리에 AGENTS.md 가 등록됨 (drift/backup 자동 반영)', () => {
+    expect(SYNC_TARGETS.map((t) => t.path)).toContain('AGENTS.md')
+  })
+
+  it('toAgentsMd 결과가 parseRulesMd 로 다시 파싱 가능 (## 구조 유지)', () => {
+    const sections = parseRulesMd(SAMPLE_RULES)
+    const out = toAgentsMd(sections, 'P')
+    const titles = parseRulesMd(out).map((s) => s.title)
+    expect(titles).toContain('Loop Protocol')
   })
 })
 

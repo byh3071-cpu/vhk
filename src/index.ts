@@ -347,7 +347,7 @@ program
 program
   .command('migrate [target]')
   .alias('전환')
-  .description('패키지 매니저 전환 (npm/yarn/pnpm)')
+  .description('패키지 매니저 전환 (npm/yarn/pnpm) — 패키지매니저만 바꿈, 설정 마이그레이션 아님')
   .action(async (target?: string) => { await migrate(target) })
 
 program
@@ -359,8 +359,9 @@ program
 program
   .command('context')
   .alias('맥락')
+  .option('--compact', '토큰 절감형 — 전체 명령 목록/깊은 트리 생략, 참조 링크 중심')
   .description('프로젝트 맥락 파일 생성 (.vhk/context.md)')
-  .action(async () => { await context() })
+  .action(async (opts: { compact?: boolean }) => { await context({ compact: opts.compact }) })
 
 program
   .command('context-show')

@@ -87,6 +87,23 @@ export function getRecentLearnings(limit = 3): string[] {
   return entries.slice(-limit)
 }
 
+// blockers.md 의 blocker 항목(활성 "- [" + 해결 "- ~~[") 중 마지막 N 개. vhk context 토큰 절감용.
+const BLOCKER_ENTRY_RE = /^- (~~)?\[/
+export function getRecentBlockers(limit = 3): string[] {
+  if (!existsSync(BLOCKERS_PATH)) return []
+  const lines = readFileSync(BLOCKERS_PATH, 'utf-8').split(/\r?\n/)
+  const entries = lines.filter((l) => BLOCKER_ENTRY_RE.test(l))
+  return entries.slice(-limit)
+}
+
+// 활성 blocker(해결 ~~취소선~~ 제외) 중 마지막 N 개. context 가 "지금 막힌 것"만 보이게 한다.
+export function getActiveBlockers(limit = 3): string[] {
+  if (!existsSync(BLOCKERS_PATH)) return []
+  const lines = readFileSync(BLOCKERS_PATH, 'utf-8').split(/\r?\n/)
+  const entries = lines.filter((l) => ACTIVE_BLOCKER_RE.test(l))
+  return entries.slice(-limit)
+}
+
 export function writeHardStop(reason: string): void {
   ensureVhkDir()
   const ts = new Date().toISOString()

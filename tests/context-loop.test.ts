@@ -79,3 +79,63 @@ describe('vhk context — Goal 2 자율 루프 확장', () => {
     expect(out).not.toContain('## Recent Learnings')
   })
 })
+
+describe('vhk context --compact (배치2 토큰 절감)', () => {
+  let origCwd: string
+  let dir: string
+  beforeEach(() => {
+    origCwd = process.cwd()
+    dir = tmpProject('context-compact')
+    process.chdir(dir)
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    rmSync(dir, { recursive: true, force: true })
+    vi.restoreAllMocks()
+  })
+
+  it('compact 모드는 전체 명령 목록을 빼고 참조 문서 링크를 넣는다', async () => {
+    makeGoalFile(dir, 1, 'IN_PROGRESS', '진행중')
+    const { context } = await import('../src/commands/context.js')
+    await context({ compact: true })
+    const out = readFileSync(join(dir, '.vhk/context.md'), 'utf-8')
+    expect(out).toContain('## Active Goal')
+    expect(out).not.toContain('## VHK CLI 명령어')
+    expect(out).toContain('참조 문서')
+    expect(out).toContain('docs/state/next-task.md')
+  })
+
+  it('기본(full) 모드는 전체 명령 목록을 유지한다 (back-compat)', async () => {
+    const { context } = await import('../src/commands/context.js')
+    await context()
+    const out = readFileSync(join(dir, '.vhk/context.md'), 'utf-8')
+    expect(out).toContain('## VHK CLI 명령어')
+  })
+
+  it('active blockers 를 최근 N개만 포함한다', async () => {
+    const { appendBlocker } = await import('../src/lib/state-files.js')
+    appendBlocker('막힘 하나', 4)
+    const { context } = await import('../src/commands/context.js')
+    await context({ compact: true })
+    const out = readFileSync(join(dir, '.vhk/context.md'), 'utf-8')
+    expect(out).toContain('Active Blockers')
+    expect(out).toContain('막힘 하나')
+  })
+
+  it('memory 가 여러 개면 최근 5개만 포함한다', async () => {
+    mkdirSync(join(dir, '.vhk'), { recursive: true })
+    const mems = Array.from({ length: 7 }, (_, i) => ({
+      content: `메모리항목${i}`,
+      addedAt: new Date(2026, 0, i + 1).toISOString(),
+    }))
+    writeFileSync(join(dir, '.vhk/memory.json'), JSON.stringify(mems), 'utf-8')
+    const { context } = await import('../src/commands/context.js')
+    await context({ compact: true })
+    const out = readFileSync(join(dir, '.vhk/context.md'), 'utf-8')
+    expect(out).toContain('메모리항목6')
+    expect(out).not.toContain('메모리항목0')
+    expect(out).not.toContain('메모리항목1')
+  })
+})
