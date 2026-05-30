@@ -6,6 +6,8 @@ const mockExistsSync = vi.fn(() => true)
 
 vi.mock('../src/lib/exec.js', () => ({
   safeExecFile: (...a: unknown[]) => mockSafeExecFile(...a),
+  NETWORK_EXEC_TIMEOUT_MS: 30_000,
+  DEFAULT_EXEC_TIMEOUT_MS: 600_000,
 }))
 
 vi.mock('node:fs', () => ({

@@ -1,12 +1,15 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import chalk from 'chalk'
-import { safeExecFile } from '../lib/exec.js'
+import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import {
   VHK_DIR,
   collectVhkFiles,
+  loadVhkignore,
+  partitionGistFiles,
   readCloudConfig,
   writeCloudConfig,
 } from '../lib/vhk-cloud.js'
@@ -47,7 +50,9 @@ export async function cloudPush(): Promise<void> {
     return
   }
 
-  const files = collectVhkFiles(cwd)
+  // ignore 인스턴스를 한 번만 만들어 collect + gist purge 양쪽에 같은 규칙 적용.
+  const ig = loadVhkignore(cwd)
+  const files = collectVhkFiles(cwd, ig)
   if (files.length === 0) {
     console.log(chalk.yellow(`  ${ko.cloud.nothingToSync}`))
     return
@@ -81,8 +86,33 @@ export async function cloudPush(): Promise<void> {
         return
       }
     }
+
+    // privacy purge — 과거에 올라간 제외 대상(memory.json·refs.json 등)을 gist 에서 제거.
+    // 백업 대상(files)을 먼저 add/edit 했으므로 gist 에 항상 파일이 남는다 (gist 는 마지막 파일
+    // 제거 불가). 제외 대상과 백업 대상은 서로소.
+    const { excluded } = partitionGistFiles(gistFiles, ig)
+    const purgeFailed: string[] = []
+    if (excluded.length > 0) {
+      const purgeOk = purgeExcludedFromGist(existing.gistId, excluded)
+      if (!purgeOk) purgeFailed.push(...excluded)
+      // 검증 — PATCH 후에도 남았는지 재확인 (원자적이지만 silent partial 방어 backstop).
+      const stillThere = partitionGistFiles(listGistFiles(existing.gistId), ig).excluded
+      for (const name of stillThere) {
+        if (!purgeFailed.includes(name)) purgeFailed.push(name)
+      }
+    }
+
     console.log(chalk.green.bold(`  ${ko.cloud.pushDone}`))
     console.log(chalk.dim(`  gist: ${existing.gistId} (갱신)`))
+    if (excluded.length > 0) {
+      const purged = excluded.filter(n => !purgeFailed.includes(n))
+      if (purged.length > 0) {
+        console.log(chalk.dim(`  🔒 제외 대상 ${purged.length}개 gist 에서 제거: ${purged.join(', ')}`))
+      }
+      if (purgeFailed.length > 0) {
+        console.log(chalk.yellow(`  ⚠️  제외 대상 제거 실패: ${purgeFailed.join(', ')} (수동 제거 권장 — pull 시엔 복원 안 됨)`))
+      }
+    }
     printPushNext()
     return
   }
@@ -127,10 +157,21 @@ export async function cloudPull(gistIdArg?: string): Promise<void> {
     return
   }
 
-  const names = listGistFiles(gistId)
-  if (names.length === 0) {
+  const allNames = listGistFiles(gistId)
+  if (allNames.length === 0) {
     console.log(chalk.red(`  ${ko.cloud.pullFail} — gist 비었거나 접근 불가: ${gistId}`))
     process.exitCode = 1
+    return
+  }
+
+  // 복원 시에도 제외 규칙 적용 — 과거에 올라간 개인 파일(memory.json 등)이 있어도
+  // 로컬로 되살아나지 않게 한다 (privacy 약속의 복원측 backstop).
+  const { keep: names, excluded: skipped } = partitionGistFiles(allNames, loadVhkignore(cwd))
+  if (skipped.length > 0) {
+    console.log(chalk.dim(`  🔒 제외 대상 ${skipped.length}개 복원 스킵: ${skipped.join(', ')}`))
+  }
+  if (names.length === 0) {
+    console.log(chalk.yellow(`  복원 대상이 없습니다 (gist 파일이 모두 제외 규칙에 해당).`))
     return
   }
 
@@ -159,6 +200,40 @@ export async function cloudPull(gistIdArg?: string): Promise<void> {
     command: 'vhk 맥락',
     cursorHint: '프로젝트 맥락 보여줘',
   })
+}
+
+/**
+ * 제외 대상 파일들을 gist 에서 한 번의 PATCH 로 원자적 제거.
+ *
+ * `gh gist edit -r <file>` 는 (1) 파일당 호출 → 중간 실패 시 partial 잔존, (2) CLI flag
+ * 의존(gh 버전에 따라 변할 수 있음) 이라는 두 약점이 있다. 대신 GitHub REST 를
+ * `gh api` 로 직접 호출한다:
+ *   PATCH /gists/{id}  body { files: { "memory.json": null, ... } }
+ * GitHub API 가 null 값 파일을 삭제 → 다수 파일을 **단일 원자적 요청**으로 제거.
+ * `gh api` 는 REST 버전 관리를 따르므로 CLI flag 변화에 덜 취약.
+ *
+ * 반환: 전부 제거되면 true. transient 오류 대비 1 회 재시도. 실패해도 pull 측 제외가 backstop.
+ */
+function purgeExcludedFromGist(gistId: string, names: string[]): boolean {
+  if (names.length === 0) return true
+  const body = JSON.stringify({
+    files: Object.fromEntries(names.map(n => [n, null])),
+  })
+  const tmp = path.join(os.tmpdir(), `vhk-gist-purge-${process.pid}.json`)
+  try {
+    fs.writeFileSync(tmp, body, 'utf-8')
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = safeExecFile(
+        'gh',
+        ['api', '--method', 'PATCH', `/gists/${gistId}`, '--input', tmp],
+        { timeoutMs: NETWORK_EXEC_TIMEOUT_MS }
+      )
+      if (res.ok) return true
+    }
+    return false
+  } finally {
+    try { fs.unlinkSync(tmp) } catch { /* 임시파일 정리 실패는 무시 */ }
+  }
 }
 
 /** gist 내 파일명 목록 (실패 시 빈 배열) */

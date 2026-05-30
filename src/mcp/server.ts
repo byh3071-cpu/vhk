@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
-import { safeExecFile } from '../lib/exec.js'
+import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
 import { detectPlatform } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
@@ -588,7 +588,10 @@ export function createVhkMcpServer(): McpServer {
     },
     async () => {
       const cur = safeExecFile('vhk', ['--version'])
-      const latest = safeExecFile('npm', ['view', '@byh3071/vhk', 'version'])
+      // 네트워크 호출 — MCP 모드에서 레지스트리 장애 시 stdio 핸들러 hang 방지.
+      const latest = safeExecFile('npm', ['view', '@byh3071/vhk', 'version'], {
+        timeoutMs: NETWORK_EXEC_TIMEOUT_MS,
+      })
       const lines = [
         `현재: ${cur.ok ? `v${cur.out.replace(/^v/, '')}` : '확인 실패'}`,
         `최신: ${latest.ok ? `v${latest.out.replace(/^v/, '')}` : '확인 실패 (네트워크 또는 npm registry)'}`,

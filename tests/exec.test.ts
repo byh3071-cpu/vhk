@@ -57,4 +57,43 @@ describe('lib/exec', () => {
       expect(result.out).toMatch(/^\d+\.\d+\.\d+/)
     }
   })
+
+  it('safeExecFile: timeoutMs 초과 시 ok=false + 시간 초과 메시지', async () => {
+    const { safeExecFile } = await import('../src/lib/exec.js')
+    // setInterval 로 절대 self-exit 안 하는 프로세스 → 느린 머신에서도 timeout 만이 종료 사유 (flaky 제거).
+    const result = safeExecFile('node', ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 200 })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.err).toMatch(/시간 초과|timeout/i)
+    }
+  })
+
+  it('safeExecFile: 빠른 명령은 timeout 안에 정상 완료', async () => {
+    const { safeExecFile } = await import('../src/lib/exec.js')
+    const result = safeExecFile('node', ['--version'], { timeoutMs: 30_000 })
+    expect(result.ok).toBe(true)
+  })
+
+  it('safeExecFile: timeoutMs<=0 이면 timeout 비활성 (정상 완료)', async () => {
+    const { safeExecFile } = await import('../src/lib/exec.js')
+    const result = safeExecFile('node', ['--version'], { timeoutMs: 0 })
+    expect(result.ok).toBe(true)
+  })
+
+  it('exec: 기본 timeout 상수 export 확인', async () => {
+    const { DEFAULT_EXEC_TIMEOUT_MS, NETWORK_EXEC_TIMEOUT_MS } = await import('../src/lib/exec.js')
+    expect(DEFAULT_EXEC_TIMEOUT_MS).toBeGreaterThan(0)
+    expect(NETWORK_EXEC_TIMEOUT_MS).toBeGreaterThan(0)
+    // 네트워크 timeout 은 기본 backstop 보다 짧아야 의미가 있다.
+    expect(NETWORK_EXEC_TIMEOUT_MS).toBeLessThan(DEFAULT_EXEC_TIMEOUT_MS)
+  })
+
+  it('safeExecFileStream: timeoutMs 초과 시 ok=false + 시간 초과 메시지', async () => {
+    const { safeExecFileStream } = await import('../src/lib/exec.js')
+    const result = safeExecFileStream('node', ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 200 })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.err).toMatch(/시간 초과|timeout/i)
+    }
+  })
 })
