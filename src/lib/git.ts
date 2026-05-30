@@ -76,10 +76,17 @@ export function buildSessionDiffFromSummary(diffSummary: {
  * --since 이후 커밋 diff만 사용 (작업 트리 status와 섞지 않음).
  * 커밋이 0개인 신규 레포에서는 빈 결과 반환 (simple-git이 throw하는 GitError 흡수).
  */
+/** 빈 트리 SHA — since 가 전체 히스토리를 포함할 때(boundary 없음) diff 기준점. */
+const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
+
 export async function getSessionDiff(since?: string): Promise<SessionDiff> {
   const sinceDate = since || new Date().toISOString().split('T')[0]
   try {
-    const diffSummary = await git.diffSummary([`--since=${sinceDate}`])
+    // VHK-015: `git diff --since` 는 무효(--since 는 log 옵션) → 워킹트리만 diff 해 항상 0.
+    // since 직전 커밋(boundary)..HEAD 의 커밋 범위를 diff 해 실제 변경 통계를 낸다.
+    const boundary = (await git.raw(['rev-list', '-1', `--before=${sinceDate}`, 'HEAD'])).trim()
+    const base = boundary || EMPTY_TREE_SHA
+    const diffSummary = await git.diffSummary([`${base}..HEAD`])
     // simple-git DiffResult.files 는 text/binary/name-status 의 union.
     // binary/name-status 항목은 insertions/deletions 가 없으므로 0 으로 정규화.
     const normalized = diffSummary.files.map((f) => ({

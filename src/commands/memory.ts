@@ -34,6 +34,8 @@ export async function memoryAdd(content: string, tags?: string[]): Promise<void>
   if (!content) {
     console.log(chalk.red('❌ 기억할 내용을 입력해주세요.'))
     console.log(chalk.gray('   예: vhk memory add "API는 tRPC 사용하기로 결정"'))
+    // 저장 실패 → 비-0 종료(silent exit 0 방지). VHK-016.
+    process.exitCode = 1
     return
   }
 

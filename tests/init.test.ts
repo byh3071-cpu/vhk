@@ -87,6 +87,14 @@ describe('vhk init', () => {
     expect(md).toContain('vhk doctor')
     expect(md).toContain('vhk 보안 scan')
   })
+
+  it('VHK-008: test 스크립트 없으면 pnpm test 미안내(build 만), 있으면 안내', () => {
+    const noTest = COMMANDS_MD_TEMPLATE({ hasTest: false })
+    expect(noTest).not.toContain('pnpm test')
+    expect(noTest).toContain('`pnpm build`')
+    const withTest = COMMANDS_MD_TEMPLATE({ hasTest: true })
+    expect(withTest).toContain('pnpm test --run')
+  })
 })
 
 describe('vhk init — RULES.md 단일 소스(SoT) 생성', () => {

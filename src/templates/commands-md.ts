@@ -1,4 +1,11 @@
-export function COMMANDS_MD_TEMPLATE(): string {
+/**
+ * @param opts.hasTest package.json 에 test 스크립트가 있으면 true.
+ *   VHK-008: test 스크립트가 없는데 `pnpm test` 를 권하던 오안내 제거 — 없으면 build 만 안내.
+ */
+export function COMMANDS_MD_TEMPLATE(opts: { hasTest?: boolean } = {}): string {
+  const buildTestRow = opts.hasTest
+    ? '| 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |'
+    : '| 빌드 | `pnpm build` | "빌드해" |'
   return [
     '# 📋 한국어 명령어 가이드',
     '',
@@ -21,7 +28,7 @@ export function COMMANDS_MD_TEMPLATE(): string {
     '| 오늘 정리 | `vhk 정리` | "오늘 한 일 정리해" |',
     '| 규칙 점검 | `vhk 점검` | "규칙 점검해" |',
     '| 보안 스캔 | `vhk 보안 scan` | "보안 스캔 돌려" |',
-    '| 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |',
+    buildTestRow,
     '| 배포 | `vhk 배포` | "배포해" |',
     '',
     '## 환경 점검',

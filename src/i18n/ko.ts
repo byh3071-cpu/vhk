@@ -4,7 +4,7 @@ export const ko = {
     notGitRepo: 'Git 저장소가 아니에요. 먼저 git init을 실행하세요.',
     branch: '브랜치:',
     changes: '변경:',
-    recentCommits: '최근 커밋 (3):',
+    recentCommits: (n: number) => `최근 커밋 (${n}):`,
     noCommits: '커밋 없음',
     remote: '원격:',
     noUpstream: 'upstream 없음',

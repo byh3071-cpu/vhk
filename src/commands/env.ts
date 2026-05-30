@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, appendFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -10,6 +11,31 @@ export function parseEnvKeys(content: string): string[] {
     .filter((line) => line && !line.startsWith('#'))
     .map((line) => line.split('=')[0].trim())
     .filter(Boolean)
+}
+
+/**
+ * dotenv 관례대로 값이 정의된 모든 env 파일에서 키를 union 한다.
+ * `.env`, `.env.local`, `.env.<mode>`, `.env.<mode>.local` 등 — `.example`/`.sample`(템플릿)은 제외.
+ * (VHK-009: `.env` 만 보고 `.env.local` 무시해 거짓 "누락" 나던 버그 수정.)
+ */
+export function loadDefinedEnvKeys(dir = '.'): string[] {
+  const keys = new Set<string>()
+  let entries: string[]
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return []
+  }
+  for (const name of entries) {
+    if (!name.startsWith('.env')) continue
+    if (name.endsWith('.example') || name.endsWith('.sample')) continue
+    try {
+      for (const k of parseEnvKeys(readFileSync(join(dir, name), 'utf-8'))) keys.add(k)
+    } catch {
+      // 읽기 실패 파일은 건너뜀
+    }
+  }
+  return [...keys]
 }
 
 function ensureGitignore(): void {
@@ -68,9 +94,8 @@ export async function envCheck(): Promise<void> {
   }
 
   const requiredKeys = parseEnvKeys(readFileSync('.env.example', 'utf-8'))
-  const currentKeys = existsSync('.env')
-    ? parseEnvKeys(readFileSync('.env', 'utf-8'))
-    : []
+  // .env 뿐 아니라 .env.local / .env.*.local 까지 머지해 누락 판정(Vite 관례 시크릿 인식).
+  const currentKeys = loadDefinedEnvKeys()
 
   const missing = requiredKeys.filter((k) => !currentKeys.includes(k))
   const extra = currentKeys.filter((k) => !requiredKeys.includes(k))
@@ -82,6 +107,8 @@ export async function envCheck(): Promise<void> {
   } else {
     console.log(chalk.red(`\n❌ 누락된 환경변수 (${missing.length}개):`))
     missing.forEach((k) => console.log(chalk.red(`   • ${k}`)))
+    // 필수 변수 누락 → 비-0 종료(CI 게이트 의미). VHK-010.
+    process.exitCode = 1
   }
 
   if (extra.length > 0) {

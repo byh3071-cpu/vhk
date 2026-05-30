@@ -122,6 +122,8 @@ export async function harness(): Promise<void> {
     console.log(
       chalk.red.bold(`\n⚠️  ${results.length - passed}개 실패 (${passed}/${results.length} 통과)`)
     )
+    // 하위 점검 ≥1 실패 → 비-0 종료(CI/pre-push 게이트가 실제로 막게). VHK-010.
+    process.exitCode = 1
   }
 
   printNextStep({
