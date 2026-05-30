@@ -110,6 +110,22 @@ export function listGoals(goalsDir: string): ParsedGoal[] {
   return parsed
 }
 
+// id 가 중복된 goal 들을 감지. 중복된 id 를 오름차순으로 반환 (없으면 []).
+// listGoals 는 중복 시 첫 매치만 사용하므로, 호출자가 경고를 띄울 수 있게 분리 제공.
+export function findDuplicateIds(goals: ParsedGoal[]): number[] {
+  const counts = new Map<number, number>()
+  for (const g of goals) {
+    const id = g.frontmatter.id
+    if (typeof id !== 'number') continue
+    counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  const dups: number[] = []
+  for (const [id, n] of counts) {
+    if (n > 1) dups.push(id)
+  }
+  return dups.sort((a, b) => a - b)
+}
+
 // frontmatter status 갱신 (extraFields 가 있으면 추가/덮어쓰기).
 // frontmatter 가 없는 파일은 그대로 반환 (silent no-op — 호출자가 사전 검사 권장).
 export function updateFrontmatterStatus(
