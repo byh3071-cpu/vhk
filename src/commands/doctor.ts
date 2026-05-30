@@ -6,6 +6,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { ko } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
+import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
 
 export interface CheckResult {
   name: string
@@ -131,6 +132,25 @@ export async function doctor() {
     } else {
       console.log(chalk.dim(`    ⬚ ${file.name}`) + chalk.dim(` — ${file.hint}`))
     }
+  }
+
+  // 드리프트 점검 (passive — doctor 안에서 자동 경고, 읽기 전용)
+  console.log('')
+  console.log(chalk.bold(`  ${ko.doctor.driftTitle}`))
+  const ruleDrift = checkRuleDrift(cwd)
+  if (!ruleDrift.checked) {
+    console.log(chalk.dim(`    ${ko.doctor.driftNoRules}`))
+  } else {
+    const drifted = ruleDrift.results.filter(r => r.status === 'drifted')
+    if (drifted.length === 0) {
+      console.log(chalk.green(`    ${ko.doctor.driftRuleClean}`))
+    } else {
+      console.log(chalk.yellow(`    ${ko.doctor.driftRuleWarn(drifted.map(d => d.path).join(', '))}`))
+    }
+  }
+  const ctxDrift = checkContextDrift(cwd)
+  if (ctxDrift.checked && ctxDrift.stale) {
+    console.log(chalk.yellow(`    ${ko.doctor.driftContextWarn}`))
   }
 
   console.log('')

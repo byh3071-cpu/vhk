@@ -204,6 +204,12 @@ export const ko = {
     updateAvailable: (latest: string) =>
       `🆕 v${latest} 사용 가능 — npm i -g @byh3071/vhk`,
     updateCurrent: '최신 버전을 쓰고 있어요',
+    driftTitle: '🔀 드리프트 점검 (규칙·맥락 어긋남):',
+    driftNoRules: '⬚ RULES.md 없음 — 규칙 드리프트 점검 생략',
+    driftRuleClean: '✅ 규칙 파일이 RULES.md와 일치',
+    driftRuleWarn: (files: string) =>
+      `⚠️ RULES.md와 어긋난 규칙 파일: ${files} — vhk sync 를 다시 실행하세요`,
+    driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
   },
   nlp: {
     matched: '이게 맞나요?',
