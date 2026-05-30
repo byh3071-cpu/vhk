@@ -36,6 +36,7 @@ import { quickActions } from '../commands/help.js'
 import { mode } from '../commands/mode.js'
 import { verify } from '../commands/verify.js'
 import { runGuarded } from './safety-guard.js'
+import { NL_GUARDED_ACTIONS } from './risk-policy.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -144,14 +145,6 @@ export function requiresConfirmation(route: NlpRoute): boolean {
   return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command)
 }
 
-/** 자연어 명령 → high-risk 액션(risk-policy) 매핑. 자연어로 부를 수 있는 위험 작업만. */
-const NL_RISK_ACTION: Partial<Record<NlpCommand, string>> = {
-  undo: 'undo',
-  deploy: 'deploy',
-  publish: 'publish',
-  migrate: 'migrate',
-  'cloud-pull': 'cloud-pull',
-}
 
 export async function runNaturalLanguageRoute(input: string): Promise<void> {
   const route = routeNaturalLanguage(input)
@@ -182,7 +175,7 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
   // 자연어로 부른 high-risk 작업은 단일 가드(runGuarded) 경유 — 기본 비실행(preview).
   // 자연어는 명시 승인 수단이 없으므로 high-risk 는 실행되지 않고 안내만 한다.
   // (이전 nlSafetyNotice 는 preview 만 찍고 dispatch 로 그대로 실행하던 비차단 버그 — 제거.)
-  const riskAction = NL_RISK_ACTION[route.command]
+  const riskAction = NL_GUARDED_ACTIONS[route.command]
   if (riskAction) {
     await runGuarded(
       riskAction,

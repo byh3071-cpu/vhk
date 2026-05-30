@@ -27,12 +27,18 @@ must(guard && /confirm/.test(guard) && /approved/.test(guard) && /preview|미리
 
 // ── 구조: high-risk 진입점이 runGuarded 를 경유(배선 누락 없음) ──
 const idx = read("src/index.ts") || "";
-const EXECUTING = ["deploy", "publish", "migrate", "env-write", "cloud-pull"];
-must(EXECUTING.every((a) => idx.includes(`guardCli('${a}'`)), "CLI high-risk(deploy/publish/migrate/env-write/cloud-pull) 가 guardCli 경유");
+// 가드대상(high-risk + strict-extra) CLI 진입점 전체가 guardCli 경유 (5개 아니라 9개)
+const EXECUTING = ["deploy", "publish", "migrate", "env-write", "cloud-pull", "undo", "resume", "save", "sync"];
+must(EXECUTING.every((a) => idx.includes(`guardCli('${a}'`)), "CLI 가드대상 9종 전부 guardCli 경유(undo/resume/save/sync 포함)");
 must(/runGuarded/.test(idx), "index.ts guardCli → runGuarded");
+// 인라인 메뉴 switch 등 가드대상 핸들러 직접 호출(바이패스) 없음
+must(![...idx.matchAll(/return\s+(undo|save|sync|deploy|publish|migrate|env|cloudPull|resume)\(/g)].length, "메뉴/직접 호출 가드 미경유 없음");
 const nlp = read("src/lib/nlp-run.ts") || "";
-must(/runGuarded/.test(nlp) && /NL_RISK_ACTION/.test(nlp), "자연어 dispatch high-risk → runGuarded(비차단 버그 제거)");
+must(/runGuarded/.test(nlp) && /NL_GUARDED_ACTIONS/.test(nlp), "자연어 dispatch high-risk → runGuarded(단일소스 NL_GUARDED_ACTIONS)");
+must(!/NL_RISK_ACTION\s*[:=]/.test(nlp), "손관리 NL_RISK_ACTION 제거(risk-policy 단일소스 파생)");
 must(!/function nlSafetyNotice/.test(nlp), "비차단 nlSafetyNotice 함수 제거됨");
+// 완전성 가드 테스트 존재(드리프트 자동탐지)
+must(existsSync(join(root, "tests/safety-coverage.test.ts")), "완전성 가드 테스트 존재(무바이패스 자동검증)");
 
 // ── MCP: high-risk 툴 기본 비실행(info-only / dry-run) ─────
 const server = read("src/mcp/server.ts") || "";

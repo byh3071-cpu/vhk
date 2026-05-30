@@ -196,7 +196,7 @@ program
   .option('--dry-run', '미리보기만 — 파일 변경 없음')
   .option('-y, --yes', 'drift 확인 프롬프트 생략(덮어쓰기 동의)')
   .description('RULES.md → .cursorrules + CLAUDE.md 동기화 (덮어쓰기 전 자동 백업)')
-  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => { await sync(opts) })
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => { await guardCli('sync', opts?.yes === true, () => sync(opts)) })
 
 program
   .command('check')
@@ -254,14 +254,16 @@ program
 program
   .command('save')
   .alias('저장')
+  .option('--yes', '확인 없이 실행 (strict 모드 가드 명시 승인)')
   .description('변경사항 저장 (git add → commit → push)')
-  .action(async () => { await save() })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('save', opts?.yes === true, () => save()) })
 
 program
   .command('undo')
   .alias('되돌리기')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('최근 커밋 되돌리기')
-  .action(async () => { await undo() })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('undo', opts?.yes === true, () => undo()) })
 
 program
   .command('restore')
@@ -508,7 +510,7 @@ program
   .alias('재개')
   .option('--confirm', '사람 확인 — 자동 호출 금지 (Forbidden 위반)')
   .description('.vhk/HARD_STOP 해제 (사용자가 사유 확인 후 --confirm 필요)')
-  .action(async (opts: { confirm?: boolean }) => { await resume(opts) })
+  .action(async (opts: { confirm?: boolean }) => { await guardCli('resume', opts?.confirm === true, () => resume(opts)) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
@@ -552,15 +554,15 @@ program.action(async () => {
     case 'secure':
       return secure()
     case 'sync':
-      return sync()
+      return guardCli('sync', false, () => sync())
     case 'doctor':
       return doctor()
     case 'ship':
       return ship()
     case 'save':
-      return save()
+      return guardCli('save', false, () => save())
     case 'undo':
-      return undo()
+      return guardCli('undo', false, () => undo())
     case 'status':
       return status()
     case 'diff':

@@ -25,7 +25,24 @@ export type Channel = 'cli' | 'mcp' | 'nl'
 export type Guard = 'confirm' | 'preview' | 'warn' | 'allow'
 
 /** strict 모드에서 추가로 확인을 요구하는(보통은 저위험) 작업. */
-const STRICT_EXTRA_ACTIONS: ReadonlySet<string> = new Set(['save', 'sync'])
+export const STRICT_EXTRA_ACTIONS: ReadonlySet<string> = new Set(['save', 'sync'])
+
+/**
+ * 자연어(NlpCommand) → 가드 대상 action 의 **단일 소스**.
+ * 자연어 dispatch 에서 위험/strict-extra 작업을 호출하는 모든 명령을 여기에 등록한다.
+ * (별도 손관리 리스트 금지 — nlp-run 은 import 만. 완전성 가드 테스트가 dispatch 와 교차검증해
+ *  여기 누락 시 FAIL → R1/env 류 드리프트 차단.)
+ */
+export const NL_GUARDED_ACTIONS: Readonly<Record<string, string>> = {
+  undo: 'undo',
+  deploy: 'deploy',
+  publish: 'publish',
+  migrate: 'migrate',
+  'cloud-pull': 'cloud-pull',
+  env: 'env-write',
+  save: 'save',
+  sync: 'sync',
+}
 
 export function isHighRisk(action: string): action is HighRiskAction {
   return (HIGH_RISK_ACTIONS as readonly string[]).includes(action)
