@@ -1,12 +1,12 @@
 ---
 rfc: 1
 title: "`.vhk/` 디렉토리 규격 (Portable Project State for AI Coding)"
-status: Draft
+status: Proposed
 author: VHK
 created: 2026-05-30
 normative_ref: docs/spec.md
 spec_version: "1.0"
-discussion: TBD  # 공개 시 이슈/토론 링크 기입
+discussion: https://github.com/byh3071-cpu/vhk/issues/38
 ---
 
 # RFC 0001 — `.vhk/` 디렉토리 규격
