@@ -5,6 +5,7 @@ import path from 'node:path'
 import { ko } from '../i18n/ko.js'
 import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 const CHECKLIST = [
   { id: 'build', questionKey: 'checkBuild' as const, hintKey: 'hintBuild' as const },
@@ -61,6 +62,7 @@ export function updateChangelogUnreleased(
 }
 
 export async function ship() {
+  if (!ensureNotHardStopped('ship')) return // VHK-020
   console.log(chalk.bold(`\n${ko.ship.title}\n`))
 
   const cwd = process.cwd()
