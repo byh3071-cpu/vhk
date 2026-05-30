@@ -7,6 +7,7 @@ import { detectAdrCandidates, createAdrFile } from '../lib/adr.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
+import { ensureInteractive } from '../lib/interactive.js'
 
 export type RecapOptions = {
   since?: string
@@ -63,6 +64,9 @@ export async function recap(options: RecapOptions = {}) {
   }
 
   console.log('')
+  // VHK-014: 비-TTY 면 프롬프트 크래시 대신 friendly 안내 + exit 1 (위 git 분석은 보여준 뒤).
+  if (!ensureInteractive('회고 입력은 대화형으로만 가능합니다.')) return
+
   const answers = await inquirer.prompt([
     {
       type: 'input',
