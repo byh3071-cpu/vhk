@@ -1,0 +1,35 @@
+name: CI
+
+# PR + main 푸시마다 빌드+테스트 자동 실행 (초록불/빨간불 문지기)
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: pnpm 설치
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Node 20 + pnpm 캐시
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # build 가 test 보다 먼저: cli-args e2e 테스트가 dist/index.js 를 spawn 한다.
+      - name: 빌드
+        run: pnpm build
+
+      # 네트워크 의존 없음 — cloud gist 실호출은 유닛테스트 대상 아님(순수 로직만 테스트).
+      - name: 테스트
+        run: pnpm test:run
