@@ -6,6 +6,20 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.6.1] - 2026-05-30
+
+> **드리프트 정밀화 패치.** v1.6.0 의 맥락 드리프트 판정이 너무 거칠어 README 오타 같은
+> 무관 커밋에도 경고가 떴던 노이즈를 잡는다. 기능 추가 없음 — 정확성 수정.
+
+### Fixed
+
+- **맥락 드리프트(`vhk doctor`) 오경보 제거** — `context.md` 의 stale 판정을
+  단순 `HEAD sha` 변동에서 **file-change 기반**으로 정밀화. 이제 `context.md` 가 실제로
+  반영하는 소스(`package.json`·`goals/`·`docs/state/learnings.md` 내용변경 또는 추적트리
+  파일 추가/삭제/이름변경)가 바뀐 경우에만 stale 로 본다. README 오타·`src/` 내용수정
+  같은 무관 커밋은 더 이상 경고하지 않는다(`git diff --name-only`, `--diff-filter=ADR`).
+  매직넘버 없음, `ContextDriftResult` 시그니처·CRLF 정규화 불변.
+
 ## [1.6.0] - 2026-05-30
 
 > **L2 첫 삽 — 드리프트 감지 + 견고성.** sync 한 규칙·맥락이 원본과 조용히
