@@ -15,7 +15,7 @@ tags: [process, documentation]
 - **npm:** @byh3071/vhk (public, scoped)
 - **버전:** v1.4.0 (package.json + MCP SERVER_VERSION 정합)
 - **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 349 pass (vitest)
+- **테스트:** 356 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
