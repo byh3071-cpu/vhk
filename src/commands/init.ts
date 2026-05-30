@@ -3,6 +3,7 @@ import type { DistinctQuestion } from 'inquirer'
 import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
+import { localDate } from '../lib/date.js'
 import { CLAUDE_MD_TEMPLATE } from '../templates/claude-md.js'
 import { CURSORRULES_TEMPLATE } from '../templates/cursorrules.js'
 import { RULES_MD_TEMPLATE } from '../templates/rules-md.js'
@@ -237,7 +238,7 @@ export function generateFiles(
     'docs/adr/ADR-000-template.md': ADR_TEMPLATE(),
     'docs/log/.gitkeep': '',
     'docs/troubleshooting/.gitkeep': '',
-    'docs/til.md': `# TIL (Today I Learned)\n\n- [${new Date().toISOString().split('T')[0]}] 프로젝트 시작\n`,
+    'docs/til.md': `# TIL (Today I Learned)\n\n- [${localDate()}] 프로젝트 시작\n`, // VHK-019
     'BACKLOG.md': `# BACKLOG\n\n> v1 OUT 기능은 여기에 기록. 범위 수비 필수.\n\n## v1.1 후보\n\n- \n`,
     // .vhk/ 씨앗 — 규격: docs/spec.md (spec_version 1.0)
     '.vhk/README.md': VHK_README_TEMPLATE(),
