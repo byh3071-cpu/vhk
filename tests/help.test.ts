@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { QUICK_ACTIONS, quickActions } from '../src/commands/help.js'
-import { requiresConfirmation, nlSafetyNotice } from '../src/lib/nlp-run.js'
+import { requiresConfirmation } from '../src/lib/nlp-run.js'
 import type { NlpRoute } from '../src/lib/nlp-router.js'
 
 const route = (command: NlpRoute['command'], confidence: NlpRoute['confidence']): NlpRoute => ({
@@ -39,25 +39,5 @@ describe('requiresConfirmation — 상태변경 명령은 confidence 무관 conf
 
   it('low confidence 는 명령 무관 confirm', () => {
     expect(requiresConfirmation(route('status', 'low'))).toBe(true)
-  })
-})
-
-describe('nlSafetyNotice — 자연어 high-risk 채널 가드(preview/warn)', () => {
-  it('standard: high-risk NL 명령은 preview 안내', () => {
-    const n = nlSafetyNotice('deploy', 'standard')
-    expect(n).toBeTruthy()
-    expect(n).toMatch(/미리보기|preview/i)
-  })
-  it('lite: 막지 않고 경고만', () => {
-    expect(nlSafetyNotice('publish', 'lite')).toMatch(/경고|warn/i)
-  })
-  it('저위험 NL 명령은 안내 없음(null)', () => {
-    expect(nlSafetyNotice('status', 'standard')).toBeNull()
-    expect(nlSafetyNotice('help', 'standard')).toBeNull()
-  })
-  it('migrate/cloud-pull/undo 도 high-risk 로 안내', () => {
-    expect(nlSafetyNotice('migrate', 'standard')).toBeTruthy()
-    expect(nlSafetyNotice('cloud-pull', 'standard')).toBeTruthy()
-    expect(nlSafetyNotice('undo', 'standard')).toBeTruthy()
   })
 })

@@ -28,4 +28,15 @@ describe('R1 드리프트 가드 — command-registry 단일 소스', () => {
       expect(CONTAINER_SUBCOMMANDS[canonical]).toBeDefined()
     }
   })
+
+  it('새 컨테이너 명령(서브커맨드 보유)이 registry 에 누락되지 않음', () => {
+    // commander 에서 서브커맨드를 가진 명령 = 컨테이너. registry 에 없으면 R1 가드 누락 → 자연어 가로채기 위험.
+    const containers = program.commands.filter((c) => c.commands.length > 0).map((c) => c.name())
+    for (const name of containers) {
+      expect(
+        CONTAINER_SUBCOMMANDS[name],
+        `새 컨테이너 '${name}' 가 command-registry 에 없음 → R1 가드 누락`
+      ).toBeDefined()
+    }
+  })
 })

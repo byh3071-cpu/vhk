@@ -35,9 +35,7 @@ import { cloudPush, cloudPull } from '../commands/cloud.js'
 import { quickActions } from '../commands/help.js'
 import { mode } from '../commands/mode.js'
 import { verify } from '../commands/verify.js'
-import { readConfig } from './config.js'
-import { resolveGuard } from './risk-policy.js'
-import type { SafetyMode } from './safety-mode.js'
+import { runGuarded } from './safety-guard.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -155,24 +153,6 @@ const NL_RISK_ACTION: Partial<Record<NlpCommand, string>> = {
   'cloud-pull': 'cloud-pull',
 }
 
-/**
- * 자연어로 high-risk 작업을 부를 때 Safety Mode 에 따른 안내 문구.
- * 자연어 채널은 confirm 대신 preview(무엇을 할지 안내) — 에이전트/자연어의 "그냥 실행" 방지.
- * 저위험이면 null.
- */
-export function nlSafetyNotice(command: NlpCommand, mode: SafetyMode): string | null {
-  const action = NL_RISK_ACTION[command]
-  if (!action) return null
-  const guard = resolveGuard(action, mode, 'nl')
-  if (guard === 'warn') {
-    return `⚠️ 위험 작업(${action}) — lite 모드라 경고만 하고 진행합니다.`
-  }
-  if (guard === 'preview') {
-    return `🔎 위험 작업(${action}) 미리보기 — 실행 전 무엇을 할지 확인하세요. (Safety Mode: ${mode})`
-  }
-  return null
-}
-
 export async function runNaturalLanguageRoute(input: string): Promise<void> {
   const route = routeNaturalLanguage(input)
 
@@ -197,11 +177,20 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
       return
     }
   }
-  // 자연어로 부른 high-risk 작업은 Safety Mode 에 따라 preview/경고를 먼저 보여준다.
-  const notice = nlSafetyNotice(route.command, readConfig().safetyMode)
-  if (notice) console.log(chalk.yellow(`  ${notice}`))
-
   console.log('')
+
+  // 자연어로 부른 high-risk 작업은 단일 가드(runGuarded) 경유 — 기본 비실행(preview).
+  // 자연어는 명시 승인 수단이 없으므로 high-risk 는 실행되지 않고 안내만 한다.
+  // (이전 nlSafetyNotice 는 preview 만 찍고 dispatch 로 그대로 실행하던 비차단 버그 — 제거.)
+  const riskAction = NL_RISK_ACTION[route.command]
+  if (riskAction) {
+    await runGuarded(
+      riskAction,
+      { channel: 'nl', approved: false, log: (m) => console.log(chalk.yellow(`  ${m}`)) },
+      () => dispatchNlpRoute(route, input),
+    )
+    return
+  }
 
   await dispatchNlpRoute(route, input)
 }
