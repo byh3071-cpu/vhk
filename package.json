@@ -1,7 +1,7 @@
 {
   "name": "@byh3071/vhk",
   "version": "1.5.0",
-  "description": "Vibe Harness Kit — 바이브코딩 풀사이클 CLI",
+  "description": "Vibe Harness Kit — AI 코딩 도구·기기를 바꿔도 규칙·맥락이 따라가는 포터빌리티 CLI (sync: Cursor·Claude·Windsurf·Copilot·Antigravity / cloud 백업)",
   "bin": {
     "vhk": "dist/index.js",
     "vhk-mcp": "dist/mcp/index.js"
@@ -31,7 +31,14 @@
     "cli",
     "scaffold",
     "session-log",
-    "rules-sync"
+    "rules-sync",
+    "portability",
+    "ai-coding",
+    "cursor",
+    "claude",
+    "windsurf",
+    "copilot",
+    "context-sync"
   ],
   "author": "byh3071 <246838173+byh3071-cpu@users.noreply.github.com>",
   "license": "MIT",
