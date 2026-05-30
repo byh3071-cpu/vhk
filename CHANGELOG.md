@@ -6,6 +6,32 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.5.0] - 2026-05-30
+
+> **포터빌리티 확장 릴리즈.** v1.4.0 게시 이후 누적분 — 특히 `vhk sync` 대상이
+> 3종 → 5종으로 늘었다. v1.4.0 npm 패키지는 3종(Cursor·Claude·Windsurf)만 담고
+> 있어 README 의 5종 약속과 어긋났는데, 이 릴리즈로 일치시킨다.
+
+### Added
+
+- **`vhk sync` 대상 확대 — GitHub Copilot + Antigravity** (3종 → 5종).
+  `RULES.md` → `.cursorrules` + `CLAUDE.md` + `.windsurfrules` +
+  `.github/copilot-instructions.md` + `.agents/rules/vhk-rules.md`.
+  경로·포맷은 각 도구 공식 문서 기준. Antigravity 는 파일당 12,000자 제한이 있어
+  UTF-8 바이트 기준으로 안전 절삭(구조 경계 + 마커), 전체는 `RULES.md` 에 남는다.
+- **GitHub Actions CI** — PR·main 푸시마다 빌드+테스트 자동 검증.
+- **`.vhk/` RFC 0001 초안** (`docs/rfc/`) + **포터빌리티 Pain 블로그 초안** (`docs/blog/`) — 둘 다 draft.
+
+### Fixed
+
+- **goal 엣지케이스** — ① 중복 `id` 감지 시 `vhk goal list` 가 경고 출력
+  (조용한 누락 방지) ② 없는 `--id` 에 `check`/`done` 이 `goal id N 없음` 으로
+  메시지 통일 ③ title 의 콜론 보존 특성화 테스트(회귀 가드).
+
+### Docs
+
+- README 포지셔닝 전면 교체 — "올인원 CLI" → "도구·기기를 옮겨도 규칙·맥락이 따라간다"(포터빌리티). 과장 방지 단서(자동 아님·개인메모 제외·git clone) 명시.
+
 ## [1.4.0] - 2026-05-29
 
 > **포터빌리티 릴리즈.** AI 도구·컴퓨터가 바뀌어도 프로젝트 맥락이 따라온다.
