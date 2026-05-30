@@ -35,6 +35,24 @@ describe('design', () => {
     expect(mod.designPalette).toBeDefined()
   })
 
+  it('VHK-018: isTailwindV4Deps — @tailwindcss/vite 또는 tailwindcss ^4 감지', async () => {
+    const { isTailwindV4Deps } = await import('../src/commands/design.js')
+    expect(isTailwindV4Deps({ '@tailwindcss/vite': '^4' })).toBe(true)
+    expect(isTailwindV4Deps({ tailwindcss: '^4.1.0' })).toBe(true)
+    expect(isTailwindV4Deps({ tailwindcss: '~4' })).toBe(true)
+    expect(isTailwindV4Deps({ tailwindcss: '^3.4.0' })).toBe(false)
+    expect(isTailwindV4Deps({})).toBe(false)
+  })
+
+  it('VHK-018: generateTailwindV4Theme — @theme + @custom-variant dark + --color-*', async () => {
+    const { generateTailwindV4Theme } = await import('../src/commands/design.js')
+    const out = generateTailwindV4Theme({ name: 'X', colors: { primary: '#ffffff', background: '#0a0a0c' } })
+    expect(out).toContain('@theme {')
+    expect(out).toContain('--color-primary: #ffffff;')
+    expect(out).toContain('--color-background: #0a0a0c;')
+    expect(out).toContain('@custom-variant dark')
+  })
+
   it('tailwind.config 없으면 CSS 토큰 파일을 생성한다', async () => {
     mockExistsSync.mockReturnValue(false)
     mockPrompt.mockResolvedValue({ paletteIndex: 0 })

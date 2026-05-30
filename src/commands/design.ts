@@ -4,6 +4,7 @@ import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureInteractive } from '../lib/interactive.js'
+import { readJsonFile } from '../lib/read-json.js'
 
 interface ColorPalette {
   name: string
@@ -70,6 +71,40 @@ function hasTailwind(): boolean {
   )
 }
 
+/** Tailwind v4(CSS-first) 의존성 판정 — @tailwindcss/vite·postcss 또는 tailwindcss ^4. (VHK-018) */
+export function isTailwindV4Deps(deps: Record<string, string>): boolean {
+  if (deps['@tailwindcss/vite'] || deps['@tailwindcss/postcss']) return true
+  const tw = deps.tailwindcss
+  return typeof tw === 'string' && /^\D*4(\.|$)/.test(tw)
+}
+
+function hasTailwindV4(): boolean {
+  try {
+    const pkg = readJsonFile<{ dependencies?: Record<string, string>; devDependencies?: Record<string, string> }>(
+      'package.json'
+    )
+    return isTailwindV4Deps({ ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) })
+  } catch {
+    return false
+  }
+}
+
+/** Tailwind v4 CSS-first 토큰 — `@theme` 등록 + `@custom-variant dark`. 유틸(bg-primary 등) 생성됨. */
+export function generateTailwindV4Theme(palette: ColorPalette): string {
+  return [
+    '/* vhk design — Tailwind v4 @theme 토큰 (CSS-first). 진입 CSS 에 @import 하세요. */',
+    '@import "tailwindcss";',
+    '',
+    '@theme {',
+    ...Object.entries(palette.colors).map(([k, v]) => `  --color-${k}: ${v};`),
+    '}',
+    '',
+    '/* 다크 모드 — .dark 클래스 기반 variant (bg-background 등이 .dark 에서 전환) */',
+    '@custom-variant dark (&:where(.dark, .dark *));',
+    '',
+  ].join('\n')
+}
+
 function generateCSSTokens(palette: ColorPalette): string {
   const lines = Object.entries(palette.colors)
     .map(([key, value]) => `  --color-${key}: ${value};`)
@@ -106,8 +141,17 @@ export async function design(): Promise<void> {
   const palette = PALETTES[paletteIndex]
   console.log(chalk.cyan(`\n🎨 선택된 팔레트: ${palette.name}`))
 
-  const targetPath = hasTailwind() ? 'src/styles/vhk-colors.ts' : 'src/styles/tokens.css'
-  const content = hasTailwind() ? generateTailwindExtend(palette) : generateCSSTokens(palette)
+  const v4 = hasTailwindV4()
+  const targetPath = v4
+    ? 'src/styles/theme.css'
+    : hasTailwind()
+      ? 'src/styles/vhk-colors.ts'
+      : 'src/styles/tokens.css'
+  const content = v4
+    ? generateTailwindV4Theme(palette)
+    : hasTailwind()
+      ? generateTailwindExtend(palette)
+      : generateCSSTokens(palette)
 
   if (existsSync(targetPath)) {
     const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([{
@@ -125,7 +169,11 @@ export async function design(): Promise<void> {
   mkdirSync('src/styles', { recursive: true })
   writeFileSync(targetPath, content, 'utf-8')
 
-  if (hasTailwind()) {
+  if (v4) {
+    console.log(chalk.green('\n✅ src/styles/theme.css 생성 (Tailwind v4 @theme)'))
+    console.log(chalk.gray('   진입 CSS(예: src/index.css)에 `@import "./styles/theme.css";` 추가 → bg-primary 등 유틸 사용.'))
+    console.log(chalk.gray('   다크 토글: 루트 <html>/<body> 에 `.dark` 클래스 on/off.'))
+  } else if (hasTailwind()) {
     console.log(chalk.green('\n✅ src/styles/vhk-colors.ts 생성'))
     console.log(chalk.gray('   tailwind.config의 extend.colors에 import 해서 사용하세요.'))
   } else {
