@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { ko } from '../i18n/ko.js'
+import { localDate } from '../lib/date.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
 import {
@@ -266,7 +267,7 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
     return
   }
   const content = readFileSync(target.filePath, 'utf-8')
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDate() // VHK-019
   const updated = updateFrontmatterStatus(content, 'DONE', { completed: today })
   writeFileSync(target.filePath, updated, 'utf-8')
   console.log(chalk.green(`\n  ✅ Goal ${id} → DONE (completed: ${today})`))

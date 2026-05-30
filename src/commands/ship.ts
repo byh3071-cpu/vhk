@@ -5,6 +5,8 @@ import path from 'node:path'
 import { ko } from '../i18n/ko.js'
 import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { localDate } from '../lib/date.js'
 
 const CHECKLIST = [
   { id: 'build', questionKey: 'checkBuild' as const, hintKey: 'hintBuild' as const },
@@ -61,6 +63,7 @@ export function updateChangelogUnreleased(
 }
 
 export async function ship() {
+  if (!ensureNotHardStopped('ship')) return // VHK-020
   console.log(chalk.bold(`\n${ko.ship.title}\n`))
 
   const cwd = process.cwd()
@@ -126,7 +129,7 @@ export async function ship() {
   const buildLogDir = path.join(cwd, 'docs', 'build-log')
   if (!fs.existsSync(buildLogDir)) fs.mkdirSync(buildLogDir, { recursive: true })
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = localDate() // VHK-019
   const versionSlug = sanitizeVersion(retro.version)
   const fileName = `${today}-v${versionSlug}.md`
   const filePath = path.join(buildLogDir, fileName)

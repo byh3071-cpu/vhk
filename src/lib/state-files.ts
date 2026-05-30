@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { localDate } from './date.js'
 
 // docs/state/{next-task,blockers,learnings}.md 와 .vhk/HARD_STOP 의
 // append-only / 카운트 / 트립와이어 동작을 한 곳에 모은 헬퍼.
@@ -23,7 +24,7 @@ function ensureVhkDir(): void {
 }
 
 function isoDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return localDate() // VHK-019: 로컬 타임존 날짜(UTC slice 는 KST 새벽에 하루 밀림)
 }
 
 // "- [YYYY-MM-DD goal-N] ..." 패턴이지만 ~~strikethrough~~ 로 감싸진 항목은

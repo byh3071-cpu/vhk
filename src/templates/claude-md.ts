@@ -1,5 +1,7 @@
+import { localDate } from '../lib/date.js'
+
 export function CLAUDE_MD_TEMPLATE(name: string, _stack: string): string {
-  const d = new Date().toISOString().split('T')[0];
+  const d = localDate(); // VHK-019
   const slug = name.toLowerCase().replace(/\s+/g, '-');
   return [
     '---',
