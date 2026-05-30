@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { ensureInteractive } from '../lib/interactive.js'
 
 interface ColorPalette {
   name: string
@@ -86,6 +87,9 @@ function generateTailwindExtend(palette: ColorPalette): string {
 export async function design(): Promise<void> {
   console.log(chalk.bold('\n🎨 ' + t('design.title')))
   console.log(chalk.gray('─'.repeat(40)))
+
+  // VHK-014: 비-TTY 면 inquirer 크래시(ERR_USE_AFTER_CLOSE) 대신 friendly 안내 + exit 1.
+  if (!ensureInteractive('컬러 팔레트 선택은 대화형으로만 가능합니다.')) return
 
   const { paletteIndex } = await inquirer.prompt<{ paletteIndex: number }>([
     {

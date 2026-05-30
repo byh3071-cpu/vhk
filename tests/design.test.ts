@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+
+// VHK-014 가드(ensureInteractive)는 비-TTY 면 design() 을 막는다 → 대화형 테스트는 TTY 모사 필요.
+let origTTY: boolean | undefined
 
 const mockExistsSync = vi.fn()
 const mockMkdirSync = vi.fn()
@@ -19,6 +22,11 @@ describe('design', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    origTTY = process.stdin.isTTY
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+  })
+  afterEach(() => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: origTTY, configurable: true })
   })
 
   it('모듈을 import 할 수 있다', async () => {
