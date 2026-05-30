@@ -68,6 +68,30 @@ async function guardCli(
     run,
   )
 }
+
+/**
+ * undo/resume 처럼 명령이 **자체 확인**(undo: 푸시 커밋 경고·되돌릴 개수, resume: --confirm)을
+ * 하는 high-risk 용 가드. 단일 chokepoint(runGuarded)로 모드 정책만 적용하고
+ * (비대화형 미승인 → 차단, lite → 경고만), 실제 사용자 확인은 명령에 위임해 이중 프롬프트를 막는다.
+ * → 일관성(전부 runGuarded 경유) + 명령별 특화 안전(푸시 경고/--confirm) 둘 다 유지.
+ */
+async function guardCliDefer(
+  action: string,
+  approved: boolean,
+  run: () => Promise<void> | void,
+): Promise<void> {
+  await runGuarded(
+    action,
+    {
+      channel: 'cli',
+      approved,
+      // TTY 면 통과(명령이 자체 확인), 비대화형은 confirm 불가 → 가드가 차단.
+      confirm: async () => !!process.stdout.isTTY,
+      log: (m) => console.log(chalk.yellow(`  ${m}`)),
+    },
+    run,
+  )
+}
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalInit, goalList, goalNext } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
@@ -263,7 +287,7 @@ program
   .alias('되돌리기')
   .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('최근 커밋 되돌리기')
-  .action(async (opts: { yes?: boolean }) => { await guardCli('undo', opts?.yes === true, () => undo()) })
+  .action(async (opts: { yes?: boolean }) => { await guardCliDefer('undo', opts?.yes === true, () => undo()) })
 
 program
   .command('restore')
@@ -510,7 +534,7 @@ program
   .alias('재개')
   .option('--confirm', '사람 확인 — 자동 호출 금지 (Forbidden 위반)')
   .description('.vhk/HARD_STOP 해제 (사용자가 사유 확인 후 --confirm 필요)')
-  .action(async (opts: { confirm?: boolean }) => { await guardCli('resume', opts?.confirm === true, () => resume(opts)) })
+  .action(async (opts: { confirm?: boolean }) => { await guardCliDefer('resume', opts?.confirm === true, () => resume(opts)) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
@@ -562,7 +586,7 @@ program.action(async () => {
     case 'save':
       return guardCli('save', false, () => save())
     case 'undo':
-      return guardCli('undo', false, () => undo())
+      return guardCliDefer('undo', false, () => undo())
     case 'status':
       return status()
     case 'diff':
