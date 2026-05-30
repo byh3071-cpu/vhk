@@ -5,6 +5,7 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 type CheckSpec = { name: string; bin: string; args: string[] }
 
@@ -68,6 +69,7 @@ function detectChecks(): CheckSpec[] {
 }
 
 export async function harness(): Promise<void> {
+  if (!ensureNotHardStopped('harness')) return // VHK-020
   console.log(chalk.bold('\n🔧 ' + t('harness.title')))
   console.log(chalk.gray('─'.repeat(40)))
 

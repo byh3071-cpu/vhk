@@ -38,6 +38,7 @@ import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
 import { runGuarded } from './lib/safety-guard.js'
+import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
 import { isPromptAbortError } from './lib/interactive.js'
 
 /**
@@ -50,6 +51,8 @@ async function guardCli(
   approved: boolean,
   run: () => Promise<void> | void,
 ): Promise<void> {
+  // VHK-020: HARD_STOP 활성 시 high-risk CLI 작업(save/deploy/publish/sync/migrate/cloud-pull/env-write) 차단.
+  if (!ensureNotHardStopped(action)) return
   await runGuarded(
     action,
     {

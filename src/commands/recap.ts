@@ -8,12 +8,14 @@ import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
 import { ensureInteractive } from '../lib/interactive.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 export type RecapOptions = {
   since?: string
 }
 
 export async function recap(options: RecapOptions = {}) {
+  if (!ensureNotHardStopped('recap')) return // VHK-020
   console.log(chalk.bold(`\n${ko.recap.title}\n`))
 
   if (!(await isGitRepo())) {
