@@ -98,6 +98,80 @@ export function toWindsurfrules(sections: RulesSection[], projectName: string): 
 }
 
 /**
+ * 코딩 규칙 문서 공통 빌더 (신규 출력 대상용).
+ * 기존 toCursorrules/toWindsurfrules 는 GA 안정성 위해 그대로 두고, 신규 대상만 이 빌더 공유.
+ * 자동생성 경고 주석은 최상단(제목 바로 아래) — 직접 편집 시 덮어쓰기 신호.
+ */
+function buildCodingDoc(headerTitle: string, sections: RulesSection[], projectName: string): string {
+  const codingSections = sections.filter(s =>
+    CURSORRULES_KEYS.some(k => s.title.includes(k))
+  )
+
+  const lines = [
+    `# ${projectName} — ${headerTitle}`,
+    '',
+    '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지 — RULES.md를 고치세요.',
+    '> 코딩/디자인 전용. 기록/운영 → CLAUDE.md 참조.',
+    '',
+    '## 필수 참조',
+    '- docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md · RULES.md',
+    '',
+  ]
+
+  for (const section of codingSections) {
+    lines.push(`## ${section.title}`)
+    lines.push(section.content)
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+/** GitHub Copilot — 레포 전역 지침. 공식 경로 .github/copilot-instructions.md (Markdown). */
+export function toCopilotInstructions(sections: RulesSection[], projectName: string): string {
+  return buildCodingDoc('GitHub Copilot Instructions', sections, projectName)
+}
+
+/**
+ * Antigravity 규칙 파일 1개당 12,000자 제한 (공식 docs).
+ * 측정 주의: 공식 표기는 "characters". JS `.length`(UTF-16 코드유닛)로 잰다 —
+ * 이모지는 과대 측정(= 더 일찍 자름, 안전 방향). 만약 Antigravity가 실제로 바이트로
+ * 잰다면 한글(UTF-8 3바이트)은 위험 방향이므로 안전마진을 크게 둔다(아래 SAFETY).
+ */
+export const ANTIGRAVITY_CHAR_LIMIT = 12000
+const ANTIGRAVITY_TRUNCATE_MARKER =
+  '\n\n<!-- ⚠️ Antigravity 12,000자 제한으로 절삭됨 — 전체 규칙은 RULES.md 참조 -->\n'
+
+/**
+ * 12k 제한 안전 절삭 — 마크다운 구조 경계(## 헤딩, 없으면 직전 \n)에서 자른다.
+ * 마커 길이 + 안전마진을 예산에서 빼므로 결과 길이는 항상 limit 미만(테스트로 보장).
+ */
+export function truncateForAntigravity(
+  content: string,
+  limit = ANTIGRAVITY_CHAR_LIMIT
+): string {
+  if (content.length <= limit) return content
+
+  const SAFETY = 500 // 한글 byte-측정 가능성 대비 보수 마진
+  const target = limit - ANTIGRAVITY_TRUNCATE_MARKER.length - SAFETY
+
+  // 구조 경계에서 절삭 — 코드블록/헤딩/리스트 한가운데서 깨지지 않게
+  let cut = content.lastIndexOf('\n## ', target)
+  if (cut < target * 0.5) {
+    // 헤딩 경계가 너무 이르거나 없으면 직전 줄바꿈으로 폴백
+    const nl = content.lastIndexOf('\n', target)
+    cut = nl > 0 ? nl : target
+  }
+
+  return content.slice(0, cut).trimEnd() + ANTIGRAVITY_TRUNCATE_MARKER
+}
+
+/** Antigravity — 워크스페이스 규칙. 공식 경로 .agents/rules/<name>.md (파일당 12,000자). */
+export function toAntigravityRules(sections: RulesSection[], projectName: string): string {
+  return truncateForAntigravity(buildCodingDoc('Antigravity Rules', sections, projectName))
+}
+
+/**
  * RULES.md 섹션을 CLAUDE.md 포맷으로 변환
  */
 export function toClaudeMd(sections: RulesSection[], existing: string): string {
@@ -169,8 +243,25 @@ export async function sync() {
   fs.writeFileSync(windsurfPath, toWindsurfrules(sections, projectName), 'utf-8')
   console.log(chalk.green(`  ${ko.sync.windsurfDone}`))
 
+  // GitHub Copilot — 중첩 경로라 디렉토리 보장 필요 (기존 3개는 루트라 불필요했음)
+  const copilotPath = path.join(cwd, '.github', 'copilot-instructions.md')
+  fs.mkdirSync(path.dirname(copilotPath), { recursive: true })
+  fs.writeFileSync(copilotPath, toCopilotInstructions(sections, projectName), 'utf-8')
+  console.log(chalk.green(`  ${ko.sync.copilotDone}`))
+
+  // Antigravity — .agents/rules/ 중첩 경로 + 12k 절삭
+  const antigravityPath = path.join(cwd, '.agents', 'rules', 'vhk-rules.md')
+  fs.mkdirSync(path.dirname(antigravityPath), { recursive: true })
+  const antigravityDoc = toAntigravityRules(sections, projectName)
+  fs.writeFileSync(antigravityPath, antigravityDoc, 'utf-8')
+  console.log(chalk.green(`  ${ko.sync.antigravityDone}`))
+  if (antigravityDoc.includes('절삭됨')) {
+    console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))
+  }
+
   console.log(chalk.bold.green(`\n${ko.sync.done}`))
-  console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md + .windsurfrules (자동 생성)'))
+  console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md + .windsurfrules'))
+  console.log(chalk.dim('             + .github/copilot-instructions.md + .agents/rules/vhk-rules.md (자동 생성)'))
   console.log(chalk.dim('  규칙 변경은 항상 RULES.md에서만 하세요.'))
 
   printNextStep({

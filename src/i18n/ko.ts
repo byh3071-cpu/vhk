@@ -224,6 +224,9 @@ export const ko = {
     cursorrulesDone: '✅ .cursorrules 맞춤 완료',
     claudeDone: '✅ CLAUDE.md 맞춤 완료',
     windsurfDone: '✅ .windsurfrules 맞춤 완료',
+    copilotDone: '✅ .github/copilot-instructions.md 맞춤 완료',
+    antigravityDone: '✅ .agents/rules/vhk-rules.md 맞춤 완료',
+    antigravityTruncated: 'Antigravity 12,000자 제한으로 일부 절삭됨 — 전체는 RULES.md 참조',
     done: '🔄 맞추기 완료!',
   },
   cloud: {
