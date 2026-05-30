@@ -7,6 +7,8 @@ import {
   appendLearning,
   countActiveBlockers,
   getRecentLearnings,
+  getRecentBlockers,
+  getActiveBlockers,
   writeHardStop,
   isHardStopActive,
   clearHardStop,
@@ -141,6 +143,73 @@ describe('appendLearning + getRecentLearnings', () => {
   it('SoT 일관성 — appendLearning 은 .vhk/memory.json 에 쓰지 않음 (Forbidden 이중 기록)', () => {
     appendLearning('learning that should NOT enter memory.json')
     expect(existsSync(join('.vhk', 'memory.json'))).toBe(false)
+  })
+})
+
+describe('getRecentBlockers / getActiveBlockers (배치2)', () => {
+  let origCwd: string
+  let dir: string
+  beforeEach(() => {
+    origCwd = process.cwd()
+    dir = tmpProject('blocker-recent')
+    process.chdir(dir)
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  function writeBlockers(lines: string[]): void {
+    mkdirSync('docs/state', { recursive: true })
+    writeFileSync(
+      BLOCKERS_PATH,
+      ['# Blockers', '', ...lines, ''].join('\n'),
+      'utf-8'
+    )
+  }
+
+  it('getRecentBlockers — 마지막 N개 (해결 항목 포함)', () => {
+    writeBlockers([
+      '- [2026-05-01 goal-4] b1',
+      '- ~~[2026-05-02 goal-4] b2 resolved~~',
+      '- [2026-05-03 goal-4] b3',
+      '- [2026-05-04 goal-4] b4',
+    ])
+    const recent = getRecentBlockers(3)
+    expect(recent).toHaveLength(3)
+    expect(recent[2]).toContain('b4')
+    // 해결 항목도 '최근'에 포함될 수 있음
+    expect(recent.some((l) => l.includes('b2 resolved'))).toBe(true)
+  })
+
+  it('getActiveBlockers — ~~해결~~ 항목 제외, 최근 N개', () => {
+    writeBlockers([
+      '- [2026-05-01 goal-4] active 1',
+      '- ~~[2026-05-02 goal-4] resolved~~',
+      '- [2026-05-03 goal-4] active 2',
+    ])
+    const active = getActiveBlockers(3)
+    expect(active).toHaveLength(2)
+    expect(active.some((l) => l.includes('resolved'))).toBe(false)
+    expect(active[0]).toContain('active 1')
+    expect(active[1]).toContain('active 2')
+  })
+
+  it('기본 limit 은 3', () => {
+    writeBlockers([
+      '- [d goal-4] a',
+      '- [d goal-4] b',
+      '- [d goal-4] c',
+      '- [d goal-4] d',
+      '- [d goal-4] e',
+    ])
+    expect(getActiveBlockers().length).toBe(3)
+    expect(getRecentBlockers().length).toBe(3)
+  })
+
+  it('파일 없으면 빈 배열', () => {
+    expect(getRecentBlockers(3)).toEqual([])
+    expect(getActiveBlockers(3)).toEqual([])
   })
 })
 

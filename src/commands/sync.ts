@@ -183,6 +183,43 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
 }
 
 /**
+ * RULES.md 섹션을 AGENTS.md 포맷으로 변환 (sync 6번째 타겟).
+ * Loop Protocol 보일러플레이트를 생성기에 내장해 — sync 가 AGENTS.md 를 재생성해도
+ * 운영 규약(Loop Protocol)·compact 안내가 보존된다(수기 AGENTS.md 하드코딩 회피).
+ */
+export function toAgentsMd(sections: RulesSection[], projectName: string): string {
+  const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
+  const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
+
+  const lines = [
+    `# ${projectName} — AGENTS.md (에이전트 작동 규약)`,
+    '',
+    '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.',
+    '> 빠른 시작(토큰 절감): `docs/context/agent-compact.md` 를 먼저 읽으세요.',
+    '',
+    '## Loop Protocol',
+    '- 루프: `context → goal next → 작업 → goal check → goal done`',
+    '- 작업 시작 시 `.vhk/HARD_STOP` 확인 — 있으면 모든 자동화 즉시 중단.',
+    '- active goal 만 작업. `docs/state`(next-task/blockers/learnings)는 SoT, append-only.',
+    '- 게이트(tsc / test:run / build) 통과해야만 `vhk goal done`.',
+    '',
+  ]
+
+  for (const section of codingSections) {
+    lines.push(`## ${section.title}`)
+    lines.push(section.content)
+    lines.push('')
+  }
+  for (const section of recordSections) {
+    lines.push(`## ${section.title}`)
+    lines.push(section.content)
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+/**
  * RULES.md 첫 줄에서 프로젝트명 도출. sync() 와 드리프트 점검이 **같은 로직**을
  * 쓰도록 단일 출처로 분리 (둘이 다르게 도출하면 거짓 드리프트 발생).
  */
@@ -210,6 +247,8 @@ export const SYNC_TARGETS: SyncTarget[] = [
   { path: '.windsurfrules', generate: toWindsurfrules, doneMessage: ko.sync.windsurfDone },
   { path: '.github/copilot-instructions.md', generate: toCopilotInstructions, doneMessage: ko.sync.copilotDone },
   { path: '.agents/rules/vhk-rules.md', generate: toAntigravityRules, doneMessage: ko.sync.antigravityDone },
+  // AGENTS.md — 6번째 타겟. 항목 1개 추가로 sync·드리프트·백업 가드가 자동 반영된다.
+  { path: 'AGENTS.md', generate: toAgentsMd, doneMessage: ko.sync.agentsDone },
 ]
 
 /** 보존할 백업 개수 — 무한 증식 방지(스케일/팀 고려). */

@@ -10,6 +10,7 @@ import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/aud
 import { readJsonFile } from '../lib/read-json.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 import { getVhkVersion } from '../lib/version.js'
+import { resolveVhkCliInvocation, type VhkCliInvocation } from './cli-path.js'
 
 // package.json 의 version 을 런타임에 읽음 (lib/version 재사용) — drift 방지.
 // dist/index.js 와 dist/mcp/index.js 둘 다 lib/version 의 candidate 경로로 해석됨.
@@ -28,6 +29,12 @@ function stripAnsi(s: string): string {
   return s.replace(ANSI_RE, '')
 }
 
+// CLI 실행 경로는 1회 해석 후 캐시 — 전역 vhk 없으면 로컬 dist/index.js 로 fallback.
+let cachedCli: VhkCliInvocation | null = null
+function getVhkCli(): VhkCliInvocation {
+  return (cachedCli ??= resolveVhkCliInvocation())
+}
+
 // vhk CLI 자체를 서브프로세스로 호출해서 결과를 MCP content로 변환.
 // MCP 모드에서는 inquirer/ora 프롬프트가 동작하지 않으므로 비대화형 커맨드만 위임.
 // chalk 가 색을 안 쓰도록 FORCE_COLOR=0 + NO_COLOR=1 강제 + 잔여 ANSI 는 regex strip.
@@ -35,7 +42,10 @@ function runVhkCli(
   args: string[],
   headline: string
 ): { content: [{ type: 'text'; text: string }] } {
-  const result = safeExecFile('vhk', args, { env: { FORCE_COLOR: '0', NO_COLOR: '1' } })
+  const cli = getVhkCli()
+  const result = safeExecFile(cli.bin, [...cli.prefixArgs, ...args], {
+    env: { FORCE_COLOR: '0', NO_COLOR: '1' },
+  })
   const body = stripAnsi(result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`))
   const prefix = result.ok ? `✅ ${headline}` : `❌ ${headline} 실패`
   return { content: [{ type: 'text', text: `${prefix}\n${body}`.trim() }] }
@@ -445,7 +455,11 @@ export function createVhkMcpServer(): McpServer {
   // ─── sync ───────────────────────────────────────────────
   server.registerTool(
     'sync',
-    { description: 'RULES.md → .cursorrules + CLAUDE.md 자동 동기화' },
+    {
+      description:
+        'RULES.md → Cursor·Claude·Windsurf·Copilot·Antigravity·AGENTS.md 규칙 동기화. ' +
+        '덮어쓰기 전 기존 파일을 자동 백업하므로 안전하며, 되돌리려면 사용자에게 `vhk restore` 를 안내하세요.',
+    },
     async () => runVhkCli(['sync'], 'sync')
   )
 

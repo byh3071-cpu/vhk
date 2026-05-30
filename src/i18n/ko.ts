@@ -15,8 +15,9 @@ export const ko = {
     noPackage: 'package.json 없음',
     detached: '(detached HEAD)',
     unknownBranch: '(알 수 없음)',
-    nextWithChangesMessage: '변경사항이 있어요. 커밋·푸시를 진행하세요.',
-    nextWithChangesCursor: '저장해줘',
+    nextWithChangesMessage: '변경사항이 있어요. 먼저 무엇이 바뀌었는지 확인하세요.',
+    nextWithChangesCursor: '뭐 바뀌었어?',
+    nextWithChangesAlt: '확인했으면 vhk save 로 저장하세요',
     nextCleanMessage: '클린 상태! 다음 미션으로 넘어가세요.',
     nextCleanCursor: '다음 목표 알려줘',
   },
@@ -167,6 +168,11 @@ export const ko = {
     scriptsDone: '📦 package.json scripts 추가',
     gitignoreCreated: '🔒 .gitignore 생성 (.env·node_modules·dist 제외)',
     gitignoreUpdated: '🔒 .gitignore 보강 (누락 항목 추가)',
+    adoptPrompt: (n: number, list: string) =>
+      `📥 기존 규칙 파일 ${n}개 발견 (${list}). RULES.md로 가져올까요?`,
+    adoptPreview: (n: number) =>
+      `기존 규칙 ${n}개를 RULES.md 표준 섹션으로 병합했어요 (출처 주석 포함).`,
+    adoptDone: '📥 RULES.md — 기존 규칙 adopt 완료',
   },
   recap: {
     title: '📝 오늘 한 일 정리',
@@ -232,6 +238,7 @@ export const ko = {
     windsurfDone: '✅ .windsurfrules 맞춤 완료',
     copilotDone: '✅ .github/copilot-instructions.md 맞춤 완료',
     antigravityDone: '✅ .agents/rules/vhk-rules.md 맞춤 완료',
+    agentsDone: '✅ AGENTS.md 맞춤 완료',
     antigravityTruncated: 'Antigravity 12,000자 제한으로 일부 절삭됨 — 전체는 RULES.md 참조',
     done: '🔄 맞추기 완료!',
     // 안전 가드 (배치 0) — 덮어쓰기 전 백업·드리프트 확인·미리보기

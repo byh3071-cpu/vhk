@@ -94,6 +94,35 @@ describe('detectNaturalLanguageInput — restore 명령 라우팅 (회귀)', () 
   })
 })
 
+describe('detectNaturalLanguageInput — 서브커맨드 명령 경로 가드 (R1: 명령어 매칭 우선)', () => {
+  // 실결함: NL 라우터가 'goal check' 를 check(점검) 키워드로 가로채 vhk goal check 가 죽음.
+  // 실제 서브커맨드 경로는 commander 가 처리하고, 자연어는 fallback 이어야 한다.
+  it('vhk goal check → null (commander 가 goal check 게이트 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'goal', 'check'])).toBeNull()
+  })
+  it('vhk goal done → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'goal', 'done'])).toBeNull()
+  })
+  it('vhk goal next → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'goal', 'next'])).toBeNull()
+  })
+  it('vhk goal list → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'goal', 'list'])).toBeNull()
+  })
+  it('vhk ref add <url> → null (인자 보존)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'ref', 'add', 'https://ex.com'])
+    ).toBeNull()
+  })
+  it('vhk memory list → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'memory', 'list'])).toBeNull()
+  })
+  // 회귀: 한국어 자연어는 서브커맨드가 아니므로 여전히 NL 로 라우팅돼야 한다.
+  it('vhk 보안 확인 → 여전히 자연어 ("확인"은 secure 서브커맨드 아님)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '보안', '확인'])).toBe('보안 확인')
+  })
+})
+
 describe('cli NL e2e', () => {
   const bin = path.join(process.cwd(), 'dist', 'index.js')
 

@@ -4,11 +4,13 @@ import os from 'node:os'
 import path from 'node:path'
 import { generateFiles, enhancePackageScripts, ensureRootGitignore } from '../src/commands/init.js'
 import { COMMANDS_MD_TEMPLATE } from '../src/templates/commands-md.js'
+import { parseRulesMd } from '../src/commands/sync.js'
 import { writeFile } from '../src/utils/file.js'
 
 const EXPECTED_FILES = [
   'CLAUDE.md',
   '.cursorrules',
+  'RULES.md',
   'docs/PRD.md',
   'docs/ARCHITECTURE.md',
   'docs/adr/ADR-000-template.md',
@@ -84,6 +86,28 @@ describe('vhk init', () => {
     const md = COMMANDS_MD_TEMPLATE()
     expect(md).toContain('vhk doctor')
     expect(md).toContain('vhk 보안 scan')
+  })
+})
+
+describe('vhk init — RULES.md 단일 소스(SoT) 생성', () => {
+  it('generateFiles 가 RULES.md 를 표준 섹션으로 생성한다', () => {
+    const files = generateFiles('my-app', '테스트 설명', ['Node.js', 'TypeScript'])
+    expect(files['RULES.md']).toBeDefined()
+    const rules = files['RULES.md']
+    expect(rules).toContain('# my-app')
+    expect(rules).toContain('## 기술 스택')
+    expect(rules).toContain('## 코딩 규칙')
+    expect(rules).toContain('## 기록 규칙')
+    expect(rules).toContain('## 커밋')
+    expect(rules).toContain('Node.js')
+  })
+
+  it('RULES.md 가 sync 파서로 다시 파싱된다 (init↔sync 연결)', () => {
+    const files = generateFiles('demo', '설명', ['Node.js'])
+    const sections = parseRulesMd(files['RULES.md'])
+    const titles = sections.map((s) => s.title)
+    expect(titles).toContain('코딩 규칙')
+    expect(titles).toContain('기술 스택')
   })
 })
 

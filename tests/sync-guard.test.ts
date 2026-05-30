@@ -60,6 +60,18 @@ describe('syncCore — 첫 sync', () => {
   })
 })
 
+describe('syncCore — 5-tool 산출 검증 (배치1 §C)', () => {
+  it('copilot-instructions · vhk-rules · windsurfrules 가 실제 생성된다', async () => {
+    const r = await syncCore(dir, {}, alwaysYes)
+    expect(exists('.github/copilot-instructions.md')).toBe(true)
+    expect(exists('.agents/rules/vhk-rules.md')).toBe(true)
+    expect(exists('.windsurfrules')).toBe(true)
+    expect(r.written).toContain('.github/copilot-instructions.md')
+    expect(r.written).toContain('.agents/rules/vhk-rules.md')
+    expect(r.written).toContain('.windsurfrules')
+  })
+})
+
 describe('syncCore — drift 가드 (데이터 손실 0)', () => {
   it('drift + 덮어쓰기 거부 → 백업 저장되고 원본 유지', async () => {
     await syncCore(dir, {}, alwaysYes) // 초기 동기화(마커 생성)

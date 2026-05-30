@@ -89,6 +89,33 @@ export function readProjectPackage(cwd = process.cwd()): ProjectPackage | null {
   }
 }
 
+export interface StatusNextStep {
+  message: string
+  command: string
+  cursorHint: string
+  alternative?: string
+}
+
+/**
+ * status 다음 액션 — 변경사항이 있어도 곧장 `vhk save` 를 권하지 않는다(데이터 안전).
+ * 먼저 `vhk diff`("뭐 바뀌었어")로 확인 → 저장은 그 다음(alternative)으로 안내. (배치3 §2)
+ */
+export function selectStatusNextStep(hasChanges: boolean): StatusNextStep {
+  if (hasChanges) {
+    return {
+      message: t('status.nextWithChangesMessage'),
+      command: 'vhk diff',
+      cursorHint: t('status.nextWithChangesCursor'),
+      alternative: t('status.nextWithChangesAlt'),
+    }
+  }
+  return {
+    message: t('status.nextCleanMessage'),
+    command: 'vhk goal next',
+    cursorHint: t('status.nextCleanCursor'),
+  }
+}
+
 function getSyncCounts(gitRoot: string): SyncCounts {
   try {
     const out = gitOut(['rev-list', '--left-right', '--count', 'HEAD...@{u}'], gitRoot)
@@ -158,17 +185,5 @@ export async function status(): Promise<void> {
   }
 
   const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0
-  if (hasChanges) {
-    printNextStep({
-      message: t('status.nextWithChangesMessage'),
-      command: 'vhk save',
-      cursorHint: t('status.nextWithChangesCursor'),
-    })
-  } else {
-    printNextStep({
-      message: t('status.nextCleanMessage'),
-      command: 'vhk goal next',
-      cursorHint: t('status.nextCleanCursor'),
-    })
-  }
+  printNextStep(selectStatusNextStep(hasChanges))
 }
