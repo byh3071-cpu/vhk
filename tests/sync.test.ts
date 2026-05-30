@@ -1,4 +1,7 @@
 import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import {
   parseRulesMd,
   toCursorrules,
@@ -10,7 +13,9 @@ import {
   ANTIGRAVITY_CHAR_LIMIT,
   SYNC_TARGETS,
   findUnmappedSections,
+  syncCore,
 } from '../src/commands/sync.js'
+import { generateFiles } from '../src/commands/init.js'
 
 const SAMPLE_RULES = `# 데모 프로젝트 — Rules
 
@@ -164,5 +169,22 @@ describe('vhk sync — Antigravity 변환 + 12k 절삭', () => {
     // 본문 마지막 줄은 헤딩이거나 완전한 x줄 — 빈 부분 토큰 아님
     const lastLine = body.split('\n').filter(Boolean).pop() ?? ''
     expect(lastLine.startsWith('## ') || lastLine === 'x'.repeat(60)).toBe(true)
+  })
+})
+
+describe('vhk init → sync 연결 (VHK-002 / #61 회귀)', () => {
+  it('init 이 항상 생성하는 RULES.md 를 sync 가 소비해 .cursorrules·CLAUDE.md 를 만든다', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-init-sync-'))
+    // #61: init 이 RULES.md 를 안 만들면 sync 가 그걸 요구하다 깨졌음 → 항상 생성됨을 보장.
+    const files = generateFiles('데모', '한 줄 설명', ['Node.js', 'TypeScript'])
+    expect(files['RULES.md']).toBeDefined()
+    fs.writeFileSync(path.join(dir, 'RULES.md'), files['RULES.md'], 'utf-8')
+
+    const result = await syncCore(dir, {}, async () => true)
+    // sync 가 init 산출 RULES.md 를 읽어 도구 파일을 정상 생성(흐름 단절 없음)
+    expect(result.written).toContain('.cursorrules')
+    expect(result.written).toContain('CLAUDE.md')
+    expect(fs.existsSync(path.join(dir, '.cursorrules'))).toBe(true)
+    fs.rmSync(dir, { recursive: true })
   })
 })
