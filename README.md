@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-05-28
-tags: [vhk, cli, readme, v1.5.0, ga]
+tags: [vhk, cli, readme, v1.5.1, ga]
 ---
 
 # 🔧 VHK — Vibe Harness Kit
 
-> 🎉 **v1.5.0** — **규칙은 한 벌로 Cursor·Claude·Windsurf·Copilot·Antigravity에, 맥락은 클라우드로.**
+> 🎉 **v1.5.1** — **규칙은 한 벌로 Cursor·Claude·Windsurf·Copilot·Antigravity에, 맥락은 클라우드로.**
 > 도구·기기를 옮겨도 `vhk` 명령으로 그대로 불러옵니다. (포터빌리티)
 >
 > AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI**.

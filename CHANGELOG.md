@@ -6,6 +6,17 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.5.1] - 2026-05-30
+
+> **메타데이터 패치.** 기능 변화 없음 — npm 페이지 안내문을 포지셔닝에 맞춰 즉시 반영하기 위한 재게시.
+
+### Changed
+
+- npm `description`/`keywords` 를 포터빌리티 포지셔닝으로 갱신
+  ("풀사이클 CLI" → "도구·기기를 바꿔도 규칙·맥락이 따라가는 포터빌리티 CLI",
+  keywords 에 portability·cursor·claude·windsurf·copilot·context-sync 추가).
+  *(코드 변경은 #39 에서 머지됨, 본 릴리즈는 버전 범프만.)*
+
 ## [1.5.0] - 2026-05-30
 
 > **포터빌리티 확장 릴리즈.** v1.4.0 게시 이후 누적분 — 특히 `vhk sync` 대상이
