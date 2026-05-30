@@ -1,4 +1,5 @@
 import { Command, Help } from 'commander'
+import { pathToFileURL } from 'node:url'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
@@ -34,6 +35,39 @@ import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
+import { mode } from './commands/mode.js'
+import { verify } from './commands/verify.js'
+import { runGuarded } from './lib/safety-guard.js'
+
+/**
+ * CLI high-risk 작업 가드 — 단일 chokepoint(runGuarded) 경유.
+ * standard/strict 면 confirm(거부/비대화형 → 중단), lite 면 경고만. `--yes` 로 명시 승인.
+ * (각 호출부는 한 줄로 위임만 — 결정 로직은 runGuarded 한 곳.)
+ */
+async function guardCli(
+  action: string,
+  approved: boolean,
+  run: () => Promise<void> | void,
+): Promise<void> {
+  await runGuarded(
+    action,
+    {
+      channel: 'cli',
+      approved,
+      confirm: async () => {
+        const { ok } = await inquirer.prompt<{ ok: boolean }>([{
+          type: 'confirm',
+          name: 'ok',
+          message: `⚠️ 위험 작업(${action})을 실행할까요?`,
+          default: false,
+        }])
+        return ok
+      },
+      log: (m) => console.log(chalk.yellow(`  ${m}`)),
+    },
+    run,
+  )
+}
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalInit, goalList, goalNext } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
@@ -162,7 +196,7 @@ program
   .option('--dry-run', '미리보기만 — 파일 변경 없음')
   .option('-y, --yes', 'drift 확인 프롬프트 생략(덮어쓰기 동의)')
   .description('RULES.md → .cursorrules + CLAUDE.md 동기화 (덮어쓰기 전 자동 백업)')
-  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => { await sync(opts) })
+  .action(async (opts: { dryRun?: boolean; yes?: boolean }) => { await guardCli('sync', opts?.yes === true, () => sync(opts)) })
 
 program
   .command('check')
@@ -200,8 +234,9 @@ cloudCmd
   .command('pull')
   .alias('내리기')
   .argument('[gistId]', '복원할 gist id (생략 시 .vhk/cloud.json 사용)')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('gist 에서 .vhk/ 복원')
-  .action(async (gistId?: string) => { await cloudPull(gistId) })
+  .action(async (gistId: string | undefined, opts: { yes?: boolean }) => { await guardCli('cloud-pull', opts?.yes === true, () => cloudPull(gistId)) })
 
 program
   .command('ship')
@@ -219,14 +254,16 @@ program
 program
   .command('save')
   .alias('저장')
+  .option('--yes', '확인 없이 실행 (strict 모드 가드 명시 승인)')
   .description('변경사항 저장 (git add → commit → push)')
-  .action(async () => { await save() })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('save', opts?.yes === true, () => save()) })
 
 program
   .command('undo')
   .alias('되돌리기')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('최근 커밋 되돌리기')
-  .action(async () => { await undo() })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('undo', opts?.yes === true, () => undo()) })
 
 program
   .command('restore')
@@ -266,14 +303,16 @@ program
 program
   .command('deploy')
   .alias('배포')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('프로덕션 배포 (Vercel/Netlify/Cloudflare 자동 감지)')
-  .action(async () => { await deploy() })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('deploy', opts?.yes === true, () => deploy()) })
 
 program
   .command('env')
   .alias('환경변수')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('.env → .env.example 동기화 + .gitignore 자동 추가')
-  .action(async () => { await env() })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('env-write', opts?.yes === true, () => env()) })
 
 program
   .command('env-check')
@@ -284,8 +323,9 @@ program
 program
   .command('publish')
   .alias('출시')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('npm 배포 (버전 범프 → 빌드 → 테스트 → publish)')
-  .action(async () => { await publish() })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('publish', opts?.yes === true, () => publish()) })
 
 program
   .command('design')
@@ -347,8 +387,9 @@ program
 program
   .command('migrate [target]')
   .alias('전환')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('패키지 매니저 전환 (npm/yarn/pnpm) — 패키지매니저만 바꿈, 설정 마이그레이션 아님')
-  .action(async (target?: string) => { await migrate(target) })
+  .action(async (target: string | undefined, opts: { yes?: boolean }) => { await guardCli('migrate', opts?.yes === true, () => migrate(target)) })
 
 program
   .command('update')
@@ -362,6 +403,18 @@ program
   .option('--compact', '토큰 절감형 — 전체 명령 목록/깊은 트리 생략, 참조 링크 중심')
   .description('프로젝트 맥락 파일 생성 (.vhk/context.md)')
   .action(async (opts: { compact?: boolean }) => { await context({ compact: opts.compact }) })
+
+program
+  .command('mode [target]')
+  .alias('모드')
+  .description('Safety Mode 조회/변경 (lite|standard|strict) — 위험 작업 가드 강도')
+  .action(async (target?: string) => { await mode(target) })
+
+program
+  .command('verify')
+  .alias('사전점검')
+  .description('저장/위험 작업 전 검증 묶음 안내 (lite)')
+  .action(async () => { await verify() })
 
 program
   .command('context-show')
@@ -457,7 +510,7 @@ program
   .alias('재개')
   .option('--confirm', '사람 확인 — 자동 호출 금지 (Forbidden 위반)')
   .description('.vhk/HARD_STOP 해제 (사용자가 사유 확인 후 --confirm 필요)')
-  .action(async (opts: { confirm?: boolean }) => { await resume(opts) })
+  .action(async (opts: { confirm?: boolean }) => { await guardCli('resume', opts?.confirm === true, () => resume(opts)) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
@@ -501,15 +554,15 @@ program.action(async () => {
     case 'secure':
       return secure()
     case 'sync':
-      return sync()
+      return guardCli('sync', false, () => sync())
     case 'doctor':
       return doctor()
     case 'ship':
       return ship()
     case 'save':
-      return save()
+      return guardCli('save', false, () => save())
     case 'undo':
-      return undo()
+      return guardCli('undo', false, () => undo())
     case 'status':
       return status()
     case 'diff':
@@ -517,9 +570,18 @@ program.action(async () => {
   }
 })
 
-const nlInput = detectNaturalLanguageInput(process.argv)
-if (nlInput !== null) {
-  await runNaturalLanguageRoute(nlInput)
-} else {
-  await program.parseAsync(process.argv)
+// 메인 모듈로 직접 실행될 때만 파싱한다(import 되면 program 만 노출).
+// env 가 아니라 import.meta.url ↔ argv[1] 비교라, VITEST 환경을 물려받은 spawn 자식도 정상 실행.
+const isMainModule =
+  !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+
+if (isMainModule) {
+  const nlInput = detectNaturalLanguageInput(process.argv)
+  if (nlInput !== null) {
+    await runNaturalLanguageRoute(nlInput)
+  } else {
+    await program.parseAsync(process.argv)
+  }
 }
+
+export { program }

@@ -33,6 +33,10 @@ import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext } from '../commands/goal.js'
 import { cloudPush, cloudPull } from '../commands/cloud.js'
 import { quickActions } from '../commands/help.js'
+import { mode } from '../commands/mode.js'
+import { verify } from '../commands/verify.js'
+import { runGuarded } from './safety-guard.js'
+import { NL_GUARDED_ACTIONS } from './risk-policy.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
   switch (route.command) {
@@ -120,6 +124,10 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
     }
     case 'help':
       return quickActions()
+    case 'mode':
+      return mode()
+    case 'verify':
+      return verify()
   }
 }
 
@@ -136,6 +144,7 @@ const STATE_CHANGING_COMMANDS: ReadonlySet<NlpCommand> = new Set([
 export function requiresConfirmation(route: NlpRoute): boolean {
   return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command)
 }
+
 
 export async function runNaturalLanguageRoute(input: string): Promise<void> {
   const route = routeNaturalLanguage(input)
@@ -162,6 +171,19 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
     }
   }
   console.log('')
+
+  // 자연어로 부른 high-risk 작업은 단일 가드(runGuarded) 경유 — 기본 비실행(preview).
+  // 자연어는 명시 승인 수단이 없으므로 high-risk 는 실행되지 않고 안내만 한다.
+  // (이전 nlSafetyNotice 는 preview 만 찍고 dispatch 로 그대로 실행하던 비차단 버그 — 제거.)
+  const riskAction = NL_GUARDED_ACTIONS[route.command]
+  if (riskAction) {
+    await runGuarded(
+      riskAction,
+      { channel: 'nl', approved: false, log: (m) => console.log(chalk.yellow(`  ${m}`)) },
+      () => dispatchNlpRoute(route, input),
+    )
+    return
+  }
 
   await dispatchNlpRoute(route, input)
 }
