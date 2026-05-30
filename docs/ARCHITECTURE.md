@@ -1,6 +1,6 @@
 # Architecture — vhk
 
-> 마지막 갱신: 2026-05-28 (v1.3.0)
+> 마지막 갱신: 2026-05-30 (v1.4.0)
 >
 > VHK CLI 의 내부 구조. 외부 사용자 가이드는 [README.md](../README.md), 운영/기록 규칙은 [CLAUDE.md](../CLAUDE.md) 참조.
 
@@ -45,7 +45,7 @@
 | 프롬프트 UX | `inquirer` | TTY 전용 (MCP 모드 차단) |
 | 출력 | `chalk`, `ora` | 색상 + 스피너 |
 | MCP | `@modelcontextprotocol/sdk` | stdio transport |
-| 테스트 | `vitest` | 293+ pass |
+| 테스트 | `vitest` | 349 pass |
 | 패키지 매니저 | `pnpm` | `pnpm build` / `pnpm test` |
 
 ## 3. 레이어별 책임

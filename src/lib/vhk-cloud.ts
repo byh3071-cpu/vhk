@@ -61,6 +61,29 @@ export function collectVhkFiles(
     .sort()
 }
 
+/**
+ * gist 에 존재하는 파일명을 현재 제외 규칙(ig) 기준으로 분리한다.
+ * - keep: 백업/복원 대상 (제외 규칙에 안 걸림)
+ * - excluded: 제외 대상 (privacy purge / 복원 스킵 대상)
+ *
+ * push 갱신 시 `excluded` 를 gist 에서 제거(`gh gist edit -r`)해 과거에 올라간
+ * `memory.json`·`refs.json` 등 개인 파일이 남는 privacy 누수를 막는다.
+ * pull 시 `keep` 만 복원해 과거 누수가 있어도 로컬에 되살아나지 않게 한다.
+ */
+export function partitionGistFiles(
+  gistFiles: string[],
+  ig: Ignore
+): { keep: string[]; excluded: string[] } {
+  const keep: string[] = []
+  const excluded: string[] = []
+  for (const name of gistFiles) {
+    // ignore 는 빈 문자열/디렉토리 경로에 예외를 던질 수 있으니 평면 파일명만 평가.
+    if (name && ig.ignores(name)) excluded.push(name)
+    else if (name) keep.push(name)
+  }
+  return { keep, excluded }
+}
+
 /** `.vhk/cloud.json` 읽기 — 없거나 깨졌으면 null */
 export function readCloudConfig(rootDir: string): CloudConfig | null {
   const p = path.join(rootDir, VHK_DIR, CLOUD_CONFIG_FILE)
