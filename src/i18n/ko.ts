@@ -358,6 +358,9 @@ export const ko = {
     initTitle: '🏗️  goals/ 구조 스캐폴딩',
     checkTitle: '✅ Goal 게이트 검증',
     doneTitle: '🏁 Goal 완료 처리',
+    duplicateId: (ids: string) =>
+      `⚠ 중복된 goal id: ${ids} — 같은 id 파일이 여러 개면 첫 매치만 사용됩니다. id 를 유일하게 고치세요.`,
+    notFound: (id: number) => `goal id ${id} 없음 — vhk goal list 로 확인하세요.`,
   },
   agent: {
     blockerTitle: '🛑 Blocker 기록',

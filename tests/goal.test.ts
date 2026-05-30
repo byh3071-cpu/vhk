@@ -277,3 +277,87 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
     }
   })
 })
+
+describe('goal 엣지케이스 보강 (roadmap §4)', () => {
+  let origCwd: string
+  let origExitCode: number | string | undefined
+  beforeEach(() => {
+    origCwd = process.cwd()
+    origExitCode = process.exitCode
+    mockSafeExecFile.mockReset()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    process.exitCode = origExitCode
+    vi.restoreAllMocks()
+  })
+
+  // ① 중복 id 경고
+  it('goalList — 중복 id 면 경고 출력', async () => {
+    const dir = tmpProject('dup')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    // 같은 id(1) 의 두 번째 파일 (다른 파일명)
+    writeFileSync(
+      join(dir, 'goals', '1-dup.md'),
+      `---\nvhk_format: 1\ntype: goal\nid: 1\ntitle: Dup\nstatus: NOT_STARTED\n---\nbody\n`,
+      'utf-8'
+    )
+    process.chdir(dir)
+    try {
+      const { goalList } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalList()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).toMatch(/중복된 goal id/)
+      expect(joined).toMatch(/\b1\b/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('goalList — 중복 없으면 경고 안 함', async () => {
+    const dir = tmpProject('nodup')
+    makeGoalFile(dir, 0, 'NOT_STARTED')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { goalList } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalList()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).not.toMatch(/중복된 goal id/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  // ② 없는 --id 메시지 통일 — check 와 done 이 같은 메시지
+  it('goalCheck/goalDone — 없는 --id 면 둘 다 "goal id N 없음" 통일', async () => {
+    const dir = tmpProject('notfound')
+    makeGoalFile(dir, 0, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const goal = await import('../src/commands/goal.js')
+
+      const checkSpy = vi.spyOn(console, 'log')
+      await goal.goalCheck({ id: '99' })
+      const checkOut = checkSpy.mock.calls.map((c) => String(c[0])).join('\n')
+
+      checkSpy.mockClear()
+      await goal.goalDone({ id: '99' })
+      const doneOut = checkSpy.mock.calls.map((c) => String(c[0])).join('\n')
+
+      // 둘 다 동일한 not-found 문구 ("goal id 99 없음")
+      expect(checkOut).toMatch(/goal id 99 없음/)
+      expect(doneOut).toMatch(/goal id 99 없음/)
+      // 옛 불일치 메시지(스크립트 없음 / 파일 없음)로 새지 않음
+      expect(checkOut).not.toMatch(/게이트 스크립트 없음/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
