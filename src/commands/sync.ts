@@ -230,7 +230,9 @@ export async function sync() {
     const content = target.generate(sections, projectName)
     fs.writeFileSync(fullPath, content, 'utf-8')
     console.log(chalk.green(`  ${target.doneMessage}`))
-    if (content.includes('절삭됨')) {
+    // 절삭 마커는 antigravity 만 생성 — 느슨한 '절삭됨' 매칭은 사용자 규칙에 그 단어가
+    // 있을 때 오탐 → 전체 마커 문구로 한정.
+    if (content.includes('Antigravity 12,000자 제한으로 절삭됨')) {
       console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))
     }
   }
