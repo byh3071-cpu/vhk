@@ -300,8 +300,21 @@ export function enhancePackageScripts(projectDir: string): boolean {
   return true
 }
 
+/** VHK-008: COMMANDS.md 가 실제 존재하는 test 스크립트만 안내하도록 package.json 감지. */
+function projectHasTestScript(projectDir: string): boolean {
+  const pkgPath = path.join(projectDir, 'package.json')
+  if (!fs.existsSync(pkgPath)) return false
+  try {
+    const pkg = readJsonFile<{ scripts?: Record<string, string> }>(pkgPath)
+    return Boolean(pkg.scripts?.test?.trim())
+  } catch {
+    return false
+  }
+}
+
 async function writeInitExtras(projectDir: string) {
   const commandsPath = path.join(projectDir, 'COMMANDS.md')
+  const hasTest = projectHasTestScript(projectDir)
 
   if (fileExists(commandsPath)) {
     const { overwrite } = await inquirer.prompt([{
@@ -313,7 +326,7 @@ async function writeInitExtras(projectDir: string) {
     if (!overwrite) {
       log.warn(ko.init.skipped('COMMANDS.md'))
     } else {
-      writeFile(commandsPath, COMMANDS_MD_TEMPLATE())
+      writeFile(commandsPath, COMMANDS_MD_TEMPLATE({ hasTest }))
       log.success(ko.init.commandsMdDone)
     }
   } else {

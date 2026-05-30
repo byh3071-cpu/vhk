@@ -11,11 +11,11 @@ export function ARCHITECTURE_TEMPLATE(name: string, stack: string): string {
     '## 데이터 모델',
     '| 테이블 | 핵심 컬럼 | 설명 |',
     '|--------|----------|------|',
-    '| __FILL__ | | |',
+    '| **FILL** | | |',
     '',
     '## 외부 서비스',
     '| 서비스 | 용도 |',
     '|--------|------|',
-    '| __FILL__ | |',
+    '| **FILL** | |',
   ].join('\n')
 }

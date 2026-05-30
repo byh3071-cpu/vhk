@@ -10,7 +10,8 @@ export function VHK_README_TEMPLATE(): string {
     '# `.vhk/` — VHK runtime state',
     '',
     '이 디렉토리는 VHK가 프로젝트별 상태를 저장하는 곳입니다.',
-    '전체 규격은 `docs/spec.md` (spec_version 1.0) 참조.',
+    // VHK-006: 생성 프로젝트엔 docs/spec.md 가 없음 → vhk 저장소의 규격 문서를 외부 링크로 참조.
+    '전체 규격은 [vhk 규격 문서](https://github.com/byh3071-cpu/vhk/blob/main/docs/spec.md) (spec_version 1.0) 참조.',
     '',
     '## 트래킹 정책',
     '',
@@ -35,7 +36,7 @@ export function VHK_README_TEMPLATE(): string {
  */
 export function VHK_GITIGNORE_TEMPLATE(): string {
   return [
-    '# VHK 로컬 전용 — 개인 메모/참고링크/안전신호 (docs/spec.md 트래킹 정책)',
+    '# VHK 로컬 전용 — 개인 메모/참고링크/안전신호 (.vhk/README.md 트래킹 정책)',
     'memory.json',
     'refs.json',
     'HARD_STOP',

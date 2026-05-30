@@ -60,4 +60,18 @@ describe('parseRules (VHK-011/012)', () => {
     expect(rules.filter((r) => r.type === 'structure')).toHaveLength(1)
     fs.rmSync(path.dirname(p), { recursive: true })
   })
+
+  it('VHK-013: rule id 가 RULES.md 출처 행번호(L<n>) 를 쓴다', () => {
+    const p = writeRules(
+      [
+        '# Rules', // L1
+        '', // L2
+        '## 코딩 규칙', // L3
+        '- `eval` 사용 금지', // L4 → ban-L4
+      ].join('\n')
+    )
+    const ban = parseRules(p).find((r) => r.id.startsWith('ban-'))
+    expect(ban?.id).toBe('ban-L4')
+    fs.rmSync(path.dirname(p), { recursive: true })
+  })
 })
