@@ -6,13 +6,26 @@ tags: [vhk, cli, readme, v1.4.0, ga]
 
 # 🔧 VHK — Vibe Harness Kit
 
-> 🎉 **v1.4.0** — 바이브코더의 올인원 CLI. 컨텍스트 + 자율 하네스 + 포터빌리티.
+> 🎉 **v1.4.0** — **규칙은 한 벌로 Cursor·Claude·Windsurf에, 맥락은 클라우드로.**
+> 도구·기기를 옮겨도 `vhk` 명령으로 그대로 불러옵니다. (포터빌리티)
 >
 > AI 코딩 에이전트를 부리는 사람을 위한 **한국어 풀사이클 CLI**.
 >
 > 🍽️ **VHK는 VHK로 부트스트랩됨** — 이 레포의 `docs/`, `CLAUDE.md`, `.cursorrules`도 `vhk init`이 만들었습니다.
 
 명령어를 외우지 않아도 됩니다. `vhk`만 치면 메뉴가 나오고, 한국어로 말해도 알아듣습니다.
+
+## 왜 VHK? — 포터빌리티
+
+AI 코딩 도구는 저마다 규칙 파일이 다르고(`.cursorrules`·`CLAUDE.md`·`.windsurfrules`…), 컴퓨터를 바꾸면 프로젝트 맥락을 처음부터 다시 모읍니다. VHK는 이 둘을 한 곳에서 관리합니다.
+
+| 문제 | VHK 해결 | 명령 |
+|------|----------|------|
+| 도구마다 규칙 파일이 따로 논다 | `RULES.md` 한 벌 → Cursor·Claude·Windsurf 규칙 동시 생성 | `vhk sync` |
+| 컴퓨터·환경 바뀌면 맥락 유실 | `.vhk/` 맥락을 GitHub gist로 백업·복원 | `vhk cloud push` / `pull` |
+| 새 프로젝트 세팅 반복 | 유형별 문서·규칙·맥락 뼈대를 한 번에 | `vhk init` |
+
+> 규칙·맥락은 **자동이 아니라 명령으로** 동기화됩니다(한 줄이면 충분). 개인 메모(`memory.json`)·참고링크(`refs.json`)는 프라이버시 위해 기본 제외, 새 PC의 코드 자체는 `git clone` 으로 받습니다.
 
 ## 3분 안에 시작하기 (Getting Started)
 
@@ -40,12 +53,12 @@ vhk start
 vhk gate          # 퀵 5문항 — GO / 다듬기 / 다른 아이디어
 ```
 
-### 3. v1.3 핵심 기능 한눈에
+### 3. 그 외 기능 한눈에 (v1.4)
 
 | 기능 | 한 줄 요약 | 진입 명령 |
 |------|-----------|-----------|
 | 🎯 **Goals 체계** | 단계별 미션 + 게이트 스크립트로 AI가 목표를 스스로 추적 | `vhk goal init` |
-| ▶️ **자율 루프** | `goal next → 작업 → goal check → goal done`. FAIL 3회면 자동 블로커 | `vhk goal next` |
+| ▶️ **자율 루프** | `goal next → 작업 → goal check → goal done`. FAIL 시 `vhk blocker` 수동 기록 → 블로커 3건 누적 시 HARD_STOP 자동 | `vhk goal next` |
 | 🚧 **HARD_STOP 안전장치** | 블로커 3건 누적 → `.vhk/HARD_STOP` 트립와이어. `vhk resume --confirm` 만 해제 | `vhk blocker "<증상>"` |
 | 🔌 **MCP 24 tool** | Cursor·Claude Desktop 등에서 vhk를 채팅으로 호출 | `vhk mcp-init` |
 | 📋 **컨텍스트 영속화** | `.vhk/context.md` + `memory.json` + `brief.md` 로 세션 간 맥락 유지 | `vhk context` |
@@ -303,7 +316,7 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 | **MCP 서버** | `vhk mcp` — stdio MCP 서버 첫 도입 (v0.6.0 당시 8개 도구 — save/undo/status/diff/ship/doctor/check/recap). 현재 v1.3 기준 **24개** 로 확장 — 위 "Cursor와 MCP로 연동하기" 섹션 참조 |
 | **mcp-init** | `vhk mcp-init` — Cursor `.cursor/mcp.json` 자동 생성. 재시작 한 번으로 연동 완료 |
 | **자연어 라우팅 확장** | `vhk mcp설정` → `vhk mcp-init` 별칭 |
-| **보안** | MCP save 도구의 shell injection 차단 — 모든 git 호출에 `execFileSync` 사용 |
+| **보안** | MCP save 도구의 shell injection 차단 — 모든 git 호출에 shell 미경유 `safeExecFile` 사용 |
 
 ## v0.5.3 하이라이트
 
