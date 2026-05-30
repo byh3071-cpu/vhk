@@ -46,7 +46,9 @@ async function checkRules() {
   for (const rule of rules) {
     const violations = rule.check(cwd)
     if (violations.length === 0) {
-      console.log(chalk.green(`  ✅ ${rule.id}`) + chalk.dim(` — ${rule.description.slice(0, 60)}`))
+      // VHK-013: content(금지/필수) 규칙은 description 60자 컷에 가려진 '실제 검사 패턴'을 함께 표기.
+      const patternHint = rule.type === 'content' && rule.pattern ? chalk.dim(` [검사: ${rule.pattern.source}]`) : ''
+      console.log(chalk.green(`  ✅ ${rule.id}`) + chalk.dim(` — ${rule.description.slice(0, 60)}`) + patternHint)
       passCount++
     } else {
       console.log(chalk.red(`  ❌ ${rule.id}`) + chalk.dim(` — ${violations.length}건 위반`))

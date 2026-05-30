@@ -166,7 +166,8 @@ export async function status(): Promise<void> {
       ),
   )
 
-  console.log(chalk.cyan(`\n📋 ${t('status.recentCommits')}`))
+  // VHK-013: 헤더 숫자를 하드코딩(3)이 아닌 실제 나열 개수로 — 표시/실제 불일치 제거.
+  console.log(chalk.cyan(`\n📋 ${t('status.recentCommits', commits.length)}`))
   if (commits.length === 0) {
     console.log(chalk.dim(`   ${t('status.noCommits')}`))
   } else {

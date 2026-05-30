@@ -6,6 +6,7 @@ import {
   formatSyncLabel,
   selectStatusNextStep,
 } from '../src/commands/status.js'
+import { t } from '../src/i18n/ko.js'
 
 vi.mock('node:child_process')
 
@@ -56,6 +57,11 @@ describe('vhk status helpers', () => {
       behind: 1,
       hasUpstream: true,
     })
+  })
+
+  it('VHK-013: 최근 커밋 헤더 숫자 = 실제 나열 개수(하드코딩 3 아님)', () => {
+    expect(t('status.recentCommits', 2)).toBe('최근 커밋 (2):')
+    expect(t('status.recentCommits', 0)).toBe('최근 커밋 (0):')
   })
 })
 

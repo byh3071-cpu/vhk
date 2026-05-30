@@ -31,9 +31,11 @@ export function parseRules(rulesPath: string): Rule[] {
   const rules: Rule[] = []
 
   let currentSection = ''
-  let ruleIndex = 0
 
-  for (const line of lines) {
+  // VHK-013: rule id 에 전역 일련번호 대신 RULES.md 출처 행번호(L<n>)를 사용 — 사용자가 즉시 찾도록.
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const lineNo = i + 1
     if (line.startsWith('## ')) {
       currentSection = line.replace('## ', '').trim()
       continue
@@ -46,26 +48,25 @@ export function parseRules(rulesPath: string): Rule[] {
     if (isMetaSection(currentSection)) continue
 
     const ruleText = bulletMatch[1]
-    ruleIndex++
 
     if (/kebab[- ]?case/i.test(ruleText)) {
-      rules.push(createNamingRule(`naming-${ruleIndex}`, currentSection, ruleText, 'kebab-case'))
+      rules.push(createNamingRule(`naming-L${lineNo}`, currentSection, ruleText, 'kebab-case'))
     } else if (/camel[- ]?case/i.test(ruleText)) {
-      rules.push(createNamingRule(`naming-${ruleIndex}`, currentSection, ruleText, 'camelCase'))
+      rules.push(createNamingRule(`naming-L${lineNo}`, currentSection, ruleText, 'camelCase'))
     }
 
     // VHK-012: 구조(필수 디렉터리) 규칙은 '아키텍처/구조' 선언 섹션에서만 — 행동지침 경로 오탐 방지.
     if (isStructureSection(currentSection)) {
       const pathMatch = ruleText.match(/`([a-zA-Z0-9_/.-]+\/)`/)
       if (pathMatch) {
-        rules.push(createStructureRule(`structure-${ruleIndex}`, currentSection, ruleText, pathMatch[1]))
+        rules.push(createStructureRule(`structure-L${lineNo}`, currentSection, ruleText, pathMatch[1]))
       }
     }
 
     // VHK-012: '금지' 인접 백틱 토큰만 — `X` 금지 / 금지: `X`. URL·경로는 제외(금지 뒤 먼 URL 오탐 방지).
     const banToken = extractBanToken(ruleText)
     if (banToken) {
-      rules.push(createContentRule(`ban-${ruleIndex}`, currentSection, ruleText, banToken, 'banned'))
+      rules.push(createContentRule(`ban-L${lineNo}`, currentSection, ruleText, banToken, 'banned'))
     }
   }
 

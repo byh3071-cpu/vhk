@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -6,6 +6,30 @@ import { safeExecFile } from '../lib/exec.js'
 import { readJsonFile } from '../lib/read-json.js'
 
 const BRIEF_PATH = '.vhk/brief.md'
+
+/**
+ * VHK-004: init 의 --name/--description 은 RULES.md/CLAUDE.md/PRD 에 들어가지 package.json 엔 안 들어감.
+ * brief 가 package.json name 만 봐서 틀린 이름 표시 → 문서(SoT)에서 먼저 도출.
+ */
+function readProjectIdentity(): { name?: string; description?: string } {
+  const out: { name?: string; description?: string } = {}
+  try {
+    if (existsSync('RULES.md')) {
+      const r = readFileSync('RULES.md', 'utf-8')
+      const m = r.split('\n')[0].match(/^#\s*(.+?)(?:\s*—.*)?$/)
+      if (m) out.name = m[1].trim()
+      const d = r.match(/한 줄 설명:\s*(.+)/)
+      if (d) out.description = d[1].trim()
+    }
+    if (!out.name && existsSync('CLAUDE.md')) {
+      const m = readFileSync('CLAUDE.md', 'utf-8').match(/#\s*기록 규칙\s*\((.+?)\)/)
+      if (m) out.name = m[1].trim()
+    }
+  } catch {
+    /* 문서 없음/읽기 실패 → package.json 폴백 */
+  }
+  return out
+}
 
 function git(args: string[]): string {
   const result = safeExecFile('git', args)
@@ -31,11 +55,12 @@ export async function brief(): Promise<void> {
       dependencies?: Record<string, string>
       devDependencies?: Record<string, string>
     }>('package.json')
+    const id = readProjectIdentity()
     lines.push('## 프로젝트 정보')
     lines.push('')
-    lines.push(`- **이름**: ${pkg.name ?? '미정'}`)
+    lines.push(`- **이름**: ${id.name ?? pkg.name ?? '미정'}`)
     lines.push(`- **버전**: ${pkg.version ?? '미정'}`)
-    lines.push(`- **설명**: ${pkg.description ?? '없음'}`)
+    lines.push(`- **설명**: ${id.description ?? pkg.description ?? '없음'}`)
     const deps = Object.keys(pkg.dependencies ?? {}).length
     const devDeps = Object.keys(pkg.devDependencies ?? {}).length
     lines.push(`- **의존성**: ${deps}개 (dev: ${devDeps}개)`)

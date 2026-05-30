@@ -168,7 +168,7 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
 
   lines.push('## 디렉토리 구조')
   lines.push('')
-  lines.push('```')
+  lines.push('```text') // VHK-003: markdownlint MD040 — 펜스 언어 지정
   lines.push(tree)
   lines.push('```')
   lines.push('')
