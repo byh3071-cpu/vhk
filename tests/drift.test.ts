@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -6,6 +7,7 @@ import {
   normalizeForCompare,
   extractContextSha,
   checkRuleDrift,
+  checkContextDrift,
   CONTEXT_GIT_MARKER,
 } from '../src/lib/drift.js'
 import { parseRulesMd, deriveProjectName, SYNC_TARGETS } from '../src/commands/sync.js'
@@ -100,5 +102,91 @@ describe('extractContextSha', () => {
   })
   it('마커 없으면 null (옛 context.md)', () => {
     expect(extractContextSha('_생성: 2026-05-30_\n')).toBeNull()
+  })
+})
+
+describe('checkContextDrift — file-change 기반 정밀화', () => {
+  let dir: string
+  const git = (args: string[]) => execFileSync('git', args, { cwd: dir, stdio: 'pipe' })
+  const head = () =>
+    execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
+  const writeCtx = (sha: string) => {
+    fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+    fs.writeFileSync(
+      path.join(dir, '.vhk/context.md'),
+      `# ctx\n\n---\n_생성: x_\n_${CONTEXT_GIT_MARKER}: ${sha}_\n`,
+      'utf-8'
+    )
+  }
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-ctxdrift-'))
+    git(['init'])
+    git(['config', 'user.email', 't@t.com'])
+    git(['config', 'user.name', 't'])
+    git(['config', 'commit.gpgsign', 'false'])
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x","version":"1.0.0"}', 'utf-8')
+    fs.writeFileSync(path.join(dir, 'README.md'), 'hello\n', 'utf-8')
+    fs.mkdirSync(path.join(dir, 'src'), { recursive: true })
+    fs.writeFileSync(path.join(dir, 'src', 'index.ts'), 'export const a = 1\n', 'utf-8')
+    git(['add', '-A'])
+    git(['commit', '-m', 'init'])
+  })
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }) })
+
+  it('같은 HEAD = not stale', () => {
+    writeCtx(head())
+    const r = checkContextDrift(dir)
+    expect(r.checked).toBe(true)
+    expect(r.stale).toBe(false)
+  })
+
+  it('README 오타 커밋(무관 내용수정) = not stale', () => {
+    writeCtx(head())
+    fs.writeFileSync(path.join(dir, 'README.md'), 'helllo\n', 'utf-8')
+    git(['commit', '-am', 'fix typo'])
+    const r = checkContextDrift(dir)
+    expect(r.checked).toBe(true)
+    expect(r.stale).toBe(false) // HEAD 앞섰어도 context 소스 안 바뀜 → not stale
+  })
+
+  it('src 코드 내용수정(content·트리 무관) = not stale', () => {
+    writeCtx(head())
+    fs.writeFileSync(path.join(dir, 'src', 'index.ts'), 'export const a = 2\n', 'utf-8')
+    git(['commit', '-am', 'edit src'])
+    expect(checkContextDrift(dir).stale).toBe(false)
+  })
+
+  it('package.json 변경(기술스택 영향) = stale', () => {
+    writeCtx(head())
+    fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"x","version":"2.0.0"}', 'utf-8')
+    git(['commit', '-am', 'bump'])
+    expect(checkContextDrift(dir).stale).toBe(true)
+  })
+
+  it('새 파일 추가(구조변동 ADR) = stale', () => {
+    writeCtx(head())
+    fs.writeFileSync(path.join(dir, 'src', 'new.ts'), 'export const b = 1\n', 'utf-8')
+    git(['add', '-A'])
+    git(['commit', '-m', 'add file'])
+    expect(checkContextDrift(dir).stale).toBe(true)
+  })
+
+  it('마커 없는 옛 context.md = checked false', () => {
+    fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(dir, '.vhk', 'context.md'), '_생성: x_\n', 'utf-8')
+    expect(checkContextDrift(dir).checked).toBe(false)
+  })
+
+  it('git 아님 = checked false', () => {
+    const nogit = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-nogit-'))
+    fs.mkdirSync(path.join(nogit, '.vhk'), { recursive: true })
+    fs.writeFileSync(
+      path.join(nogit, '.vhk', 'context.md'),
+      `_${CONTEXT_GIT_MARKER}: abc1234_\n`,
+      'utf-8'
+    )
+    expect(checkContextDrift(nogit).checked).toBe(false)
+    fs.rmSync(nogit, { recursive: true, force: true })
   })
 })
