@@ -32,6 +32,17 @@ export function pickCliInvocation(
   return { bin: 'vhk', prefixArgs: [], fallback: false }
 }
 
+/**
+ * resolve 결과(VhkCliInvocation) + 호출 인자 → 실제 실행할 `{ bin, args }`.
+ * (runVhkCli 가 쓰는 인자 합성 — 순수 함수라 fallback(node dist/index.js) 합성을 단위테스트 가능.)
+ */
+export function composeInvocation(
+  cli: VhkCliInvocation,
+  args: string[]
+): { bin: string; args: string[] } {
+  return { bin: cli.bin, args: [...cli.prefixArgs, ...args] }
+}
+
 /** dist/mcp/cli-path.js 기준 로컬 CLI(dist/index.js) 절대경로. */
 export function localCliPath(): string {
   const here = dirname(fileURLToPath(import.meta.url))
