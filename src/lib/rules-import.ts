@@ -52,16 +52,24 @@ function splitSections(content: string): ParsedSection[] {
   const sections: ParsedSection[] = []
   let title = ''
   let buf: string[] = []
+  const preamble: string[] = []
+  let sawHeading = false
   for (const line of content.split('\n')) {
     if (line.startsWith('## ')) {
+      sawHeading = true
       if (title) sections.push({ title, content: buf.join('\n').trim() })
       title = line.replace('## ', '').trim()
       buf = []
     } else if (title) {
       buf.push(line)
+    } else if (!sawHeading) {
+      // ⑥ 첫 ## 이전 본문(인트로)은 버리지 않고 '서문'으로 보존.
+      preamble.push(line)
     }
   }
   if (title) sections.push({ title, content: buf.join('\n').trim() })
+  const pre = preamble.join('\n').trim()
+  if (pre) sections.unshift({ title: '서문', content: pre })
   return sections
 }
 
@@ -101,10 +109,13 @@ export function buildAdoptedRules(files: DetectedRuleFile[], projectName: string
 
   for (const title of order) {
     const merged = byTitle.get(title)!
+    // ⑥ 빈 섹션 생성 금지 — 본문 있는 출처만. 전부 비면 제목 자체를 생략.
+    const nonEmpty = merged.parts.filter((p) => p.content.trim())
+    if (!nonEmpty.length) continue
     lines.push(`## ${title}`)
-    for (const part of merged.parts) {
+    for (const part of nonEmpty) {
       lines.push(`<!-- 출처: ${part.source} -->`)
-      if (part.content) lines.push(part.content)
+      lines.push(part.content)
     }
     lines.push('')
   }

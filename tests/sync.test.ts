@@ -9,6 +9,7 @@ import {
   truncateForAntigravity,
   ANTIGRAVITY_CHAR_LIMIT,
   SYNC_TARGETS,
+  findUnmappedSections,
 } from '../src/commands/sync.js'
 
 const SAMPLE_RULES = `# 데모 프로젝트 — Rules
@@ -79,6 +80,18 @@ describe('vhk sync — GitHub Copilot 변환', () => {
     expect(out.split('\n').slice(0, 5).join('\n')).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
     expect(out).toContain('execSync 금지')
     expect(out).not.toContain('docs/log/ 작성')
+  })
+})
+
+describe('vhk sync — ③ 미매칭 섹션 silent drop 방지 (회귀)', () => {
+  it('어느 타깃 키에도 안 맞는 섹션(프로젝트 정체성)을 잡는다 — 조용히 누락하면 FAIL', () => {
+    const sections = parseRulesMd('# P — Rules\n\n## 프로젝트 정체성\n- 한 줄: x\n\n## 코딩 규칙\n- a\n')
+    expect(findUnmappedSections(sections)).toContain('프로젝트 정체성')
+  })
+
+  it('매핑되는 섹션만 있으면 unmapped 0개', () => {
+    const sections = parseRulesMd('## 코딩 규칙\n- a\n\n## 기록 규칙\n- b\n')
+    expect(findUnmappedSections(sections)).toEqual([])
   })
 })
 

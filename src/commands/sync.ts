@@ -16,6 +16,18 @@ const CURSORRULES_KEYS = ['코딩 규칙', '기술 스택', '아키텍처', '디
 const CLAUDE_MD_KEYS = ['기록', '로그', 'ADR', '트러블슈팅', 'TIL', '/done', '체크리스트']
 
 /**
+ * RULES.md 섹션 중 어느 sync 타깃 키(CURSORRULES_KEYS ∪ CLAUDE_MD_KEYS)에도
+ * 매핑되지 않는 섹션 제목. 이 섹션들은 모든 산출물에서 빠지므로(예: `## 프로젝트 정체성`)
+ * sync 가 **조용히 버리지 않고 경고**하도록 sync() 가 이걸로 사용자에게 알린다.
+ */
+export function findUnmappedSections(sections: RulesSection[]): string[] {
+  const allKeys = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
+  return sections
+    .filter((s) => !allKeys.some((k) => s.title.includes(k)))
+    .map((s) => s.title)
+}
+
+/**
  * RULES.md를 ## 기준으로 섹션 파싱
  */
 export function parseRulesMd(content: string): RulesSection[] {
@@ -420,6 +432,17 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
 
   const sections = parseRulesMd(fs.readFileSync(rulesPath, 'utf-8'))
   console.log(chalk.dim(`  📄 RULES.md 파싱 완료 — ${sections.length}개 섹션`))
+
+  // ③ 미매칭 섹션은 어느 산출물에도 안 실려 조용히 사라진다 → 경고(stderr)로 알린다.
+  const unmapped = findUnmappedSections(sections)
+  if (unmapped.length) {
+    console.error(
+      chalk.yellow(
+        `  ⚠️  ${unmapped.length}개 섹션이 어느 타깃에도 매핑 안 돼 산출물에서 제외됨: ${unmapped.join(', ')}` +
+          `\n     (코딩 규칙/기술 스택/커밋/기록 등 표준 제목을 쓰거나, 이 섹션은 RULES.md 에만 보존됩니다.)`
+      )
+    )
+  }
 
   // 비대화형(CI/MCP subprocess: isTTY=false)·--yes → 자동 덮어쓰기(멈춤 금지).
   // TTY → drift 시 inquirer 확인(기본 거부). 어느 쪽이든 백업이 먼저라 손실 0.
