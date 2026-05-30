@@ -313,7 +313,7 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 
 | 기능 | 설명 |
 |------|------|
-| **MCP 서버** | `vhk mcp` — stdio MCP 서버 첫 도입 (v0.6.0 당시 8개 도구 — save/undo/status/diff/ship/doctor/check/recap). 현재 v1.3 기준 **24개** 로 확장 — 위 "Cursor와 MCP로 연동하기" 섹션 참조 |
+| **MCP 서버** | `vhk mcp` — stdio MCP 서버 첫 도입 (v0.6.0 당시 8개 도구 — save/undo/status/diff/ship/doctor/check/recap). 현재 v1.4 기준 **24개** 로 확장 — 위 "Cursor와 MCP로 연동하기" 섹션 참조 |
 | **mcp-init** | `vhk mcp-init` — Cursor `.cursor/mcp.json` 자동 생성. 재시작 한 번으로 연동 완료 |
 | **자연어 라우팅 확장** | `vhk mcp설정` → `vhk mcp-init` 별칭 |
 | **보안** | MCP save 도구의 shell injection 차단 — 모든 git 호출에 shell 미경유 `safeExecFile` 사용 |
