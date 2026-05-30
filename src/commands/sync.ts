@@ -41,66 +41,10 @@ export function parseRulesMd(content: string): RulesSection[] {
 }
 
 /**
- * RULES.md 섹션을 .cursorrules 포맷으로 변환
- */
-export function toCursorrules(sections: RulesSection[], projectName: string): string {
-  const codingSections = sections.filter(s =>
-    CURSORRULES_KEYS.some(k => s.title.includes(k))
-  )
-
-  const lines = [
-    `# ${projectName} — Cursor Rules`,
-    '',
-    '> 코딩/디자인 전용. 기록/운영 → CLAUDE.md 참조.',
-    '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.',
-    '',
-    '## 필수 참조',
-    '- docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md · RULES.md',
-    '',
-  ]
-
-  for (const section of codingSections) {
-    lines.push(`## ${section.title}`)
-    lines.push(section.content)
-    lines.push('')
-  }
-
-  return lines.join('\n')
-}
-
-/**
- * RULES.md 섹션을 .windsurfrules 포맷으로 변환
- * Windsurf(Cascade)도 Cursor처럼 코딩 규칙 파일을 읽으므로 .cursorrules와 동일 섹션을 미러링한다.
- */
-export function toWindsurfrules(sections: RulesSection[], projectName: string): string {
-  const codingSections = sections.filter(s =>
-    CURSORRULES_KEYS.some(k => s.title.includes(k))
-  )
-
-  const lines = [
-    `# ${projectName} — Windsurf Rules`,
-    '',
-    '> 코딩/디자인 전용. 기록/운영 → CLAUDE.md 참조.',
-    '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.',
-    '',
-    '## 필수 참조',
-    '- docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md · RULES.md',
-    '',
-  ]
-
-  for (const section of codingSections) {
-    lines.push(`## ${section.title}`)
-    lines.push(section.content)
-    lines.push('')
-  }
-
-  return lines.join('\n')
-}
-
-/**
- * 코딩 규칙 문서 공통 빌더 (신규 출력 대상용).
- * 기존 toCursorrules/toWindsurfrules 는 GA 안정성 위해 그대로 두고, 신규 대상만 이 빌더 공유.
- * 자동생성 경고 주석은 최상단(제목 바로 아래) — 직접 편집 시 덮어쓰기 신호.
+ * 코딩 규칙 문서 공통 빌더. 모든 도구별 규칙 파일(.cursorrules·.windsurfrules·
+ * copilot·antigravity)이 동일 본문을 공유한다 — 헤더 제목만 다름.
+ * 자동생성 경고 주석은 상단 헤더에 둬 직접 편집 시 덮어쓰기 신호를 준다.
+ * (기존 .cursorrules/.windsurfrules 출력과 100% 동일 — GA 안정성 유지.)
  */
 function buildCodingDoc(headerTitle: string, sections: RulesSection[], projectName: string): string {
   const codingSections = sections.filter(s =>
@@ -110,8 +54,8 @@ function buildCodingDoc(headerTitle: string, sections: RulesSection[], projectNa
   const lines = [
     `# ${projectName} — ${headerTitle}`,
     '',
-    '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지 — RULES.md를 고치세요.',
     '> 코딩/디자인 전용. 기록/운영 → CLAUDE.md 참조.',
+    '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.',
     '',
     '## 필수 참조',
     '- docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md · RULES.md',
@@ -127,40 +71,62 @@ function buildCodingDoc(headerTitle: string, sections: RulesSection[], projectNa
   return lines.join('\n')
 }
 
-/** GitHub Copilot — 레포 전역 지침. 공식 경로 .github/copilot-instructions.md (Markdown). */
+/** RULES.md 섹션을 .cursorrules 포맷으로 변환 */
+export function toCursorrules(sections: RulesSection[], projectName: string): string {
+  return buildCodingDoc('Cursor Rules', sections, projectName)
+}
+
+/** RULES.md 섹션을 .windsurfrules 포맷으로 변환 (Windsurf/Cascade) */
+export function toWindsurfrules(sections: RulesSection[], projectName: string): string {
+  return buildCodingDoc('Windsurf Rules', sections, projectName)
+}
+
+/**
+ * GitHub Copilot — 레포 전역 지침. 공식 경로 .github/copilot-instructions.md (Markdown).
+ * 공식 문서상 하드 글자수 제한이 없어 절삭하지 않는다 (Antigravity 와 다른 점).
+ */
 export function toCopilotInstructions(sections: RulesSection[], projectName: string): string {
   return buildCodingDoc('GitHub Copilot Instructions', sections, projectName)
 }
 
 /**
- * Antigravity 규칙 파일 1개당 12,000자 제한 (공식 docs).
- * 측정 주의: 공식 표기는 "characters". JS `.length`(UTF-16 코드유닛)로 잰다 —
- * 이모지는 과대 측정(= 더 일찍 자름, 안전 방향). 만약 Antigravity가 실제로 바이트로
- * 잰다면 한글(UTF-8 3바이트)은 위험 방향이므로 안전마진을 크게 둔다(아래 SAFETY).
+ * Antigravity 규칙 파일 1개당 12,000 제한 (공식 docs는 "characters").
+ * 측정 안전성: char/byte 어느 해석이든 안전하도록 **UTF-8 바이트 기준**으로 강제한다.
+ * byteLength ≥ charCount 이므로 byteLength ≤ 12000 이면 char 수도 자동으로 ≤ 12000.
+ * → 영어(1B/char)는 사실상 12,000자 그대로, 한글(3B/char)은 더 보수적으로 절삭(안전 방향).
  */
 export const ANTIGRAVITY_CHAR_LIMIT = 12000
 const ANTIGRAVITY_TRUNCATE_MARKER =
   '\n\n<!-- ⚠️ Antigravity 12,000자 제한으로 절삭됨 — 전체 규칙은 RULES.md 참조 -->\n'
 
 /**
- * 12k 제한 안전 절삭 — 마크다운 구조 경계(## 헤딩, 없으면 직전 \n)에서 자른다.
- * 마커 길이 + 안전마진을 예산에서 빼므로 결과 길이는 항상 limit 미만(테스트로 보장).
+ * 12k 안전 절삭 — UTF-8 바이트 예산 안에서, 마크다운 구조 경계(## 헤딩, 없으면 직전 \n)에서 자른다.
+ * 마커 바이트 + 안전마진을 예산에서 빼므로 결과는 항상 byteLength ≤ limit (테스트로 보장).
  */
 export function truncateForAntigravity(
   content: string,
   limit = ANTIGRAVITY_CHAR_LIMIT
 ): string {
-  if (content.length <= limit) return content
+  if (Buffer.byteLength(content, 'utf8') <= limit) return content
 
-  const SAFETY = 500 // 한글 byte-측정 가능성 대비 보수 마진
-  const target = limit - ANTIGRAVITY_TRUNCATE_MARKER.length - SAFETY
+  const SAFETY = 200 // 바이트 안전마진
+  const budget = limit - Buffer.byteLength(ANTIGRAVITY_TRUNCATE_MARKER, 'utf8') - SAFETY
 
-  // 구조 경계에서 절삭 — 코드블록/헤딩/리스트 한가운데서 깨지지 않게
-  let cut = content.lastIndexOf('\n## ', target)
-  if (cut < target * 0.5) {
-    // 헤딩 경계가 너무 이르거나 없으면 직전 줄바꿈으로 폴백
-    const nl = content.lastIndexOf('\n', target)
-    cut = nl > 0 ? nl : target
+  // budget 바이트 이하인 최대 prefix 길이(char index)를 이진 탐색
+  let lo = 0
+  let hi = content.length
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (Buffer.byteLength(content.slice(0, mid), 'utf8') <= budget) lo = mid
+    else hi = mid - 1
+  }
+  const charCut = lo
+
+  // 구조 경계로 스냅 — 코드블록/헤딩/리스트 한가운데서 깨지지 않게
+  let cut = content.lastIndexOf('\n## ', charCut)
+  if (cut < charCut * 0.5) {
+    const nl = content.lastIndexOf('\n', charCut)
+    cut = nl > 0 ? nl : charCut
   }
 
   return content.slice(0, cut).trimEnd() + ANTIGRAVITY_TRUNCATE_MARKER

@@ -94,25 +94,31 @@ describe('vhk sync — Antigravity 변환 + 12k 절삭', () => {
     expect(truncateForAntigravity(small)).toBe(small)
   })
 
-  it('한도 초과 시 결과 길이가 항상 12000 미만 (마커 포함 보장)', () => {
-    // 12k 훨씬 넘는 입력 — ## 섹션 다수
-    const huge = Array.from({ length: 400 }, (_, i) => `## 섹션 ${i}\n${'가'.repeat(60)}`).join('\n')
-    expect(huge.length).toBeGreaterThan(ANTIGRAVITY_CHAR_LIMIT)
+  it('한도 초과 시 결과가 항상 12000 바이트·자 이하 (영어)', () => {
+    const huge = Array.from({ length: 400 }, (_, i) => `## 섹션 ${i}\n${'x'.repeat(60)}`).join('\n')
     const out = truncateForAntigravity(huge)
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(ANTIGRAVITY_CHAR_LIMIT)
     expect(out.length).toBeLessThanOrEqual(ANTIGRAVITY_CHAR_LIMIT)
     expect(out).toContain('절삭됨')
   })
 
-  it('구조 경계(## 헤딩)에서 절삭 — 헤딩 중간이 아님', () => {
+  it('한글(3바이트/자) 입력도 byte 기준 12000 이하 보장 (byte/char 양쪽 안전)', () => {
+    // 한글 11000자 = ~33000바이트 → char 기준이면 통과하지만 byte 기준이면 절삭돼야
+    const huge = Array.from({ length: 300 }, (_, i) => `## 섹션 ${i}\n${'가'.repeat(60)}`).join('\n')
+    const out = truncateForAntigravity(huge)
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(ANTIGRAVITY_CHAR_LIMIT)
+    expect(out).toContain('절삭됨')
+  })
+
+  it('구조 경계(## 헤딩)에서 절삭 — 줄 중간에서 끊기지 않음', () => {
     const huge = Array.from({ length: 400 }, (_, i) => `## 섹션 ${i}\n${'x'.repeat(60)}`).join('\n')
     const out = truncateForAntigravity(huge)
     const body = out.replace(/\n\n<!--[\s\S]*$/, '') // 마커 제거
-    // 마지막 비어있지 않은 줄이 헤딩이거나, 최소한 줄 중간에서 끊기지 않음
-    const lines = body.split('\n')
-    const last = lines[lines.length - 1]
-    // 'x' 반복 줄은 통째로 들어가거나 아예 없어야 함 — 부분 'x' 줄로 끝나면 60자 미만
-    if (last.startsWith('x')) {
-      expect(last.length).toBe(60)
-    }
+    // 본문의 모든 'x' 줄은 완전한 60자여야 함 — 부분 절삭이면 60자 미만 줄 발생
+    const xLines = body.split('\n').filter(l => l.startsWith('x'))
+    for (const l of xLines) expect(l.length).toBe(60)
+    // 본문 마지막 줄은 헤딩이거나 완전한 x줄 — 빈 부분 토큰 아님
+    const lastLine = body.split('\n').filter(Boolean).pop() ?? ''
+    expect(lastLine.startsWith('## ') || lastLine === 'x'.repeat(60)).toBe(true)
   })
 })
