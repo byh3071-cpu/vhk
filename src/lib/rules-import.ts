@@ -16,6 +16,9 @@ export const ADOPT_SOURCES = [
   '.github/copilot-instructions.md',
 ] as const
 
+/** 첫 ## 이전 인트로(preamble)를 보존하는 섹션 제목. sync 의 미매칭 경고 제외 대상이기도 함. */
+export const PREAMBLE_TITLE = '서문'
+
 export interface DetectedRuleFile {
   /** cwd 기준 상대 경로 */
   path: string
@@ -69,7 +72,7 @@ function splitSections(content: string): ParsedSection[] {
   }
   if (title) sections.push({ title, content: buf.join('\n').trim() })
   const pre = preamble.join('\n').trim()
-  if (pre) sections.unshift({ title: '서문', content: pre })
+  if (pre) sections.unshift({ title: PREAMBLE_TITLE, content: pre })
   return sections
 }
 

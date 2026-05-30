@@ -93,6 +93,11 @@ describe('vhk sync — ③ 미매칭 섹션 silent drop 방지 (회귀)', () => 
     const sections = parseRulesMd('## 코딩 규칙\n- a\n\n## 기록 규칙\n- b\n')
     expect(findUnmappedSections(sections)).toEqual([])
   })
+
+  it('⑥ 서문(preamble)은 미매칭 경고에서 제외 — adopt RULES.md 매 sync 노이즈 0', () => {
+    const sections = parseRulesMd('## 서문\n인트로 메모\n\n## 코딩 규칙\n- a\n')
+    expect(findUnmappedSections(sections)).toEqual([])
+  })
 })
 
 describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
