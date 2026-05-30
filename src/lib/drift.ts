@@ -68,8 +68,38 @@ export interface ContextDriftResult {
 }
 
 /**
- * 맥락 드리프트 점검 — context.md 생성 시점 sha vs 현재 HEAD.
- * context.md 없음 / sha 마커 없음(옛 파일) / git 아님 → 점검 불가(checked=false).
+ * context.md 가 **내용으로** 반영하는 추적 경로 (context.ts 생성 로직 기준).
+ * - package.json → 기술 스택 섹션 (deps/name/version)
+ * - goals/       → Active Goal 섹션 (frontmatter)
+ * - docs/state/learnings.md → Recent Learnings 섹션
+ * 디렉토리 구조 섹션은 파일 **추가/삭제/이름변경** 시만 바뀌므로 별도 ADR 필터로 점검.
+ * (VHK 명령어=하드코딩, memory/HARD_STOP=.vhk gitignore → 추적 안 됨, 여기 제외.)
+ */
+const CONTEXT_SOURCE_PATHS = ['package.json', 'goals', 'docs/state/learnings.md']
+
+/**
+ * generatedSha → HEAD 사이에 context.md 가 반영하는 소스가 실제로 바뀌었나.
+ * (1) content 경로 내용 변경(M/A/D)  OR  (2) 추적트리 파일 추가/삭제/이름변경(ADR).
+ * git diff --name-only 출력이 비어있지 않으면 변경. `--quiet`+필터 exit-code 모호성을 피하려고
+ * 출력 비교 방식 사용. genSha 유실(history rewrite 등)이면 gitOut 이 throw → 호출부에서 skip.
+ */
+function contextSourcesChanged(generatedSha: string, rootDir: string): boolean {
+  const content = gitOut(
+    ['diff', '--name-only', generatedSha, 'HEAD', '--', ...CONTEXT_SOURCE_PATHS],
+    rootDir
+  ).trim()
+  if (content) return true
+  const structural = gitOut(
+    ['diff', '--name-only', '--diff-filter=ADR', generatedSha, 'HEAD'],
+    rootDir
+  ).trim()
+  return structural.length > 0
+}
+
+/**
+ * 맥락 드리프트 점검 — context.md 생성 이후 **반영 소스가 실제로 바뀐 경우만** stale.
+ * 단순 HEAD 변동(README 오타 등 무관 커밋)으로는 stale 아님 = 노이즈 제거.
+ * context.md 없음 / sha 마커 없음(옛 파일) / git 아님 / diff 불가 → 점검 불가(checked=false).
  */
 export function checkContextDrift(rootDir: string): ContextDriftResult {
   const ctxPath = path.join(rootDir, CONTEXT_PATH)
@@ -86,7 +116,17 @@ export function checkContextDrift(rootDir: string): ContextDriftResult {
   }
   if (!currentSha) return { checked: false, stale: false }
 
-  // 짧은 sha 허용 — 한쪽이 다른 쪽의 접두면 같은 커밋.
-  const stale = !(currentSha.startsWith(generatedSha) || generatedSha.startsWith(currentSha))
+  // 짧은 sha 허용 — 한쪽이 다른 쪽의 접두면 같은 커밋 = 변동 없음 (git diff 불필요).
+  if (currentSha.startsWith(generatedSha) || generatedSha.startsWith(currentSha)) {
+    return { checked: true, stale: false, generatedSha, currentSha }
+  }
+
+  // HEAD 가 앞섰을 때만 context 반영 소스가 실제로 바뀌었는지 file-change 로 확인.
+  let stale: boolean
+  try {
+    stale = contextSourcesChanged(generatedSha, rootDir)
+  } catch {
+    return { checked: false, stale: false } // genSha 유실 등 → 점검 불가
+  }
   return { checked: true, stale, generatedSha, currentSha }
 }
