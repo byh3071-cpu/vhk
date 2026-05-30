@@ -14,6 +14,8 @@ import { readJsonFile } from '../lib/read-json.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
 import { getRecentLearnings, isHardStopActive } from '../lib/state-files.js'
+import { gitOut } from '../lib/git-repo.js'
+import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
 
@@ -228,6 +230,13 @@ export async function context(): Promise<void> {
   lines.push('---')
   lines.push('')
   lines.push(`_생성: ${new Date().toLocaleString('ko-KR')}_`)
+  // 드리프트 점검용 — 생성 시점 git HEAD sha. git 아니면 생략.
+  try {
+    const sha = gitOut(['rev-parse', 'HEAD'], process.cwd()).trim()
+    if (sha) lines.push(`_${CONTEXT_GIT_MARKER}: ${sha}_`)
+  } catch {
+    /* git 아님 — 마커 생략 (드리프트 점검은 checked=false 로 skip) */
+  }
   lines.push('')
 
   mkdirSync('.vhk', { recursive: true })

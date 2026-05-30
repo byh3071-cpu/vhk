@@ -167,6 +167,36 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
   return lines.join('\n')
 }
 
+/**
+ * RULES.md 첫 줄에서 프로젝트명 도출. sync() 와 드리프트 점검이 **같은 로직**을
+ * 쓰도록 단일 출처로 분리 (둘이 다르게 도출하면 거짓 드리프트 발생).
+ */
+export function deriveProjectName(rulesContent: string): string {
+  const firstLine = rulesContent.split('\n')[0]
+  return firstLine.replace(/^#\s*/, '').replace(/\s*—.*/, '').trim() || 'Project'
+}
+
+export interface SyncTarget {
+  /** cwd 기준 상대 경로 (posix) */
+  path: string
+  /** RULES.md 섹션 → 파일 내용 (순수 함수) */
+  generate: (sections: RulesSection[], projectName: string) => string
+  /** 완료 메시지 (ko.sync.*) */
+  doneMessage: string
+}
+
+/**
+ * sync 출력 대상 단일 레지스트리 — sync() 가 쓰고, 드리프트 점검(`lib/drift.ts`)이 읽는다.
+ * 도구 추가 = 여기 항목 1개 추가 → sync·drift 자동 반영 (목록 중복/하드코딩 방지).
+ * CLAUDE.md 는 하이브리드(현재 상태 보존 + 기존 내용 병합)라 이 레지스트리에서 제외.
+ */
+export const SYNC_TARGETS: SyncTarget[] = [
+  { path: '.cursorrules', generate: toCursorrules, doneMessage: ko.sync.cursorrulesDone },
+  { path: '.windsurfrules', generate: toWindsurfrules, doneMessage: ko.sync.windsurfDone },
+  { path: '.github/copilot-instructions.md', generate: toCopilotInstructions, doneMessage: ko.sync.copilotDone },
+  { path: '.agents/rules/vhk-rules.md', generate: toAntigravityRules, doneMessage: ko.sync.antigravityDone },
+]
+
 export async function sync() {
   console.log(chalk.bold(`\n${ko.sync.title}\n`))
 
@@ -191,39 +221,27 @@ export async function sync() {
   const sections = parseRulesMd(rulesContent)
   console.log(chalk.dim(`  📄 RULES.md 파싱 완료 — ${sections.length}개 섹션`))
 
-  const firstLine = rulesContent.split('\n')[0]
-  const projectName = firstLine.replace(/^#\s*/, '').replace(/\s*—.*/, '').trim() || 'Project'
+  const projectName = deriveProjectName(rulesContent)
 
-  const cursorrulesPath = path.join(cwd, '.cursorrules')
-  fs.writeFileSync(cursorrulesPath, toCursorrules(sections, projectName), 'utf-8')
-  console.log(chalk.green(`  ${ko.sync.cursorrulesDone}`))
+  // 순수 미러 대상 — SYNC_TARGETS 레지스트리 루프 (드리프트 점검과 동일 출처)
+  for (const target of SYNC_TARGETS) {
+    const fullPath = path.join(cwd, target.path)
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true }) // 중첩 경로(.github/·.agents/rules/) 보장
+    const content = target.generate(sections, projectName)
+    fs.writeFileSync(fullPath, content, 'utf-8')
+    console.log(chalk.green(`  ${target.doneMessage}`))
+    if (content.includes('절삭됨')) {
+      console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))
+    }
+  }
 
+  // CLAUDE.md — 하이브리드(현재 상태 보존 + 병합)라 레지스트리 밖에서 별도 처리
   const claudePath = path.join(cwd, 'CLAUDE.md')
   const existingClaude = fs.existsSync(claudePath)
     ? fs.readFileSync(claudePath, 'utf-8')
     : `# 기록 규칙 (${projectName})\n\n## 현재 상태\n- **Phase:** __FILL__\n- **블로커:** 없음\n- **다음 액션:** __FILL__\n- **마지막 업데이트:** ${new Date().toISOString().split('T')[0]}`
   fs.writeFileSync(claudePath, toClaudeMd(sections, existingClaude), 'utf-8')
   console.log(chalk.green(`  ${ko.sync.claudeDone}`))
-
-  const windsurfPath = path.join(cwd, '.windsurfrules')
-  fs.writeFileSync(windsurfPath, toWindsurfrules(sections, projectName), 'utf-8')
-  console.log(chalk.green(`  ${ko.sync.windsurfDone}`))
-
-  // GitHub Copilot — 중첩 경로라 디렉토리 보장 필요 (기존 3개는 루트라 불필요했음)
-  const copilotPath = path.join(cwd, '.github', 'copilot-instructions.md')
-  fs.mkdirSync(path.dirname(copilotPath), { recursive: true })
-  fs.writeFileSync(copilotPath, toCopilotInstructions(sections, projectName), 'utf-8')
-  console.log(chalk.green(`  ${ko.sync.copilotDone}`))
-
-  // Antigravity — .agents/rules/ 중첩 경로 + 12k 절삭
-  const antigravityPath = path.join(cwd, '.agents', 'rules', 'vhk-rules.md')
-  fs.mkdirSync(path.dirname(antigravityPath), { recursive: true })
-  const antigravityDoc = toAntigravityRules(sections, projectName)
-  fs.writeFileSync(antigravityPath, antigravityDoc, 'utf-8')
-  console.log(chalk.green(`  ${ko.sync.antigravityDone}`))
-  if (antigravityDoc.includes('절삭됨')) {
-    console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))
-  }
 
   console.log(chalk.bold.green(`\n${ko.sync.done}`))
   console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md + .windsurfrules'))
