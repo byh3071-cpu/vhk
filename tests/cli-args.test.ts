@@ -76,6 +76,24 @@ describe('read-json BOM', () => {
   })
 })
 
+describe('detectNaturalLanguageInput — restore 명령 라우팅 (회귀)', () => {
+  // restore/복원 이 KNOWN_COMMAND_TOKENS 에 없으면 NLP 가 가로채 commander 핸들러가 안 돈다.
+  it('vhk restore <id> → null (commander 가 처리)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'restore', '2026-05-30T09-19-17-358Z'])
+    ).toBeNull()
+  })
+  it('vhk 복원 <id> → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '복원', 'abc'])).toBeNull()
+  })
+  it('vhk restore (단독) → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'restore'])).toBeNull()
+  })
+  it('vhk 복원 (단독) → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '복원'])).toBeNull()
+  })
+})
+
 describe('cli NL e2e', () => {
   const bin = path.join(process.cwd(), 'dist', 'index.js')
 

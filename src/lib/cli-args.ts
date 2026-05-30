@@ -13,6 +13,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'doctor', '환경', '진단',
   'save', '저장',
   'undo', '되돌리기',
+  'restore', '복원',
   'status', '상태', '현황',
   'diff', '변경', '차이',
   'mcp',

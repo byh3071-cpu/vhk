@@ -12,6 +12,7 @@ import { doctor } from '../commands/doctor.js'
 import { ship } from '../commands/ship.js'
 import { save } from '../commands/save.js'
 import { undo } from '../commands/undo.js'
+import { restore } from '../commands/restore.js'
 import { status } from '../commands/status.js'
 import { diff } from '../commands/diff.js'
 import { mcpInit } from '../commands/mcp-init.js'
@@ -65,6 +66,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return save()
     case 'undo':
       return undo()
+    case 'restore':
+      return restore(route.args?.[0])
     case 'status':
       return status()
     case 'diff':
