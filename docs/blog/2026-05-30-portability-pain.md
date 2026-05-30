@@ -1,10 +1,11 @@
 ---
 title: "AI 코딩 도구를 바꿀 때마다, 왜 매번 처음부터 다시 설명할까"
-status: draft
+status: ready
 author: TBD
 created: 2026-05-30
+reviewed: 2026-05-30
 tags: [vhk, portability, ai-coding, devtools]
-note: "초안 — 게시 전 사람이 검수/편집. 사실 주장은 전부 실제 동작 기준(과장 금지)."
+note: "검수 완료 — 사실 주장 전부 실제 동작(v1.5.0, sync 5종) 기준 확인. 게시 플랫폼·시점·저자명은 사람이 결정."
 ---
 
 # AI 코딩 도구를 바꿀 때마다, 왜 매번 처음부터 다시 설명할까
