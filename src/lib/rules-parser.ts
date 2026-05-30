@@ -42,52 +42,69 @@ export function parseRules(rulesPath: string): Rule[] {
     const bulletMatch = line.match(/^[-*]\s+(.+)/)
     if (!bulletMatch) continue
 
+    // VHK-012: 지침/기록/메타 섹션 불릿은 코드 규칙이 아님 → 추출 제외(오탐 방지).
+    if (isMetaSection(currentSection)) continue
+
     const ruleText = bulletMatch[1]
     ruleIndex++
 
     if (/kebab[- ]?case/i.test(ruleText)) {
-      rules.push(createNamingRule(
-        `naming-${ruleIndex}`,
-        currentSection,
-        ruleText,
-        'kebab-case',
-      ))
+      rules.push(createNamingRule(`naming-${ruleIndex}`, currentSection, ruleText, 'kebab-case'))
     } else if (/camel[- ]?case/i.test(ruleText)) {
-      rules.push(createNamingRule(
-        `naming-${ruleIndex}`,
-        currentSection,
-        ruleText,
-        'camelCase',
-      ))
+      rules.push(createNamingRule(`naming-${ruleIndex}`, currentSection, ruleText, 'camelCase'))
     }
 
-    const pathMatch = ruleText.match(/`([a-zA-Z0-9_/.-]+\/)`/)
-    if (pathMatch) {
-      rules.push(createStructureRule(
-        `structure-${ruleIndex}`,
-        currentSection,
-        ruleText,
-        pathMatch[1],
-      ))
-    }
-
-    if (/금지|사용하지|쓰지 마|하지 않는다|never use|do not use/i.test(ruleText)) {
-      const backtickContent = ruleText.match(/`([^`]+)`/)
-      if (backtickContent) {
-        rules.push(createContentRule(
-          `ban-${ruleIndex}`,
-          currentSection,
-          ruleText,
-          backtickContent[1],
-          'banned',
-        ))
+    // VHK-012: 구조(필수 디렉터리) 규칙은 '아키텍처/구조' 선언 섹션에서만 — 행동지침 경로 오탐 방지.
+    if (isStructureSection(currentSection)) {
+      const pathMatch = ruleText.match(/`([a-zA-Z0-9_/.-]+\/)`/)
+      if (pathMatch) {
+        rules.push(createStructureRule(`structure-${ruleIndex}`, currentSection, ruleText, pathMatch[1]))
       }
     }
 
-    // 문서상 필수 규칙은 자동 검사 없음 — RULES.md 수동 확인
+    // VHK-012: '금지' 인접 백틱 토큰만 — `X` 금지 / 금지: `X`. URL·경로는 제외(금지 뒤 먼 URL 오탐 방지).
+    const banToken = extractBanToken(ruleText)
+    if (banToken) {
+      rules.push(createContentRule(`ban-${ruleIndex}`, currentSection, ruleText, banToken, 'banned'))
+    }
   }
 
   return rules
+}
+
+/** 기록/지침/메타 섹션 — 코드 자동검사 대상 아님(문서/운영 규칙). */
+function isMetaSection(section: string): boolean {
+  const s = section.toLowerCase()
+  return ['기록', '로그', 'adr', '트러블', 'til', '/done', '체크리스트', '지침', '이슈', '운영', '커밋'].some(
+    (k) => s.includes(k)
+  )
+}
+
+/** 구조(필수 디렉터리) 규칙을 뽑을 '구조 선언' 섹션인지. */
+function isStructureSection(section: string): boolean {
+  const s = section.toLowerCase()
+  return ['아키텍처', '구조', '디렉터리', '폴더', 'architecture', 'structure'].some((k) => s.includes(k))
+}
+
+/** '금지' 인접 백틱 코드 토큰을 추출. URL/경로면 null(오탐 방지). 없으면 null. */
+function extractBanToken(ruleText: string): string | null {
+  const banKw = ruleText.search(/금지|사용하지|쓰지\s*마|하지\s*않는다|never use|do not use/i)
+  if (banKw < 0) return null
+  let token: string | null = null
+  // A: 금지 '앞'의 마지막 백틱 (`execSync` 신규 사용 금지)
+  const before = [...ruleText.slice(0, banKw).matchAll(/`([^`]+)`/g)].pop()
+  if (before) token = before[1]
+  else {
+    // B: 금지 '바로 뒤' 인접 백틱 (금지: `X`) — 구분자만 허용(먼 URL 제외)
+    const after = ruleText
+      .slice(banKw)
+      .match(/^(?:금지|사용하지|쓰지\s*마|do not use|never use)\s*[:：]?\s*`([^`]+)`/i)
+    if (after) token = after[1]
+  }
+  if (!token) return null
+  // URL/경로/넓은 토큰은 금지 패턴으로 부적절 → 제외
+  if (/:\/\/|www\.|\.(com|io|dev|net|org|app)\b|\//.test(token)) return null
+  return token
 }
 
 function createNamingRule(
