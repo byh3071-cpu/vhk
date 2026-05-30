@@ -6,6 +6,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
 import {
   listGoals,
+  findDuplicateIds,
   updateFrontmatterStatus,
   type GoalStatus,
   type ParsedGoal,
@@ -62,6 +63,12 @@ export async function goalList(): Promise<void> {
     console.log(
       `  [${id}] ${icon} ${status.padEnd(11)} ${pri} ${ver} ${fm.title ?? '(untitled)'}`
     )
+  }
+  // ① 중복 id 경고 — listGoals 는 첫 매치만 쓰므로 조용한 누락을 알린다.
+  const dups = findDuplicateIds(goals)
+  if (dups.length > 0) {
+    console.log('')
+    console.log(chalk.yellow(`  ${ko.goal.duplicateId(dups.join(', '))}`))
   }
 }
 
@@ -185,6 +192,12 @@ export async function goalCheck(opts: { id?: string }): Promise<void> {
     process.exitCode = 1
     return
   }
+  // ② 없는 goal id 는 게이트 검사 전에 통일된 메시지로 거부 (done 과 동일).
+  if (!goals.some((g) => g.frontmatter.id === id)) {
+    console.log(chalk.red(`  ❌ ${ko.goal.notFound(id)}`))
+    process.exitCode = 1
+    return
+  }
   const scriptPath = findGateScript(id)
   if (!scriptPath) {
     console.log(
@@ -218,7 +231,8 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   }
   const target = goals.find((g) => g.frontmatter.id === id)
   if (!target) {
-    console.log(chalk.red(`  ❌ goal id ${id} 파일 없음.`))
+    // ② check 와 동일한 메시지로 통일.
+    console.log(chalk.red(`  ❌ ${ko.goal.notFound(id)}`))
     process.exitCode = 1
     return
   }
