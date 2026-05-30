@@ -15,14 +15,14 @@ jobs:
       - name: pnpm 설치
         uses: pnpm/action-setup@v4
         with:
-          # 레포 pnpm-workspace.yaml 이 overrides/allowBuilds(pnpm 10+ 문법)를 쓰므로 11 고정.
-          # pnpm 9 는 packages 필드 없으면 store path 에서 거부됨.
-          version: 11
+          # 로컬 개발 환경과 정확히 일치 (Node 24 + pnpm 11.2.2).
+          # pnpm 9 는 workspace overrides 거부, pnpm 11.5 는 Node 20 builtin 미지원 → 둘 다 고정.
+          version: 11.2.2
 
-      - name: Node 20 + pnpm 캐시
+      - name: Node 24 + pnpm 캐시
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: pnpm
 
       - name: 의존성 설치
