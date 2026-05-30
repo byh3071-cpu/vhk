@@ -88,6 +88,8 @@ export function findExposedSensitiveFiles(
 
 function isSensitiveName(name: string): boolean {
   const lower = name.toLowerCase()
+  // 템플릿(.example/.sample)은 커밋 의도된 빈 값 파일 — 민감 파일 아님(false positive 방지). VHK-005.
+  if (lower.endsWith('.example') || lower.endsWith('.sample')) return false
   if (lower === '.env' || lower.startsWith('.env.')) return true
   if (lower.endsWith('.pem') || lower.endsWith('.key')) return true
   if (lower === 'credentials.json' || lower === 'secrets.json') return true
