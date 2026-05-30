@@ -70,8 +70,8 @@ export function saveBackup(files: string[], rootDir: string, stamp?: string): Ba
   const baseId = stamp ?? fsSafeStamp(new Date())
   let id = baseId
   let n = 1
-  // suffix 는 zero-pad — listBackups 의 문자열 정렬이 시간순과 어긋나지 않게
-  // (base-10 < base-2 같은 렉시컬 뒤틀림 방지 → pruneBackups 가 진짜 최신을 안 지움).
+  // suffix 는 가독성용 zero-pad. 정렬 정확성은 listBackups 의 숫자 비교(backupOrderKey)가
+  // 보장하므로 자릿수를 넘겨도(예: 1000+) 시간순이 안 깨진다.
   while (fs.existsSync(path.join(rootDir, BACKUPS_REL, id))) {
     id = `${baseId}-${String(n++).padStart(3, '0')}`
   }
@@ -92,14 +92,29 @@ export function saveBackup(files: string[], rootDir: string, stamp?: string): Ba
 }
 
 /** 백업 목록 — 최신순(id 역정렬). 백업 폴더 없으면 빈 배열. */
+/**
+ * 백업 id 정렬 키 — baseId(시간순 ISO 문자열, 'Z' 종료) + 숫자 suffix.
+ * 단순 문자열 정렬은 충돌 suffix 에서 base-1000 < base-999 처럼 렉시컬 뒤틀림이 생긴다
+ * (zero-pad 도 자릿수 넘으면 재발). 숫자로 비교해 어떤 suffix 폭에서도 시간순을 보장.
+ */
+function backupOrderKey(id: string): [string, number] {
+  const m = /^(.*Z)(?:-(\d+))?$/.exec(id)
+  return m ? [m[1], m[2] ? parseInt(m[2], 10) : 0] : [id, 0]
+}
+
+/** 백업 목록 — 최신순. 백업 폴더 없으면 빈 배열. */
 export function listBackups(rootDir: string): BackupInfo[] {
   const root = path.join(rootDir, BACKUPS_REL)
   if (!fs.existsSync(root)) return []
   return fs
     .readdirSync(root)
     .filter((e) => fs.statSync(path.join(root, e)).isDirectory())
-    .sort()
-    .reverse()
+    .sort((a, b) => {
+      const [ba, na] = backupOrderKey(a)
+      const [bb, nb] = backupOrderKey(b)
+      if (ba !== bb) return ba < bb ? 1 : -1 // base 시간 역순(최신 먼저)
+      return nb - na // 같은 base 면 suffix 큰(나중) 것 먼저
+    })
     .map((id) => {
       const dir = path.join(root, id)
       return { id, dir, files: walkRelFiles(dir) }

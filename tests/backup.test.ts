@@ -109,6 +109,22 @@ describe('saveBackup', () => {
     expect(list.length).toBe(12)
     expect(list[0].id).toBe(lastId) // 가장 최근 생성본이 목록 최상단(최신순)
   })
+
+  // 회귀: suffix 자릿수를 넘는(1000+) 충돌도 숫자 정렬이라 시간순 유지 (zero-pad 폭에 의존 안 함).
+  // 문자열 정렬이면 'base-999' > 'base-1001' 로 뒤틀려 pruneBackups 가 진짜 최신을 evict.
+  it('suffix 4자리 경계도 숫자 정렬 (base-1001 > base-1000 > base-999)', () => {
+    const base = '2026-09-09T00-00-00-000Z'
+    const root = path.join(dir, '.vhk', 'backups')
+    for (const id of [`${base}-999`, `${base}-1000`, `${base}-1001`]) {
+      fs.mkdirSync(path.join(root, id), { recursive: true })
+      fs.writeFileSync(path.join(root, id, 'f'), 'x', 'utf-8')
+    }
+    expect(listBackups(dir).map((b) => b.id)).toEqual([
+      `${base}-1001`,
+      `${base}-1000`,
+      `${base}-999`,
+    ])
+  })
 })
 
 describe('listBackups', () => {
