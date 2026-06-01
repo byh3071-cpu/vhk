@@ -371,8 +371,9 @@ program
 program
   .command('theme')
   .alias('테마')
+  .option('-y, --yes', '기존 파일 덮어쓰기 확인 스킵 (비대화형 자동 덮어쓰기)')
   .description('다크/라이트 모드 CSS + 토글 유틸리티 생성')
-  .action(async () => { await theme() })
+  .action(async (opts: { yes?: boolean }) => { await theme(opts) })
 
 const refCmd = program
   .command('ref')

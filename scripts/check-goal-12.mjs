@@ -50,9 +50,22 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 12 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 12 고유 검증 (비대화형 가드 P2) ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+// ① auto-default: theme 덮어쓰기 확인을 promptOrDefault(stdin SoT)로 마이그 + --yes
+must(/promptOrDefault/.test(read('src/commands/theme.ts') ?? ''), 'theme 비대화형 기본값 (① auto-default)')
+must(/--yes|options\?\.yes/.test(read('src/commands/theme.ts') ?? ''), 'theme --yes 강제 덮어쓰기')
+must(/theme.*--yes|--yes.*theme/s.test(read('src/index.ts') ?? '') || /\.command\('theme'\)[\s\S]{0,200}--yes/.test(read('src/index.ts') ?? ''), 'index theme --yes 옵션 등록')
+// ② refuse-essential: ship 진입 가드
+must(/ensureInteractive\(/.test(read('src/commands/ship.ts') ?? ''), 'ship essential 진입거부 (② refuse)')
+// sync 확인 축 = stdin SoT (stdout 아님 — E8/R1)
+const syncSrc = read('src/commands/sync.ts') ?? ''
+must(/promptOrDefault/.test(syncSrc) && /isInteractive/.test(syncSrc), 'sync 확인 축 stdin SoT 마이그 (E8)')
+must(!/!!process\.stdout\.isTTY && !opts\.yes/.test(syncSrc), 'sync 구 stdout 축 제거')
+// S5 결정: save 는 strict-extra 유지(high-risk 승격 안 함)
+const riskSrc = read('src/lib/risk-policy.ts') ?? ''
+must(/STRICT_EXTRA_ACTIONS[\s\S]*?'save'/.test(riskSrc), 'save strict-extra 유지 (S5)')
+must(!/HIGH_RISK_ACTIONS[\s\S]*?'save'[\s\S]*?\] as const/.test(riskSrc), 'save 는 HIGH_RISK 승격 안 함 (S5)')
 
 if (pass) { console.log('✅ goal 12 gate passes'); process.exit(0) }
 console.log('❌ goal 12 gate failed'); process.exit(1)

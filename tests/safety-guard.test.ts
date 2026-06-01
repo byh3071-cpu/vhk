@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { runGuarded } from '../src/lib/safety-guard.js'
+import { resolveGuard } from '../src/lib/risk-policy.js'
 
 function tracker() {
   let ran = false
@@ -124,5 +125,34 @@ describe('runGuarded — lite 비대화형 destructive 중단 (R13)', () => {
     const run = vi.fn(async () => 'ran')
     const { outcome } = await runGuarded('undo', { channel: 'cli', mode: 'lite', isTTY: false, approved: true }, run)
     expect(outcome.ran).toBe(true)
+  })
+})
+
+// Goal 12 / S5: save push 정책 결정 = "strict-extra 유지"(high-risk 승격 안 함).
+// 근거: commit 은 로컬·되돌리기 가능(undo 존재), push 는 사용자 자기 remote 대상이라
+// deploy/publish(외부 배포=high-risk)와 등급이 다름. spec 의 ③ destructive 버킷도
+// save 를 "strict 일 때만" 분류함. 가장 빈번한 명령을 standard 에서 막으면 UX 파괴.
+// strict 모드 = push 를 막고 싶은 사용자용 탈출구(이미 동작). 이 테스트가 그 계약을 잠근다.
+describe('Goal 12 / S5 — save push 정책 (strict-extra 유지)', () => {
+  it('standard 모드: save 는 가드 없이 allow (push 자동진행 — 회귀 가드)', () => {
+    expect(resolveGuard('save', 'standard', 'cli')).toBe('allow')
+  })
+  it('strict 모드: save 는 confirm 으로 승격(push 막을 사용자용 탈출구)', () => {
+    expect(resolveGuard('save', 'strict', 'cli')).toBe('confirm')
+  })
+  it('strict + 비대화형(isTTY:false) + 미승인 → save 차단(commit/push 둘 다 미실행)', async () => {
+    const run = vi.fn(async () => 'ran')
+    const { outcome } = await runGuarded('save', { channel: 'cli', mode: 'strict', isTTY: false, approved: false }, run)
+    expect(run).not.toHaveBeenCalled()
+    expect(outcome.ran).toBe(false)
+  })
+  it('strict + --yes 승인 → save 실행 허용', async () => {
+    const run = vi.fn(async () => 'ran')
+    const { outcome } = await runGuarded('save', { channel: 'cli', mode: 'strict', isTTY: false, approved: true }, run)
+    expect(outcome.ran).toBe(true)
+  })
+  it('save 는 HIGH_RISK 로 승격되지 않음 — lite 에선 가드 없이 allow', () => {
+    // high-risk 였다면 lite 에서 warn(비대화형 차단)이 됐을 것. allow 여야 결정 유지.
+    expect(resolveGuard('save', 'lite', 'cli')).toBe('allow')
   })
 })

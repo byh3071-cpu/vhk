@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { promptOrDefault } from '../lib/interactive.js'
 
 function generateDarkCSS(): string {
   return `/* vhk theme — 다크/라이트 모드 CSS 변수 */
@@ -60,7 +61,7 @@ export function initTheme(): void {
 `
 }
 
-export async function theme(): Promise<void> {
+export async function theme(options?: { yes?: boolean }): Promise<void> {
   console.log(chalk.bold('\n🌙 ' + t('theme.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
@@ -69,14 +70,21 @@ export async function theme(): Promise<void> {
   const conflicts = [cssPath, togglePath].filter((p) => existsSync(p))
 
   if (conflicts.length > 0) {
-    const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([{
-      type: 'confirm',
-      name: 'overwrite',
-      message: `다음 파일이 이미 있어요. 덮어쓸까요?\n   ${conflicts.join('\n   ')}`,
-      default: false,
-    }])
+    // ① auto-default(benign): --yes 면 덮어쓰기, 비대화형(비-TTY)이면 stdin 미접근 → 기본 false(보존).
+    // 비-TTY 에서 inquirer 를 호출하지 않아 MCP 파이프 안전(R19/E5) + 절대 안 멈춤.
+    const overwrite = options?.yes === true
+      ? true
+      : await promptOrDefault(
+          async () => (await inquirer.prompt<{ overwrite: boolean }>([{
+            type: 'confirm',
+            name: 'overwrite',
+            message: `다음 파일이 이미 있어요. 덮어쓸까요?\n   ${conflicts.join('\n   ')}`,
+            default: false,
+          }])).overwrite,
+          false,
+        )
     if (!overwrite) {
-      console.log(chalk.yellow('\n⏭️  생성 취소 — 기존 파일 유지.'))
+      console.log(chalk.yellow('\n⏭️  생성 취소 — 기존 파일 유지. (비대화형이면 --yes 로 덮어쓰기)'))
       return
     }
   }
