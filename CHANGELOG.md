@@ -6,6 +6,36 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.6.6] - 2026-06-02
+
+> **비대화형 가드 P2 (#14 Goal 12) + `.vhk` 규격 RFC (#38).** Goal 11 이 깐 3버킷 계약을
+> 잔여 대화형 명령(theme/sync/ship/design)으로 확장하고, `save` push 정책을 확정.
+> 철학 유지: 절대 안 멈춤 + 위험작업 무단실행 0 + 비-TTY 면 stdin 미접근(MCP RPC 보호).
+
+### Added
+
+- **`vhk theme --yes` (`-y`)** — 기존 파일 덮어쓰기 확인을 스킵(비대화형 자동 덮어쓰기). 충돌 확인은
+  `promptOrDefault`(stdin SoT)로 마이그 → 비-TTY·미승인이면 inquirer 미호출·기본 보존(① auto-default).
+- **`docs/rfc/0038-vhk-spec.md`** — `.vhk/` 규격 v1.1 제안(#38). 누락 항목(`.synced`·`backups/`·
+  `config.json`) 정합 + `reports/` 서브디렉토리(Goal 13 verify 증거화) 도입. 코드 아님(스펙/토론).
+
+### Fixed
+
+- **`vhk sync` 확인 축 정정 (stdout → stdin, E8/R1)** — drift 덮어쓰기 확인이 stdout TTY 로 판단해
+  MCP 불변식(비-TTY=stdin 미접근)과 어긋나던 문제. 이제 `isInteractive`/`promptOrDefault`(stdin 축)로
+  통일. 비-TTY/`--yes` → 자동 덮어쓰기(백업 먼저라 손실 0), 동작 보존.
+- **`vhk ship` 비-TTY 크래시 가드** — 배포 체크리스트·회고는 본질적 대화형(② refuse-essential) →
+  진입부 `ensureInteractive()` 로 비-TTY 에서 friendly 거부 + `exit 1`(멈춤/EOF 크래시 제거).
+
+### Note
+
+- **`save` push 정책 결정(S5) = `strict-extra` 유지.** commit 은 로컬·되돌리기 가능(undo), push 는
+  사용자 자기 remote 대상이라 deploy/publish(외부 배포=high-risk)와 등급이 다름 → `save` 를 HIGH_RISK
+  로 승격하지 않는다. push 차단을 원하면 `strict` 모드(이미 비-TTY·미승인 save 차단)가 탈출구.
+  회귀 테스트로 계약 고정(`tests/safety-guard.test.ts`).
+- **동작 변경:** 비-TTY(파이프/CI/MCP)에서 `vhk ship` 은 `--yes` 가 아니라 **TTY 환경**이 필요합니다
+  (자동답 불가한 본질적 대화형). 테스트 585 → 596(신규 11), 회귀 0.
+
 ## [1.6.5] - 2026-06-02
 
 > **핫픽스 — `vhk save` 취소 동작.** v1.6.4 의 `promptOrDefault` 가 대화형에서도
