@@ -6,6 +6,33 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.6.4] - 2026-06-02
+
+> **대화형/비대화형 통합 가드 (MCP·CI 안전, #14 Goal 11).** inquirer 쓰는 명령이
+> 비-TTY(CI·파이프·MCP stdio)에서 멈추거나 RPC 파이프를 훼손하던 문제를 단일 계약으로 정리.
+> 철학: 절대 안 멈춤 + 위험작업 무단실행 0 + MCP면 stdin 미접근.
+
+### Added
+
+- **감지 단일출처 `isInteractive` + `promptOrDefault`** (`src/lib/interactive.ts`) — 모든 명령이
+  같은 기준(stdin TTY + `--yes`)으로 프롬프트 여부 판단. 비대화형이면 stdin 미접근(MCP RPC 보호).
+- **`VHK_FORCE_INTERACTIVE=1`** — Git Bash/MinTTY 처럼 TTY 오감지 환경용 탈출구.
+- **`vhk restore --yes`** — 비대화형 명시 승인 플래그.
+
+### Fixed
+
+- **lite 모드 안전 구멍** — lite 여도 비대화형+미승인이면 위험작업(undo/publish/restore 등) 중단
+  (경고 볼 사람 없는 환경서 무단 실행 방지).
+- **`restore` 가드 누락** — HIGH_RISK 로 분류 + CLI/자연어 양쪽 `runGuarded` 경유 (백업 덮어쓰기 보호).
+- **`vhk gate` 비-TTY 크래시** — 대화형 필수 명령은 깔끔히 거부(멈춤/EOF 크래시 제거).
+- **`vhk init` 비대화형 일관화** — stdout 파이프가 프롬프트를 막던 오판 제거(stdin 축 통일).
+- **`vhk save`** — 비대화형 커밋 메시지 기본값 + 시크릿 발견 시 비대화형 자동진행 금지(안전 중단).
+
+### Note
+
+- 동작 변경(E11): 비대화형에서 `vhk restore <id>`/`vhk undo` 등 위험작업은 `--yes` 없이 **중단**됩니다.
+  자동화는 `--yes` 로 명시 승인하세요.
+
 ## [1.6.3] - 2026-06-01
 
 > **VHK 자기개선 배치 + 도그푸딩 이슈 정리.** 카페 A/B 해커톤(`vhk-project-`)에서
