@@ -6,6 +6,31 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.6.3] - 2026-06-01
+
+> **VHK 자기개선 배치 + 도그푸딩 이슈 정리.** 카페 A/B 해커톤(`vhk-project-`)에서
+> 나온 마찰을 VHK 자체 수정으로 등록(goal 7~10), 2-리뷰(Codex + 다중에이전트)로
+> 결함 8건 잡아 수정, OPEN 이슈 #82·#80 해결.
+
+### Added
+
+- **`vhk goal sync`** — `goals/*.md` 를 SoT 로 누락된 `scripts/check-goal-<id>.mjs`
+  게이트 스크립트를 자동 백필(idempotent, 자체완결·cross-platform). `.sh` 만 있는
+  legacy goal 에도 `.mjs` 를 백필해 Windows 1급 보장.
+- **`vhk context` 발견성** — 세션 진입 명령(`status`) 끝에 복원/생성/갱신 한 줄 안내
+  (`printContextResumeHint`, 검증된 `checkContextDrift` 재사용).
+- **goal 파일 스키마 문서화** — `vhk goal init` 의 `_meta.md` 에 필수 필드/템플릿 명시(VHK-021).
+
+### Fixed
+
+- **`vhk init -y` 완전 비대화형** — `-y`/비-TTY(stdin·stdout) 자동 감지로 모든 프롬프트
+  (타입·confirmStack·adopt·overwrite) skip, 기본 타입(webapp) 폴백. CI/파이프 멈춤 제거.
+- **Windows/PowerShell 1급** — goal 게이트가 bash 없이 `.mjs`(node)로 동작.
+- **`vhk goal list` silent skip 제거** — `type: goal` 누락·비숫자 `id` 로 무시된 파일을
+  경고로 노출(VHK-021).
+- **`.vhk/cloud.json` gitignore** — secret gist 포인터가 공개 repo 에 노출되던 문제 수정.
+  `.vhk/.gitignore` 템플릿 + `cloud push` 시 자동 보장(VHK-022).
+
 ## [1.6.1] - 2026-05-30
 
 > **드리프트 정밀화 패치.** v1.6.0 의 맥락 드리프트 판정이 너무 거칠어 README 오타 같은
