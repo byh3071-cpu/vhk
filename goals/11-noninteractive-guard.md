@@ -3,8 +3,9 @@ vhk_format: 1
 type: goal
 id: 11
 title: 대화형/비대화형 통합 가드 (MCP·CI 안전) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
+completed: 2026-06-02
 ---
 
 # Goal 11: 대화형/비대화형 통합 가드 P1 (#14)
