@@ -13,16 +13,16 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.6.6 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
+- **버전:** v1.7.0 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
 - **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 596 pass (vitest)
+- **테스트:** 599 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 5 이후 — Goal 12(비대화형 가드 P2, #14) DONE + RFC 0038(#38) → v1.6.6 PR.
+- **Phase:** Phase 5 이후 — Goal 13(verify 증거화, #13) DONE → v1.7.0 PR (v1.6.6 스택 위).
 - **블로커:** 없음
-- **다음 액션:** Batch B — Goal 13(P1, verify 증거화) → v1.7.0. publish 는 사람(2FA OTP).
+- **다음 액션:** 배치 6(verify --report JSON→HTML), STEP 1.5(sync 확대). publish 는 사람(2FA OTP).
 - **마지막 업데이트:** 2026-06-02
 
 ## 코딩 컨벤션
