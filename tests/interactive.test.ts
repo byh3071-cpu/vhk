@@ -57,6 +57,6 @@ describe('promptOrDefault', () => {
     const ask = vi.fn(async () => 'asked')
     expect(await promptOrDefault(ask, 'fb')).toBe('fb'); expect(ask).not.toHaveBeenCalled()
   })
-  it('ask 가 abort 던지면 fallback', async () => { origTTY = setTTY(true); expect(await promptOrDefault(async () => { throw new Error('User force closed the prompt') }, 'fb')).toBe('fb') })
+  it('대화형서 abort(Ctrl+C/ESC=사용자 취소)면 fallback 안 쓰고 전파 (취소 보존)', async () => { origTTY = setTTY(true); await expect(promptOrDefault(async () => { throw new Error('User force closed the prompt') }, 'fb')).rejects.toThrow(/force closed/) })
   it('ask 가 비-abort 에러면 rethrow', async () => { origTTY = setTTY(true); await expect(promptOrDefault(async () => { throw new Error('boom') }, 'fb')).rejects.toThrow('boom') })
 })

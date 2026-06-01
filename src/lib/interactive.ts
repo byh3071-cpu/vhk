@@ -9,9 +9,12 @@ export function isInteractive(opts?: { yes?: boolean }): boolean {
 }
 
 // benign 프롬프트: 비대화형이면 ask 호출 없이 fallback (stdin 미접근 = MCP 안전).
+// 대화형이면 그대로 ask — abort(Ctrl+C/ESC)는 삼키지 않고 전파한다.
+// (비대화형은 위에서 early-return 하므로, 여기 도달한 abort 는 항상 "사용자 취소"다.
+//  과거엔 이를 fallback 으로 바꿔 save 가 취소 의도를 무시하고 커밋하던 위험버그 — 제거.)
 export async function promptOrDefault<T>(ask: () => Promise<T>, fallback: T, opts?: { yes?: boolean }): Promise<T> {
   if (!isInteractive(opts)) return fallback
-  try { return await ask() } catch (err) { if (isPromptAbortError(err)) return fallback; throw err }
+  return await ask()
 }
 
 /**
