@@ -1,12 +1,26 @@
 import chalk from 'chalk'
 
+// 프롬프트 가능 여부 단일출처. stdin TTY + --yes 아님.
+// VHK_FORCE_INTERACTIVE=1 = Git Bash/MinTTY 탈출구. 비-TTY 는 undefined → !!.
+export function isInteractive(opts?: { yes?: boolean }): boolean {
+  if (opts?.yes) return false
+  if (process.env.VHK_FORCE_INTERACTIVE === '1') return true
+  return !!process.stdin.isTTY
+}
+
+// benign 프롬프트: 비대화형이면 ask 호출 없이 fallback (stdin 미접근 = MCP 안전).
+export async function promptOrDefault<T>(ask: () => Promise<T>, fallback: T, opts?: { yes?: boolean }): Promise<T> {
+  if (!isInteractive(opts)) return fallback
+  try { return await ask() } catch (err) { if (isPromptAbortError(err)) return fallback; throw err }
+}
+
 /**
  * 대화형 명령 진입 가드 — 비-TTY(파이프/CI/EOF stdin)면 inquirer 프롬프트가
  * `ERR_USE_AFTER_CLOSE` 로 크래시하므로, 진입부에서 friendly 안내 + 비-0 종료 신호 후 중단한다.
  * 반환 true = 대화형 진행 가능. (VHK-014)
  */
 export function ensureInteractive(hint = ''): boolean {
-  if (process.stdin.isTTY) return true
+  if (isInteractive()) return true
   console.error(chalk.yellow('  ⚠️  이 명령은 대화형 입력이 필요합니다 — 비-TTY/파이프 환경에서는 실행할 수 없어요.'))
   if (hint) console.error(chalk.dim(`     ${hint}`))
   process.exitCode = 1

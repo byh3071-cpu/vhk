@@ -45,7 +45,12 @@ export async function runGuarded<T>(
   }
 
   if (guard === 'warn') {
-    // lite — 막지 않고 경고만
+    // R13/E8: lite 여도 비대화형(stdin 비-TTY)+미승인이면 destructive 중단 — 경고 볼 사람 없음.
+    const canConfirm = deps.isTTY ?? !!process.stdin.isTTY
+    if (!deps.approved && !canConfirm) {
+      log(`⚠️ 위험 작업(${action}) — lite 지만 비대화형+미승인 → 중단. (--yes 로 승인)`)
+      return { outcome: { ran: false, guard, reason: 'lite-noninteractive-block' } }
+    }
     log(`⚠️ 위험 작업(${action}) — lite 모드: 경고만 하고 진행합니다.`)
     return { outcome: { ran: true, guard, reason: 'lite-warn' }, result: await run() }
   }
@@ -55,7 +60,7 @@ export async function runGuarded<T>(
     if (deps.approved === true) {
       return { outcome: { ran: true, guard, reason: 'approved' }, result: await run() }
     }
-    const tty = deps.isTTY ?? !!process.stdout.isTTY
+    const tty = deps.isTTY ?? !!process.stdin.isTTY
     if (tty && deps.confirm) {
       const ok = await deps.confirm()
       if (ok) return { outcome: { ran: true, guard, reason: 'confirmed' }, result: await run() }
