@@ -52,15 +52,17 @@ if (!skipDeep) {
 // ─── goal 8 고유 검증 (init -y 완전 비대화형) ───────────────────────
 const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
 const initSrc = read('src/commands/init.ts') ?? ''
-must(/function isNonInteractive/.test(initSrc), 'isNonInteractive 헬퍼 존재')
-must(/options\.yes/.test(initSrc) && /process\.stdin\.isTTY/.test(initSrc) && /process\.stdout\.isTTY/.test(initSrc), '-y(yes) + stdin/stdout 비-TTY 감지')
+// SoT = src/lib/interactive.ts 의 isInteractive (stdin 축). init 은 로컬 헬퍼 대신 이 SoT 를 쓴다.
+const itSrc = read('src/lib/interactive.ts') ?? ''
+must(/export function isInteractive/.test(itSrc) && /process\.stdin\.isTTY/.test(itSrc), 'isInteractive SoT (stdin 축)')
+must(/from '\.\.\/lib\/interactive\.js'/.test(initSrc) && /isInteractive\(options\)/.test(initSrc), 'init 이 isInteractive SoT 사용')
 must(/if\s*\(!noninteractive\)/.test(initSrc), 'collectAnswers 가 비대화형이면 프롬프트 skip')
 must(/DEFAULT_TYPE\s*=\s*PROJECT_TYPES\[0\]\.value/.test(initSrc), '타입 미지정 시 기본 타입(webapp) 폴백')
 // overwrite 프롬프트도 비대화형 가드.
-must((initSrc.match(/isNonInteractive\(options\)\s*\n?\s*\?\s*false/g) ?? []).length >= 1 || /noninteractive\s*\n?\s*\?\s*false/.test(initSrc), 'overwrite 프롬프트 비대화형 가드')
+must((initSrc.match(/!isInteractive\(options\)\s*\n?\s*\?\s*false/g) ?? []).length >= 1 || /noninteractive\s*\n?\s*\?\s*false/.test(initSrc), 'overwrite 프롬프트 비대화형 가드')
 // Codex #3: confirmStack/adopt 도 비대화형 가드(!options.yes 단독 금지 — 비-TTY 멈춤 방지).
-must(/if\s*\(!isNonInteractive\(options\)\)\s*\{[\s\S]{0,80}confirmStack/.test(initSrc), 'confirmStack 가 isNonInteractive 가드')
-must(/!isNonInteractive\(options\)\s*&&\s*!options\.fromNotion/.test(initSrc), 'adopt 가 isNonInteractive 가드')
+must(/if\s*\(isInteractive\(options\)\)\s*\{[\s\S]{0,80}confirmStack/.test(initSrc), 'confirmStack 가 isInteractive 가드')
+must(/isInteractive\(options\)\s*&&\s*!options\.fromNotion/.test(initSrc), 'adopt 가 isInteractive 가드')
 must(!/if\s*\(!options\.yes\)\s*\{[\s\S]{0,80}confirmStack/.test(initSrc), 'confirmStack 에서 옛 !options.yes 단독 가드 제거됨')
 
 if (pass) { console.log('✅ goal 8 gate passes'); process.exit(0) }

@@ -22,6 +22,7 @@ import type { PrdContent } from '../types/prd.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { detectExistingRuleFiles, buildAdoptedRules } from '../lib/rules-import.js'
 import { detectProjectStack } from '../lib/stack-detect.js'
+import { isInteractive } from '../lib/interactive.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -64,20 +65,16 @@ function resolveType(type?: string): string | undefined {
   return type
 }
 
-// VHK-021/Goal 8: -y(--yes) 또는 비-TTY(CI/파이프) 면 비대화형 — 프롬프트 0개.
-// inquirer 는 stdin 을 읽으므로 stdin 비-TTY 면 프롬프트 불가(EOF 크래시) → stdin 우선.
-// stdout 비-TTY(출력 파이프=자동화)도 비대화형 취급. 둘 중 하나라도 비-TTY 면 skip.
-function isNonInteractive(options: InitOptions): boolean {
-  return Boolean(options.yes) || !process.stdin.isTTY || !process.stdout.isTTY
-}
-
+// VHK-021/Goal 8: -y(--yes) 또는 비대화형(비-TTY stdin/CI/파이프) 면 프롬프트 0개.
+// 비대화형 판정 SoT = isInteractive(opts) (src/lib/interactive.ts) — stdin 축만 본다.
+// (stdout 파이프는 더 이상 프롬프트를 막지 않음 — 자동화 출력 리다이렉트 허용.)
 const DEFAULT_TYPE = PROJECT_TYPES[0].value // 'webapp'
 
 async function collectAnswers(
   options: InitOptions,
   defaults: Partial<ProjectAnswers> = {}
 ): Promise<ProjectAnswers> {
-  const noninteractive = isNonInteractive(options)
+  const noninteractive = !isInteractive(options)
   const prompts: DistinctQuestion[] = []
 
   // 비대화형이면 프롬프트를 만들지 않는다 → inquirer 호출 0회 → 멈춤/EOF 크래시 없음.
@@ -151,7 +148,7 @@ export async function init(options: InitOptions = {}) {
 
   // 비대화형(yes/비-TTY)이면 confirmStack 프롬프트 skip — default(진행)로 자동 진행.
   // (이전엔 !options.yes 만 봐서 비-TTY+무-yes 에서 EOF 멈춤 — Goal 8 비대화형 계약 위반.)
-  if (!isNonInteractive(options)) {
+  if (isInteractive(options)) {
     const { confirmStack } = await inquirer.prompt([{
       type: 'confirm', name: 'confirmStack',
       message: ko.init.confirmStack, default: true,
@@ -168,7 +165,7 @@ export async function init(options: InitOptions = {}) {
   // adopt 모드(브라운필드) — 기존 도구별 규칙 파일을 RULES.md(SoT)로 가져오기 제안.
   // 비대화형(yes/비-TTY/notion)은 건너뛰고 greenfield 템플릿 RULES.md 를 그대로 쓴다.
   let adoptedRules: string | null = null
-  if (!isNonInteractive(options) && !options.fromNotion) {
+  if (isInteractive(options) && !options.fromNotion) {
     const existingRules = detectExistingRuleFiles(cwd)
     if (existingRules.length > 0) {
       const { adopt } = await inquirer.prompt([{
@@ -197,7 +194,7 @@ export async function init(options: InitOptions = {}) {
 
     if (fileExists(fullPath)) {
       // 비대화형이면 프롬프트 default(=false, 보존) 자동 적용 — 기존 파일 클로버 금지.
-      const overwrite = isNonInteractive(options)
+      const overwrite = !isInteractive(options)
         ? false
         : (await inquirer.prompt([{
             type: 'confirm', name: 'overwrite',
@@ -214,7 +211,7 @@ export async function init(options: InitOptions = {}) {
     log.success(filePath)
   }
 
-  await writeInitExtras(cwd, isNonInteractive(options))
+  await writeInitExtras(cwd, !isInteractive(options))
 
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
