@@ -13,17 +13,17 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.6.2 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
+- **버전:** v1.6.3 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
 - **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 540 pass (vitest)
+- **테스트:** 563 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 5 이후 — 도그푸딩 20건 정정 + v1.6.2 출시 완료.
+- **Phase:** Phase 5 이후 — 자기개선 goal 7~10 + 2-리뷰 수정 + v1.6.3(#82·#80) 출시.
 - **블로커:** 없음
-- **다음 액션:** v1.6.3 — #82(.vhk/cloud.json gitignore, 보안성) + #80(goal 스키마 문서화)
-- **마지막 업데이트:** 2026-05-31
+- **다음 액션:** OPEN = #38(RFC .vhk 규격), #14(start MCP stdio) — 즉시 우선순위 아님.
+- **마지막 업데이트:** 2026-06-01
 
 ## 코딩 컨벤션
 

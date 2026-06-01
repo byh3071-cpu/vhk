@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import { normalizePorcelain } from '../lib/git-porcelain.js'
 import { getGitRoot, gitOut } from '../lib/git-repo.js'
 import { readJsonFile } from '../lib/read-json.js'
-import { printNextStep } from '../lib/next-step.js'
+import { printNextStep, printContextResumeHint } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 
 export interface FileChangeCounts {
@@ -187,4 +187,7 @@ export async function status(): Promise<void> {
 
   const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0
   printNextStep(selectStatusNextStep(hasChanges))
+  // Goal 10: 세션 진입 명령에서 `vhk context` 발견성 노출 (복원/생성/갱신 안내).
+  // context 는 cwd 기준 .vhk/context.md 에 쓰므로 cwd(인자 생략)로 점검 — gitRoot 와 앵커 불일치 방지.
+  printContextResumeHint()
 }

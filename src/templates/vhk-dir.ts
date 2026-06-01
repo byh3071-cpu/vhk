@@ -40,6 +40,8 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
     'memory.json',
     'refs.json',
     'HARD_STOP',
+    '# secret gist 포인터 (gistId). 공개 repo 에 커밋되면 백업 gist 가 노출됨 (VHK-022).',
+    'cloud.json',
     '# sync 덮어쓰기 전 자동 백업 (로컬 복구용 — vhk restore). 추적/클라우드 제외.',
     'backups/',
     '',

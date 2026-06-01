@@ -110,6 +110,54 @@ export function listGoals(goalsDir: string): ParsedGoal[] {
   return parsed
 }
 
+export interface SkippedGoal {
+  file: string
+  reason: string
+}
+
+// VHK-021: goal 로 의도된 듯하나 스키마 불일치로 listGoals 가 조용히 무시한 파일 탐지.
+// "silent skip" 을 호출자가 경고로 노출할 수 있게 분리 제공.
+// 판정: _meta.md / type:meta(의도적 메타)는 제외. goal 신호(type:goal·id·status·priority·title)가
+// 있는데 (type!=='goal' 또는 id 가 숫자 아님)이면 skip 후보.
+export function findSkippedGoalFiles(goalsDir: string): SkippedGoal[] {
+  if (!existsSync(goalsDir)) return []
+  let entries: string[]
+  try {
+    entries = readdirSync(goalsDir)
+  } catch {
+    return []
+  }
+  const out: SkippedGoal[] = []
+  for (const name of entries) {
+    if (!name.endsWith('.md')) continue
+    if (name === '_meta.md') continue
+    const fp = join(goalsDir, name)
+    try {
+      if (!statSync(fp).isFile()) continue
+    } catch {
+      continue
+    }
+    const g = parseGoalFile(fp)
+    if (!g) continue
+    const fm = g.frontmatter
+    if (fm.type === 'goal' && typeof fm.id === 'number') continue // 유효 goal
+    if (fm.type === 'meta') continue // 의도적 메타 (예: _meta-self-improve.md)
+    const looksLikeGoal =
+      fm.type === 'goal' ||
+      'id' in fm ||
+      'status' in fm ||
+      'priority' in fm ||
+      'title' in fm
+    if (!looksLikeGoal) continue
+    const reason =
+      fm.type !== 'goal'
+        ? "type: goal 누락 (frontmatter 에 'type: goal' 필요)"
+        : "id 가 숫자가 아님 ('id: 1' 처럼 숫자만)"
+    out.push({ file: name, reason })
+  }
+  return out
+}
+
 // id 가 중복된 goal 들을 감지. 중복된 id 를 오름차순으로 반환 (없으면 []).
 // listGoals 는 중복 시 첫 매치만 사용하므로, 호출자가 경고를 띄울 수 있게 분리 제공.
 export function findDuplicateIds(goals: ParsedGoal[]): number[] {
