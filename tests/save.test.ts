@@ -83,6 +83,31 @@ describe('save', () => {
     process.exitCode = exitBefore
   })
 
+  it('비-TTY 면 커밋 메시지 inquirer 없이 기본값(chore: vhk save) 사용', async () => {
+    // vitest = 비-TTY (stdin.isTTY undefined). promptOrDefault 가 ask() 미호출 → fallback.
+    const ttyBefore = process.stdin.isTTY
+    Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
+    try {
+      vi.mocked(execFileSync).mockImplementation((_file, args) => {
+        if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
+        return ''
+      })
+      mockGitOut.mockImplementation((args: string[]) => {
+        if (args[0] === 'status') return ' M file.ts'
+        return ''
+      })
+      mockHasGitRemote.mockReturnValue(false)
+      const { save } = await import('../src/commands/save.js')
+      await expect(save()).resolves.not.toThrow()
+      // inquirer 프롬프트 미호출 (비대화형 = stdin 미접근, MCP 안전)
+      expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled()
+      // 커밋은 fallback 메시지로 수행
+      expect(mockGitRun).toHaveBeenCalledWith(['commit', '-m', 'chore: vhk save'], '/repo')
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', { value: ttyBefore, configurable: true })
+    }
+  })
+
   it('commit 실패 시 staged 안내', async () => {
     vi.mocked(execFileSync).mockImplementation((_file, args) => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
