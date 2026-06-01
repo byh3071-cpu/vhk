@@ -6,6 +6,7 @@ import { ko } from '../i18n/ko.js'
 import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { ensureInteractive } from '../lib/interactive.js'
 import { localDate } from '../lib/date.js'
 
 const CHECKLIST = [
@@ -64,6 +65,9 @@ export function updateChangelogUnreleased(
 
 export async function ship() {
   if (!ensureNotHardStopped('ship')) return // VHK-020
+  // ② refuse-essential: 체크리스트·회고는 자동답이 불가한 본질적 대화형 입력 →
+  // 비-TTY(파이프/CI/MCP)면 inquirer 크래시(ERR_USE_AFTER_CLOSE) 대신 friendly 거부 + exit 1 (절대 안 멈춤).
+  if (!ensureInteractive('배포 체크리스트·회고는 대화형 입력이 필요합니다. PowerShell 등 TTY 에서 실행하세요.')) return
   console.log(chalk.bold(`\n${ko.ship.title}\n`))
 
   const cwd = process.cwd()
