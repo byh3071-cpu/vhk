@@ -6,6 +6,35 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.7.0] - 2026-06-02
+
+> **verify 증거화 (Evidence Ledger v0, #13 Goal 13).** `vhk verify` 가 lite(체크리스트 안내)에서
+> **실제 게이트 실행 + 증거 기록**으로 승격. 성장 루프(learning·pattern·evolve)의 입력 데이터 토대.
+> 철학: 결과는 실제 종료코드에서만(거짓 PASS 금지) + 성공·실패 무관 항상 증거 + Windows 1급.
+
+### Added
+
+- **`vhk verify` 증거화** (`src/commands/verify.ts`) — 게이트 4종(typecheck/test:run/build 외부 +
+  secure in-process)을 **실제 실행**하고 각 종료코드를 수집. 결과를 **항상**
+  `.vhk/reports/latest.json` 으로 기록(성공·실패 무관). 스키마: `{ schemaVersion, generatedAt,
+  date, status(PASS|WARN|FAIL), summary, gates[], nextActions[] }` — head(요약·기계용) + body(사람용).
+- **`vhk verify --json`** — 경로 대신 리포트 JSON 을 stdout 으로(CI용).
+- **거짓 PASS 금지** — 게이트 스크립트/설정 없으면 `skip`(WARN), 실행 자체 실패는 `fail`(추측 금지).
+  `status`: fail 하나라도 → FAIL, 없고 skip 있으면 → WARN, 전부 pass → PASS. `exitCode`: FAIL=1.
+
+### Security
+
+- `latest.json` 에 **시크릿 값 미포함** — secure 게이트는 severe 발견 **건수만** 기록(값 미수집).
+  리포트 자체가 `vhk secure scan` 에 안 걸린다(누출 0). `reports/` 는 로컬 전용(`.vhk/.gitignore` 자동 등재).
+
+### Note
+
+- **Windows 1급** — `.cmd` shim 은 `cmd.exe` 래핑(CVE-2024-27980), maxBuffer 64MB 상향(ENOBUFS 거짓실패 방지).
+  `package.json` 은 `readJsonFile`(UTF-8 BOM 제거)로 읽어 PowerShell `Set-Content -Encoding utf8` BOM 에도 안 죽고,
+  손상 시에도 게이트 skip 후 **증거(latest.json)는 항상 기록**(계약 유지).
+- **기존 시그니처 호환** — `--json` 옵션만 추가, `verify()` 무인자 호출(자연어 라우터) 그대로 동작.
+  `HARD_STOP` 존재 시 거부 + exit 1. 규격: `docs/rfc/0038-vhk-spec.md`(`reports/` 도입). 테스트 599 pass.
+
 ## [1.6.6] - 2026-06-02
 
 > **비대화형 가드 P2 (#14 Goal 12) + `.vhk` 규격 RFC (#38).** Goal 11 이 깐 3버킷 계약을
