@@ -6,6 +6,19 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.6.5] - 2026-06-02
+
+> **핫픽스 — `vhk save` 취소 동작.** v1.6.4 의 `promptOrDefault` 가 대화형에서도
+> 프롬프트 abort(Ctrl+C/ESC)를 삼켜 fallback 으로 바꾸는 버그. `vhk save` 커밋 메시지
+> 입력 중 취소하면 취소가 무시되고 기본 메시지로 **원치 않는 커밋**이 발생했다.
+
+### Fixed
+
+- **`promptOrDefault` 가 대화형 취소(Ctrl+C/ESC)를 삼키던 버그** (`src/lib/interactive.ts`) —
+  비대화형은 이미 early-return 하므로 abort 는 항상 "사용자 취소". 이제 fallback 으로
+  바꾸지 않고 그대로 전파 → 전역 핸들러가 깔끔히 취소. `vhk save` 커밋 메시지 취소 시
+  더 이상 원치 않는 커밋이 생기지 않는다.
+
 ## [1.6.4] - 2026-06-02
 
 > **대화형/비대화형 통합 가드 (MCP·CI 안전, #14 Goal 11).** inquirer 쓰는 명령이
