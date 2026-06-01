@@ -8,6 +8,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { normalizeForCompare } from '../lib/drift.js'
 import { saveBackup, pruneBackups, ensureVhkIgnored } from '../lib/backup.js'
 import { PREAMBLE_TITLE } from '../lib/rules-import.js'
+import { isInteractive, promptOrDefault } from '../lib/interactive.js'
 
 interface RulesSection {
   title: string
@@ -442,22 +443,26 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   const sections = parseRulesMd(fs.readFileSync(rulesPath, 'utf-8'))
   console.log(chalk.dim(`  📄 RULES.md 파싱 완료 — ${sections.length}개 섹션`))
 
-  // 비대화형(CI/MCP subprocess: isTTY=false)·--yes → 자동 덮어쓰기(멈춤 금지).
+  // 비대화형(CI/MCP subprocess)·--yes → 자동 덮어쓰기(멈춤 금지).
   // TTY → drift 시 inquirer 확인(기본 거부). 어느 쪽이든 백업이 먼저라 손실 0.
-  const interactive = !!process.stdout.isTTY && !opts.yes
-  const confirmOverwrite = async (drifted: SyncPlanItem[]): Promise<boolean> => {
-    if (!interactive) return true
-    for (const d of drifted) console.log(chalk.yellow(`  ${ko.sync.driftWarn(d.path)}`))
-    const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
-      {
-        type: 'confirm',
-        name: 'confirm',
-        message: ko.sync.driftConfirm(drifted.length),
-        default: false,
+  // 감지 축 = stdin(SoT isInteractive) — stdout 아님(E8/R1). 비-TTY 면 stdin 미접근(MCP 안전).
+  const confirmOverwrite = async (drifted: SyncPlanItem[]): Promise<boolean> =>
+    promptOrDefault(
+      async () => {
+        for (const d of drifted) console.log(chalk.yellow(`  ${ko.sync.driftWarn(d.path)}`))
+        const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+          {
+            type: 'confirm',
+            name: 'confirm',
+            message: ko.sync.driftConfirm(drifted.length),
+            default: false,
+          },
+        ])
+        return confirm
       },
-    ])
-    return confirm
-  }
+      true, // 비대화형/--yes → 자동 덮어쓰기(백업이 먼저라 손실 0, 멱등)
+      { yes: opts.yes },
+    )
 
   const result = await syncCore(cwd, opts, confirmOverwrite)
 
@@ -487,7 +492,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
 
   if (result.backupId) {
     if (result.firstSync) console.log(chalk.cyan(`  ${ko.sync.firstSync}`))
-    if (!process.stdout.isTTY) {
+    if (!isInteractive(opts)) {
       console.log(chalk.yellow(`  ${ko.sync.nonTtyAuto(result.backedUp.length, result.backupId)}`))
     } else {
       console.log(chalk.cyan(`  ${ko.sync.backupSaved(result.backedUp.length, result.backupId)}`))
