@@ -4,6 +4,7 @@ import {
   HIGH_RISK_ACTIONS,
   STRICT_EXTRA_ACTIONS,
   NL_GUARDED_ACTIONS,
+  isHighRisk,
 } from '../src/lib/risk-policy.js'
 
 // 가드가 필관리자 action 전체 = high-risk ∪ strict-extra(save/sync).
@@ -13,6 +14,7 @@ const GUARDED = new Set<string>([...HIGH_RISK_ACTIONS, ...STRICT_EXTRA_ACTIONS])
 const HANDLER_ACTION: Record<string, string> = {
   undo: 'undo', deploy: 'deploy', publish: 'publish', migrate: 'migrate',
   cloudPull: 'cloud-pull', env: 'env-write', save: 'save', sync: 'sync', resume: 'resume',
+  restore: 'restore',
 }
 
 describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () => {
@@ -35,7 +37,7 @@ describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () 
 
   it('CLI 등록: 가드대상 + CLI 커맨드 있는 action 은 전부 guardCli/guardCliDefer 경유 (index.ts)', () => {
     const idx = readFileSync('src/index.ts', 'utf-8')
-    const CLI_ACTIONS = ['deploy', 'publish', 'migrate', 'env-write', 'cloud-pull', 'undo', 'resume', 'save', 'sync']
+    const CLI_ACTIONS = ['deploy', 'publish', 'migrate', 'env-write', 'cloud-pull', 'undo', 'resume', 'save', 'sync', 'restore']
     for (const a of CLI_ACTIONS) {
       // undo/resume 는 guardCliDefer(명령 자체확인 위임), 나머지는 guardCli
       expect(new RegExp(`guardCli(Defer)?\\('${a}'`).test(idx), `CLI '${a}' 가드 미경유`).toBe(true)
@@ -70,6 +72,10 @@ describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () 
     expect(idx.includes("guardCli('delete'")).toBe(false)
     expect(idx.includes(".command('delete'")).toBe(false)
     expect(Object.keys(NL_GUARDED_ACTIONS)).not.toContain('delete')
+  })
+
+  it('restore 는 high-risk (백업 덮어쓰기)', () => {
+    expect(isHighRisk('restore')).toBe(true)
   })
 
   it('high-risk 별도 나열 리스트는 risk-policy 외에 없음(드리프트 소스 감사)', () => {
