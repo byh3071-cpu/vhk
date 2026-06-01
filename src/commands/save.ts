@@ -13,6 +13,7 @@ import {
 } from '../lib/git-repo.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 import { printNextStep } from '../lib/next-step.js'
+import { promptOrDefault } from '../lib/interactive.js'
 import { t } from '../i18n/ko.js'
 
 export function formatDefaultCommitMessage(date = new Date()): string {
@@ -56,12 +57,15 @@ export async function save(): Promise<void> {
     if (severe.length > 5) {
       console.log(chalk.dim(`   ... 외 ${severe.length - 5}건 (vhk 보안 scan)`))
     }
-    const { proceed } = await inquirer.prompt<{ proceed: boolean }>([{
-      type: 'confirm',
-      name: 'proceed',
-      message: t('save.secretsConfirm'),
-      default: false,
-    }])
+    const proceed = await promptOrDefault(
+      async () => (await inquirer.prompt<{ proceed: boolean }>([{
+        type: 'confirm',
+        name: 'proceed',
+        message: t('save.secretsConfirm'),
+        default: false,
+      }])).proceed,
+      false,   // 비대화형 = 시크릿 커밋 안 함 (안전)
+    )
     if (!proceed) {
       console.log(chalk.gray(t('save.cancelled')))
       return
@@ -81,12 +85,15 @@ export async function save(): Promise<void> {
     console.log(`   ${statusIcon(code)} ${name}`)
   })
 
-  const { message } = await inquirer.prompt<{ message: string }>([{
-    type: 'input',
-    name: 'message',
-    message: t('save.commitMessage'),
-    default: formatDefaultCommitMessage(),
-  }])
+  const message = await promptOrDefault(
+    async () => (await inquirer.prompt<{ message: string }>([{
+      type: 'input',
+      name: 'message',
+      message: t('save.commitMessage'),
+      default: formatDefaultCommitMessage(),
+    }])).message,
+    'chore: vhk save',
+  )
 
   const spinner = ora(t('save.saving')).start()
   let didAdd = false
