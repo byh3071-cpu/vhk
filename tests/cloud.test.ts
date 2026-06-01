@@ -88,6 +88,23 @@ describe('vhk-cloud — cloud.json 읽기/쓰기', () => {
     fs.writeFileSync(path.join(repo, '.vhk', 'cloud.json'), '{ broken')
     expect(readCloudConfig(repo)).toBeNull()
   })
+
+  // VHK-022: cloud.json(secret gist 포인터)이 추적되지 않게 .vhk/.gitignore 보장.
+  it('writeCloudConfig 가 .vhk/.gitignore 에 cloud.json 을 추가한다', () => {
+    writeCloudConfig(repo, { gistId: 'abc123def456' })
+    const gi = fs.readFileSync(path.join(repo, '.vhk', '.gitignore'), 'utf-8')
+    expect(gi.split(/\r?\n/).some((l) => l.trim() === 'cloud.json')).toBe(true)
+  })
+
+  it('기존 .vhk/.gitignore 를 보존하며 cloud.json 만 추가 (중복 안 함)', () => {
+    fs.writeFileSync(path.join(repo, '.vhk', '.gitignore'), 'memory.json\nrefs.json\n')
+    writeCloudConfig(repo, { gistId: 'x' })
+    writeCloudConfig(repo, { gistId: 'y' }) // 두 번째 호출 — idempotent
+    const lines = fs.readFileSync(path.join(repo, '.vhk', '.gitignore'), 'utf-8').split(/\r?\n/)
+    expect(lines).toContain('memory.json')
+    expect(lines).toContain('refs.json')
+    expect(lines.filter((l) => l.trim() === 'cloud.json').length).toBe(1)
+  })
 })
 
 describe('vhk-cloud — partitionGistFiles (privacy purge / 복원 스킵)', () => {

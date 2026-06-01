@@ -30,7 +30,7 @@ import { context, contextShow } from '../commands/context.js'
 import { memoryList } from '../commands/memory.js'
 import { brief } from '../commands/brief.js'
 import { start } from '../commands/start.js'
-import { goalCheck, goalDone, goalList, goalNext } from '../commands/goal.js'
+import { goalCheck, goalDone, goalList, goalNext, goalSync } from '../commands/goal.js'
 import { cloudPush, cloudPull } from '../commands/cloud.js'
 import { quickActions } from '../commands/help.js'
 import { mode } from '../commands/mode.js'
@@ -120,6 +120,7 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       if (sub === 'next') return goalNext()
       if (sub === 'check') return goalCheck({})
       if (sub === 'done') return goalDone({})
+      if (sub === 'sync') { await goalSync(); return }
       return goalList()
     }
     case 'help':
@@ -142,7 +143,8 @@ const STATE_CHANGING_COMMANDS: ReadonlySet<NlpCommand> = new Set([
 
 /** NL 라우트 실행 전 확인 프롬프트가 필요한가 — low confidence 또는 상태변경 명령. */
 export function requiresConfirmation(route: NlpRoute): boolean {
-  return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command)
+  const goalSync = route.command === 'goal' && route.args?.[0] === 'sync'
+  return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command) || goalSync
 }
 
 

@@ -105,4 +105,27 @@ export function writeCloudConfig(rootDir: string, config: CloudConfig): void {
   fs.mkdirSync(vhkDir, { recursive: true })
   const p = path.join(vhkDir, CLOUD_CONFIG_FILE)
   fs.writeFileSync(p, JSON.stringify(config, null, 2) + '\n', 'utf-8')
+  // VHK-022: cloud.json 은 secret gist 포인터 → 추적 금지. init 안 거친 기존 프로젝트도
+  // push 시점에 .vhk/.gitignore 에 cloud.json 항목을 보장(없으면 추가)해 노출을 막는다.
+  ensureCloudConfigIgnored(vhkDir)
+}
+
+/** `.vhk/.gitignore` 가 cloud.json 을 무시하도록 보장 (idempotent). */
+function ensureCloudConfigIgnored(vhkDir: string): void {
+  const giPath = path.join(vhkDir, '.gitignore')
+  let content = ''
+  try {
+    if (fs.existsSync(giPath)) content = fs.readFileSync(giPath, 'utf-8')
+  } catch {
+    return // 읽기 실패 시 조용히 포기 — cloud.json 쓰기 자체는 막지 않는다.
+  }
+  const already = content.split(/\r?\n/).some((l) => l.trim() === CLOUD_CONFIG_FILE)
+  if (already) return
+  const block = `# secret gist 포인터 — 추적 금지 (VHK-022)\n${CLOUD_CONFIG_FILE}\n`
+  const base = content.length === 0 ? '' : content.endsWith('\n') ? content : content + '\n'
+  try {
+    fs.writeFileSync(giPath, base + block, 'utf-8')
+  } catch {
+    // 쓰기 실패해도 cloud.json 저장은 유효 — 무시.
+  }
 }
