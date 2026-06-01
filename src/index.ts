@@ -297,8 +297,9 @@ program
   .command('restore')
   .alias('복원')
   .argument('[id]', '복원할 백업 id (생략 시 목록에서 선택)')
+  .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('sync 백업 복원 (.vhk/backups/ — 언커밋 덮어쓰기 복구)')
-  .action(async (id?: string) => { await restore(id) })
+  .action(async (id: string | undefined, opts: { yes?: boolean }) => { await guardCli('restore', opts?.yes === true, () => restore(id)) })
 
 program
   .command('status')
