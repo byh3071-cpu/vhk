@@ -131,6 +131,37 @@ describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
     expect(runSecureGate(d).status).toBe('pass')
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  it('BOM 붙은 package.json 에서도 크래시 없이 latest.json 생성 (Windows 회귀)', () => {
+    // PowerShell Set-Content -Encoding utf8 등은 파일 맨 앞에 ﻿(BOM)를 붙인다.
+    // raw JSON.parse 면 죽어서 증거(latest.json)도 못 남기던 버그 → readJsonFile(BOM strip) 회귀 가드.
+    const d = tmp()
+    fs.writeFileSync(
+      path.join(d, 'package.json'),
+      '﻿' + JSON.stringify({ name: 'tp', version: '0.0.0', scripts: { 'test:run': 'node ok.js' } }),
+      'utf-8'
+    )
+    fs.writeFileSync(path.join(d, 'ok.js'), 'process.exit(0)\n', 'utf-8')
+    const { report } = verifyEvidence(d)
+    // 계약: 성공·실패 무관 항상 증거 기록 — BOM 으로도 죽지 않음
+    expect(fs.existsSync(path.join(d, REPORT_PATH_REL))).toBe(true)
+    expect(report.schemaVersion).toBe(REPORT_SCHEMA_VERSION)
+    // scripts 가 정상 인식돼 test 게이트 실행됨(BOM 만 제거되고 본문 보존)
+    expect(report.gates.find((g) => g.id === 'test')?.skipped).toBe(false)
+    fs.rmSync(d, { recursive: true, force: true })
+  }, 30_000)
+
+  it('손상된 package.json → 크래시 없이 외부 게이트 skip + 증거 기록(거짓 PASS 금지)', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'package.json'), '{ this is not valid json', 'utf-8')
+    const { report } = verifyEvidence(d)
+    expect(fs.existsSync(path.join(d, REPORT_PATH_REL))).toBe(true)
+    // scripts 파싱 실패 → 외부 게이트 전부 skip(추측 PASS 금지)
+    expect(report.gates.find((g) => g.id === 'typecheck')?.status).toBe('skip')
+    expect(report.gates.find((g) => g.id === 'test')?.status).toBe('skip')
+    expect(report.gates.find((g) => g.id === 'build')?.status).toBe('skip')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })
 
 describe('verify — CLI (--json / HARD_STOP)', () => {

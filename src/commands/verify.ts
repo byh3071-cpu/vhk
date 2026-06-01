@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { readConfig } from '../lib/config.js'
@@ -7,6 +7,7 @@ import { SAFETY_MODE_DESC } from '../lib/safety-mode.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { ensureVhkIgnored } from '../lib/backup.js'
+import { readJsonFile } from '../lib/read-json.js'
 import { localDate } from '../lib/date.js'
 import { scanProjectForSecrets, filterSevereFindings } from '../lib/scan-secrets.js'
 
@@ -124,15 +125,29 @@ function runScriptGate(
 }
 
 /**
+ * package.json 의 scripts 를 안전하게 읽는다. **절대 throw 하지 않는다** —
+ * verify 의 핵심 계약("성공·실패 무관 항상 증거 남김")을 지키려면 package.json 파싱이
+ * verifyEvidence 보다 먼저 죽으면 안 된다. readJsonFile 로 UTF-8 BOM(PowerShell
+ * Set-Content -Encoding utf8 등) 제거 + 손상/없음이면 빈 객체(→ 외부 게이트 skip, 거짓 PASS 금지).
+ */
+export function readPackageScripts(cwd: string): Record<string, string> {
+  const pkgPath = join(cwd, 'package.json')
+  if (!existsSync(pkgPath)) return {}
+  try {
+    const pkg = readJsonFile<{ scripts?: Record<string, string> }>(pkgPath)
+    return pkg.scripts ?? {}
+  } catch {
+    // BOM 외 손상(깨진 JSON) → 빈 scripts. verify 는 죽지 않고 증거는 남긴다.
+    return {}
+  }
+}
+
+/**
  * 게이트 4종 실행 → 결과 배열. tsc/test/build 는 외부 프로세스(실제 종료코드),
  * secure 는 in-process 스캐너(시크릿 본문 미수집 — count 만).
  */
 export function runGates(cwd: string): GateResult[] {
-  const pkgPath = join(cwd, 'package.json')
-  const pkg = existsSync(pkgPath)
-    ? (JSON.parse(readFileSync(pkgPath, 'utf-8')) as { scripts?: Record<string, string> })
-    : {}
-  const scripts = pkg.scripts ?? {}
+  const scripts = readPackageScripts(cwd)
   const pm = detectPm(cwd)
   const gates: GateResult[] = []
 

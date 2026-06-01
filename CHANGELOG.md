@@ -30,6 +30,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 ### Note
 
 - **Windows 1급** — `.cmd` shim 은 `cmd.exe` 래핑(CVE-2024-27980), maxBuffer 64MB 상향(ENOBUFS 거짓실패 방지).
+  `package.json` 은 `readJsonFile`(UTF-8 BOM 제거)로 읽어 PowerShell `Set-Content -Encoding utf8` BOM 에도 안 죽고,
+  손상 시에도 게이트 skip 후 **증거(latest.json)는 항상 기록**(계약 유지).
 - **기존 시그니처 호환** — `--json` 옵션만 추가, `verify()` 무인자 호출(자연어 라우터) 그대로 동작.
   `HARD_STOP` 존재 시 거부 + exit 1. 규격: `docs/rfc/0038-vhk-spec.md`(`reports/` 도입). 테스트 599 pass.
 
