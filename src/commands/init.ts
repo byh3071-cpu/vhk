@@ -64,29 +64,48 @@ function resolveType(type?: string): string | undefined {
   return type
 }
 
+// VHK-021/Goal 8: -y(--yes) 또는 비-TTY(CI/파이프) 면 비대화형 — 프롬프트 0개.
+// inquirer 는 stdin 을 읽으므로 stdin 비-TTY 면 프롬프트 불가(EOF 크래시) → stdin 우선.
+// stdout 비-TTY(출력 파이프=자동화)도 비대화형 취급. 둘 중 하나라도 비-TTY 면 skip.
+function isNonInteractive(options: InitOptions): boolean {
+  return Boolean(options.yes) || !process.stdin.isTTY || !process.stdout.isTTY
+}
+
+const DEFAULT_TYPE = PROJECT_TYPES[0].value // 'webapp'
+
 async function collectAnswers(
   options: InitOptions,
   defaults: Partial<ProjectAnswers> = {}
 ): Promise<ProjectAnswers> {
+  const noninteractive = isNonInteractive(options)
   const prompts: DistinctQuestion[] = []
 
-  if (!options.name && !defaults.name) {
-    prompts.push({ type: 'input', name: 'name', message: ko.init.projectName })
-  }
-  if (!options.description && !defaults.description) {
-    prompts.push({ type: 'input', name: 'description', message: ko.init.description })
-  }
-  if (!options.type && !defaults.type) {
-    prompts.push({ type: 'list', name: 'type', message: ko.init.projectType, choices: PROJECT_TYPES })
+  // 비대화형이면 프롬프트를 만들지 않는다 → inquirer 호출 0회 → 멈춤/EOF 크래시 없음.
+  if (!noninteractive) {
+    if (!options.name && !defaults.name) {
+      prompts.push({ type: 'input', name: 'name', message: ko.init.projectName })
+    }
+    if (!options.description && !defaults.description) {
+      prompts.push({ type: 'input', name: 'description', message: ko.init.description })
+    }
+    if (!options.type && !defaults.type) {
+      prompts.push({ type: 'list', name: 'type', message: ko.init.projectType, choices: PROJECT_TYPES })
+    }
   }
 
   const prompted = prompts.length ? await inquirer.prompt(prompts) : {}
 
-  return {
-    name: options.name ?? defaults.name ?? prompted.name,
-    description: options.description ?? defaults.description ?? prompted.description,
-    type: resolveType(options.type ?? defaults.type ?? prompted.type) ?? prompted.type,
-  }
+  // 폴백(비대화형에서만 실제 발동 — 대화형이면 prompted 값이 채워져 있음):
+  //   name → 현재 디렉토리명, description → name 기반, type → 기본 타입(webapp)
+  // 빈 문자열('')도 폴백 대상이라 ?? 가 아니라 || 사용 (예: `init -y --name ""`).
+  const fallbackName = path.basename(process.cwd()) || 'my-project'
+  const name = options.name || defaults.name || prompted.name || fallbackName
+  const description =
+    options.description || defaults.description || prompted.description || `${name} — vhk 프로젝트`
+  const type =
+    resolveType(options.type || defaults.type || prompted.type) ?? prompted.type ?? DEFAULT_TYPE
+
+  return { name, description, type }
 }
 
 export async function init(options: InitOptions = {}) {
@@ -130,7 +149,9 @@ export async function init(options: InitOptions = {}) {
   if (detected) console.log(chalk.dim('  🔎 package.json 의존성에서 실제 스택 감지'))
   console.log(chalk.dim(`\n${ko.init.recommendedStack} ${stack.join(' + ')}\n`))
 
-  if (!options.yes) {
+  // 비대화형(yes/비-TTY)이면 confirmStack 프롬프트 skip — default(진행)로 자동 진행.
+  // (이전엔 !options.yes 만 봐서 비-TTY+무-yes 에서 EOF 멈춤 — Goal 8 비대화형 계약 위반.)
+  if (!isNonInteractive(options)) {
     const { confirmStack } = await inquirer.prompt([{
       type: 'confirm', name: 'confirmStack',
       message: ko.init.confirmStack, default: true,
@@ -145,9 +166,9 @@ export async function init(options: InitOptions = {}) {
   const cwd = process.cwd()
 
   // adopt 모드(브라운필드) — 기존 도구별 규칙 파일을 RULES.md(SoT)로 가져오기 제안.
-  // 비대화형(--yes/notion)은 건너뛰고 greenfield 템플릿 RULES.md 를 그대로 쓴다.
+  // 비대화형(yes/비-TTY/notion)은 건너뛰고 greenfield 템플릿 RULES.md 를 그대로 쓴다.
   let adoptedRules: string | null = null
-  if (!options.yes && !options.fromNotion) {
+  if (!isNonInteractive(options) && !options.fromNotion) {
     const existingRules = detectExistingRuleFiles(cwd)
     if (existingRules.length > 0) {
       const { adopt } = await inquirer.prompt([{
@@ -175,11 +196,14 @@ export async function init(options: InitOptions = {}) {
     const fullPath = path.join(cwd, filePath)
 
     if (fileExists(fullPath)) {
-      const { overwrite } = await inquirer.prompt([{
-        type: 'confirm', name: 'overwrite',
-        message: ko.init.overwrite(filePath),
-        default: false,
-      }])
+      // 비대화형이면 프롬프트 default(=false, 보존) 자동 적용 — 기존 파일 클로버 금지.
+      const overwrite = isNonInteractive(options)
+        ? false
+        : (await inquirer.prompt([{
+            type: 'confirm', name: 'overwrite',
+            message: ko.init.overwrite(filePath),
+            default: false,
+          }])).overwrite
       if (!overwrite) {
         log.warn(ko.init.skipped(filePath))
         continue
@@ -190,7 +214,7 @@ export async function init(options: InitOptions = {}) {
     log.success(filePath)
   }
 
-  await writeInitExtras(cwd)
+  await writeInitExtras(cwd, isNonInteractive(options))
 
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
@@ -313,17 +337,20 @@ function projectHasTestScript(projectDir: string): boolean {
   }
 }
 
-async function writeInitExtras(projectDir: string) {
+async function writeInitExtras(projectDir: string, noninteractive = false) {
   const commandsPath = path.join(projectDir, 'COMMANDS.md')
   const hasTest = projectHasTestScript(projectDir)
 
   if (fileExists(commandsPath)) {
-    const { overwrite } = await inquirer.prompt([{
-      type: 'confirm',
-      name: 'overwrite',
-      message: ko.init.overwrite('COMMANDS.md'),
-      default: false,
-    }])
+    // 비대화형이면 프롬프트 default(=false, 보존) 자동 적용.
+    const overwrite = noninteractive
+      ? false
+      : (await inquirer.prompt([{
+          type: 'confirm',
+          name: 'overwrite',
+          message: ko.init.overwrite('COMMANDS.md'),
+          default: false,
+        }])).overwrite
     if (!overwrite) {
       log.warn(ko.init.skipped('COMMANDS.md'))
     } else {

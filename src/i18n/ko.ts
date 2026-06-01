@@ -386,6 +386,9 @@ export const ko = {
   context: {
     title: '프로젝트 컨텍스트 생성',
     showTitle: '컨텍스트 파일',
+    resumeMissing: '🧭 AI 세션 복원 컨텍스트 없음 → 생성: vhk context',
+    resumeExists: '🧭 새 세션이면 AI 컨텍스트 복원: vhk context-show (갱신: vhk context)',
+    resumeStale: '🧭 컨텍스트가 오래됨(코드 변경 이후) → 갱신: vhk context',
   },
   brief: {
     title: '프로젝트 브리핑',
@@ -396,8 +399,11 @@ export const ko = {
     initTitle: '🏗️  goals/ 구조 스캐폴딩',
     checkTitle: '✅ Goal 게이트 검증',
     doneTitle: '🏁 Goal 완료 처리',
+    syncTitle: '🔄 Goal 게이트 스크립트 동기화',
     duplicateId: (ids: string) =>
       `⚠ 중복된 goal id: ${ids} — 같은 id 파일이 여러 개면 첫 매치만 사용됩니다. id 를 유일하게 고치세요.`,
+    skippedFiles: (n: number) =>
+      `⚠ 스키마 불일치로 무시된 파일 ${n}개 (goal 로 안 잡힘 — silent skip):`,
     notFound: (id: number) => `goal id ${id} 없음 — vhk goal list 로 확인하세요.`,
   },
   agent: {
