@@ -118,6 +118,19 @@ it('UTF-8 BOM이 있어도 정상 파싱', async () => {
 })
 ```
 
+## 재발 이력 (recurrence)
+
+이 안티패턴은 **새 코드가 계속 재도입**한다 — v1.0.1 일괄 마이그레이션은 *당시 존재하던* 사이트만 고쳤기 때문.
+
+- **v1.7.0 (2026-06-02, `verify` 증거화)**: 새로 추가한 `runGates` 가 `JSON.parse(readFileSync(pkgPath,'utf-8'))` 를
+  raw 로 작성 → Windows BOM 에서 throw. 게다가 verify 의 핵심 계약("성공·실패 무관 항상 `.vhk/reports/latest.json`
+  기록")까지 깨짐(증거 기록 전에 죽음). PR #92 리뷰에서 발견. `readPackageScripts`(readJsonFile + try/catch→`{}`)로
+  수정 + BOM/손상 회귀 테스트 2건. → Dev Log: SoT `vhk-err-verify-bom-2026-06-02`.
+
+**교훈(메타):** 사이트별 수정은 재발을 못 막는다. **grep 게이트**(`JSON\.parse\(\s*readFileSync` 금지 → `readJsonFile` 강제)
+를 lint/CI 에 넣어야 신규 사이트 재도입을 원천 차단. (현재 `src/commands/goal.ts` 의 *생성되는 게이트 스크립트 템플릿*
+에도 raw parse 가 1곳 남아있음 — 별도 트랙.)
+
 ## 참고
 
 - VHK `src/lib/read-json.ts` 헬퍼
