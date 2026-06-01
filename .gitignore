@@ -14,6 +14,11 @@ dist/
 # VHK 개인 메모/참고링크 — 로컬 전용 (docs/spec.md 트래킹 정책)
 .vhk/memory.json
 .vhk/refs.json
+# secret gist 포인터 (gistId) — 공개 repo 노출 방지 (VHK-022)
+.vhk/cloud.json
 
 # EnterWorktree 가 .claude/worktrees/ 에 isolated 복사본 생성 — 커밋 금지
 .claude/worktrees/
+
+# Cursor MCP 설정 — 절대 로컬 경로 포함, 머신별 — 커밋 금지 (VHK-022 hygiene)
+.cursor/
