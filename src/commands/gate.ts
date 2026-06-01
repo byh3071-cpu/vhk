@@ -2,6 +2,7 @@ import inquirer from 'inquirer'
 import chalk from 'chalk'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { ensureInteractive } from '../lib/interactive.js'
 
 export type GateMode = 'full' | 'quick' | 'skip'
 export type GateStatus = 'pass' | 'hold' | 'fail'
@@ -39,6 +40,8 @@ export function judgeGate(failCount: number, holdCount: number): GateVerdict {
 }
 
 export async function gate() {
+  if (!ensureInteractive('아이디어 검증은 대화형 질문이 필요합니다. 터미널(PowerShell 등)에서 직접 실행하세요. Git Bash 면 VHK_FORCE_INTERACTIVE=1.')) return
+
   console.log(chalk.bold(`\n${ko.gate.title}\n`))
 
   const { mode } = await inquirer.prompt<{ mode: GateMode }>([{

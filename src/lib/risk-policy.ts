@@ -1,9 +1,10 @@
 import type { SafetyMode } from './safety-mode.js'
 
 /**
- * 정책 적용 대상 high-risk 액션 8종 — 되돌리기 어렵거나 외부에 영향 주는 작업.
+ * 정책 적용 대상 high-risk 액션 9종 — 되돌리기 어렵거나 외부에 영향 주는 작업.
  * (undo: 커밋 되돌림 / deploy·publish: 외부 배포 / migrate: 패키지매니저 전환 /
- *  cloud-pull: 로컬 .vhk 덮어씀 / resume: HARD_STOP 해제 / env-write: 시크릿 파일 변경 / delete: 삭제)
+ *  cloud-pull: 로컬 .vhk 덮어씀 / resume: HARD_STOP 해제 / env-write: 시크릿 파일 변경 /
+ *  delete: 삭제 / restore: 백업 덮어쓰기 — 로컬 파일을 백업으로 복원)
  */
 export const HIGH_RISK_ACTIONS = [
   'undo',
@@ -14,6 +15,7 @@ export const HIGH_RISK_ACTIONS = [
   'resume',
   'env-write',
   'delete',
+  'restore',
 ] as const
 
 export type HighRiskAction = (typeof HIGH_RISK_ACTIONS)[number]
@@ -42,6 +44,7 @@ export const NL_GUARDED_ACTIONS: Readonly<Record<string, string>> = {
   env: 'env-write',
   save: 'save',
   sync: 'sync',
+  restore: 'restore',
 }
 
 export function isHighRisk(action: string): action is HighRiskAction {

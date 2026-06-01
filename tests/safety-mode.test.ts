@@ -34,12 +34,12 @@ describe('safety-mode — 모드 정의', () => {
   })
 })
 
-describe('risk-policy — high-risk 8종 + 채널/모드 정책', () => {
-  it('high-risk 8종 포함', () => {
-    for (const a of ['undo', 'deploy', 'publish', 'migrate', 'cloud-pull', 'resume', 'env-write', 'delete']) {
+describe('risk-policy — high-risk 9종 + 채널/모드 정책', () => {
+  it('high-risk 9종 포함', () => {
+    for (const a of ['undo', 'deploy', 'publish', 'migrate', 'cloud-pull', 'resume', 'env-write', 'delete', 'restore']) {
       expect(HIGH_RISK_ACTIONS).toContain(a)
     }
-    expect(HIGH_RISK_ACTIONS.length).toBe(8)
+    expect(HIGH_RISK_ACTIONS.length).toBe(9)
   })
 
   it('isHighRisk 판정', () => {

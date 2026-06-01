@@ -52,6 +52,13 @@ describe('parseFrontmatter', () => {
     expect(body.startsWith('# Mission:')).toBe(true)
   })
 
+  it('UTF-8 BOM 이 있어도 frontmatter 를 파싱한다 (Windows PowerShell 호환)', () => {
+    const { frontmatter, body } = parseFrontmatter('\ufeff' + SAMPLE)
+    expect(frontmatter.type).toBe('goal')
+    expect(frontmatter.id).toBe(0)
+    expect(body.startsWith('# Mission:')).toBe(true)
+  })
+
   it('frontmatter 없는 파일은 빈 객체 + 전체 본문 반환', () => {
     const content = '# 그냥 마크다운\n\n본문'
     const { frontmatter, body } = parseFrontmatter(content)

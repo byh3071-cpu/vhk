@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/check-goal-8.mjs — 자동 생성 (vhk goal sync).
+// scripts/check-goal-11.mjs — 자동 생성 (vhk goal sync).
 // 기본 게이트 = typecheck + (lint) + test + build. goal 고유 검증은 아래 구역에 추가.
 // sync 재실행해도 기존 파일은 덮어쓰지 않습니다 (idempotent).
 //
@@ -16,6 +16,7 @@ function run(cmd, args) {
     bin = 'cmd.exe'; argv = ['/d', '/s', '/c', cmd + '.cmd', ...args]
   }
   try {
+    // maxBuffer 상향: 큰 빌드/테스트 로그(>1MB)에서 성공해도 ENOBUFS 거짓실패 방지.
     execFileSync(bin, argv, { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 })
     return true
   } catch (e) {
@@ -26,7 +27,7 @@ function run(cmd, args) {
 }
 
 if (existsSync('.vhk/HARD_STOP')) {
-  console.log('🛑 .vhk/HARD_STOP detected — refusing to run goal 8 gate.')
+  console.log('🛑 .vhk/HARD_STOP detected — refusing to run goal 11 gate.')
   process.exit(1)
 }
 
@@ -35,7 +36,7 @@ const scripts = pkg.scripts ?? {}
 const pm = existsSync('pnpm-lock.yaml') ? 'pnpm' : existsSync('yarn.lock') ? 'yarn' : 'npm'
 const skipDeep = process.env.VHK_GATES_SKIP_DEEP === '1'
 let pass = true
-const gate = (label, ok) => { console.log('[goal 8] ' + label + ': ' + (ok ? '✓' : '✗')); if (!ok) pass = false }
+const gate = (label, ok) => { console.log('[goal 11] ' + label + ': ' + (ok ? '✓' : '✗')); if (!ok) pass = false }
 const must = (cond, label) => { console.log((cond ? '    ✓ ' : '    ✗ ') + label); if (!cond) pass = false }
 
 // typecheck (스크립트 우선, 없으면 tsc --noEmit)
@@ -49,21 +50,18 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 8 고유 검증 (init -y 완전 비대화형) ───────────────────────
+// ─── goal 11 고유 검증 (대화형/비대화형 통합 가드) ──────────────────
 const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const it = read('src/lib/interactive.ts') ?? ''
+must(/export function isInteractive/.test(it) && /export async function promptOrDefault/.test(it), 'isInteractive/promptOrDefault SoT')
+must(/process\.stdin\.isTTY/.test(it) && /VHK_FORCE_INTERACTIVE/.test(it), 'stdin 축 + Git Bash 탈출구(E3)')
+must(/'restore'/.test(read('src/lib/risk-policy.ts') ?? ''), 'restore HIGH_RISK (R3)')
+must(/lite-noninteractive-block/.test(read('src/lib/safety-guard.ts') ?? ''), 'lite여도 비대화형 destructive 중단 (R13)')
+must(/guardCli\('restore'/.test(read('src/index.ts') ?? ''), 'restore guardCli 래핑')
 const initSrc = read('src/commands/init.ts') ?? ''
-// SoT = src/lib/interactive.ts 의 isInteractive (stdin 축). init 은 로컬 헬퍼 대신 이 SoT 를 쓴다.
-const itSrc = read('src/lib/interactive.ts') ?? ''
-must(/export function isInteractive/.test(itSrc) && /process\.stdin\.isTTY/.test(itSrc), 'isInteractive SoT (stdin 축)')
-must(/from '\.\.\/lib\/interactive\.js'/.test(initSrc) && /isInteractive\(options\)/.test(initSrc), 'init 이 isInteractive SoT 사용')
-must(/if\s*\(!noninteractive\)/.test(initSrc), 'collectAnswers 가 비대화형이면 프롬프트 skip')
-must(/DEFAULT_TYPE\s*=\s*PROJECT_TYPES\[0\]\.value/.test(initSrc), '타입 미지정 시 기본 타입(webapp) 폴백')
-// overwrite 프롬프트도 비대화형 가드.
-must((initSrc.match(/!isInteractive\(options\)\s*\n?\s*\?\s*false/g) ?? []).length >= 1 || /noninteractive\s*\n?\s*\?\s*false/.test(initSrc), 'overwrite 프롬프트 비대화형 가드')
-// Codex #3: confirmStack/adopt 도 비대화형 가드(!options.yes 단독 금지 — 비-TTY 멈춤 방지).
-must(/if\s*\(isInteractive\(options\)\)\s*\{[\s\S]{0,80}confirmStack/.test(initSrc), 'confirmStack 가 isInteractive 가드')
-must(/isInteractive\(options\)\s*&&\s*!options\.fromNotion/.test(initSrc), 'adopt 가 isInteractive 가드')
-must(!/if\s*\(!options\.yes\)\s*\{[\s\S]{0,80}confirmStack/.test(initSrc), 'confirmStack 에서 옛 !options.yes 단독 가드 제거됨')
+must(/isInteractive\(options\)/.test(initSrc) && !/function isNonInteractive/.test(initSrc), 'init 이 isInteractive SoT 사용(로컬 헬퍼 제거)')
+must(/ensureInteractive\(/.test(read('src/commands/gate.ts') ?? ''), 'gate essential 진입거부 (R2)')
+must(/promptOrDefault/.test(read('src/commands/save.ts') ?? ''), 'save 비대화형 기본값/안전중단 (S1)')
 
-if (pass) { console.log('✅ goal 8 gate passes'); process.exit(0) }
-console.log('❌ goal 8 gate failed'); process.exit(1)
+if (pass) { console.log('✅ goal 11 gate passes'); process.exit(0) }
+console.log('❌ goal 11 gate failed'); process.exit(1)

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { stripBom } from './read-json.js'
 
 // VHK goals/<n>-<name>.md frontmatter 표준. vspec/vooster 호환.
 export type GoalStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED'
@@ -32,8 +33,9 @@ export function parseFrontmatter(content: string): {
   frontmatter: GoalFrontmatter
   body: string
 } {
-  const m = content.match(FRONTMATTER_RE)
-  if (!m) return { frontmatter: {}, body: content }
+  const normalized = stripBom(content)
+  const m = normalized.match(FRONTMATTER_RE)
+  if (!m) return { frontmatter: {}, body: normalized }
   const fm = parseSimpleYaml(m[1])
   // closing `---\n` 직후의 잔여 개행 1~N 개는 파싱 아티팩트 — body 표현에서 제거.
   const body = (m[2] ?? '').replace(/^\r?\n+/, '')
