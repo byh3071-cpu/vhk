@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 13
 title: vhk verify 증거화 (Evidence Ledger v0) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 version: v1.7.0
+completed: 2026-06-02
 ---
 
 # Goal 13: vhk verify 증거화 (Evidence Ledger v0)
@@ -27,14 +28,21 @@ verify가 lite — 체크리스트 텍스트만 출력, 실제 실행·결과 �
 - secret/env 값 latest.json 미포함 (.vhkignore 존중).
 
 ## Completion Check
-- [ ] verify 실행 시 성공·실패 무관 latest.json 생성 + 스키마 통과
-- [ ] 게이트별 실제 종료코드 기반 (파이프로 exit code 안 가림)
-- [ ] test 일부러 깸 → status=FAIL + 해당 gate fail 기록 (거짓 PASS 회귀 가드)
-- [ ] package.json scripts 없음 → skip+WARN (거짓 PASS 금지)
-- [ ] HARD_STOP 존재 → 거부 + exit 1
-- [ ] --json stdout 출력 + secret 누출 0 (vhk secure scan)
-- [ ] vhk goal sync → check-goal-13.mjs 생성 → vhk goal check --id 13 통과
-- [ ] 공통 게이트 통과 (typecheck + test + build), 기존 540+ 회귀 0
+- [x] verify 실행 시 성공·실패 무관 latest.json 생성 + 스키마 통과
+- [x] 게이트별 실제 종료코드 기반 (파이프로 exit code 안 가림)
+- [x] test 일부러 깸 → status=FAIL + 해당 gate fail 기록 (거짓 PASS 회귀 가드)
+- [x] package.json scripts 없음 → skip+WARN (거짓 PASS 금지)
+- [x] HARD_STOP 존재 → 거부 + exit 1
+- [x] --json stdout 출력 + secret 누출 0 (vhk secure scan)
+- [x] vhk goal sync → check-goal-13.mjs 생성 → vhk goal check --id 13 통과
+- [x] 공통 게이트 통과 (typecheck + test + build), 기존 540+ 회귀 0 (599 pass)
+
+## 구현 결과 (2026-06-02)
+- `src/commands/verify.ts`: `verifyEvidence`(항상 `.vhk/reports/latest.json` 기록) + `runGates`
+  (tsc/test:run/build 외부 실행 + 종료코드, secure in-process) + `aggregateStatus`/`buildReport`.
+- `--json`(CI stdout), Windows `cmd.exe` 래핑 + maxBuffer 64MB, HARD_STOP 거부, exitCode FAIL=1.
+- secret 미포함: secure 게이트는 severe count 만(값 미수집) → 리포트 누출 0. reports/ 로컬 전용(RFC 0038).
+- 기존 호환: `verificationChecklist` 보존, `verify()` 무인자 호출 동작. 테스트 585→599(신규 14), 회귀 0.
 
 ## 제외 범위
 - HTML 리포트(latest.html) → 배치 6
