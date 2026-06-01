@@ -13,7 +13,7 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.6.4 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
+- **버전:** v1.6.5 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
 - **MCP tool:** 24/24 (Goal 0 DONE)
 - **테스트:** 585 pass (vitest)
 - **패키지 매니저:** pnpm
