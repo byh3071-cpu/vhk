@@ -443,8 +443,9 @@ program
 program
   .command('verify')
   .alias('사전점검')
-  .description('저장/위험 작업 전 검증 묶음 안내 (lite)')
-  .action(async () => { await verify() })
+  .option('--json', '리포트 JSON 을 stdout 으로 출력 (CI용 — 경로 대신)')
+  .description('검증 게이트(tsc/test/build/secure) 실제 실행 + 증거 기록 (.vhk/reports/latest.json)')
+  .action(async (opts: { json?: boolean }) => { await verify(opts) })
 
 program
   .command('context-show')
