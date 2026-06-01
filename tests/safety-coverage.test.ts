@@ -90,3 +90,19 @@ describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () 
     }
   })
 })
+
+// HIGH_RISK_ACTIONS 를 risk-policy 원본에서 직접 순회 — 위 CLI_ACTIONS(손관리 미러)와 달리
+// 새 high-risk 액션이 추가되면 자동으로 검사 대상에 포함되어 가드 누락 드리프트를 차단한다.
+describe('HIGH_RISK 완전성 — index.ts guard 경유', () => {
+  const idx = readFileSync('src/index.ts', 'utf-8')
+  // env-write 는 env 명령에서 guardCli('env-write'...) 로 등록.
+  // delete 는 현재 CLI 직접 명령 없음(진입점 없는 예약 액션) → 예외.
+  //   (safety-coverage 의 "'delete' 는 진입점 없는 예약 액션" 테스트가 .command('delete')/guardCli('delete') 부재를 별도 검증)
+  const EXEMPT = new Set(['delete'])
+  for (const a of HIGH_RISK_ACTIONS) {
+    if (EXEMPT.has(a)) continue
+    it(`${a} 는 index.ts 에서 guard 경유`, () => {
+      expect(new RegExp(`guardCli(Defer)?\\('${a}'`).test(idx)).toBe(true)
+    })
+  }
+})
