@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -20,10 +20,11 @@ describe('runGuarded — 단일 chokepoint', () => {
     expect(t.ran).toBe(true)
   })
 
-  it('lite + high-risk → 경고만 하고 실행', async () => {
+  it('lite + high-risk + 대화형(isTTY) → 경고만 하고 실행', async () => {
     const t = tracker()
     const logs: string[] = []
-    const { outcome } = await runGuarded('deploy', { channel: 'cli', mode: 'lite', log: (m) => logs.push(m) }, t.run)
+    // R13: lite 의 "경고만 하고 실행" 은 대화형(경고 볼 사람 있음)에서만 유효.
+    const { outcome } = await runGuarded('deploy', { channel: 'cli', mode: 'lite', isTTY: true, log: (m) => logs.push(m) }, t.run)
     expect(outcome.ran).toBe(true)
     expect(t.ran).toBe(true)
     expect(logs.join(' ')).toMatch(/경고|warn|lite/i)
@@ -103,5 +104,25 @@ describe('CLI 가드 e2e — standard 모드 high-risk 차단 (행동 검증)', 
     // 실제 배포 흐름(플랫폼 선택)으로 진입하지 않음
     expect(out).not.toMatch(/어떤 플랫폼에 배포/)
     fs.rmSync(tmp, { recursive: true, force: true })
+  })
+})
+
+describe('runGuarded — lite 비대화형 destructive 중단 (R13)', () => {
+  it('lite + 비대화형(isTTY:false) + 미승인 → 실행 안 함', async () => {
+    const run = vi.fn(async () => 'ran')
+    const { outcome } = await runGuarded('undo', { channel: 'cli', mode: 'lite', isTTY: false, approved: false }, run)
+    expect(run).not.toHaveBeenCalled()
+    expect(outcome.ran).toBe(false)
+  })
+  it('lite + 대화형(isTTY:true) → 경고 후 실행', async () => {
+    const run = vi.fn(async () => 'ran')
+    const { outcome } = await runGuarded('undo', { channel: 'cli', mode: 'lite', isTTY: true }, run)
+    expect(outcome.ran).toBe(true)
+    expect(run).toHaveBeenCalled()
+  })
+  it('lite + 비대화형 + --yes 승인 → 실행', async () => {
+    const run = vi.fn(async () => 'ran')
+    const { outcome } = await runGuarded('undo', { channel: 'cli', mode: 'lite', isTTY: false, approved: true }, run)
+    expect(outcome.ran).toBe(true)
   })
 })
