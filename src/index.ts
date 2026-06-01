@@ -97,7 +97,7 @@ async function guardCliDefer(
   )
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
-import { goalCheck, goalDone, goalInit, goalList, goalNext } from './commands/goal.js'
+import { goalCheck, goalDone, goalInit, goalList, goalNext, goalSync } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
 
 const program = new Command()
@@ -486,7 +486,7 @@ program
 const goalCmd = program
   .command('goal')
   .alias('목표')
-  .description('Goal 단계별 미션 관리 (init / list / next / check / done)')
+  .description('Goal 단계별 미션 관리 (init / list / next / check / done / sync)')
   .action(async () => { await goalList() })
 
 goalCmd
@@ -511,7 +511,7 @@ goalCmd
   .command('check')
   .alias('검증')
   .option('--id <id>', 'goal id 지정 (생략 시 active goal)')
-  .description('scripts/check-goal-<id>.sh 실행 + exit code 전달')
+  .description('scripts/check-goal-<id>.{mjs,sh} 실행 + exit code 전달 (.mjs 우선)')
   .action(async (opts: { id?: string }) => { await goalCheck(opts) })
 
 goalCmd
@@ -520,6 +520,12 @@ goalCmd
   .option('--id <id>', 'goal id 지정 (생략 시 active goal)')
   .description('게이트 재검증 → 통과 시 frontmatter status=DONE 으로 전이')
   .action(async (opts: { id?: string }) => { await goalDone(opts) })
+
+goalCmd
+  .command('sync')
+  .alias('동기화')
+  .description('goals/*.md 스캔 → 누락된 check-goal-<id>.mjs 게이트 스크립트 백필 (idempotent)')
+  .action(async () => { await goalSync() })
 
 program
   .command('blocker <description>')

@@ -360,7 +360,8 @@ const RULES: NlpRule[] = [
     explanation: '목표 게이트 검증 (vhk goal check)',
     confidence: 'high',
     args: ['check'],
-    test: t => /목표\s*(점검|검증|체크)/.test(t),
+    // '스크립트' 포함 시는 sync 의도(게이트 스크립트 생성) → check 가 가로채지 않게 제외.
+    test: t => /목표\s*(점검|검증|체크)/.test(t) && !/스크립트/.test(t),
   },
   {
     command: 'goal',
@@ -375,6 +376,13 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     args: ['list'],
     test: t => /목표\s*(목록|리스트)/.test(t),
+  },
+  {
+    command: 'goal',
+    explanation: '게이트 스크립트 동기화 (vhk goal sync)',
+    confidence: 'high',
+    args: ['sync'],
+    test: t => /(게이트|목표).*(스크립트|동기화)|체크\s*스크립트\s*(생성|만들)/.test(t),
   },
 ]
 

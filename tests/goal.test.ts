@@ -114,6 +114,29 @@ describe('goalList', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('스키마가 깨진 goal 파일만 있어도 skipped 경고를 출력', async () => {
+    const dir = tmpProject('list-skipped-only')
+    mkdirSync(join(dir, 'goals'), { recursive: true })
+    writeFileSync(
+      join(dir, 'goals', 'bad-goal.md'),
+      `---\ntype: goal\nid: G1\ntitle: Bad\nstatus: NOT_STARTED\n---\nbody\n`,
+      'utf-8'
+    )
+    process.chdir(dir)
+    try {
+      const { goalList } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalList()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).toMatch(/무시된 파일/)
+      expect(joined).toMatch(/bad-goal\.md/)
+      expect(joined).toMatch(/id 가 숫자가 아님/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('goalNext', () => {
@@ -271,6 +294,267 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
       expect(after).toContain('status: DONE')
       expect(after).not.toContain('status: IN_PROGRESS')
       expect(after).toMatch(/completed: \d{4}-\d{2}-\d{2}/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('goalSync — 누락 게이트 스크립트 백필 (goal 7)', () => {
+  let origCwd: string
+  beforeEach(() => {
+    origCwd = process.cwd()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    vi.restoreAllMocks()
+  })
+
+  it('스크립트 없는 goal 마다 check-goal-{id}.mjs 생성', async () => {
+    const dir = tmpProject('sync')
+    makeGoalFile(dir, 0, 'DONE')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { goalSync } = await import('../src/commands/goal.js')
+      const res = await goalSync()
+      expect(res.created.sort()).toEqual([0, 1])
+      expect(res.skipped).toEqual([])
+      const s0 = readFileSync(join(dir, 'scripts/check-goal-0.mjs'), 'utf-8')
+      expect(s0.startsWith('#!/usr/bin/env node')).toBe(true)
+      expect(s0).toContain('goal 0')
+      expect(s0).toContain('VHK_GATES_SKIP_DEEP')
+      expect(existsSync(join(dir, 'scripts/check-goal-1.mjs'))).toBe(true)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('기존 스크립트(.mjs/.sh)는 덮어쓰지 않음 (idempotent)', async () => {
+    const dir = tmpProject('sync-idem')
+    makeGoalFile(dir, 0, 'DONE')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    makeGoalFile(dir, 2, 'NOT_STARTED')
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts/check-goal-0.mjs'), 'EXISTING', 'utf-8')
+    writeFileSync(join(dir, 'scripts/check-goal-1.sh'), '#!/usr/bin/env bash\nexit 0\n', 'utf-8')
+    process.chdir(dir)
+    try {
+      const { goalSync } = await import('../src/commands/goal.js')
+      const res = await goalSync()
+      // 0(.mjs 존재) → skip(절대 덮어쓰기 금지). 1(.sh 만) → .mjs 백필. 2 → 신규.
+      expect(res.created.sort()).toEqual([1, 2])
+      expect(res.skipped).toEqual([0])
+      expect(readFileSync(join(dir, 'scripts/check-goal-0.mjs'), 'utf-8')).toBe('EXISTING')
+      // .sh 만 있던 1 은 Windows 1급 위해 .mjs 백필됨.
+      expect(existsSync(join(dir, 'scripts/check-goal-1.mjs'))).toBe(true)
+      // 기존 .sh 는 그대로 보존.
+      expect(existsSync(join(dir, 'scripts/check-goal-1.sh'))).toBe(true)
+      expect(existsSync(join(dir, 'scripts/check-goal-2.mjs'))).toBe(true)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('goals 없으면 created 0', async () => {
+    const dir = tmpProject('sync-empty')
+    mkdirSync(join(dir, 'goals'), { recursive: true })
+    process.chdir(dir)
+    try {
+      const { goalSync } = await import('../src/commands/goal.js')
+      const res = await goalSync()
+      expect(res.created).toEqual([])
+      expect(res.skipped).toEqual([])
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('findSkippedGoalFiles — 스키마 불일치 silent skip 탐지 (VHK-021)', () => {
+  let origCwd: string
+  beforeEach(() => {
+    origCwd = process.cwd()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    vi.restoreAllMocks()
+  })
+
+  function writeRaw(dir: string, name: string, fm: string): void {
+    mkdirSync(join(dir, 'goals'), { recursive: true })
+    writeFileSync(join(dir, 'goals', name), `---\n${fm}\n---\nbody\n`, 'utf-8')
+  }
+
+  it('id 가 문자열(G1)이면 skip 후보로 잡힘', async () => {
+    const dir = tmpProject('skip-id')
+    writeRaw(dir, 'G1.md', 'vhk_format: 1\ntype: goal\nid: G1\ntitle: T\nstatus: NOT_STARTED')
+    try {
+      const { findSkippedGoalFiles } = await import('../src/lib/goal-frontmatter.js')
+      const skipped = findSkippedGoalFiles(join(dir, 'goals'))
+      expect(skipped.map((s) => s.file)).toContain('G1.md')
+      expect(skipped[0].reason).toMatch(/숫자/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('type: goal 누락이면 skip 후보 (id 만 있음)', async () => {
+    const dir = tmpProject('skip-type')
+    writeRaw(dir, '1-x.md', 'vhk_format: 1\nid: 1\ntitle: T\nstatus: NOT_STARTED')
+    try {
+      const { findSkippedGoalFiles } = await import('../src/lib/goal-frontmatter.js')
+      const skipped = findSkippedGoalFiles(join(dir, 'goals'))
+      expect(skipped.map((s) => s.file)).toContain('1-x.md')
+      expect(skipped[0].reason).toMatch(/type: goal/)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('유효 goal / type:meta / _meta.md 는 경고 안 함', async () => {
+    const dir = tmpProject('skip-clean')
+    makeGoalFile(dir, 1, 'NOT_STARTED') // 유효
+    writeRaw(dir, '_meta-self.md', 'vhk_format: 1\ntype: meta\nproject: x') // 의도적 메타
+    writeRaw(dir, '_meta.md', 'vhk_format: 1\ntype: meta\nproject: y')
+    try {
+      const { findSkippedGoalFiles } = await import('../src/lib/goal-frontmatter.js')
+      expect(findSkippedGoalFiles(join(dir, 'goals'))).toEqual([])
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('goalList 가 무시된 파일을 경고 출력 (더 이상 silent 아님)', async () => {
+    const dir = tmpProject('skip-warn')
+    makeGoalFile(dir, 0, 'NOT_STARTED')
+    writeRaw(dir, 'G1.md', 'vhk_format: 1\ntype: goal\nid: G1\ntitle: Bad\nstatus: NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { goalList } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalList()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).toMatch(/무시된 파일/)
+      expect(joined).toContain('G1.md')
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('NL goal sync 라우팅+디스패치 (Codex #1 회귀)', () => {
+  let origCwd: string
+  beforeEach(() => {
+    origCwd = process.cwd()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    vi.restoreAllMocks()
+  })
+
+  it('routeNaturalLanguage: "게이트 스크립트 동기화" → goal sync', async () => {
+    const { routeNaturalLanguage } = await import('../src/lib/nlp-router.js')
+    const r = routeNaturalLanguage('게이트 스크립트 동기화')
+    expect(r?.command).toBe('goal')
+    expect(r?.args).toEqual(['sync'])
+  })
+
+  it('"목표 체크 스크립트 생성" → sync (check 규칙이 가로채지 않음)', async () => {
+    const { routeNaturalLanguage } = await import('../src/lib/nlp-router.js')
+    const r = routeNaturalLanguage('목표 체크 스크립트 생성')
+    expect(r?.args).toEqual(['sync'])
+  })
+
+  it('"목표 체크" → check (스크립트 없으면 기존대로, 가드가 정상 라우팅 안 깨뜨림)', async () => {
+    const { routeNaturalLanguage } = await import('../src/lib/nlp-router.js')
+    const r = routeNaturalLanguage('목표 체크')
+    expect(r?.args).toEqual(['check'])
+  })
+
+  it('goal sync 자연어는 파일 쓰기 전에 confirmation 대상', async () => {
+    const { routeNaturalLanguage } = await import('../src/lib/nlp-router.js')
+    const { requiresConfirmation } = await import('../src/lib/nlp-run.js')
+    const r = routeNaturalLanguage('게이트 스크립트 동기화')
+    expect(r).not.toBeNull()
+    expect(requiresConfirmation(r!)).toBe(true)
+  })
+
+  it('dispatchNlpRoute goal/sync → goalSync 실행(스크립트 생성), goalList 아님', async () => {
+    const dir = tmpProject('nl-sync')
+    makeGoalFile(dir, 0, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { dispatchNlpRoute } = await import('../src/lib/nlp-run.js')
+      await dispatchNlpRoute(
+        { command: 'goal', args: ['sync'], explanation: '', confidence: 'high' },
+        '게이트 스크립트 동기화'
+      )
+      // goalSync 만 파일을 생성 — goalList 면 생성 안 됨.
+      expect(existsSync(join(dir, 'scripts/check-goal-0.mjs'))).toBe(true)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('Windows 1급 게이트 (goal 9)', () => {
+  let origCwd: string
+  let origExitCode: number | string | undefined
+  beforeEach(() => {
+    origCwd = process.cwd()
+    origExitCode = process.exitCode
+    mockSafeExecFile.mockReset()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    process.exitCode = origExitCode
+    vi.restoreAllMocks()
+  })
+
+  it('findGateScript — .mjs 와 .sh 둘 다 있으면 .mjs 우선', async () => {
+    const dir = tmpProject('win-prefer')
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts/check-goal-1.mjs'), '// mjs', 'utf-8')
+    writeFileSync(join(dir, 'scripts/check-goal-1.sh'), '#!/usr/bin/env bash', 'utf-8')
+    process.chdir(dir)
+    try {
+      const { findGateScript } = await import('../src/commands/goal.js')
+      const found = findGateScript(1)
+      expect(found).not.toBeNull()
+      expect(found!.endsWith('.mjs')).toBe(true)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('goalCheck — .mjs 게이트는 node 로 실행 (bash 불필요)', async () => {
+    const dir = tmpProject('win-node')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts/check-goal-1.mjs'), 'process.exit(0)', 'utf-8')
+    mockSafeExecFile.mockReturnValue({ ok: true, out: 'ok', err: '' })
+    process.chdir(dir)
+    try {
+      const { goalCheck } = await import('../src/commands/goal.js')
+      await goalCheck({ id: '1' })
+      expect(mockSafeExecFile).toHaveBeenCalled()
+      // 첫 인자(runner)가 bash 가 아니라 node — Windows 에서 bash 없이 동작.
+      expect(mockSafeExecFile.mock.calls[0][0]).toBe('node')
+      expect(String((mockSafeExecFile.mock.calls[0][1] as string[])[0])).toMatch(
+        /check-goal-1\.mjs$/
+      )
     } finally {
       process.chdir(origCwd)
       rmSync(dir, { recursive: true, force: true })

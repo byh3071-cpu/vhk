@@ -20,8 +20,15 @@ vi.mock('inquirer', () => ({
 describe('vhk init — ④ adopt 대화형 분기 e2e', () => {
   let origCwd: string
   let dir: string
+  let origStdinTTY: boolean | undefined
+  let origStdoutTTY: boolean | undefined
   beforeEach(() => {
     origCwd = process.cwd()
+    // 대화형 경로 e2e — isNonInteractive(stdin/stdout TTY) 가 false 가 되도록 TTY 강제.
+    origStdinTTY = process.stdin.isTTY
+    origStdoutTTY = process.stdout.isTTY
+    process.stdin.isTTY = true
+    process.stdout.isTTY = true
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-adopt-e2e-'))
     process.chdir(dir)
     vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -29,6 +36,8 @@ describe('vhk init — ④ adopt 대화형 분기 e2e', () => {
   })
   afterEach(() => {
     process.chdir(origCwd)
+    process.stdin.isTTY = origStdinTTY
+    process.stdout.isTTY = origStdoutTTY
     fs.rmSync(dir, { recursive: true, force: true })
     vi.restoreAllMocks()
   })
