@@ -147,10 +147,10 @@ describe('vhk sync — Gemini CLI + Cline (Goal 16, 5→7종)', () => {
     expect(out).toContain('execSync 금지')
   })
 
-  it('SYNC_TARGETS 5 → 7종 (GEMINI.md/.clinerules 등록, drift/backup 자동 반영)', () => {
+  it('SYNC_TARGETS 5 → 7종 (GEMINI.md/.clinerules/vhk-rules.md 등록, drift/backup 자동 반영)', () => {
     const paths = SYNC_TARGETS.map((t) => t.path)
     expect(paths).toContain('GEMINI.md')
-    expect(paths).toContain('.clinerules')
+    expect(paths).toContain('.clinerules/vhk-rules.md')
     expect(SYNC_TARGETS).toHaveLength(7)
   })
 

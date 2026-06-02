@@ -116,7 +116,8 @@ export function toGeminiMd(sections: RulesSection[], projectName: string): strin
 }
 
 /**
- * Cline — 루트 .clinerules (공식 docs.cline.bot/customization/cline-rules, Markdown). 제한 없음.
+ * Cline — `.clinerules/vhk-rules.md` (공식 docs.cline.bot/features/cline-rules — `.clinerules/`
+ * 디렉터리에 다중 .md 규칙 파일. Antigravity `.agents/rules/vhk-rules.md` 와 동형). Markdown 무제한.
  */
 export function toClineRules(sections: RulesSection[], projectName: string): string {
   return buildCodingDoc('Cline Rules', sections, projectName)
@@ -281,7 +282,7 @@ export const SYNC_TARGETS: SyncTarget[] = [
   { path: 'AGENTS.md', generate: toAgentsMd, doneMessage: ko.sync.agentsDone },
   // Goal 16 — Gemini CLI / Cline (공식 경로 검증). 레지스트리 추가만으로 drift·백업 자동 반영.
   { path: 'GEMINI.md', generate: toGeminiMd, doneMessage: ko.sync.geminiDone },
-  { path: '.clinerules', generate: toClineRules, doneMessage: ko.sync.clineDone },
+  { path: '.clinerules/vhk-rules.md', generate: toClineRules, doneMessage: ko.sync.clineDone },
 ]
 
 /** 보존할 백업 개수 — 무한 증식 방지(스케일/팀 고려). */

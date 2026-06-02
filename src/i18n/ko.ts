@@ -240,7 +240,7 @@ export const ko = {
     antigravityDone: '✅ .agents/rules/vhk-rules.md 맞춤 완료',
     agentsDone: '✅ AGENTS.md 맞춤 완료',
     geminiDone: '✅ GEMINI.md 맞춤 완료',
-    clineDone: '✅ .clinerules 맞춤 완료',
+    clineDone: '✅ .clinerules/vhk-rules.md 맞춤 완료',
     antigravityTruncated: 'Antigravity 12,000자 제한으로 일부 절삭됨 — 전체는 RULES.md 참조',
     done: '🔄 맞추기 완료!',
     // 안전 가드 (배치 0) — 덮어쓰기 전 백업·드리프트 확인·미리보기
