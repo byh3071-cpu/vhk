@@ -56,7 +56,7 @@ if (!skipDeep) {
 const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
 const sy = read('src/commands/sync.ts') ?? ''
 must(/export function toGeminiMd/.test(sy) && /export function toClineRules/.test(sy), 'sync.ts: toGeminiMd + toClineRules 생성함수')
-must(/path: 'GEMINI\.md'/.test(sy) && /path: '\.clinerules'/.test(sy), "SYNC_TARGETS 에 GEMINI.md + .clinerules 등록")
+must(/path: 'GEMINI\.md'/.test(sy) && /path: '\.clinerules\/vhk-rules\.md'/.test(sy), "SYNC_TARGETS 에 GEMINI.md + .clinerules/vhk-rules.md 등록")
 must(!/path: '\.rules'/.test(sy), 'Zed .rules 미추가 (중복 방지)')
 must(/geminiDone/.test(read('src/i18n/ko.ts') ?? '') && /clineDone/.test(read('src/i18n/ko.ts') ?? ''), 'ko.sync geminiDone/clineDone 메시지')
 must(existsSync('tests/sync.test.ts') && /SYNC_TARGETS\).toHaveLength\(7\)/.test(read('tests/sync.test.ts') ?? ''), '테스트: SYNC_TARGETS 7종 회귀 가드')
