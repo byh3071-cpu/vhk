@@ -144,11 +144,19 @@ function readLearningsRaw(cwd: string): string | undefined {
   }
 }
 
-/** memory.json 읽기 → 항상 v2 반환(v1/없으면 in-memory 마이그레이션, learnings 흡수). */
+/**
+ * memory.json 읽기 → 항상 v2.
+ * **계약 일관성**: 디스크가 v1 이면 read 경로(memory list / context / brief 등)에서도 1회 실제
+ * 마이그레이션을 영구화(v2 write + .v1.bak) — 어느 명령으로 첫 실행해도 동일 결과.
+ * 멱등: 이미 v2 면 no-op(재흡수·재기록 없음). 파일이 아예 없으면 빈 v2 만 반환(쓰지 않음).
+ */
 export function readMemory(cwd: string = process.cwd()): MemoryFileV2 {
   const raw = readRaw(cwd)
   if (isV2(raw)) return normalizeV2(raw)
-  return migrateMemory(raw, readLearningsRaw(cwd))
+  const v2 = migrateMemory(raw, readLearningsRaw(cwd))
+  // 디스크에 v1 파일이 실재할 때만 영구화(없는데 read 하면서 빈 파일 만들지 않음).
+  if (existsSync(join(cwd, MEMORY_PATH_REL))) writeMemory(cwd, v2)
+  return v2
 }
 
 /**

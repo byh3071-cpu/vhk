@@ -99,7 +99,9 @@ describe('brief', () => {
     const { brief } = await import('../src/commands/brief.js')
     await brief()
 
-    const md = String(mockWriteFileSync.mock.calls[0][1])
+    // readMemory 가 v1 디스크를 v2 로 영구화(write)하므로 brief.md 쓰기를 경로로 특정한다.
+    const call = mockWriteFileSync.mock.calls.find((c) => String(c[0]).includes('brief.md'))
+    const md = String(call![1])
     expect(md).toContain('저장된 기억')
     expect(md).toContain('결정-1')
   })

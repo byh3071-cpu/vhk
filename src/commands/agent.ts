@@ -42,8 +42,8 @@ export async function learn(lesson: string): Promise<void> {
     process.exitCode = 1
     return
   }
-  // Goal 18(v2.0 breaking): 교훈은 memory v2 failures.lesson 단일 SoT 로 통합.
-  // (과거: learnings.md 별도 기록 + "SoT 분리". v2 에서 이중기록 폐지 — learnings.md 는 마이그레이션으로 흡수.)
+  // Goal 18(v2.0 breaking): 교훈은 memory v2 failures.lesson 한 곳(단일 출처)에 모은다.
+  // (과거엔 learnings.md 에 따로 적었으나 v2 는 통합 — learnings.md 기존 항목은 마이그레이션으로 흡수.)
   const goalId = activeGoalId()
   const entry = recordLesson(process.cwd(), lesson, goalId)
   console.log(chalk.green(`  ✅ 교훈 기록 → memory failures.lesson (${entry.id})`))

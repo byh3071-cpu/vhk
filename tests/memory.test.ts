@@ -263,3 +263,72 @@ describe('memory v2 — activeMemoryLines + context/brief 렌더 (회귀)', () =
     fs.rmSync(d, { recursive: true, force: true })
   })
 })
+
+describe('memory v2 — read 경로 마이그레이션 계약 일관성 (어느 명령 먼저든 동일)', () => {
+  let origCwd: string
+  beforeEach(() => {
+    origCwd = process.cwd()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    vi.restoreAllMocks()
+  })
+
+  function seedV1Project(d: string): void {
+    execFileSync('git', ['init'], { cwd: d, stdio: 'pipe' })
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 't', version: '0.0.0' }), 'utf-8')
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), JSON.stringify([{ content: 'v1 결정' }]), 'utf-8')
+  }
+  function assertMigrated(d: string): void {
+    const m = JSON.parse(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8'))
+    expect(m.schemaVersion).toBe(2) // 디스크에 v2 영구화
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.v1.bak'))).toBe(true) // 원본 보존
+  }
+
+  it('memory list 첫 실행 → 디스크 v2 + .v1.bak', async () => {
+    const d = tmp()
+    seedV1(d, [{ content: 'v1 결정' }])
+    process.chdir(d)
+    await memoryList()
+    assertMigrated(d)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('context 첫 실행 → 디스크 v2 + .v1.bak (memory list 안 거쳐도 동일)', async () => {
+    const d = tmp()
+    seedV1Project(d)
+    process.chdir(d)
+    await context()
+    assertMigrated(d)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('brief 첫 실행 → 디스크 v2 + .v1.bak', async () => {
+    const d = tmp()
+    seedV1Project(d)
+    process.chdir(d)
+    await brief()
+    assertMigrated(d)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('이미 v2 → read 가 파일 변경/.v1.bak 생성 안 함 (멱등)', async () => {
+    const d = tmp()
+    const v2: MemoryFileV2 = { schemaVersion: 2, decisions: [{ id: 'd1', content: 'x', tags: [], createdAt: '', status: 'active' }], failures: [], successes: [], patterns: [] }
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), JSON.stringify(v2, null, 2) + '\n', 'utf-8')
+    const before = fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')
+    process.chdir(d)
+    await memoryList()
+    expect(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')).toBe(before) // 무변경
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.v1.bak'))).toBe(false) // .v1.bak 미생성
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+})

@@ -14,7 +14,7 @@ import { readJsonFile } from '../lib/read-json.js'
 import { readMemory, activeMemoryLines } from './memory.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
-import { getRecentLearnings, getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
+import { getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
 import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
 
@@ -189,18 +189,17 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     lines.push('')
   }
 
-  if (existsSync('.vhk/memory.json')) {
-    try {
-      // memory v2 4버킷 — active 만 누락 없이 (버킷별 최근 5개, 토큰 절감).
-      const memLines = activeMemoryLines(readMemory(process.cwd()))
-      if (memLines.length > 0) {
-        lines.push('## 저장된 기억 (memory v2)')
-        lines.push('')
-        lines.push(...memLines)
-      }
-    } catch {
-      // memory.json 파싱 실패 → 무시
+  try {
+    // memory v2 4버킷 — active 만 누락 없이(버킷별 최근 5개). readMemory 가 v1·learnings 흡수까지
+    // 처리하므로 memory.json 부재여도 learnings 흡수분이 여기서 노출(교훈 단일 출처).
+    const memLines = activeMemoryLines(readMemory(process.cwd()))
+    if (memLines.length > 0) {
+      lines.push('## 저장된 기억 (memory v2)')
+      lines.push('')
+      lines.push(...memLines)
     }
+  } catch {
+    // memory.json 파싱 실패 → 무시
   }
 
   // Goal 2 (자율 루프): active goal + 최근 learnings 3건 자동 포함.
@@ -221,13 +220,8 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     }
   }
 
-  const recent = getRecentLearnings(3)
-  if (recent.length > 0) {
-    lines.push('## Recent Learnings')
-    lines.push('')
-    for (const r of recent) lines.push(r)
-    lines.push('')
-  }
+  // 교훈(learnings)은 v2 에서 memory failures.lesson 로 통합 — 위 "저장된 기억" 섹션에서 노출.
+  // (구 docs/state/learnings.md Recent Learnings 블록 제거 — 중복·stale 방지.)
 
   // 활성 blocker 최근 3건 — "지금 막힌 것"만. 해결(~~취소선~~) 항목은 제외.
   const activeBlockers = getActiveBlockers(3)
