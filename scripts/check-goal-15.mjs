@@ -52,9 +52,17 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 15 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 15 고유 검증 (vhk review — 적대적 자기검증) ───────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const rv = read('src/commands/review.ts') ?? ''
+const idx = read('src/index.ts') ?? ''
+must(/export function crossCheck/.test(rv) && /export function parseCompletionChecks/.test(rv) && /export async function review/.test(rv), 'review.ts: crossCheck + parseCompletionChecks + review export')
+must(/--id/.test(idx) && /command\('review'\)/.test(idx), "index 에 review 커맨드 + --id 옵션")
+must(/readJsonFile<VerifyReport>/.test(rv) && /\.\.\.report,\s*review:/.test(rv), 'latest.json BOM-safe 읽기 + review 섹션 병합(새 증거 안 만듦)')
+must(/REVIEW_DISCLAIMER/.test(rv) && /보장(이)? 아니/.test(rv) && /reprompt/.test(rv), '"보장 아님" disclaimer + 재질문 프롬프트(거짓 PASS 단언 금지)')
+must(/REPORT_PATH_REL.*없음|없음.*verify|existsSync\(jsonPath\)/.test(rv), 'latest.json 부재 시 안내 분기(자동 생성 안 함)')
+must(!/maskSecret|f\.match|findSecretsInLine/.test(rv), 'review 가 시크릿 값 수집 안 함(파일 원문 echo 없음)')
+must(existsSync('tests/review.test.ts'), 'review 테스트 존재(거짓완료 회귀 가드 포함)')
 
 if (pass) { console.log('✅ goal 15 gate passes'); process.exit(0) }
 console.log('❌ goal 15 gate failed'); process.exit(1)
