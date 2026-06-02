@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 14
 title: vhk verify --report (Human Panel HTML v0) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 version: v1.7.1
+completed: 2026-06-02
 ---
 
 # Goal 14: vhk verify --report (Human Panel HTML v0)
