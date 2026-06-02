@@ -66,7 +66,8 @@ updated: 2026-05-29
 }
 ```
 
-> v1 → v2: 평면 항목 → `decisions`, `docs/state/learnings.md` 교훈 → `failures`(lesson, content 비움). 마이그레이션 시 `memory.json.bak` 백업.
+> v1 → v2: 평면 항목 → `decisions`, `docs/state/learnings.md` 교훈 → `failures`(lesson, content 비움).
+> 백업: `memory.json.v1.bak`(v1 원본 write-once 영구) + `memory.json.bak`(롤링, 매 쓰기 직전).
 
 ### 2.2 `refs.json`
 

@@ -62,7 +62,7 @@ must(/why\?/.test(mm) && /lesson\?/.test(mm), 'FailEntry {why,lesson} · Success
 must(/parseLearnings|learnings/.test(mm) && /readLearningsRaw/.test(mm), 'learnings.md → failures 흡수')
 must(/export function recordLesson/.test(mm) && /recordLesson/.test(ag) && !/appendLearning/.test(ag), 'learn → memory 통합 (agent.ts recordLesson, appendLearning 제거)')
 must(/status: 'active'|EntryStatus/.test(mm) && /export async function memoryArchive/.test(mm) && /archivedAt/.test(mm), 'status(active/resolved/archived) + memoryArchive')
-must(/copyFileSync/.test(mm) && /\.bak/.test(mm), '.bak 백업 (writeMemory)')
+must(/copyFileSync/.test(mm) && /\.v1\.bak/.test(mm) && /\.bak/.test(mm), 'write-once .v1.bak(원본 영구) + 롤링 .bak')
 must(/readJsonFile|stripBom/.test(mm), 'BOM-safe 읽기')
 
 if (pass) { console.log('✅ goal 18 gate passes'); process.exit(0) }

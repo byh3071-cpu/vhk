@@ -539,7 +539,7 @@ memoryCmd
 
 memoryCmd
   .command('migrate')
-  .description('memory.json v1 → v2 마이그레이션 (.bak 백업, 멱등)')
+  .description('memory.json v1 → v2 마이그레이션 (.v1.bak 원본 영구 백업, 멱등)')
   .action(async () => { await memoryMigrate() })
 
 program
@@ -601,7 +601,7 @@ program
 program
   .command('learn <lesson>')
   .alias('교훈')
-  .description('교훈 기록 → docs/state/learnings.md append (memory.json 과 별도 SoT)')
+  .description('교훈 기록 → memory v2 failures.lesson 단일 SoT (v2.0 통합 — vhk memory list 로 확인)')
   .action(async (lesson: string) => { await learn(lesson) })
 
 program
