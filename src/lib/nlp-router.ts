@@ -37,6 +37,7 @@ export type NlpCommand =
   | 'mode'
   | 'verify'
   | 'review'
+  | 'mission'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -145,6 +146,12 @@ const RULES: NlpRule[] = [
     explanation: '적대적 자기검증 — 증거로 거짓완료 의심 (vhk review)',
     confidence: 'high',
     test: t => /적대\s*검증|자기\s*검증|거짓\s*완료|완료\s*심문|^review$|^검토$/.test(t),
+  },
+  {
+    command: 'mission',
+    explanation: '미션 계약 — 작업 범위·금지선 선언/검증 (vhk mission)',
+    confidence: 'high',
+    test: t => /미션\s*계약|작업\s*범위|범위\s*검증|^mission$|^미션$/.test(t),
   },
   {
     command: 'init',

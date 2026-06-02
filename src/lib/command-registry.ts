@@ -15,6 +15,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   design: ['palette'],
   env: ['check'],
   mode: ['lite', 'standard', 'strict'],
+  mission: ['set', 'check', 'clear'],
 }
 
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
@@ -27,4 +28,5 @@ export const CONTAINER_ALIASES: Record<string, string> = {
   디자인: 'design',
   환경변수: 'env',
   모드: 'mode',
+  미션: 'mission',
 }

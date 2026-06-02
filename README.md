@@ -175,6 +175,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk memory` | `기억` | 결정사항 기억 관리 (`add` / `list` / `remove`, `.vhk/memory.json` 기반, 태그 지원) |
 | `vhk brief` | `브리핑` | 프로젝트 정보 + git 상태 + 결정사항 + 레퍼런스 통합 보고서 `.vhk/brief.md` |
 | `vhk goal` | `목표` | Goal 단계별 미션 관리 (`init` / `list` / `next` / `check` / `done`) — vspec/vooster 패턴 |
+| `vhk mission` | `미션` | 미션 계약(`set` / `check` / `clear`) — 작업 범위·금지선 선언·검증 (`.vhk/mission.json`, 경로 glob) |
 | `vhk blocker <설명>` | `블로커` | 블로커 1건 → `docs/state/blockers.md` append. 3건 누적 시 `.vhk/HARD_STOP` 자동 생성 |
 | `vhk learn <교훈>` | `교훈` | 교훈 1건 → `docs/state/learnings.md` append (memory.json 과 별도 SoT) |
 | `vhk resume --confirm` | `재개` | `.vhk/HARD_STOP` 해제 (사람 확인 필요, 자동 호출 금지) |

@@ -52,9 +52,19 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 17 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 17 고유 검증 (vhk mission — Mission Contract) ───────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const ms = read('src/commands/mission.ts') ?? ''
+const idx = read('src/index.ts') ?? ''
+must(/export function checkMission/.test(ms) && /export function globToRegExp/.test(ms), 'mission.ts: checkMission + globToRegExp 순수 함수 export')
+must(/missionSet/.test(ms) && /missionShow/.test(ms) && /missionCheck/.test(ms) && /missionClear/.test(ms), 'set/show/check/clear 4개 서브커맨드')
+must(/MISSION_PATH_REL/.test(ms) && /mission\.json/.test(ms) && !/REPORT_PATH_REL/.test(ms), '.vhk/mission.json 별도 네임스페이스 (verify 의 REPORT_PATH_REL 미사용)')
+must(/readJsonFile<Mission>/.test(ms), 'mission.json BOM-safe 읽기(readJsonFile)')
+must(/MISSION_DISCLAIMER/.test(ms) && /경로 glob|의미/.test(ms), '"경로 glob 기준 — 의미 검증 아님" disclaimer')
+must(/violations\.length > 0 \? 1 : 0/.test(ms), 'forbidden 위반 시 exit 1 (scope 경고는 0)')
+must(/command\('mission'\)/.test(idx) && /command\('set'\)/.test(idx) && /command\('check'\)/.test(idx), 'index 에 mission + set/check/clear 등록')
+must(/import \{ simpleGit \}/.test(ms) && !/minimatch|picomatch/.test(ms), 'glob 자체 구현(외부 의존 0) + simple-git 변경파일')
+must(existsSync('tests/mission.test.ts'), 'mission 테스트 존재(checkMission 회귀 가드)')
 
 if (pass) { console.log('✅ goal 17 gate passes'); process.exit(0) }
 console.log('❌ goal 17 gate failed'); process.exit(1)
