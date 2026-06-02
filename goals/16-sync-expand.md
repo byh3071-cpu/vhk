@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 16
 title: vhk sync 확대 — Gemini CLI + Cline (P2)
-status: NOT_STARTED
+status: DONE
 priority: P2
 version: v1.8.1
+completed: 2026-06-02
 ---
 
 # Goal 16: vhk sync 확대 (Gemini CLI + Cline)

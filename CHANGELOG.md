@@ -6,6 +6,23 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.8.1] - 2026-06-02
+
+> **vhk sync 확대 — Gemini CLI + Cline (Goal 16, 포터빌리티 STEP 1.5 잔여).** RULES.md 단일소스 →
+> sync 대상 5종 → 7종. 도구를 바꿔도 규칙이 따라가는 포터빌리티 강화.
+
+### Added
+
+- **`vhk sync` 대상 +2종** (`src/commands/sync.ts`) — Gemini CLI `GEMINI.md`(공식 컨텍스트 파일) +
+  Cline `.clinerules/vhk-rules.md`(공식 docs.cline.bot — `.clinerules/` 디렉터리 다중 규칙). 둘 다 Markdown 무제한 → `buildCodingDoc` 재사용(절삭 없음).
+  `SYNC_TARGETS` 레지스트리 2 엔트리 추가 = drift 감지·백업·`.synced`·`--dry-run`·비대화형 가드 **자동 반영**
+  (추가 배선 0). `ko.sync.geminiDone`/`clineDone` 메시지.
+
+### Note
+
+- **Zed 제외** — Zed 는 이미 `AGENTS.md`·`CLAUDE.md`·`.cursorrules` 를 읽으므로(공식 docs) 기존 sync 로 커버, 중복.
+  공식 경로 근거 없는 도구는 추가하지 않는다. 테스트 656 pass(신규 4, 회귀 0). SYNC_TARGETS 7종 회귀 가드.
+
 ## [1.8.0] - 2026-06-02
 
 > **vhk review — 적대적 자기검증 v0 (Goal 15, Trust Loop 배치 5).** verify(Goal 13)가 모은 증거(latest.json)를
