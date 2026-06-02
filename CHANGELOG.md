@@ -6,6 +6,31 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.7.1] - 2026-06-02
+
+> **verify --report (Human Panel HTML v0, Goal 14, 배치 6).** Goal 13 의 `latest.json`(기계용 증거)을
+> 같은 진실원천 그대로 사람이 한눈에 보는 **정적 HTML**로 렌더. 성장 루프의 "증거 → 사람이 읽는 패널" 단계.
+> 철학: 새 증거 안 만듦(렌더만) + 무빌드·무의존(인라인 CSS, 오프라인) + 기존 verify 무손상(옵션 추가만).
+
+### Added
+
+- **`vhk verify --report`** (`src/commands/verify-report.ts`) — `.vhk/reports/latest.json` 을 읽어
+  사람용 정적 HTML `.vhk/reports/latest.html` 생성. `renderReportHtml(report)` 순수 함수 —
+  인라인 CSS, **외부 의존 0**(CDN/스크립트 없음), 오프라인 동작. status 배지(PASS/WARN/FAIL) +
+  게이트별 표(label·종료코드·detail) + nextActions + generatedAt. `escapeHtml` 로 사용자 텍스트 이스케이프.
+  latest.json 없으면 verify 1회 선실행 후 렌더, 있으면 **BOM-safe `readJsonFile`** 로 읽음.
+- **`vhk verify --open`** — 리포트 생성 후 기본 브라우저로 열기(`safeExecFile`, shell 없는 argv 호출).
+  비대화형/CI/MCP(비-TTY)에서는 `isInteractive()` 로 **자동 스킵**.
+
+### Security
+
+- HTML 에 **secret/env 미포함** — latest.json 이 이미 미포함(Goal 13) → 그대로 렌더(누출 0).
+  쓰기 권한 없으면 크래시 대신 친절 에러 + exit≠0.
+
+### Note
+
+- 기존 `vhk verify` / `--json` 동작 무손상(옵션 추가만). 테스트 11개 추가(FAIL→HTML 회귀 가드 포함).
+
 ## [1.7.0] - 2026-06-02
 
 > **verify 증거화 (Evidence Ledger v0, #13 Goal 13).** `vhk verify` 가 lite(체크리스트 안내)에서
