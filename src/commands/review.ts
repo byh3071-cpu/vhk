@@ -332,10 +332,22 @@ export async function review(opts: { id?: string } = {}): Promise<void> {
     console.error(chalk.yellow(`  ⚠️  review 섹션 기록 실패(권한?): ${e instanceof Error ? e.message : String(e)}`))
   }
 
-  // exit 1 의미 분리: 여기선 "강한 거짓완료 의심"으로 실패(증거 부재 중단과 구분 — 위에서 별도 메시지·return).
-  process.exitCode = result.suspicions.length > 0 ? 1 : 0
+  // exit code 정책 (테스트로 고정):
+  //  - exit 0 = 통과로 봐도 되는 경우만 → ① vacuous(완료 주장 없음) ② confidence high(의심 0 + 커버리지·신선도 충분)
+  //  - exit 1 = 그 외 전부 → 강한 거짓완료 의심 / 증거 불충분(medium·low: stale·미검증·커버리지 부족)
+  //  stale·unmapped·coverage 부족은 절대 "통과"로 취급하지 않는다(거짓 안심 금지).
+  const vacuous = result.checkedCount === 0
+  const cleanHigh = result.suspicions.length === 0 && result.confidence === 'high'
+  process.exitCode = vacuous || cleanHigh ? 0 : 1
 
-  if (result.suspicions.length > 0) {
+  if (vacuous) {
+    // 완료 주장 자체가 없음 → 실패 아님(0), 단 goal done 안내도 안 함.
+    printNextStep({
+      message: '완료 주장이 없습니다 — 완료조건을 채운 뒤 검증하세요:',
+      command: 'vhk verify',
+      cursorHint: '완료조건 채워줘',
+    })
+  } else if (result.suspicions.length > 0) {
     console.log(chalk.dim('\n  AI 재질문 프롬프트:'))
     console.log(chalk.cyan(result.reprompt.split('\n').map((l) => `    ${l}`).join('\n')))
     printNextStep({
@@ -344,17 +356,20 @@ export async function review(opts: { id?: string } = {}): Promise<void> {
       cursorHint: '의심 항목 증거 보강해줘',
       alternative: result.suspicions[0].reason,
     })
-  } else if (result.checkedCount === 0) {
+  } else if (cleanHigh) {
     printNextStep({
-      message: '완료 주장이 없습니다 — 완료조건을 채운 뒤 검증하세요:',
-      command: 'vhk verify',
-      cursorHint: '완료조건 채워줘',
-    })
-  } else {
-    printNextStep({
-      message: `심문 통과(신뢰도 ${result.confidence}, 보장 아님). 완료 처리하려면:`,
+      message: '심문 통과(신뢰도 높음, 보장 아님). 완료 처리하려면:',
       command: `vhk goal done --id ${goalId}`,
       cursorHint: 'goal 완료 처리해줘',
+    })
+  } else {
+    // medium/low (의심은 없지만 stale·미검증·커버리지 부족) → "통과" 아님(exit 1). goal done 안내 금지.
+    console.log(chalk.dim('\n  AI 재질문 프롬프트:'))
+    console.log(chalk.cyan(result.reprompt.split('\n').map((l) => `    ${l}`).join('\n')))
+    printNextStep({
+      message: `증거 불충분(신뢰도 ${result.confidence}) — goal done 금지. 커버리지/신선도 보강 후 재검증:`,
+      command: 'vhk verify',
+      cursorHint: '증거 보강 후 다시 검증해줘',
     })
   }
 }

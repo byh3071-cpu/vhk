@@ -12,6 +12,9 @@ import {
   type CompletionCheck,
 } from '../src/commands/review.js'
 import type { GateResult, ReportStatus, VerifyReport } from '../src/commands/verify.js'
+import { routeNaturalLanguage } from '../src/lib/nlp-router.js'
+import { dispatchNlpRoute } from '../src/lib/nlp-run.js'
+import { KNOWN_COMMAND_TOKENS } from '../src/lib/cli-args.js'
 
 const GEN_AT = '2026-06-02T00:00:00.000Z'
 const FRESH = Date.parse(GEN_AT) // crossCheck(now=FRESH) → age 0 (신선)
@@ -206,5 +209,87 @@ ${checks.map((c) => `- [x] ${c}`).join('\n')}
     expect(raw).not.toMatch(/AKIA|BEGIN [A-Z ]*PRIVATE KEY|ghp_[A-Za-z0-9]/)
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  // ── exit code 정책 고정 ──
+  it('confidence high(신선+커버리지 충분) → exit 0', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과', '테스트 통과', '빌드 통과'])
+    // generatedAt 을 now 로 → 신선. 전 게이트 pass → 의심 0, coverage 1.
+    const fresh = report('PASS', [gate('typecheck', 'pass'), gate('test', 'pass'), gate('build', 'pass')], new Date().toISOString())
+    seedReport(d, fresh)
+    process.chdir(d)
+    await review({ id: '9' })
+    expect(process.exitCode).toBe(0)
+    const merged = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'reports', 'latest.json'), 'utf-8'))
+    expect(merged.review.confidence).toBe('high')
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('증거 불충분(미검증 다수 → coverage 낮음, 의심 0) → exit 1 (통과 취급 안 함)', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과', '문서 업데이트', 'UX 개선'])
+    seedReport(d, report('PASS', [gate('typecheck', 'pass')], new Date().toISOString()))
+    process.chdir(d)
+    await review({ id: '9' })
+    expect(process.exitCode).toBe(1)
+    const merged = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'reports', 'latest.json'), 'utf-8'))
+    expect(merged.review.suspicions).toHaveLength(0)
+    expect(merged.review.confidence).not.toBe('high')
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('stale 증거(의심 0, 커버리지 충분이라도) → exit 1', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과'])
+    // generatedAt 옛날 → stale → high 금지 → exit 1.
+    seedReport(d, report('PASS', [gate('typecheck', 'pass')], '2020-01-01T00:00:00.000Z'))
+    process.chdir(d)
+    await review({ id: '9' })
+    expect(process.exitCode).toBe(1)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('vacuous(체크 0) → exit 0', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    fs.mkdirSync(path.join(d, 'goals'), { recursive: true })
+    fs.writeFileSync(
+      path.join(d, 'goals', '9-x.md'),
+      '---\nvhk_format: 1\ntype: goal\nid: 9\ntitle: x\nstatus: IN_PROGRESS\n---\n# x\n## Completion Check\n- [ ] 아직 미체크\n',
+      'utf-8'
+    )
+    seedReport(d, report('PASS', [gate('typecheck', 'pass')], new Date().toISOString()))
+    process.chdir(d)
+    await review({ id: '9' })
+    expect(process.exitCode).toBe(0)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('자연어 경로(dispatchNlpRoute)로 review 실제 실행 → latest.json 에 review 병합', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과'])
+    seedReport(d, report('PASS', [gate('typecheck', 'pass')], new Date().toISOString()))
+    process.chdir(d)
+    await dispatchNlpRoute({ command: 'review', explanation: '', confidence: 'high' }, '거짓완료 없는지 검토해')
+    const merged = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'reports', 'latest.json'), 'utf-8'))
+    expect(merged.review).toBeTruthy()
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+})
+
+describe('review — 라우팅 (자연어/commander 둘 다)', () => {
+  it('KNOWN_COMMAND_TOKENS 에 review/검토 → vhk review·vhk 검토 가 commander 로 (NLP 오탐 방지)', () => {
+    expect(KNOWN_COMMAND_TOKENS.has('review')).toBe(true)
+    expect(KNOWN_COMMAND_TOKENS.has('검토')).toBe(true)
+  })
+  it('자연어 → review 라우팅', () => {
+    expect(routeNaturalLanguage('거짓완료 없는지 검토해')?.command).toBe('review')
+    expect(routeNaturalLanguage('적대 검증해줘')?.command).toBe('review')
+    expect(routeNaturalLanguage('검토')?.command).toBe('review')
   })
 })

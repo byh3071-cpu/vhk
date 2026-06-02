@@ -64,7 +64,13 @@ must(/COVERAGE_MIN/.test(rv) && /coverage\s*<\s*COVERAGE_MIN/.test(rv), 'coverag
 must(/assessFreshness|freshness/.test(rv) && /STALE_AGE_MS/.test(rv) && /stale/.test(rv), '증거 신선도 판정(stale 시 high 금지)')
 must(/unmappedCount|미검증/.test(rv), '미검증(unmapped) 완료조건 분류·노출')
 must(/checkedCount === 0|체크된 완료조건이 없|vacuous/.test(rv), 'vacuous(체크 0) 가드 — 거짓 high 금지')
+must(/vacuous \|\| cleanHigh \? 0 : 1/.test(rv) && /confidence === 'high'/.test(rv), 'exit 정책: high/vacuous 만 0, medium·low 는 1(통과 취급 금지)')
+must(/cleanHigh[\s\S]{0,400}goal done --id/.test(rv), 'goal done 안내는 cleanHigh 일 때만(medium/low 금지)')
 must(/REPORT_PATH_REL.*없음|없음.*review|existsSync\(jsonPath\)/.test(rv), 'latest.json 부재 시 안내 분기(자동 생성 안 함)')
+const nr = read('src/lib/nlp-run.ts') ?? ''
+const ca = read('src/lib/cli-args.ts') ?? ''
+must(/case 'review':/.test(nr) && /import \{ review \}/.test(nr), "dispatchNlpRoute 에 case 'review' + import (자연어 실행)")
+must(/'review'/.test(ca) && /'검토'/.test(ca), 'KNOWN_COMMAND_TOKENS 에 review/검토 (commander 경로)')
 must(!/maskSecret|f\.match|findSecretsInLine/.test(rv), 'review 가 시크릿 값 수집 안 함(파일 원문 echo 없음)')
 must(existsSync('tests/review.test.ts'), 'review 테스트 존재(거짓완료 회귀 가드 포함)')
 
