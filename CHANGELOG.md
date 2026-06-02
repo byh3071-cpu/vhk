@@ -6,6 +6,27 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [1.8.0] - 2026-06-02
+
+> **vhk review — 적대적 자기검증 v0 (Goal 15, Trust Loop 배치 5).** verify(Goal 13)가 모은 증거(latest.json)를
+> 그대로 믿지 않고, goal 의 Completion Check 와 교차검증해 "거짓완료"를 적극적으로 찾는 반대 심문 층.
+> 철학: 증거를 의심 + 새 증거 안 만듦(렌더·심문만) + 판정은 보장이 아니라 신뢰도("보장 아님" 표기 필수).
+
+### Added
+
+- **`vhk review`** (`src/commands/review.ts`) — `.vhk/reports/latest.json` + 대상 goal 의 Completion Check 를
+  교차검증. 완료조건 ↔ 게이트 증거 매핑으로 거짓완료 의심(체크됨인데 게이트 fail/skip/부재, status DONE 인데
+  verify FAIL) + 미검증(unmapped) + 신뢰도(low/medium/high) 판정. 판정을 latest.json 의 `review` 섹션으로
+  병합(SoT 유지, 새 증거 안 만듦). `--id N` 또는 active goal. `검토` 별칭 + 자연어 라우팅.
+
+### Note (자기모순 방지 — 거짓 안심 금지)
+
+- **신뢰도 상한 규칙**: confidence high 는 (의심 0 **AND 미검증 0** AND coverage ≥ 0.5 AND 증거 신선) 일 때만.
+  unmapped 가 하나라도 있거나 stale(>6h)·신선도 미확인이면 medium 으로 캡 — 증거 없음 ≠ 통과.
+- **exit 정책**: exit 0 은 (vacuous | cleanHigh) 뿐. medium·low·병합 실패 → exit 1 + `goal done` 안내 금지.
+- **한계 disclaimer 명시**: 기능 완료조건의 미매핑·git diff 미사용(변경 미커버)·commit 바인딩 없음(신선도 추정).
+- **secret 누출 0**: latest.json 이 이미 시크릿 미포함 → review 도 파일 원문 echo 안 함(`vhk secure scan` 통과).
+
 ## [1.7.1] - 2026-06-02
 
 > **verify --report (Human Panel HTML v0, Goal 14, 배치 6).** Goal 13 의 `latest.json`(기계용 증거)을
