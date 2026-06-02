@@ -172,7 +172,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk update` | `업데이트` | VHK CLI 최신 버전으로 셀프 업데이트 |
 | `vhk context` | `맥락` | 프로젝트 트리·스택·CLI 명령 목록을 `.vhk/context.md`로 자동 생성 (AI 어시스턴트용). `--compact` 로 토큰 절감형(Active Goal + 최근 blockers/learnings/memories + 참조 링크) 출력 |
 | `vhk context-show` | `맥락보기` | 현재 컨텍스트 파일 내용 출력 |
-| `vhk memory` | `기억` | 기억 v2 4버킷(결정/실패/성공) 관리 (`add --type` / `list [--all]` / `remove` / `archive` / `migrate`, `.vhk/memory.json`) |
+| `vhk memory` | `기억` | 기억 v2 4버킷(결정/실패/성공) 관리 (`add --type` / `list [--all]` / `remove` / `archive` / `migrate`). 조회 명령(`memory list`·`context`·`brief`) 첫 실행 시 v1→v2 자동 마이그레이션 + `.v1.bak` 원본 백업 |
 | `vhk brief` | `브리핑` | 프로젝트 정보 + git 상태 + 결정사항 + 레퍼런스 통합 보고서 `.vhk/brief.md` |
 | `vhk goal` | `목표` | Goal 단계별 미션 관리 (`init` / `list` / `next` / `check` / `done`) — vspec/vooster 패턴 |
 | `vhk mission` | `미션` | 미션 계약(`set` / `check` / `clear`) — 작업 범위·금지선 선언·검증 (`.vhk/mission.json`, 경로 glob) |
