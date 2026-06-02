@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 17
 title: vhk mission — Mission Contract (scope/intent 층) — P3
-status: NOT_STARTED
+status: DONE
 priority: P3
 version: v1.9.0
+completed: 2026-06-03
 ---
 
 # Goal 17: vhk mission (Mission Contract v0)

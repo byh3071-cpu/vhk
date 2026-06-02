@@ -13,17 +13,17 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.8.1 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
+- **버전:** v1.9.0 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
 - **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 656 pass (vitest)
+- **테스트:** 674 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 5 이후 — Goal 16(sync 확대 Gemini·Cline) DONE → v1.8.1 릴리즈 PR. 다음 = Goal 17(vhk mission).
+- **Phase:** Phase 5 이후 — Goal 17(vhk mission, 배치 7) DONE → v1.9.0 릴리즈 PR. Trust Loop scope/verify/review 층 완성.
 - **블로커:** 없음
-- **다음 액션:** 배치 7(vhk mission, v1.9.0), 배치 8+(Evolution Loop). publish 는 사람(2FA OTP).
-- **마지막 업데이트:** 2026-06-02
+- **다음 액션:** 배치 8+(Evolution Loop — 반복 패턴 감지/evolve). publish 는 사람(2FA OTP).
+- **마지막 업데이트:** 2026-06-03
 
 ## 코딩 컨벤션
 
