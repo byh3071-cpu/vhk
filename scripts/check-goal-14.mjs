@@ -50,9 +50,18 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 14 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 14 고유 검증 (verify --report → 사람용 정적 HTML) ───────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const vr = read('src/commands/verify-report.ts') ?? ''
+const vf = read('src/commands/verify.ts') ?? ''
+const idx = read('src/index.ts') ?? ''
+must(/export function renderReportHtml/.test(vr) && /export function escapeHtml/.test(vr), 'renderReportHtml + escapeHtml export (순수 렌더러)')
+must(!/https?:\/\//.test(vr) && !/<script\s+src/i.test(vr), '렌더러 외부 의존 0 (URL/외부 스크립트 없음 — 오프라인)')
+must(/--report/.test(idx) && /--open/.test(idx), 'index 에 verify --report / --open 옵션')
+must(/REPORT_HTML_PATH_REL/.test(vf) && /readJsonFile<VerifyReport>/.test(vf), 'latest.html 쓰기 + latest.json BOM-safe 읽기(readJsonFile)')
+must(/renderReportHtml\(/.test(vf), 'verify 가 renderReportHtml 로 렌더(새 증거 안 만듦)')
+must(/isInteractive\(\)/.test(vf) && /자동 스킵/.test(vf), '--open 비대화형/CI/MCP 자동 스킵')
+must(existsSync('tests/verify-report.test.ts'), 'verify-report 테스트 존재(FAIL 회귀 가드 포함)')
 
 if (pass) { console.log('✅ goal 14 gate passes'); process.exit(0) }
 console.log('❌ goal 14 gate failed'); process.exit(1)
