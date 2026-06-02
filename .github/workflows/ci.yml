@@ -28,6 +28,10 @@ jobs:
       - name: 의존성 설치
         run: pnpm install --frozen-lockfile
 
+      # raw JSON.parse(readFileSync) 재도입 차단 — BOM/손상 JSON throw 원천 봉쇄(readJsonFile 강제).
+      - name: raw JSON.parse 금지 게이트
+        run: node scripts/check-no-raw-json-parse.mjs
+
       # build 가 test 보다 먼저: cli-args e2e 테스트가 dist/index.js 를 spawn 한다.
       - name: 빌드
         run: pnpm build

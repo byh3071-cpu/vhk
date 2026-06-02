@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import ignore, { type Ignore } from 'ignore'
+import { readJsonFile } from './read-json.js'
 
 /**
  * 클라우드 동기화 순수 로직 — 네트워크(gh) 호출과 분리해 단위 테스트 가능하게 둔다.
@@ -89,7 +90,8 @@ export function readCloudConfig(rootDir: string): CloudConfig | null {
   const p = path.join(rootDir, VHK_DIR, CLOUD_CONFIG_FILE)
   if (!fs.existsSync(p)) return null
   try {
-    const parsed = JSON.parse(fs.readFileSync(p, 'utf-8'))
+    // readJsonFile: UTF-8 BOM 제거(BOM-safe). 손상 JSON 은 throw → 아래 catch 에서 null.
+    const parsed = readJsonFile<{ gistId?: unknown }>(p)
     if (parsed && typeof parsed.gistId === 'string' && parsed.gistId) {
       return { gistId: parsed.gistId }
     }
