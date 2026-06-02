@@ -35,6 +35,7 @@ import { cloudPush, cloudPull } from '../commands/cloud.js'
 import { quickActions } from '../commands/help.js'
 import { mode } from '../commands/mode.js'
 import { verify } from '../commands/verify.js'
+import { review } from '../commands/review.js'
 import { runGuarded } from './safety-guard.js'
 import { NL_GUARDED_ACTIONS } from './risk-policy.js'
 
@@ -129,6 +130,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return mode()
     case 'verify':
       return verify()
+    case 'review':
+      return review()
   }
 }
 
