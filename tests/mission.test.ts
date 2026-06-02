@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { execFileSync } from 'node:child_process'
 import { simpleGit } from 'simple-git'
 import {
   globToRegExp,
@@ -143,6 +144,62 @@ describe('mission — 커맨드 통합', () => {
     await missionCheck()
     expect(process.exitCode).toBe(0)
     process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  // ── 보존(preserve) 회귀 — 옵션 미지정 시 기존 scope/forbidden 안 비움 ──
+  it('missionSet 옵션 미지정 → 기존 scope/forbidden 보존 (objective만 갱신)', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mission-'))
+    process.chdir(d)
+    await missionSet({ objective: 'old', scope: ['src/**'], forbidden: ['**/*.env'], yes: true })
+    await missionSet({ objective: 'new', yes: true }) // scope/forbidden 미지정
+    const m = readMission(d)!
+    expect(m.objective).toBe('new')
+    expect(m.scope).toEqual(['src/**'])
+    expect(m.forbidden).toEqual(['**/*.env'])
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('missionSet --clear-scope → scope 만 비움 (forbidden 보존)', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mission-'))
+    process.chdir(d)
+    await missionSet({ objective: 'o', scope: ['src/**'], forbidden: ['**/*.env'], yes: true })
+    await missionSet({ objective: 'o', clearScope: true, yes: true })
+    const m = readMission(d)!
+    expect(m.scope).toEqual([])
+    expect(m.forbidden).toEqual(['**/*.env'])
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+})
+
+describe('mission — CLI 커맨더 경로 보존 회귀 (default [] 제거)', () => {
+  const DIST = path.join(process.cwd(), 'dist', 'index.js')
+  it('vhk mission set --objective new --yes → 기존 scope/forbidden 보존 + check 여전히 exit 1', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mission-cli-'))
+    execFileSync('git', ['init'], { cwd: d, stdio: 'pipe' })
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(
+      path.join(d, MISSION_PATH_REL),
+      JSON.stringify(mission(['src/**'], ['**/*.env']), null, 2),
+      'utf-8'
+    )
+    // objective 만 갱신 — scope/forbidden 미지정. commander default [] 였다면 여기서 비워짐.
+    execFileSync('node', [DIST, 'mission', 'set', '--objective', 'new', '--yes'], { cwd: d, stdio: 'pipe' })
+    const m = JSON.parse(fs.readFileSync(path.join(d, MISSION_PATH_REL), 'utf-8'))
+    expect(m.objective).toBe('new')
+    expect(m.scope).toEqual(['src/**']) // 보존
+    expect(m.forbidden).toEqual(['**/*.env']) // 보존
+    // forbidden 매칭 파일 변경 → check 여전히 exit 1
+    fs.writeFileSync(path.join(d, 'leak.env'), 'TOKEN=x', 'utf-8')
+    let code = 0
+    try {
+      execFileSync('node', [DIST, 'mission', 'check'], { cwd: d, stdio: 'pipe' })
+    } catch (e) {
+      code = (e as { status?: number }).status ?? -1
+    }
+    expect(code).toBe(1)
     fs.rmSync(d, { recursive: true, force: true })
   })
 })
