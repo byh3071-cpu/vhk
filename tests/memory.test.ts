@@ -1,117 +1,175 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import {
+  migrateMemory,
+  readMemory,
+  writeMemory,
+  recordLesson,
+  memoryAdd,
+  memoryList,
+  memoryRemove,
+  memoryArchive,
+  memoryMigrate,
+  MEMORY_PATH_REL,
+  type MemoryFileV2,
+} from '../src/commands/memory.js'
 
-const mockExistsSync = vi.fn()
-const mockReadFileSync = vi.fn()
-const mockWriteFileSync = vi.fn()
-const mockMkdirSync = vi.fn()
+function tmp(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mem-'))
+}
+function seedV1(d: string, arr: unknown[]): void {
+  fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+  fs.writeFileSync(path.join(d, MEMORY_PATH_REL), JSON.stringify(arr), 'utf-8')
+}
+function seedLearnings(d: string, body: string): void {
+  fs.mkdirSync(path.join(d, 'docs', 'state'), { recursive: true })
+  fs.writeFileSync(path.join(d, 'docs', 'state', 'learnings.md'), body, 'utf-8')
+}
+function read(d: string): MemoryFileV2 {
+  return JSON.parse(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8'))
+}
 
-vi.mock('node:fs', () => ({
-  existsSync: (...a: unknown[]) => mockExistsSync(...a),
-  readFileSync: (...a: unknown[]) => mockReadFileSync(...a),
-  writeFileSync: (...a: unknown[]) => mockWriteFileSync(...a),
-  mkdirSync: (...a: unknown[]) => mockMkdirSync(...a),
-}))
+describe('memory v2 — migrateMemory (순수)', () => {
+  it('v1 평면 배열 → decisions (status active)', () => {
+    const v2 = migrateMemory([{ content: 'A', addedAt: '2026-01-01', tags: ['x'] }, { content: 'B' }])
+    expect(v2.schemaVersion).toBe(2)
+    expect(v2.decisions).toHaveLength(2)
+    expect(v2.decisions[0]).toMatchObject({ content: 'A', tags: ['x'], status: 'active' })
+    expect(v2.failures).toEqual([])
+  })
+  it('learnings.md 흡수 → failures (lesson, content 비움)', () => {
+    const learnings = '# Learnings\n\n- [2026-05-27 goal-1] 교훈 하나.\n- [2026-05-28 release] 교훈 둘.\n'
+    const v2 = migrateMemory([], learnings)
+    expect(v2.failures).toHaveLength(2)
+    expect(v2.failures[0].content).toBe('')
+    expect(v2.failures[0].lesson).toBe('교훈 하나.')
+    expect(v2.failures[0].tags).toEqual(['goal-1'])
+  })
+  it('이미 v2 면 멱등 (learnings 재흡수 안 함)', () => {
+    const once = migrateMemory([{ content: 'A' }], '- [2026-01-01 goal-1] L.\n')
+    const twice = migrateMemory(once, '- [2026-01-01 goal-1] L.\n')
+    expect(twice.decisions).toHaveLength(1)
+    expect(twice.failures).toHaveLength(1) // 두 번째 호출이 재흡수하지 않음
+  })
+})
 
-describe('memory', () => {
+describe('memory v2 — read/write (fs)', () => {
+  it('readMemory: v1 + learnings 흡수 → v2 (BOM-safe)', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), '﻿' + JSON.stringify([{ content: 'BOM 결정' }]), 'utf-8')
+    seedLearnings(d, '- [2026-01-01 goal-2] BOM 교훈.\n')
+    const mem = readMemory(d)
+    expect(mem.decisions[0].content).toBe('BOM 결정')
+    expect(mem.failures[0].lesson).toBe('BOM 교훈.')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+  it('writeMemory: 기존 파일 있으면 .bak 백업', () => {
+    const d = tmp()
+    seedV1(d, [{ content: '원본' }])
+    writeMemory(d, migrateMemory(readMemory(d)))
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.bak'))).toBe(true)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+})
+
+describe('memory v2 — recordLesson (learn 통합)', () => {
+  it('교훈 → failures.lesson + learnings.md 신규 기록 안 함', () => {
+    const d = tmp()
+    const entry = recordLesson(d, 'PowerShell 은 && 미지원', 7)
+    expect(entry.lesson).toBe('PowerShell 은 && 미지원')
+    const mem = read(d)
+    expect(mem.failures[0].lesson).toBe('PowerShell 은 && 미지원')
+    expect(mem.failures[0].tags).toEqual(['goal-7'])
+    expect(fs.existsSync(path.join(d, 'docs', 'state', 'learnings.md'))).toBe(false) // learnings.md 미생성
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+})
+
+describe('memory v2 — 커맨드 (tmp+chdir)', () => {
+  let origCwd: string
   beforeEach(() => {
-    vi.resetAllMocks()
+    origCwd = process.cwd()
     vi.spyOn(console, 'log').mockImplementation(() => {})
     process.exitCode = 0
   })
   afterEach(() => {
+    process.chdir(origCwd)
+    vi.restoreAllMocks()
     process.exitCode = 0
   })
 
-  it('모듈을 import 할 수 있다', async () => {
-    const mod = await import('../src/commands/memory.js')
-    expect(mod.memoryAdd).toBeDefined()
-    expect(mod.memoryList).toBeDefined()
-    expect(mod.memoryRemove).toBeDefined()
+  it('memoryAdd --type failure (--why --lesson) → failures 버킷, status active', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('테스트가 변경 미커버', { type: 'failure', why: '테스트 안 짬', lesson: '회귀 가드 먼저' })
+    const mem = read(d)
+    expect(mem.failures).toHaveLength(1)
+    expect(mem.failures[0]).toMatchObject({ why: '테스트 안 짬', lesson: '회귀 가드 먼저', status: 'active' })
+    expect(mem.decisions).toEqual([])
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('memoryAdd — 빈 content면 쓰지 않음 + exitCode=1 (VHK-016 저장실패 비-0)', async () => {
-    const { memoryAdd } = await import('../src/commands/memory.js')
+  it('memoryAdd --type success (--why) → successes', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('롤백 빨랐다', { type: 'success', why: '백업 먼저' })
+    expect(read(d).successes[0]).toMatchObject({ why: '백업 먼저', status: 'active' })
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryAdd 기본 → decisions, 빈 content → exit 1', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('API tRPC')
+    expect(read(d).decisions[0].content).toBe('API tRPC')
     await memoryAdd('')
-    expect(mockWriteFileSync).not.toHaveBeenCalled()
     expect(process.exitCode).toBe(1)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('memoryAdd — 새 content면 .vhk/memory.json에 추가', async () => {
-    mockExistsSync.mockReturnValue(false)
-    const { memoryAdd } = await import('../src/commands/memory.js')
-    await memoryAdd('API는 tRPC 사용', ['decision', 'arch'])
-
-    expect(mockMkdirSync).toHaveBeenCalledWith('.vhk', { recursive: true })
-    const call = mockWriteFileSync.mock.calls[0]
-    expect(String(call[0])).toContain('memory.json')
-    const data = JSON.parse(String(call[1]))
-    expect(data).toHaveLength(1)
-    expect(data[0].content).toBe('API는 tRPC 사용')
-    expect(data[0].tags).toEqual(['decision', 'arch'])
-    expect(data[0].addedAt).toBeDefined()
+  it('memoryArchive → status archived (활성 목록서 제외, 선순환)', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('보관 대상')
+    await memoryArchive('1')
+    const mem = read(d)
+    expect(mem.decisions[0].status).toBe('archived')
+    expect(mem.decisions[0].archivedAt).toBeDefined()
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('memoryAdd — 기존 항목에 append', async () => {
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify([{ content: '기존', addedAt: '2026-01-01', tags: [] }])
-    )
-    const { memoryAdd } = await import('../src/commands/memory.js')
-    await memoryAdd('새 결정')
-
-    const data = JSON.parse(String(mockWriteFileSync.mock.calls[0][1]))
-    expect(data).toHaveLength(2)
-    expect(data[0].content).toBe('기존')
-    expect(data[1].content).toBe('새 결정')
-  })
-
-  it('memoryList — 항목 0이면 안내만, read 호출 X', async () => {
-    mockExistsSync.mockReturnValue(false)
-    const { memoryList } = await import('../src/commands/memory.js')
-    await memoryList()
-    expect(mockReadFileSync).not.toHaveBeenCalled()
-  })
-
-  it('memoryList — 항목 출력', async () => {
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify([
-        { content: 'A', addedAt: '2026-01-01T00:00:00.000Z', tags: [] },
-        { content: 'B', addedAt: '2026-02-01T00:00:00.000Z', tags: ['db'] },
-      ])
-    )
-    const logSpy = vi.spyOn(console, 'log')
-    const { memoryList } = await import('../src/commands/memory.js')
-    await memoryList()
-    const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
-    expect(joined).toContain('A')
-    expect(joined).toContain('B')
-    expect(joined).toContain('db')
-  })
-
-  it('memoryRemove — 유효하지 않은 인덱스면 쓰지 않음', async () => {
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify([{ content: 'A', addedAt: '2026-01-01', tags: [] }])
-    )
-    const { memoryRemove } = await import('../src/commands/memory.js')
-    await memoryRemove('99')
-    expect(mockWriteFileSync).not.toHaveBeenCalled()
-  })
-
-  it('memoryRemove — 유효한 인덱스면 삭제 후 저장', async () => {
-    mockExistsSync.mockReturnValue(true)
-    mockReadFileSync.mockReturnValue(
-      JSON.stringify([
-        { content: 'A', addedAt: '2026-01-01', tags: [] },
-        { content: 'B', addedAt: '2026-02-01', tags: [] },
-      ])
-    )
-    const { memoryRemove } = await import('../src/commands/memory.js')
+  it('memoryRemove → 해당 항목 삭제', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('지울것')
+    await memoryAdd('남길것')
     await memoryRemove('1')
+    const mem = read(d)
+    expect(mem.decisions).toHaveLength(1)
+    expect(mem.decisions[0].content).toBe('남길것')
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 
-    const data = JSON.parse(String(mockWriteFileSync.mock.calls[0][1]))
-    expect(data).toHaveLength(1)
-    expect(data[0].content).toBe('B')
+  it('memoryMigrate → v1 파일을 v2 로 재기록 (.bak)', async () => {
+    const d = tmp()
+    seedV1(d, [{ content: '결정1' }])
+    seedLearnings(d, '- [2026-01-01 goal-1] 교훈1.\n')
+    process.chdir(d)
+    await memoryMigrate()
+    const mem = read(d)
+    expect(mem.schemaVersion).toBe(2)
+    expect(mem.decisions[0].content).toBe('결정1')
+    expect(mem.failures[0].lesson).toBe('교훈1.')
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.bak'))).toBe(true)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
   })
 })

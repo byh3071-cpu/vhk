@@ -52,9 +52,18 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 18 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 18 고유 검증 (memory schema v2) ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const mm = read('src/commands/memory.ts') ?? ''
+const ag = read('src/commands/agent.ts') ?? ''
+must(/export function migrateMemory/.test(mm) && /schemaVersion: 2|MEMORY_SCHEMA_VERSION = 2/.test(mm), 'migrateMemory export + schemaVersion 2')
+must(/decisions/.test(mm) && /failures/.test(mm) && /successes/.test(mm) && /patterns/.test(mm), '4버킷 (decisions/failures/successes/patterns)')
+must(/why\?/.test(mm) && /lesson\?/.test(mm), 'FailEntry {why,lesson} · SuccessEntry {why}')
+must(/parseLearnings|learnings/.test(mm) && /readLearningsRaw/.test(mm), 'learnings.md → failures 흡수')
+must(/export function recordLesson/.test(mm) && /recordLesson/.test(ag) && !/appendLearning/.test(ag), 'learn → memory 통합 (agent.ts recordLesson, appendLearning 제거)')
+must(/status: 'active'|EntryStatus/.test(mm) && /export async function memoryArchive/.test(mm) && /archivedAt/.test(mm), 'status(active/resolved/archived) + memoryArchive')
+must(/copyFileSync/.test(mm) && /\.bak/.test(mm), '.bak 백업 (writeMemory)')
+must(/readJsonFile|stripBom/.test(mm), 'BOM-safe 읽기')
 
 if (pass) { console.log('✅ goal 18 gate passes'); process.exit(0) }
 console.log('❌ goal 18 gate failed'); process.exit(1)

@@ -44,19 +44,29 @@ updated: 2026-05-29
 
 ## 2. JSON 스키마
 
-### 2.1 `memory.json`
+### 2.1 `memory.json` (schema v2)
 
-의사결정·기억할 내용의 배열.
+**v2.0.0 BREAKING**: 평면 배열 → 4버킷 객체. v1(평면 배열)은 `vhk` 실행 시 자동 마이그레이션(`.bak` 백업, 멱등).
+교훈은 `failures.lesson` 단일 SoT (구 `docs/state/learnings.md` 흡수, `vhk learn` 통합).
 
 ```jsonc
-[
-  {
-    "content": "API는 tRPC 사용하기로 결정",  // string, 필수
-    "addedAt": "2026-05-29T12:00:00.000Z",     // string(ISO 8601), 필수
-    "tags": ["decision", "api"]                  // string[], 선택(기본 [])
-  }
-]
+{
+  "schemaVersion": 2,
+  "decisions": [
+    { "id": "d1", "content": "API는 tRPC", "tags": ["api"], "createdAt": "...", "status": "active" }
+  ],
+  "failures":  [
+    // status: active|resolved|archived (+resolvedAt/archivedAt). 패턴·진화는 active 만 본다.
+    { "id": "f1", "content": "테스트 미커버", "why": "...", "lesson": "회귀 가드 먼저", "tags": [], "createdAt": "...", "status": "active" }
+  ],
+  "successes": [
+    { "id": "s1", "content": "롤백 빨랐다", "why": "백업 먼저", "tags": [], "createdAt": "...", "status": "active" }
+  ],
+  "patterns": []  // Goal 19(vhk pattern)에서 채움
+}
 ```
+
+> v1 → v2: 평면 항목 → `decisions`, `docs/state/learnings.md` 교훈 → `failures`(lesson, content 비움). 마이그레이션 시 `memory.json.bak` 백업.
 
 ### 2.2 `refs.json`
 

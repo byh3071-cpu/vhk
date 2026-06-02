@@ -47,6 +47,20 @@ Cursor에게 한국어로 말해도 됩니다.
 
 > `mission` 은 작업의 목표·허용/금지 범위를 `.vhk/mission.json` 계약으로 선언하고, 변경 파일이 계약(scope/forbidden glob) 안인지 검증합니다. **경로 glob 기준**이며 objective 의미 부합은 검증하지 않습니다(보장 아님). forbidden 위반 시 exit 1.
 
+## 기억 v2 (memory — 4버킷)
+
+| 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
+|-------------|-----------|------------------|
+| 결정 기록 | `vhk memory add "tRPC 채택" --type decision` | "이거 기억해" |
+| 실패+교훈 기록 | `vhk memory add "테스트 미커버" --type failure --why "..." --lesson "회귀 가드 먼저"` | "이 실수 기억해" |
+| 성공 기록 | `vhk memory add "롤백 빨랐다" --type success --why "백업 먼저"` | "이 성공 기억해" |
+| 교훈만 빠르게 | `vhk learn "PowerShell 은 && 미지원"` | "교훈 남겨" |
+| 목록 | `vhk memory list [--type failure] [--all]` | "기억 보여줘" |
+| 보관(선순환) | `vhk memory archive <번호>` | "이거 보관해" |
+| v1→v2 변환 | `vhk memory migrate` | — |
+
+> **v2.0 BREAKING**: 평면 memory.json → 4버킷(결정/실패/성공/패턴). 첫 실행 시 자동 마이그레이션(`.bak` 백업). **교훈은 `vhk learn`·`memory failure --lesson` 단일 SoT** (구 `docs/state/learnings.md` 분리 폐지·흡수). 보관(archive)된 항목은 패턴·진화에서 제외(선순환).
+
 ## 환경 점검
 
 ```bash
