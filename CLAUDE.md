@@ -14,8 +14,8 @@ tags: [process, documentation]
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
 - **버전:** v2.0.0 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
-- **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 686 pass (vitest)
+- **MCP tool:** 25 (Goal 0 24 + `learn` v2.0 쓰기 도구)
+- **테스트:** 702 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태

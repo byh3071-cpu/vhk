@@ -32,7 +32,7 @@ import { audit } from './commands/audit.js'
 import { migrate } from './commands/migrate.js'
 import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
-import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryMigrate, type MemBucket } from './commands/memory.js'
+import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, type MemBucket } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
@@ -499,7 +499,7 @@ program
 const memoryCmd = program
   .command('memory')
   .alias('기억')
-  .description('기억 관리 v2 (decisions/failures/successes 4버킷) — add/list/remove/archive/migrate')
+  .description('기억 관리 v2 (decisions/failures/successes 4버킷) — add/list/remove/archive/resolve/unarchive/migrate')
   .action(async () => { await memoryList() })
 
 memoryCmd
@@ -511,8 +511,8 @@ memoryCmd
   .description('기억 저장 (--type 으로 결정/실패/성공 구분)')
   .action(async (content: string, opts: { type?: string; tags?: string; why?: string; lesson?: string }) => {
     const tags = opts.tags ? opts.tags.split(',').map((s) => s.trim()) : undefined
-    const type = (opts.type === 'failure' || opts.type === 'success' ? opts.type : 'decision') as MemBucket
-    await memoryAdd(content, { type, tags, why: opts.why, lesson: opts.lesson })
+    // 잘못된 --type 은 강등하지 않고 그대로 넘긴다 — memoryAdd 가 검증·거부(입력 유실 방지).
+    await memoryAdd(content, { type: opts.type, tags, why: opts.why, lesson: opts.lesson })
   })
 
 memoryCmd
@@ -534,12 +534,26 @@ memoryCmd
 
 memoryCmd
   .command('archive <index>')
+  .alias('보관')
   .description('기억 보관 (활성→archived, 패턴/진화에서 제외)')
   .action(async (index: string) => { await memoryArchive(index) })
 
 memoryCmd
+  .command('resolve <index>')
+  .alias('해결')
+  .description('기억 해결 표시 (활성→resolved, 패턴/진화에서 제외)')
+  .action(async (index: string) => { await memoryResolve(index) })
+
+memoryCmd
+  .command('unarchive <index>')
+  .alias('복구')
+  .description('보관/해결 항목을 다시 활성으로 복구 (archive/resolve 역전)')
+  .action(async (index: string) => { await memoryUnarchive(index) })
+
+memoryCmd
   .command('migrate')
-  .description('memory.json v1 → v2 마이그레이션 (.v1.bak 원본 영구 백업, 멱등)')
+  .alias('마이그레이션')
+  .description('memory.json v1 → v2 마이그레이션 (기존 v1 있으면 .v1.bak 원본 백업, 멱등)')
   .action(async () => { await memoryMigrate() })
 
 program

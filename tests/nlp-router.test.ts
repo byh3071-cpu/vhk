@@ -176,6 +176,32 @@ describe('자연어 라우팅', () => {
     expect(routeNaturalLanguage('기억 목록')?.command).toBe('memory')
   })
 
+  it('"기억 마이그레이트" → memory (args migrate), 패키지매니저 migrate 로 안 샘', () => {
+    const r = routeNaturalLanguage('기억 마이그레이트')
+    expect(r?.command).toBe('memory')
+    expect(r?.args).toEqual(['migrate'])
+  })
+
+  it('"메모리 마이그레이션" → memory (args migrate)', () => {
+    const r = routeNaturalLanguage('메모리 마이그레이션')
+    expect(r?.command).toBe('memory')
+    expect(r?.args).toEqual(['migrate'])
+  })
+
+  it('"패키지 매니저 마이그레이트" → migrate (memory 아님)', () => {
+    expect(routeNaturalLanguage('패키지 매니저 마이그레이트')?.command).toBe('migrate')
+  })
+
+  it('"메모리 누수 때문에 pnpm 으로 전환" → migrate (memory 단어가 있어도 pkg 전환 통과)', () => {
+    expect(routeNaturalLanguage('메모리 누수 때문에 pnpm 으로 전환')?.command).toBe('migrate')
+  })
+
+  it('"기억 보관" → 잘못된 memory list 라우팅 안 함 (archive 는 번호 필요 → NL 미지원)', () => {
+    const r = routeNaturalLanguage('기억 보관')
+    const isMemoryList = r?.command === 'memory' && (!r.args || r.args.length === 0)
+    expect(isMemoryList).toBe(false)
+  })
+
   it('"기억 추가해줘" → null (NL 배제)', () => {
     expect(routeNaturalLanguage('기억 추가해줘')).toBeNull()
   })

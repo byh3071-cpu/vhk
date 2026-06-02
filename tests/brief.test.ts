@@ -15,6 +15,9 @@ vi.mock('node:fs', () => ({
   readFileSync: (...a: unknown[]) => mockReadFileSync(...a),
   writeFileSync: (...a: unknown[]) => mockWriteFileSync(...a),
   mkdirSync: (...a: unknown[]) => mockMkdirSync(...a),
+  // writeMemory 는 백업(copyFileSync)과 원자적 쓰기(renameSync)를 쓴다 — 모킹 누락 시 마이그 write 가 throw.
+  copyFileSync: () => undefined,
+  renameSync: () => undefined,
 }))
 
 describe('brief', () => {

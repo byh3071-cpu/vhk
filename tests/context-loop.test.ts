@@ -41,10 +41,13 @@ describe('vhk context — Goal 2 자율 루프 확장', () => {
     makeGoalFile(dir, 0, 'DONE', 'Done Goal')
     makeGoalFile(dir, 1, 'IN_PROGRESS', '진행 중 미션')
     // v2: learnings.md 의 교훈은 readMemory 가 failures 로 흡수 → "저장된 기억" 섹션에 노출.
-    const { appendLearning } = await import('../src/lib/state-files.js')
-    appendLearning('lesson alpha')
-    appendLearning('lesson bravo')
-    appendLearning('lesson charlie')
+    // (v2.0 에서 appendLearning 제거 — learnings.md 는 마이그레이션 읽기 소스로만 남음. 직접 작성해 흡수 검증.)
+    mkdirSync(join(dir, 'docs', 'state'), { recursive: true })
+    writeFileSync(
+      join(dir, 'docs', 'state', 'learnings.md'),
+      '# Learnings\n\n- [2026-01-01 no-goal] lesson alpha\n- [2026-01-02 no-goal] lesson bravo\n- [2026-01-03 no-goal] lesson charlie\n',
+      'utf-8'
+    )
 
     const { context } = await import('../src/commands/context.js')
     await context()

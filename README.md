@@ -76,7 +76,7 @@ vhk gate          # 퀵 5문항 — GO / 다듬기 / 다른 아이디어
 | 🎯 **Goals 체계** | 단계별 미션 + 게이트 스크립트로 AI가 목표를 스스로 추적 | `vhk goal init` |
 | ▶️ **자율 루프** | `goal next → 작업 → goal check → goal done`. FAIL 시 `vhk blocker` 수동 기록 → 블로커 3건 누적 시 HARD_STOP 자동 | `vhk goal next` |
 | 🚧 **HARD_STOP 안전장치** | 블로커 3건 누적 → `.vhk/HARD_STOP` 트립와이어. `vhk resume --confirm` 만 해제 | `vhk blocker "<증상>"` |
-| 🔌 **MCP 24 tool** | Cursor·Claude Desktop 등에서 vhk를 채팅으로 호출 | `vhk mcp-init` |
+| 🔌 **MCP 25 tool** | Cursor·Claude Desktop 등에서 vhk를 채팅으로 호출 | `vhk mcp-init` |
 | 📋 **컨텍스트 영속화** | `.vhk/context.md` + `memory.json` + `brief.md` 로 세션 간 맥락 유지 | `vhk context` |
 | 🔀 **드리프트 감지** | 규칙 파일이 RULES.md와 어긋나거나 context가 코드보다 낡으면 자동 경고 (읽기전용) | `vhk doctor` |
 
@@ -172,7 +172,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk update` | `업데이트` | VHK CLI 최신 버전으로 셀프 업데이트 |
 | `vhk context` | `맥락` | 프로젝트 트리·스택·CLI 명령 목록을 `.vhk/context.md`로 자동 생성 (AI 어시스턴트용). `--compact` 로 토큰 절감형(Active Goal + 최근 blockers/learnings/memories + 참조 링크) 출력 |
 | `vhk context-show` | `맥락보기` | 현재 컨텍스트 파일 내용 출력 |
-| `vhk memory` | `기억` | 기억 v2 4버킷(결정/실패/성공) 관리 (`add --type` / `list [--all]` / `remove` / `archive` / `migrate`). 조회 명령(`memory list`·`context`·`brief`) 첫 실행 시 v1→v2 자동 마이그레이션 + `.v1.bak` 원본 백업 |
+| `vhk memory` | `기억` | 기억 v2 4버킷(결정/실패/성공/패턴) 관리 (`add --type` / `list [--all]` / `remove` / `archive` / `resolve` / `unarchive` / `migrate`). 조회 명령(`memory list`·`context`·`brief`) 첫 실행 시 v1→v2 자동 마이그레이션 + `.v1.bak` 원본 백업. 손상 파일은 read 경로에서 보존(원자적 write) |
 | `vhk brief` | `브리핑` | 프로젝트 정보 + git 상태 + 결정사항 + 레퍼런스 통합 보고서 `.vhk/brief.md` |
 | `vhk goal` | `목표` | Goal 단계별 미션 관리 (`init` / `list` / `next` / `check` / `done`) — vspec/vooster 패턴 |
 | `vhk mission` | `미션` | 미션 계약(`set` / `check` / `clear`) — 작업 범위·금지선 선언·검증 (`.vhk/mission.json`, 경로 glob) |
@@ -228,12 +228,12 @@ vhk mcp-init           # .cursor/mcp.json 자동 생성
 # 예: "상태 알려줘" → Cursor가 vhk status 도구 호출
 ```
 
-노출되는 MCP 도구 **24개** (v1.1):
+노출되는 MCP 도구 **25개** (v2.0 — `learn` 추가):
 
 - **git 워크플로 (8)**: `save`, `undo`, `status`, `diff`, `ship`, `doctor`, `check`, `recap`
 - **환경/규칙 (4)**: `env`, `env-check`, `sync`, `secure`
 - **품질/감사 (3)**: `audit`, `harness`, `mcp-init`
-- **컨텍스트/기록 (4)**: `context`, `context-show`, `memory-list`, `brief`
+- **컨텍스트/기록 (5)**: `context`, `context-show`, `memory-list`, `brief`, `learn` (교훈 1줄 → memory v2 failures.lesson 기록, 유일한 쓰기 도구)
 - **dry-info (4)**: `deploy`, `publish`, `migrate`, `update` — 인터랙티브 본질이라 실제 실행 안 함, 진단/안내만
 - **레퍼런스 (1)**: `ref-list`
 
@@ -252,7 +252,7 @@ vhk mcp                # stdio 서버 시작 (Cursor가 자동으로 호출)
 | 기능 | 설명 |
 |------|------|
 | **context** | 프로젝트 디렉토리 트리(3-depth) + 기술 스택(Next/Nuxt/Vue/Svelte/TS/Tailwind/tsup/Vite/...) 자동 감지 + 29개+ VHK 명령어 목록을 `.vhk/context.md` 마크다운으로 생성. AI 어시스턴트가 프로젝트 맥락을 즉시 파악 |
-| **memory** | `.vhk/memory.json` 결정사항 기억 관리. `add <content> --tags X,Y` / `list` / `remove <번호>`. NL은 list만 (add/remove는 인자 필수 → commander 전용) |
+| **memory** | `.vhk/memory.json` 기억 v2 4버킷(결정/실패/성공/패턴) 관리. `add <content> --type decision\|failure\|success` / `list [--all]` / `remove` / `archive` / `resolve` / `unarchive` / `migrate`. 손상 파일은 read 경로에서 덮어쓰지 않고 보존(원자적 write + `.v1.bak`/`.bak` 백업). NL은 list·migrate (인자 필요한 add/remove/archive/resolve 는 commander 전용) |
 | **brief** | 프로젝트 정보 + git 상태(브랜치·마지막 커밋·미커밋 변경) + 최근 결정사항 + 레퍼런스를 한 화면에 + `.vhk/brief.md` 저장. `safeExecFile` 기반 (Windows .cmd shim 안전) |
 | **자연어 확장** | `"맥락 만들어줘"` → context · `"컨텍스트 보여줘"` → context-show · `"기억 목록"` → memory · `"프로젝트 브리핑 만들어줘"` / `"상태 요약"` → brief |
 
@@ -280,7 +280,7 @@ vhk brief               # 세션 종료 시 상태 보고서
 - **공개 API 안정성**: 명령어 이름, CLI 인자, `.vhk/` 파일 포맷은 v2.0까지 breaking change 없음
 - **deprecation 절차**: 명령어/옵션 제거 전 1개 마이너 버전(1.x.0)에서 deprecation 경고
 - **i18n 키**: `ko.ts`의 `t()` 키 이름은 안정. 신규 키 누적, 기존 키 미제거
-- **MCP 서버 도구**: v1.0 GA 의 8개 baseline 도구(save/undo/status/diff/ship/doctor/check/recap) 인터페이스 안정 — v1.1 에서 16개 추가되어 총 24개
+- **MCP 서버 도구**: v1.0 GA 의 8개 baseline 도구(save/undo/status/diff/ship/doctor/check/recap) 인터페이스 안정 — v1.1 에서 16개 추가(총 24개), v2.0 에서 `learn` 추가(총 25개)
 
 > **`vhk memory` vs Claude Code `auto memory`** — `vhk memory`는 **프로젝트 단위** 결정사항(`.vhk/memory.json`, 팀 공유). Claude Code의 `auto memory`는 **사용자 단위** (`~/.claude/projects/.../memory/`, 개인 컨텍스트). 둘은 별개.
 
@@ -331,7 +331,7 @@ vhk ref open 1          # 1번 레퍼런스를 브라우저로 열기
 
 | 기능 | 설명 |
 |------|------|
-| **MCP 서버** | `vhk mcp` — stdio MCP 서버 첫 도입 (v0.6.0 당시 8개 도구 — save/undo/status/diff/ship/doctor/check/recap). 현재 v1.6 기준 **24개** 로 확장 — 위 "Cursor와 MCP로 연동하기" 섹션 참조 |
+| **MCP 서버** | `vhk mcp` — stdio MCP 서버 첫 도입 (v0.6.0 당시 8개 도구 — save/undo/status/diff/ship/doctor/check/recap). 현재 v2.0 기준 **25개** 로 확장 (`learn` 포함) — 위 "Cursor와 MCP로 연동하기" 섹션 참조 |
 | **mcp-init** | `vhk mcp-init` — Cursor `.cursor/mcp.json` 자동 생성. 재시작 한 번으로 연동 완료 |
 | **자연어 라우팅 확장** | `vhk mcp설정` → `vhk mcp-init` 별칭 |
 | **보안** | MCP save 도구의 shell injection 차단 — 모든 git 호출에 shell 미경유 `safeExecFile` 사용 |
