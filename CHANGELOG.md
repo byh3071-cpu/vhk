@@ -14,7 +14,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 ### Added
 
 - **`vhk sync` 대상 +2종** (`src/commands/sync.ts`) — Gemini CLI `GEMINI.md`(공식 컨텍스트 파일) +
-  Cline `.clinerules`(공식 docs.cline.bot). 둘 다 Markdown 무제한 → `buildCodingDoc` 재사용(절삭 없음).
+  Cline `.clinerules/vhk-rules.md`(공식 docs.cline.bot — `.clinerules/` 디렉터리 다중 규칙). 둘 다 Markdown 무제한 → `buildCodingDoc` 재사용(절삭 없음).
   `SYNC_TARGETS` 레지스트리 2 엔트리 추가 = drift 감지·백업·`.synced`·`--dry-run`·비대화형 가드 **자동 반영**
   (추가 배선 0). `ko.sync.geminiDone`/`clineDone` 메시지.
 
