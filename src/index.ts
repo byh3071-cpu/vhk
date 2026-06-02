@@ -38,6 +38,7 @@ import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
 import { review } from './commands/review.js'
+import { missionSet, missionShow, missionCheck, missionClear } from './commands/mission.js'
 import { runGuarded } from './lib/safety-guard.js'
 import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
 import { isPromptAbortError } from './lib/interactive.js'
@@ -137,6 +138,7 @@ const KO_ALIASES: Record<string, string> = {
   brief: '브리핑',
   goal: '목표',
   review: '검토',
+  mission: '미션',
   blocker: '블로커',
   learn: '교훈',
   resume: '재개',
@@ -457,6 +459,36 @@ program
   .option('--id <id>', '대상 goal id (없으면 active goal)')
   .description('적대적 자기검증 — latest.json ↔ goal 완료조건 교차검증 (거짓완료 의심 탐지, 보장 아님)')
   .action(async (opts: { id?: string }) => { await review(opts) })
+
+// prev 기본 [] — default 미지정이라 옵션 미제공 시 opts 에 키 자체가 없음(undefined = 보존 신호).
+const collectGlob = (v: string, prev: string[] = []): string[] => prev.concat([v])
+const missionCmd = program
+  .command('mission')
+  .alias('미션')
+  .description('미션 계약 — 작업 목표·허용/금지 범위 선언·검증 (scope 가드, .vhk/mission.json)')
+  .action(async () => { await missionShow() })
+
+missionCmd
+  .command('set')
+  .option('--objective <text>', '미션 목표(objective)')
+  // default 미지정 — 옵션 안 주면 opts.scope/forbidden 이 undefined → 기존 값 보존(빈 배열로 안 덮음).
+  .option('--scope <glob>', '허용 경로 glob (반복 가능, 제공 시 교체)', collectGlob)
+  .option('--forbidden <glob>', '금지 경로 glob (반복 가능, 제공 시 교체)', collectGlob)
+  .option('--clear-scope', 'scope 를 비움(명시적)')
+  .option('--clear-forbidden', 'forbidden 을 비움(명시적)')
+  .option('-y, --yes', '대화형 프롬프트 스킵 (비대화형)')
+  .description('미션 계약 선언/갱신 (옵션 미지정 시 기존 scope/forbidden 보존)')
+  .action(async (opts: { objective?: string; scope?: string[]; forbidden?: string[]; clearScope?: boolean; clearForbidden?: boolean; yes?: boolean }) => { await missionSet(opts) })
+
+missionCmd
+  .command('check')
+  .description('변경 파일이 계약(scope/forbidden) 안인지 검증 — forbidden 위반 시 exit 1')
+  .action(async () => { await missionCheck() })
+
+missionCmd
+  .command('clear')
+  .description('미션 계약 삭제 (.vhk/mission.json)')
+  .action(async () => { await missionClear() })
 
 program
   .command('context-show')
