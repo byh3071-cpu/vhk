@@ -11,9 +11,10 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { readMemory, activeMemoryLines } from './memory.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
-import { getRecentLearnings, getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
+import { getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
 import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
 
@@ -141,7 +142,7 @@ function getVhkCommands(): string[] {
 /**
  * vhk context — LLM 부팅 컨텍스트(.vhk/context.md) 생성.
  * compact 모드(--compact): 토큰 절감형. 전체 명령 목록/깊은 트리 대신 Active Goal +
- * 최근 learnings/blockers/memories + 참조 문서 링크만 담는다. 기본(full)은 기존 호환 유지.
+ * 최근 blockers + memory v2(결정/실패·교훈/성공) + 참조 문서 링크만 담는다. 기본(full)은 기존 호환 유지.
  */
 export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   const compact = opts.compact === true
@@ -188,33 +189,21 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     lines.push('')
   }
 
-  if (existsSync('.vhk/memory.json')) {
-    try {
-      const memories = readJsonFile<Array<{ content: string; addedAt: string }>>(
-        '.vhk/memory.json'
-      )
-      if (Array.isArray(memories) && memories.length > 0) {
-        // 토큰 절감: 전체가 아니라 최근 5개만 삽입 (full/compact 공통).
-        const recentMemories = memories.slice(-5)
-        lines.push('## 저장된 결정사항')
-        lines.push('')
-        if (memories.length > recentMemories.length) {
-          lines.push(`_최근 ${recentMemories.length}개만 표시 (전체 ${memories.length}개)_`)
-          lines.push('')
-        }
-        for (const m of recentMemories) {
-          const date = new Date(m.addedAt).toLocaleDateString('ko-KR')
-          lines.push(`- ${m.content} _(${date})_`)
-        }
-        lines.push('')
-      }
-    } catch {
-      // memory.json 파싱 실패 → 무시
+  try {
+    // memory v2 4버킷 — active 만 누락 없이(버킷별 최근 5개). readMemory 가 v1·learnings 흡수까지
+    // 처리하므로 memory.json 부재여도 learnings 흡수분이 여기서 노출(교훈 단일 출처).
+    const memLines = activeMemoryLines(readMemory(process.cwd()))
+    if (memLines.length > 0) {
+      lines.push('## 저장된 기억 (memory v2)')
+      lines.push('')
+      lines.push(...memLines)
     }
+  } catch {
+    // memory.json 파싱 실패 → 무시
   }
 
-  // Goal 2 (자율 루프): active goal + 최근 learnings 3건 자동 포함.
-  // SoT 는 goals/<n>.md frontmatter + docs/state/learnings.md.
+  // Goal 2 (자율 루프): active goal 섹션. SoT 는 goals/<n>.md frontmatter.
+  // 교훈(learnings)은 v2 에서 memory failures.lesson 단일 출처 — 위 "저장된 기억(memory v2)" 섹션에서 노출.
   const goals = listGoals('goals')
   const activeId = selectActiveId(goals)
   if (activeId !== null) {
@@ -231,13 +220,8 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     }
   }
 
-  const recent = getRecentLearnings(3)
-  if (recent.length > 0) {
-    lines.push('## Recent Learnings')
-    lines.push('')
-    for (const r of recent) lines.push(r)
-    lines.push('')
-  }
+  // 교훈(learnings)은 v2 에서 memory failures.lesson 로 통합 — 위 "저장된 기억" 섹션에서 노출.
+  // (구 docs/state/learnings.md Recent Learnings 블록 제거 — 중복·stale 방지.)
 
   // 활성 blocker 최근 3건 — "지금 막힌 것"만. 해결(~~취소선~~) 항목은 제외.
   const activeBlockers = getActiveBlockers(3)

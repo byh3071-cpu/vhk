@@ -4,9 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import {
   appendBlocker,
-  appendLearning,
   countActiveBlockers,
-  getRecentLearnings,
   getRecentBlockers,
   getActiveBlockers,
   writeHardStop,
@@ -99,52 +97,8 @@ describe('appendBlocker — Forbidden append-only 보장', () => {
   })
 })
 
-describe('appendLearning + getRecentLearnings', () => {
-  let origCwd: string
-  let dir: string
-  beforeEach(() => {
-    origCwd = process.cwd()
-    dir = tmpProject('learning')
-    process.chdir(dir)
-  })
-  afterEach(() => {
-    process.chdir(origCwd)
-    rmSync(dir, { recursive: true, force: true })
-  })
-
-  it('append-only 누적', () => {
-    appendLearning('A', 1)
-    appendLearning('B', 2)
-    appendLearning('C', 2)
-    const content = readFileSync(LEARNINGS_PATH, 'utf-8')
-    expect(content).toContain('A')
-    expect(content).toContain('B')
-    expect(content).toContain('C')
-    expect(content.indexOf('A')).toBeLessThan(content.indexOf('B'))
-    expect(content.indexOf('B')).toBeLessThan(content.indexOf('C'))
-  })
-
-  it('getRecentLearnings 가 마지막 N건 반환', () => {
-    appendLearning('A')
-    appendLearning('B')
-    appendLearning('C')
-    appendLearning('D')
-    const recent = getRecentLearnings(3)
-    expect(recent).toHaveLength(3)
-    expect(recent[0]).toContain('B')
-    expect(recent[1]).toContain('C')
-    expect(recent[2]).toContain('D')
-  })
-
-  it('파일 없으면 빈 배열', () => {
-    expect(getRecentLearnings(3)).toEqual([])
-  })
-
-  it('SoT 일관성 — appendLearning 은 .vhk/memory.json 에 쓰지 않음 (Forbidden 이중 기록)', () => {
-    appendLearning('learning that should NOT enter memory.json')
-    expect(existsSync(join('.vhk', 'memory.json'))).toBe(false)
-  })
-})
+// NOTE(v2.0): appendLearning/getRecentLearnings 제거 — 교훈 SoT 는 memory v2(tests/memory.test.ts).
+// learnings.md 흡수(읽기 소스) 회귀는 tests/memory.test.ts 의 migrateMemory/readMemory 케이스가 커버.
 
 describe('getRecentBlockers / getActiveBlockers (배치2)', () => {
   let origCwd: string

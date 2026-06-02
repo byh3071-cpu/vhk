@@ -32,7 +32,7 @@ import { audit } from './commands/audit.js'
 import { migrate } from './commands/migrate.js'
 import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
-import { memoryAdd, memoryList, memoryRemove } from './commands/memory.js'
+import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, type MemBucket } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
@@ -499,29 +499,62 @@ program
 const memoryCmd = program
   .command('memory')
   .alias('기억')
-  .description('결정사항 기억 관리 (add / list / remove)')
+  .description('기억 관리 v2 (decisions/failures/successes 4버킷) — add/list/remove/archive/resolve/unarchive/migrate')
   .action(async () => { await memoryList() })
 
 memoryCmd
   .command('add <content>')
+  .option('--type <type>', '버킷: decision|failure|success (기본 decision)')
   .option('--tags <tags>', '태그 (쉼표 구분)')
-  .description('결정사항 기억 저장')
-  .action(async (content: string, opts: { tags?: string }) => {
+  .option('--why <why>', '원인 (failure/success)')
+  .option('--lesson <lesson>', '교훈 (failure)')
+  .description('기억 저장 (--type 으로 결정/실패/성공 구분)')
+  .action(async (content: string, opts: { type?: string; tags?: string; why?: string; lesson?: string }) => {
     const tags = opts.tags ? opts.tags.split(',').map((s) => s.trim()) : undefined
-    await memoryAdd(content, tags)
+    // 잘못된 --type 은 강등하지 않고 그대로 넘긴다 — memoryAdd 가 검증·거부(입력 유실 방지).
+    await memoryAdd(content, { type: opts.type, tags, why: opts.why, lesson: opts.lesson })
   })
 
 memoryCmd
   .command('list')
   .alias('목록')
-  .description('저장된 기억 목록')
-  .action(async () => { await memoryList() })
+  .option('--type <type>', '버킷 필터: decision|failure|success')
+  .option('--all', '보관(archived)·해결(resolved) 포함')
+  .description('저장된 기억 목록 (기본 활성만)')
+  .action(async (opts: { type?: string; all?: boolean }) => {
+    const type = (opts.type === 'decision' || opts.type === 'failure' || opts.type === 'success' ? opts.type : undefined) as MemBucket | undefined
+    await memoryList({ type, all: opts.all })
+  })
 
 memoryCmd
   .command('remove <index>')
   .alias('삭제')
   .description('기억 삭제 (1부터 시작하는 번호)')
   .action(async (index: string) => { await memoryRemove(index) })
+
+memoryCmd
+  .command('archive <index>')
+  .alias('보관')
+  .description('기억 보관 (활성→archived, 패턴/진화에서 제외)')
+  .action(async (index: string) => { await memoryArchive(index) })
+
+memoryCmd
+  .command('resolve <index>')
+  .alias('해결')
+  .description('기억 해결 표시 (활성→resolved, 패턴/진화에서 제외)')
+  .action(async (index: string) => { await memoryResolve(index) })
+
+memoryCmd
+  .command('unarchive <index>')
+  .alias('복구')
+  .description('보관/해결 항목을 다시 활성으로 복구 (archive/resolve 역전)')
+  .action(async (index: string) => { await memoryUnarchive(index) })
+
+memoryCmd
+  .command('migrate')
+  .alias('마이그레이션')
+  .description('memory.json v1 → v2 마이그레이션 (기존 v1 있으면 .v1.bak 원본 백업, 멱등)')
+  .action(async () => { await memoryMigrate() })
 
 program
   .command('brief')
@@ -582,7 +615,7 @@ program
 program
   .command('learn <lesson>')
   .alias('교훈')
-  .description('교훈 기록 → docs/state/learnings.md append (memory.json 과 별도 SoT)')
+  .description('교훈 기록 → memory v2 failures.lesson 단일 SoT (v2.0 통합 — vhk memory list 로 확인)')
   .action(async (lesson: string) => { await learn(lesson) })
 
 program

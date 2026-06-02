@@ -231,7 +231,8 @@ export function toAgentsMd(sections: RulesSection[], projectName: string): strin
     '## Loop Protocol',
     '- 루프: `context → goal next → 작업 → goal check → goal done`',
     '- 작업 시작 시 `.vhk/HARD_STOP` 확인 — 있으면 모든 자동화 즉시 중단.',
-    '- active goal 만 작업. `docs/state`(next-task/blockers/learnings)는 SoT, append-only.',
+    '- active goal 만 작업. `docs/state`(next-task/blockers)는 append-only.',
+    '- 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, 단일 출처).',
     '- 게이트(tsc / test:run / build) 통과해야만 `vhk goal done`.',
     '',
   ]

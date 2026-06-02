@@ -27,7 +27,7 @@ import { audit } from '../commands/audit.js'
 import { migrate } from '../commands/migrate.js'
 import { update } from '../commands/update.js'
 import { context, contextShow } from '../commands/context.js'
-import { memoryList } from '../commands/memory.js'
+import { memoryList, memoryMigrate } from '../commands/memory.js'
 import { brief } from '../commands/brief.js'
 import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext, goalSync } from '../commands/goal.js'
@@ -110,6 +110,7 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
     case 'context-show':
       return contextShow()
     case 'memory':
+      if (route.args?.[0] === 'migrate') return memoryMigrate()
       return memoryList()
     case 'brief':
       return brief()

@@ -82,8 +82,8 @@ cache hit 최대화 위해 동일 순서로:
 
 iteration 끝에 비-자명한 교훈 1 건이라도 있으면:
 
-- `vhk learn "<교훈>"` — `docs/state/learnings.md` 에 한 줄 append
-- **단일 SoT**: `vhk memory add` 와 이중 기록 금지. 결정사항 = memory, 교훈 = learnings.
+- `vhk learn "<교훈>"` — memory v2 `failures.lesson` 에 기록 (v2.0 통합)
+- **단일 출처 (v2)**: 교훈·결정·실패·성공 모두 `vhk memory` 4버킷. `vhk memory list` 로 확인.
 
 ## HARD_STOP
 
@@ -101,7 +101,7 @@ iteration 끝에 비-자명한 교훈 1 건이라도 있으면:
 - MCP handler 안에서 inquirer 호출
 - `vhk resume` 의 자동 호출
 - `docs/state/{blockers,learnings}.md` 의 과거 항목 수정/삭제 (append-only)
-- `vhk learn` 와 `vhk memory add` 의 이중 기록 (SoT 분리: learnings = 교훈, memory = 결정사항)
+- `docs/state/learnings.md` 에 신규 교훈 직접 추가 (v2: 교훈은 `vhk learn` → memory)
 - 게이트 실패에도 `vhk goal done` 으로 마킹 (실패 = 보존)
 
 ## Tech Stack (do not deviate)

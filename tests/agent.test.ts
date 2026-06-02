@@ -53,7 +53,7 @@ describe('blocker', () => {
   })
 })
 
-describe('learn — SoT 일관성 (memory.json 격리)', () => {
+describe('learn — memory v2 통합 SoT (Goal 18 breaking: learnings.md 분리 폐지)', () => {
   let origCwd: string
   let dir: string
   beforeEach(() => {
@@ -68,16 +68,22 @@ describe('learn — SoT 일관성 (memory.json 격리)', () => {
     vi.restoreAllMocks()
   })
 
-  it('learn 호출은 learnings.md 만 갱신, memory.json 무영향 (Forbidden 이중 기록 금지)', async () => {
+  it('learn 호출은 memory v2 failures.lesson 에 기록, learnings.md 신규 기록 안 함 (통합)', async () => {
     const { learn } = await import('../src/commands/agent.js')
     await learn('새 교훈')
-    expect(existsSync(join(dir, 'docs/state/learnings.md'))).toBe(true)
-    expect(existsSync(join(dir, '.vhk/memory.json'))).toBe(false)
+    // 통합: memory.json 에 기록
+    expect(existsSync(join(dir, '.vhk/memory.json'))).toBe(true)
+    const mem = JSON.parse(readFileSync(join(dir, '.vhk/memory.json'), 'utf-8'))
+    expect(mem.schemaVersion).toBe(2)
+    expect(mem.failures[0].lesson).toBe('새 교훈')
+    // learnings.md 신규 기록 중단
+    expect(existsSync(join(dir, 'docs/state/learnings.md'))).toBe(false)
   })
 
   it('빈 lesson 이면 기록 안 함', async () => {
     const { learn } = await import('../src/commands/agent.js')
     await learn('  ')
+    expect(existsSync(join(dir, '.vhk/memory.json'))).toBe(false)
     expect(existsSync(join(dir, 'docs/state/learnings.md'))).toBe(false)
   })
 })

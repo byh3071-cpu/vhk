@@ -4,6 +4,7 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { readMemory, activeMemoryLines } from './memory.js'
 
 const BRIEF_PATH = '.vhk/brief.md'
 
@@ -90,24 +91,16 @@ export async function brief(): Promise<void> {
   )
   lines.push('')
 
-  // 3. 결정사항
-  if (existsSync('.vhk/memory.json')) {
-    try {
-      const memories = readJsonFile<Array<{ content: string }>>('.vhk/memory.json')
-      if (Array.isArray(memories) && memories.length > 0) {
-        lines.push(`## 저장된 결정사항 (${memories.length}개)`)
-        lines.push('')
-        for (const m of memories.slice(-5)) {
-          lines.push(`- ${m.content}`)
-        }
-        if (memories.length > 5) {
-          lines.push(`- ... 외 ${memories.length - 5}개`)
-        }
-        lines.push('')
-      }
-    } catch {
-      // 무시
+  // 3. 기억 (memory v2 4버킷 — active 만). readMemory 가 v1·learnings 흡수 처리 → 부재여도 흡수분 노출.
+  try {
+    const memLines = activeMemoryLines(readMemory(process.cwd()))
+    if (memLines.length > 0) {
+      lines.push('## 저장된 기억 (memory v2)')
+      lines.push('')
+      lines.push(...memLines)
     }
+  } catch {
+    // 무시
   }
 
   // 4. 레퍼런스

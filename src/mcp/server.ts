@@ -662,8 +662,22 @@ export function createVhkMcpServer(): McpServer {
   // ─── memory-list ────────────────────────────────────────
   server.registerTool(
     'memory-list',
-    { description: '저장된 결정사항(memory) 목록 보기 (add/remove 는 인자 필요 → CLI 전용)' },
+    {
+      description:
+        'memory v2 활성 기억 목록 (decisions/failures/successes — 기본 active 만). add/remove/archive/resolve/unarchive/migrate 는 인자·쓰기 → CLI 전용',
+    },
     async () => runVhkCli(['memory', 'list'], 'memory list')
+  )
+
+  // ─── learn ──────────────────────────────────────────────
+  // 교훈 기록은 인자 1개(lesson)뿐이고 inquirer/process.exit 미사용 → MCP 안전(쓰기 도구).
+  server.registerTool(
+    'learn',
+    {
+      description: '교훈 1줄 기록 → memory v2 failures.lesson (단일 SoT, Evolution Loop 폐회로)',
+      inputSchema: { lesson: z.string().describe('기록할 교훈 한 줄') },
+    },
+    async ({ lesson }) => runVhkCli(['learn', lesson], 'learn')
   )
 
   // ─── context-show ───────────────────────────────────────
