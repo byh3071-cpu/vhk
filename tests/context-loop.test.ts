@@ -37,9 +37,10 @@ describe('vhk context — Goal 2 자율 루프 확장', () => {
     vi.restoreAllMocks()
   })
 
-  it('## Active Goal + ## Recent Learnings 섹션 포함', async () => {
+  it('## Active Goal + 교훈(memory v2 흡수) 섹션 포함', async () => {
     makeGoalFile(dir, 0, 'DONE', 'Done Goal')
     makeGoalFile(dir, 1, 'IN_PROGRESS', '진행 중 미션')
+    // v2: learnings.md 의 교훈은 readMemory 가 failures 로 흡수 → "저장된 기억" 섹션에 노출.
     const { appendLearning } = await import('../src/lib/state-files.js')
     appendLearning('lesson alpha')
     appendLearning('lesson bravo')
@@ -52,7 +53,7 @@ describe('vhk context — Goal 2 자율 루프 확장', () => {
     expect(out).toContain('## Active Goal')
     expect(out).toContain('id**: 1')
     expect(out).toContain('진행 중 미션')
-    expect(out).toContain('## Recent Learnings')
+    expect(out).toContain('저장된 기억') // v2 memory 섹션(구 Recent Learnings 통합)
     expect(out).toContain('lesson alpha')
     expect(out).toContain('lesson charlie')
   })

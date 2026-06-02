@@ -6,7 +6,7 @@
 // Env: VHK_GATES_SKIP_DEEP=1  → test + build 스킵 (빠른 typecheck-only 패스)
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 
 const SHIM = new Set(['pnpm', 'npm', 'npx', 'yarn'])
 function run(cmd, args) {
@@ -64,6 +64,25 @@ must(/export function recordLesson/.test(mm) && /recordLesson/.test(ag) && !/app
 must(/status: 'active'|EntryStatus/.test(mm) && /export async function memoryArchive/.test(mm) && /archivedAt/.test(mm), 'status(active/resolved/archived) + memoryArchive')
 must(/copyFileSync/.test(mm) && /\.v1\.bak/.test(mm) && /\.bak/.test(mm), 'write-once .v1.bak(원본 영구) + 롤링 .bak')
 must(/readJsonFile|stripBom/.test(mm), 'BOM-safe 읽기')
+
+// ─── 금지문구 게이트: "learnings.md 분리 SoT" 잔존 차단 (v2 통합 정합) ───
+// src/** + 라이브 agent docs 만 검사. memory.ts(마이그 참조)·CHANGELOG·goals·tests(역사/메타) 제외.
+const FORBIDDEN = /SoT 분리|이중\s?기록|별도 SoT|learnings\.md append|memory\.json\s?과\s?별도/
+const walkTs = (dir) => {
+  const out = []
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = dir + '/' + e.name
+    if (e.isDirectory()) out.push(...walkTs(p))
+    else if (e.name.endsWith('.ts')) out.push(p)
+  }
+  return out
+}
+const scanTargets = [
+  ...walkTs('src').filter((p) => !p.endsWith('commands/memory.ts')),
+  'AGENTS.md', 'CLAUDE.md', 'docs/ARCHITECTURE.md', 'docs/context/agent-compact.md',
+].filter((p) => existsSync(p))
+const forbiddenHits = scanTargets.filter((f) => FORBIDDEN.test(readFileSync(f, 'utf-8')))
+must(forbiddenHits.length === 0, `learnings 분리 SoT 금지문구 0 (잔존: ${forbiddenHits.join(', ') || '없음'})`)
 
 if (pass) { console.log('✅ goal 18 gate passes'); process.exit(0) }
 console.log('❌ goal 18 gate failed'); process.exit(1)

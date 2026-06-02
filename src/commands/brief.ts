@@ -91,18 +91,16 @@ export async function brief(): Promise<void> {
   )
   lines.push('')
 
-  // 3. 기억 (memory v2 4버킷 — active 만)
-  if (existsSync('.vhk/memory.json')) {
-    try {
-      const memLines = activeMemoryLines(readMemory(process.cwd()))
-      if (memLines.length > 0) {
-        lines.push('## 저장된 기억 (memory v2)')
-        lines.push('')
-        lines.push(...memLines)
-      }
-    } catch {
-      // 무시
+  // 3. 기억 (memory v2 4버킷 — active 만). readMemory 가 v1·learnings 흡수 처리 → 부재여도 흡수분 노출.
+  try {
+    const memLines = activeMemoryLines(readMemory(process.cwd()))
+    if (memLines.length > 0) {
+      lines.push('## 저장된 기억 (memory v2)')
+      lines.push('')
+      lines.push(...memLines)
     }
+  } catch {
+    // 무시
   }
 
   // 4. 레퍼런스
