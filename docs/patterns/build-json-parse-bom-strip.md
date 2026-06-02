@@ -118,17 +118,16 @@ it('UTF-8 BOM이 있어도 정상 파싱', async () => {
 })
 ```
 
-## 후속 — grep 게이트로 재도입 원천 차단 (2026-06-02)
-
-v1.7.0 verify 증거화에서 `JSON.parse(readFileSync(...))` 가 신규 사이트(`runGates`)에 재도입돼 다시 터졌다(#92 리뷰). 사람 리뷰만으론 재발을 못 막는다는 게 증명됨 → **머지 게이트로 봉쇄**.
-
-- `scripts/check-no-raw-json-parse.mjs` — `src/**/*.ts` 에서 `JSON\.parse\(\s*(fs\.)?readFileSync` 인접 패턴을 grep, 1건이라도 있으면 exit 1. `.github/workflows/ci.yml` 에 step 추가(PR/푸시마다).
-- 통과 규칙: parse 가 readFileSync 를 **직접** 감싸는 경우만 금지. 변수 경유(`JSON.parse(stripBom(...))` / `readJsonFile(...)`)는 허용 → BOM-safe 우회를 자연스럽게 강제.
-- 범위는 `src/` 만 — `readJsonFile` import 가능 영역. 생성물(`scripts/check-goal-*.mjs`)은 self-contained 라 제외하되, 생성 템플릿(`src/commands/goal.ts`)은 인라인 BOM-safe 리더로 마이그(향후 생성물도 안전).
-
 ## 참고
 
 - VHK `src/lib/read-json.ts` 헬퍼
 - v1.0.1 hotfix에서 `harness`, `doctor`, `init`, `mcp-init`, `publish`, `update`, `mcp/server.ts`(2곳), `ref` 9 사이트 일괄 마이그레이션
-- grep 게이트: `scripts/check-no-raw-json-parse.mjs` + `tests/check-no-raw-json-parse.test.ts`
 - 관련 패턴: [env-windows-cmd-shim-node20.md](./env-windows-cmd-shim-node20.md) — Windows 환경 호환성 시리즈
+
+## 후속 — grep 게이트로 재도입 원천 차단 (2026-06-02)
+
+v1.7.0 verify 증거화에서 `JSON.parse(readFileSync(...))` 가 신규 사이트(`runGates`)에 재도입돼 다시 터졌다(#92 리뷰). 사람 리뷰만으론 재발을 못 막는다는 게 증명됨 → **머지 게이트로 봉쇄**.
+
+- `scripts/check-no-raw-json-parse.mjs` (+ `tests/check-no-raw-json-parse.test.ts`) — `src/**/*.ts` 에서 `JSON\.parse\(\s*(fs\.)?readFileSync` 인접 패턴을 grep, 1건이라도 있으면 exit 1. `.github/workflows/ci.yml` 에 step 추가(PR/푸시마다).
+- 통과 규칙: parse 가 readFileSync 를 **직접** 감싸는 경우만 금지. 변수 경유(`JSON.parse(stripBom(...))` / `readJsonFile(...)`)는 허용 → BOM-safe 우회를 자연스럽게 강제.
+- 범위는 `src/` 만 — `readJsonFile` import 가능 영역. 생성물(`scripts/check-goal-*.mjs`)은 self-contained 라 제외하되, 생성 템플릿(`src/commands/goal.ts`)은 인라인 BOM-safe 리더로 마이그(향후 생성물도 안전).
