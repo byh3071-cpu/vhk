@@ -460,7 +460,8 @@ program
   .description('적대적 자기검증 — latest.json ↔ goal 완료조건 교차검증 (거짓완료 의심 탐지, 보장 아님)')
   .action(async (opts: { id?: string }) => { await review(opts) })
 
-const collectGlob = (v: string, prev: string[]): string[] => prev.concat([v])
+// prev 기본 [] — default 미지정이라 옵션 미제공 시 opts 에 키 자체가 없음(undefined = 보존 신호).
+const collectGlob = (v: string, prev: string[] = []): string[] => prev.concat([v])
 const missionCmd = program
   .command('mission')
   .alias('미션')
@@ -470,11 +471,14 @@ const missionCmd = program
 missionCmd
   .command('set')
   .option('--objective <text>', '미션 목표(objective)')
-  .option('--scope <glob>', '허용 경로 glob (반복 가능)', collectGlob, [])
-  .option('--forbidden <glob>', '금지 경로 glob (반복 가능)', collectGlob, [])
+  // default 미지정 — 옵션 안 주면 opts.scope/forbidden 이 undefined → 기존 값 보존(빈 배열로 안 덮음).
+  .option('--scope <glob>', '허용 경로 glob (반복 가능, 제공 시 교체)', collectGlob)
+  .option('--forbidden <glob>', '금지 경로 glob (반복 가능, 제공 시 교체)', collectGlob)
+  .option('--clear-scope', 'scope 를 비움(명시적)')
+  .option('--clear-forbidden', 'forbidden 을 비움(명시적)')
   .option('-y, --yes', '대화형 프롬프트 스킵 (비대화형)')
-  .description('미션 계약 선언/갱신')
-  .action(async (opts: { objective?: string; scope?: string[]; forbidden?: string[]; yes?: boolean }) => { await missionSet(opts) })
+  .description('미션 계약 선언/갱신 (옵션 미지정 시 기존 scope/forbidden 보존)')
+  .action(async (opts: { objective?: string; scope?: string[]; forbidden?: string[]; clearScope?: boolean; clearForbidden?: boolean; yes?: boolean }) => { await missionSet(opts) })
 
 missionCmd
   .command('check')

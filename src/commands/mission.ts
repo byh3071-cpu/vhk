@@ -122,6 +122,8 @@ export async function missionSet(opts: {
   objective?: string
   scope?: string[]
   forbidden?: string[]
+  clearScope?: boolean
+  clearForbidden?: boolean
   yes?: boolean
 } = {}): Promise<void> {
   if (!ensureNotHardStopped('mission set')) return
@@ -143,12 +145,17 @@ export async function missionSet(opts: {
     }
   }
 
+  // 보존 규칙: 옵션 미제공(undefined) → 기존 값 유지. 제공 → 새 배열로 교체.
+  // 비우려면 명시적 --clear-scope / --clear-forbidden (실수로 비우는 사고 방지).
+  const scope = opts.clearScope ? [] : opts.scope ?? existing?.scope ?? []
+  const forbidden = opts.clearForbidden ? [] : opts.forbidden ?? existing?.forbidden ?? []
+
   const now = new Date().toISOString()
   const mission: Mission = {
     schemaVersion: MISSION_SCHEMA_VERSION,
     objective,
-    scope: opts.scope ?? existing?.scope ?? [],
-    forbidden: opts.forbidden ?? existing?.forbidden ?? [],
+    scope,
+    forbidden,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   }

@@ -64,7 +64,9 @@ must(/MISSION_DISCLAIMER/.test(ms) && /경로 glob|의미/.test(ms), '"경로 gl
 must(/violations\.length > 0 \? 1 : 0/.test(ms), 'forbidden 위반 시 exit 1 (scope 경고는 0)')
 must(/command\('mission'\)/.test(idx) && /command\('set'\)/.test(idx) && /command\('check'\)/.test(idx), 'index 에 mission + set/check/clear 등록')
 must(/import \{ simpleGit \}/.test(ms) && !/minimatch|picomatch/.test(ms), 'glob 자체 구현(외부 의존 0) + simple-git 변경파일')
-must(existsSync('tests/mission.test.ts'), 'mission 테스트 존재(checkMission 회귀 가드)')
+must(/--clear-scope/.test(idx) && /collectGlob\)/.test(idx) && !/collectGlob, \[\]\)/.test(idx), 'mission set 보존: collectGlob default [] 제거 + --clear-scope 명시(기존 안 덮음)')
+must(/clearScope \? \[\]/.test(ms), 'missionSet: clearScope 명시 시에만 비움(미지정은 기존 보존)')
+must(existsSync('tests/mission.test.ts'), 'mission 테스트 존재(checkMission + 보존 회귀 가드)')
 
 if (pass) { console.log('✅ goal 17 gate passes'); process.exit(0) }
 console.log('❌ goal 17 gate failed'); process.exit(1)
