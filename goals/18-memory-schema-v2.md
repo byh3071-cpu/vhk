@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 18
 title: 기억 구조화 — memory schema v2 (4버킷 + learn 통합) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 version: v2.0.0
+completed: 2026-06-03
 ---
 
 # Goal 18: memory schema v2 (Evolution Loop 도미노 2)
