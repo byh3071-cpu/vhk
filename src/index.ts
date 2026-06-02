@@ -37,6 +37,7 @@ import { brief } from './commands/brief.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
+import { review } from './commands/review.js'
 import { runGuarded } from './lib/safety-guard.js'
 import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
 import { isPromptAbortError } from './lib/interactive.js'
@@ -135,6 +136,7 @@ const KO_ALIASES: Record<string, string> = {
   memory: '기억',
   brief: '브리핑',
   goal: '목표',
+  review: '검토',
   blocker: '블로커',
   learn: '교훈',
   resume: '재개',
@@ -448,6 +450,13 @@ program
   .option('--open', '리포트 생성 후 기본 브라우저로 열기 (비대화형/CI/MCP 자동 스킵)')
   .description('검증 게이트(tsc/test/build/secure) 실제 실행 + 증거 기록 (.vhk/reports/latest.json)')
   .action(async (opts: { json?: boolean; report?: boolean; open?: boolean }) => { await verify(opts) })
+
+program
+  .command('review')
+  .alias('검토')
+  .option('--id <id>', '대상 goal id (없으면 active goal)')
+  .description('적대적 자기검증 — latest.json ↔ goal 완료조건 교차검증 (거짓완료 의심 탐지, 보장 아님)')
+  .action(async (opts: { id?: string }) => { await review(opts) })
 
 program
   .command('context-show')
