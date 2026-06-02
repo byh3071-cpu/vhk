@@ -18,7 +18,7 @@ version: v1.8.1
 
 ## 동작 (파일·계약)
 - Gemini CLI → 루트 `GEMINI.md` (공식 GEMINI.md 컨텍스트 파일, Markdown 무제한).
-- Cline → 루트 `.clinerules` (공식 docs.cline.bot/customization/cline-rules, Markdown 무제한).
+- Cline → `.clinerules/vhk-rules.md` (공식 docs.cline.bot/features/cline-rules — `.clinerules/` 디렉터리 다중 규칙 파일, Markdown 무제한).
 - `SYNC_TARGETS`(src/commands/sync.ts) 레지스트리에 2 엔트리 추가 + 각 생성함수(`buildCodingDoc` 재사용) + ko 메시지.
 - drift 감지·백업·.synced·--dry-run·비대화형 가드는 레지스트리 순회라 **추가 배선 0** 으로 자동 반영.
 - 크로스플랫폼(path 조합), secret 미포함(RULES.md 그대로 변환).
@@ -28,7 +28,7 @@ version: v1.8.1
 
 ## Completion Check
 - [ ] vhk sync → 루트 `GEMINI.md` 생성 (RULES.md 본문 반영)
-- [ ] vhk sync → 루트 `.clinerules` 생성 (RULES.md 본문 반영)
+- [ ] vhk sync → `.clinerules/vhk-rules.md` 생성 (RULES.md 본문 반영)
 - [ ] SYNC_TARGETS 5종 → 7종 (회귀 가드: 길이·경로)
 - [ ] drift 감지/백업/--dry-run 이 새 2종 자동 포함 (추가 배선 0 확인)
 - [ ] Zed(.rules) 미추가 (기존 AGENTS.md/CLAUDE.md/.cursorrules 로 커버 — 중복 방지)
