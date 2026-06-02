@@ -142,7 +142,7 @@ function getVhkCommands(): string[] {
 /**
  * vhk context — LLM 부팅 컨텍스트(.vhk/context.md) 생성.
  * compact 모드(--compact): 토큰 절감형. 전체 명령 목록/깊은 트리 대신 Active Goal +
- * 최근 learnings/blockers/memories + 참조 문서 링크만 담는다. 기본(full)은 기존 호환 유지.
+ * 최근 blockers + memory v2(결정/실패·교훈/성공) + 참조 문서 링크만 담는다. 기본(full)은 기존 호환 유지.
  */
 export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   const compact = opts.compact === true
@@ -202,8 +202,8 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     // memory.json 파싱 실패 → 무시
   }
 
-  // Goal 2 (자율 루프): active goal + 최근 learnings 3건 자동 포함.
-  // SoT 는 goals/<n>.md frontmatter + docs/state/learnings.md.
+  // Goal 2 (자율 루프): active goal 섹션. SoT 는 goals/<n>.md frontmatter.
+  // 교훈(learnings)은 v2 에서 memory failures.lesson 단일 출처 — 위 "저장된 기억(memory v2)" 섹션에서 노출.
   const goals = listGoals('goals')
   const activeId = selectActiveId(goals)
   if (activeId !== null) {

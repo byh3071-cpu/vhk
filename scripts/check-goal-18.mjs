@@ -80,6 +80,7 @@ const walkTs = (dir) => {
 const scanTargets = [
   ...walkTs('src').filter((p) => !p.endsWith('commands/memory.ts')),
   'AGENTS.md', 'CLAUDE.md', 'docs/ARCHITECTURE.md', 'docs/context/agent-compact.md',
+  'README.md', 'COMMANDS.md', 'docs/spec.md',
 ].filter((p) => existsSync(p))
 const forbiddenHits = scanTargets.filter((f) => FORBIDDEN.test(readFileSync(f, 'utf-8')))
 must(forbiddenHits.length === 0, `learnings 분리 SoT 금지문구 0 (잔존: ${forbiddenHits.join(', ') || '없음'})`)
