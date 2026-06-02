@@ -88,7 +88,7 @@ describe('brief', () => {
     expect(md).toContain('없음 ✅')
   })
 
-  it('memory.json 있으면 결정사항 섹션 포함', async () => {
+  it('memory.json 있으면 기억 섹션 포함 (v1 배열 자동 마이그)', async () => {
     mockExistsSync.mockImplementation((p: unknown) => String(p).includes('memory.json'))
     mockReadFileSync.mockImplementation((p: unknown) => {
       if (String(p).includes('memory.json'))
@@ -100,7 +100,7 @@ describe('brief', () => {
     await brief()
 
     const md = String(mockWriteFileSync.mock.calls[0][1])
-    expect(md).toContain('저장된 결정사항')
+    expect(md).toContain('저장된 기억')
     expect(md).toContain('결정-1')
   })
 })

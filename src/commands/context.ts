@@ -11,6 +11,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { readMemory, activeMemoryLines } from './memory.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
 import { getRecentLearnings, getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
@@ -190,23 +191,12 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
 
   if (existsSync('.vhk/memory.json')) {
     try {
-      const memories = readJsonFile<Array<{ content: string; addedAt: string }>>(
-        '.vhk/memory.json'
-      )
-      if (Array.isArray(memories) && memories.length > 0) {
-        // 토큰 절감: 전체가 아니라 최근 5개만 삽입 (full/compact 공통).
-        const recentMemories = memories.slice(-5)
-        lines.push('## 저장된 결정사항')
+      // memory v2 4버킷 — active 만 누락 없이 (버킷별 최근 5개, 토큰 절감).
+      const memLines = activeMemoryLines(readMemory(process.cwd()))
+      if (memLines.length > 0) {
+        lines.push('## 저장된 기억 (memory v2)')
         lines.push('')
-        if (memories.length > recentMemories.length) {
-          lines.push(`_최근 ${recentMemories.length}개만 표시 (전체 ${memories.length}개)_`)
-          lines.push('')
-        }
-        for (const m of recentMemories) {
-          const date = new Date(m.addedAt).toLocaleDateString('ko-KR')
-          lines.push(`- ${m.content} _(${date})_`)
-        }
-        lines.push('')
+        lines.push(...memLines)
       }
     } catch {
       // memory.json 파싱 실패 → 무시

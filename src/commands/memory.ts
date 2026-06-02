@@ -151,11 +151,25 @@ export function readMemory(cwd: string = process.cwd()): MemoryFileV2 {
   return migrateMemory(raw, readLearningsRaw(cwd))
 }
 
-/** memory.json 쓰기 — 기존 파일 있으면 .bak 백업 후 v2 재기록. */
+/**
+ * memory.json 쓰기.
+ * - `.v1.bak` = **v1 원본 write-once 영구 백업** — 마이그레이션 순간(디스크가 v1)에 1회만 생성,
+ *   이미 있으면 안 덮음. 후속 add/archive/remove 가 v1 원본을 절대 못 지운다(breaking 복구 보장).
+ * - `.bak` = **롤링 백업** — 매 쓰기마다 직전 상태 보존(직전 1단계 되돌리기용).
+ */
 export function writeMemory(cwd: string, mem: MemoryFileV2): void {
   const p = join(cwd, MEMORY_PATH_REL)
   mkdirSync(join(cwd, '.vhk'), { recursive: true })
   if (existsSync(p)) {
+    // 마이그레이션 순간(디스크가 v1)에 v1 원본을 write-once 보존.
+    if (!isV2(readRaw(cwd)) && !existsSync(p + '.v1.bak')) {
+      try {
+        copyFileSync(p, p + '.v1.bak')
+      } catch {
+        /* 백업 실패는 치명적 아님 */
+      }
+    }
+    // 롤링 .bak (매 쓰기 직전 상태).
     try {
       copyFileSync(p, p + '.bak')
     } catch {
@@ -301,13 +315,40 @@ export async function memoryMigrate(): Promise<void> {
   }
   const v2 = migrateMemory(raw, readLearningsRaw(cwd))
   writeMemory(cwd, v2)
-  console.log(chalk.green('\n✅ memory.json v1 → v2 마이그레이션 완료 (.bak 백업)'))
+  console.log(chalk.green('\n✅ memory.json v1 → v2 마이그레이션 완료 (.v1.bak 원본 영구 백업)'))
   console.log(
     chalk.dim(
       `   decisions ${v2.decisions.length} · failures ${v2.failures.length} · successes ${v2.successes.length}` +
         ` (learnings.md 교훈 흡수 — 이후 vhk learn 은 memory 에 기록)`
     )
   )
+}
+
+/**
+ * vhk context / brief 용 — active 항목 요약 markdown 라인 (4버킷, 빈 버킷 생략, 버킷별 최근 limit).
+ * 누락 없이 decisions/failures/successes/patterns 의 active 만 렌더.
+ */
+export function activeMemoryLines(mem: MemoryFileV2, limit = 5): string[] {
+  const lines: string[] = []
+  const fmt = (e: MemEntry): string => {
+    const f = e as FailEntry
+    const base = e.content || (f.lesson ? `💡 ${f.lesson}` : e.id)
+    return e.content && f.lesson ? `${base} — 💡 ${f.lesson}` : base
+  }
+  const section = (label: string, list: MemEntry[]): void => {
+    const act = list.filter((e) => e.status === 'active')
+    if (act.length === 0) return
+    lines.push(`**${label}** (${act.length})`)
+    for (const e of act.slice(-limit)) lines.push(`- ${fmt(e)}`)
+    if (act.length > limit) lines.push(`- … 외 ${act.length - limit}개`)
+    lines.push('')
+  }
+  section('결정 (decisions)', mem.decisions)
+  section('실패·교훈 (failures)', mem.failures)
+  section('성공 (successes)', mem.successes)
+  const pats = mem.patterns.length
+  if (pats > 0) lines.push(`**패턴 후보 (patterns)**: ${pats}개 — \`vhk pattern\``, '')
+  return lines
 }
 
 /** Goal 18: vhk learn → memory v2 failures.lesson 단일 SoT (learnings.md 신규 기록 중단). */
