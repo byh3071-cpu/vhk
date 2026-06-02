@@ -109,6 +109,20 @@ export function toCopilotInstructions(sections: RulesSection[], projectName: str
 }
 
 /**
+ * Gemini CLI — 루트 GEMINI.md 컨텍스트 파일(공식, Markdown). 하드 글자수 제한 없음 → 절삭 안 함.
+ */
+export function toGeminiMd(sections: RulesSection[], projectName: string): string {
+  return buildCodingDoc('Gemini CLI Rules', sections, projectName)
+}
+
+/**
+ * Cline — 루트 .clinerules (공식 docs.cline.bot/customization/cline-rules, Markdown). 제한 없음.
+ */
+export function toClineRules(sections: RulesSection[], projectName: string): string {
+  return buildCodingDoc('Cline Rules', sections, projectName)
+}
+
+/**
  * Antigravity 규칙 파일 1개당 12,000 제한 (공식 docs는 "characters").
  * 측정 안전성: char/byte 어느 해석이든 안전하도록 **UTF-8 바이트 기준**으로 강제한다.
  * byteLength ≥ charCount 이므로 byteLength ≤ 12000 이면 char 수도 자동으로 ≤ 12000.
@@ -265,6 +279,9 @@ export const SYNC_TARGETS: SyncTarget[] = [
   { path: '.agents/rules/vhk-rules.md', generate: toAntigravityRules, doneMessage: ko.sync.antigravityDone },
   // AGENTS.md — 6번째 타겟. 항목 1개 추가로 sync·드리프트·백업 가드가 자동 반영된다.
   { path: 'AGENTS.md', generate: toAgentsMd, doneMessage: ko.sync.agentsDone },
+  // Goal 16 — Gemini CLI / Cline (공식 경로 검증). 레지스트리 추가만으로 drift·백업 자동 반영.
+  { path: 'GEMINI.md', generate: toGeminiMd, doneMessage: ko.sync.geminiDone },
+  { path: '.clinerules', generate: toClineRules, doneMessage: ko.sync.clineDone },
 ]
 
 /** 보존할 백업 개수 — 무한 증식 방지(스케일/팀 고려). */

@@ -21,7 +21,7 @@ AI 코딩 도구는 저마다 규칙 파일이 다르고(`.cursorrules`·`CLAUDE
 
 | 문제 | VHK 해결 | 명령 |
 |------|----------|------|
-| 도구마다 규칙 파일이 따로 논다 | `RULES.md` 한 벌 → Cursor·Claude·Windsurf·Copilot·Antigravity 규칙 동시 생성 | `vhk sync` |
+| 도구마다 규칙 파일이 따로 논다 | `RULES.md` 한 벌 → Cursor·Claude·Windsurf·Copilot·Antigravity·Gemini·Cline 규칙 동시 생성 | `vhk sync` |
 | 컴퓨터·환경 바뀌면 맥락 유실 | `.vhk/` 맥락을 GitHub gist로 백업·복원 | `vhk cloud push` / `pull` |
 | 새 프로젝트 세팅 반복 | 유형별 문서·규칙·맥락 뼈대를 한 번에 | `vhk init` |
 
@@ -145,7 +145,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk gate` | `검증`, `아이디어` | 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵) |
 | `vhk init` | `시작`, `만들기` | 프로젝트 초기화 + 하네스 생성 |
 | `vhk recap` | `정리`, `오늘` | Git 변경 → `docs/log/` 세션 로그 |
-| `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md + `.windsurfrules` + `.github/copilot-instructions.md` + `.agents/rules/vhk-rules.md` (5개) |
+| `vhk sync` | `규칙`, `맞추기` | RULES.md → `.cursorrules` + CLAUDE.md + `.windsurfrules` + `.github/copilot-instructions.md` + `.agents/rules/vhk-rules.md` + `AGENTS.md` + `GEMINI.md` + `.clinerules` |
 | `vhk check` | `점검`, `린트` | RULES.md 규칙 위반 검사 |
 | `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
 | `vhk ship` | `출하` | 배포 체크리스트 + 회고 + 빌드 로그 |
