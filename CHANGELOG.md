@@ -6,7 +6,9 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
-## [2.0.0] - 2026-06-03
+## [2.0.1] - 2026-06-03
+
+> ℹ️ npm 발행 버전은 **2.0.1** (2.0.0 은 npm 미발행 — `vhk publish` 강제 patch 범프로 건너뜀). 내용은 v2.0 메이저(BREAKING)이며, major=2 가 breaking 신호.
 
 > **BREAKING — memory schema v2 (Goal 18, Evolution Loop 도미노 2).** 평면 `.vhk/memory.json` →
 > 4버킷(decisions/failures/successes/patterns) + 교훈 단일 SoT(learn 통합). 패턴(19)·진화(20)의 학습 입력 토대.
