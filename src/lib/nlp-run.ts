@@ -36,6 +36,7 @@ import { quickActions } from '../commands/help.js'
 import { mode } from '../commands/mode.js'
 import { verify } from '../commands/verify.js'
 import { review } from '../commands/review.js'
+import { missionShow } from '../commands/mission.js'
 import { runGuarded } from './safety-guard.js'
 import { NL_GUARDED_ACTIONS } from './risk-policy.js'
 
@@ -132,6 +133,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return verify()
     case 'review':
       return review()
+    case 'mission':
+      return missionShow()
   }
 }
 
