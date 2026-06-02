@@ -17,14 +17,14 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   - `set`(선언/갱신, 비대화형 가드) · 기본(현재 계약 표시) · `check`(변경 ↔ glob 교차검증) · `clear`(삭제).
   - `check`: working tree + staged 변경(`simple-git status`)을 scope/forbidden glob 과 대조 —
     **forbidden 매칭 = 위반(exit 1)**, scope 밖 = 경고. `checkMission`/`globToRegExp` 순수 함수.
-  - `검토`/자연어(`미션 계약`/`작업 범위`) 라우팅. R1 command-registry 단일소스 등록.
+  - `미션`/자연어(`미션 계약`/`작업 범위`) 라우팅. R1 command-registry 단일소스 등록.
 
 ### Note (v0 정직성)
 
 - **경로 glob 기준** — objective 의미 부합은 검증하지 않음(disclaimer 명시, 신뢰도 신호·보장 아님).
 - glob **자체 구현(외부 의존 0)**. `.vhk/mission.json` **별도 네임스페이스** — latest.json(verify 증거) 불변.
   secret 미포함(경로·objective 텍스트만). forbidden 액션 금지·strict 하드블록·의미 검증은 후속.
-- 테스트 671 pass(신규 15, 회귀 0).
+- 테스트 674 pass(신규 18, 회귀 0).
 
 ## [1.8.1] - 2026-06-02
 
