@@ -7,6 +7,8 @@ import {
   toCursorrules,
   toWindsurfrules,
   toCopilotInstructions,
+  toGeminiMd,
+  toClineRules,
   toAntigravityRules,
   toAgentsMd,
   truncateForAntigravity,
@@ -126,6 +128,34 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     const out = toAgentsMd(sections, 'P')
     const titles = parseRulesMd(out).map((s) => s.title)
     expect(titles).toContain('Loop Protocol')
+  })
+})
+
+describe('vhk sync — Gemini CLI + Cline (Goal 16, 5→7종)', () => {
+  it('toGeminiMd — 헤더 + 자동생성 경고 + 코딩 규칙, 기록 섹션 제외', () => {
+    const out = toGeminiMd(parseRulesMd(SAMPLE_RULES), '데모 프로젝트')
+    expect(out).toContain('# 데모 프로젝트 — Gemini CLI Rules')
+    expect(out).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
+    expect(out).toContain('execSync 금지')
+    expect(out).not.toContain('docs/log/ 작성')
+  })
+
+  it('toClineRules — 헤더 + 자동생성 경고 + 코딩 규칙', () => {
+    const out = toClineRules(parseRulesMd(SAMPLE_RULES), '데모 프로젝트')
+    expect(out).toContain('# 데모 프로젝트 — Cline Rules')
+    expect(out).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
+    expect(out).toContain('execSync 금지')
+  })
+
+  it('SYNC_TARGETS 5 → 7종 (GEMINI.md/.clinerules/vhk-rules.md 등록, drift/backup 자동 반영)', () => {
+    const paths = SYNC_TARGETS.map((t) => t.path)
+    expect(paths).toContain('GEMINI.md')
+    expect(paths).toContain('.clinerules/vhk-rules.md')
+    expect(SYNC_TARGETS).toHaveLength(7)
+  })
+
+  it('Zed .rules 는 추가 안 함 (기존 AGENTS.md/CLAUDE.md/.cursorrules 로 커버 — 중복 방지)', () => {
+    expect(SYNC_TARGETS.map((t) => t.path)).not.toContain('.rules')
   })
 })
 

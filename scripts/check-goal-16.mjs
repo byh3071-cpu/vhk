@@ -52,9 +52,15 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 16 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 16 고유 검증 (sync 확대 — Gemini CLI + Cline) ───────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const sy = read('src/commands/sync.ts') ?? ''
+must(/export function toGeminiMd/.test(sy) && /export function toClineRules/.test(sy), 'sync.ts: toGeminiMd + toClineRules 생성함수')
+must(/path: 'GEMINI\.md'/.test(sy) && /path: '\.clinerules\/vhk-rules\.md'/.test(sy), "SYNC_TARGETS 에 GEMINI.md + .clinerules/vhk-rules.md 등록")
+must(!/path: '\.rules'/.test(sy), 'Zed .rules 미추가 (중복 방지)')
+must(/geminiDone/.test(read('src/i18n/ko.ts') ?? '') && /clineDone/.test(read('src/i18n/ko.ts') ?? ''), 'ko.sync geminiDone/clineDone 메시지')
+must(existsSync('tests/sync.test.ts') && /SYNC_TARGETS\).toHaveLength\(7\)/.test(read('tests/sync.test.ts') ?? ''), '테스트: SYNC_TARGETS 7종 회귀 가드')
+must(/GEMINI\.md/.test(read('COMMANDS.md') ?? ''), 'COMMANDS.md sync 표에 신규 대상 반영')
 
 if (pass) { console.log('✅ goal 16 gate passes'); process.exit(0) }
 console.log('❌ goal 16 gate failed'); process.exit(1)

@@ -10,7 +10,11 @@ Cursor에게 한국어로 말해도 됩니다.
 | 저장 | `git add . && git commit -m "메시지"` | "저장해" |
 | 오늘 정리 | `vhk 정리` | "오늘 한 일 정리해" |
 | 규칙 점검 | `vhk 점검` | "규칙 점검해" |
+| 규칙 동기화 | `vhk 규칙` | "규칙 동기화해" |
 | 보안 스캔 | `vhk 보안 scan` | "보안 스캔 돌려" |
+
+> `vhk sync` 대상(7): `.cursorrules` · `.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/vhk-rules.md` · `AGENTS.md` · `GEMINI.md`(Gemini CLI) · `.clinerules/vhk-rules.md`(Cline) + `CLAUDE.md`(하이브리드). 모두 RULES.md 단일소스에서 생성.
+
 | 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |
 | 배포 | `vhk 배포` | "배포해" |
 
