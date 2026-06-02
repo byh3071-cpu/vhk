@@ -1,5 +1,6 @@
 import { Command, Help } from 'commander'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
+import fs from 'node:fs'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
@@ -685,8 +686,17 @@ program.action(async () => {
 
 // 메인 모듈로 직접 실행될 때만 파싱한다(import 되면 program 만 노출).
 // env 가 아니라 import.meta.url ↔ argv[1] 비교라, VITEST 환경을 물려받은 spawn 자식도 정상 실행.
+const getRealPath = (p: string) => {
+  try {
+    return fs.realpathSync(p)
+  } catch {
+    return p
+  }
+}
+
 const isMainModule =
-  !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+  !!process.argv[1] &&
+  getRealPath(fileURLToPath(import.meta.url)) === getRealPath(process.argv[1])
 
 if (isMainModule) {
   // VHK-014: parseAsync 를 try/catch 로 감싸 unsettled top-level await 경고 제거 +

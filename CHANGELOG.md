@@ -4,7 +4,12 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-(다음 릴리즈 누적 영역)
+### Fixed
+
+- **글로벌/심링크 실행 시 CLI 미동작 가드** (`src/index.ts`) — `isMainModule` 판정을
+  `import.meta.url ↔ pathToFileURL(argv[1])` 단순 비교에서 **realpath 정규화 비교**(`fs.realpathSync`)로 변경.
+  `pnpm link`·글로벌 설치처럼 `process.argv[1]`(심링크)와 실제 모듈 경로가 다르면 main 액션이 안 돌던 문제 해소.
+  vitest import(비-main) 판정은 그대로(realpath 도 불일치) — 테스트 동작 무손상. 다음 릴리즈(2.0.2)에 포함 예정.
 
 ## [2.0.1] - 2026-06-03
 
