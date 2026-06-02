@@ -1,10 +1,10 @@
 # Next Task
 
-_Auto-updated 2026-06-02T14:22:18.613Z via `vhk goal next`._
+_Auto-updated 2026-06-02T15:01:18.941Z via `vhk goal next`._
 
 ```
-TASK: Goal 16 — vhk sync 확대 — Gemini CLI + Cline (P2)
+TASK: Goal 17 — vhk mission — Mission Contract (scope/intent 층) — P3
   status: NOT_STARTED
-  priority: P2
-  file: goals\16-sync-expand.md
+  priority: P3
+  file: goals\17-mission.md
 ```
