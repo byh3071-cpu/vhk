@@ -65,28 +65,9 @@ export function appendBlocker(description: string, goalId?: number): {
   return { count, hardStopTripped }
 }
 
-export function appendLearning(lesson: string, goalId?: number): void {
-  ensureStateDir()
-  const tag = goalId !== undefined ? `goal-${goalId}` : 'no-goal'
-  const line = `- [${isoDate()} ${tag}] ${lesson.trim()}`
-  if (!existsSync(LEARNINGS_PATH)) {
-    writeFileSync(
-      LEARNINGS_PATH,
-      `# Learnings\n\n_Append-only. 한 줄 = 한 교훈._\n\n${line}\n`,
-      'utf-8'
-    )
-  } else {
-    appendFileSync(LEARNINGS_PATH, `${line}\n`, 'utf-8')
-  }
-}
-
-// learnings.md 의 마지막 N 줄 (헤더/메타 제외) 을 반환. vhk context 가 사용.
-export function getRecentLearnings(limit = 3): string[] {
-  if (!existsSync(LEARNINGS_PATH)) return []
-  const lines = readFileSync(LEARNINGS_PATH, 'utf-8').split(/\r?\n/)
-  const entries = lines.filter((l) => l.startsWith('- ['))
-  return entries.slice(-limit)
-}
+// NOTE(v2.0): appendLearning/getRecentLearnings 제거됨. 교훈 SoT 는 memory v2 failures.lesson
+//   (vhk learn → recordLesson). learnings.md 는 v1→v2 마이그레이션 **읽기 소스**로만 남는다
+//   (memory.ts readLearningsRaw 가 직접 읽음 — 신규 기록 경로 없음).
 
 // blockers.md 의 blocker 항목(활성 "- [" + 해결 "- ~~[") 중 마지막 N 개. vhk context 토큰 절감용.
 const BLOCKER_ENTRY_RE = /^- (~~)?\[/

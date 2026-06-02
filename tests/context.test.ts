@@ -14,6 +14,10 @@ vi.mock('node:fs', () => ({
   mkdirSync: (...a: unknown[]) => mockMkdirSync(...a),
   readdirSync: (...a: unknown[]) => mockReaddirSync(...a),
   statSync: (...a: unknown[]) => mockStatSync(...a),
+  // writeMemory(readMemory 의 v1 자동 마이그)가 쓰는 fs — 시드가 v1 일 때 throw 방지(durability).
+  copyFileSync: () => undefined,
+  renameSync: () => undefined,
+  rmSync: () => undefined,
 }))
 
 describe('context', () => {

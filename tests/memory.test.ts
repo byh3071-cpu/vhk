@@ -15,6 +15,8 @@ import {
   memoryList,
   memoryRemove,
   memoryArchive,
+  memoryResolve,
+  memoryUnarchive,
   memoryMigrate,
   MEMORY_PATH_REL,
   type MemoryFileV2,
@@ -97,6 +99,7 @@ describe('memory v2 — 커맨드 (tmp+chdir)', () => {
   beforeEach(() => {
     origCwd = process.cwd()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     process.exitCode = 0
   })
   afterEach(() => {
@@ -193,6 +196,185 @@ describe('memory v2 — 커맨드 (tmp+chdir)', () => {
     const bak = JSON.parse(fs.readFileSync(path.join(d, MEMORY_PATH_REL + '.bak'), 'utf-8'))
     expect(bak.schemaVersion).toBe(2)
     process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('손상 memory.json — read 경로(memoryList)가 덮어쓰지 않고 원본 보존 (#1 blocker)', async () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    const corrupt = '{ "decisions": [ this is not valid json'
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), corrupt, 'utf-8')
+    process.chdir(d)
+    await memoryList() // read 경로 — 손상 파일을 빈 v2 로 절대 덮으면 안 됨
+    expect(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')).toBe(corrupt)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('손상 memory.json + .v1.bak 선재 — 반복 read 도 데이터 파괴 안 함 (#1 worst-case)', async () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL + '.v1.bak'), JSON.stringify([{ content: '오래된 v1' }]), 'utf-8')
+    const corrupt = '{ broken'
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), corrupt, 'utf-8')
+    process.chdir(d)
+    await memoryList()
+    await memoryList() // 두 번째 read 도 파괴 금지(이전엔 .bak 덮어쓰며 영구 손실)
+    expect(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')).toBe(corrupt)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryMigrate — 인식 불가 객체(미래 스키마/수동편집)면 덮어쓰지 않고 중단 (exit 1, 원본 보존)', async () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    // v1 배열도 v2(schemaVersion:2) 도 아닌 객체 — 미래 v3+ 또는 수동 편집 의심.
+    const future = JSON.stringify({ schemaVersion: 3, somethingNew: [] })
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), future, 'utf-8')
+    process.chdir(d)
+    await memoryMigrate()
+    expect(process.exitCode).toBe(1) // 마이그레이션 대상 아님 → 중단
+    expect(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')).toBe(future) // 빈 v2 로 덮지 않음
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.v1.bak'))).toBe(false) // 백업도 안 만듦
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryMigrate — memory.json/learnings 둘 다 없으면 파일 생성 안 함 (거짓 백업 메시지 방지, #3)', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryMigrate()
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL))).toBe(false) // 빈 파일 안 만듦
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryMigrate — learnings 만 있으면 v2 생성하되 .v1.bak 없음 (신규 생성, #3)', async () => {
+    const d = tmp()
+    seedLearnings(d, '- [2026-01-01 goal-1] 교훈만.\n')
+    process.chdir(d)
+    await memoryMigrate()
+    expect(read(d).failures[0].lesson).toBe('교훈만.')
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.v1.bak'))).toBe(false) // 원본 없었으니 백업 없음
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryRemove — 중복 id 여도 위치 기준으로 정확히 삭제 (#D)', async () => {
+    const d = tmp()
+    const v2: MemoryFileV2 = {
+      schemaVersion: 2,
+      decisions: [
+        { id: 'd1', content: 'FIRST', tags: [], createdAt: '', status: 'active' },
+        { id: 'd1', content: 'SECOND', tags: [], createdAt: '', status: 'active' },
+      ],
+      failures: [], successes: [], patterns: [],
+    }
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), JSON.stringify(v2, null, 2) + '\n', 'utf-8')
+    process.chdir(d)
+    await memoryRemove('2') // 두 번째(SECOND) 삭제 의도 — id 매칭이면 FIRST 가 지워졌었음
+    const mem = read(d)
+    expect(mem.decisions).toHaveLength(1)
+    expect(mem.decisions[0].content).toBe('FIRST')
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryAdd — 잘못된 --type 거부(exit 1), 저장/입력 유실 없음 (#L)', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('교훈 유실 방지', { type: 'failrue', lesson: '회귀 가드' })
+    expect(process.exitCode).toBe(1)
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL))).toBe(false) // 저장 안 됨
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryResolve → status resolved + resolvedAt (#2 — 이제 도달 가능)', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('해결 대상')
+    await memoryResolve('1')
+    const mem = read(d)
+    expect(mem.decisions[0].status).toBe('resolved')
+    expect(mem.decisions[0].resolvedAt).toBeDefined()
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryUnarchive → archived 를 active 로 복구 (오조작 역전)', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('보관 후 복구')
+    await memoryArchive('1')
+    await memoryUnarchive('1')
+    const mem = read(d)
+    expect(mem.decisions[0].status).toBe('active')
+    expect(mem.decisions[0].archivedAt).toBeUndefined()
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('writeMemory — 원자적 쓰기 후 .tmp 잔여물 없음', async () => {
+    const d = tmp()
+    process.chdir(d)
+    await memoryAdd('원자성')
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.tmp'))).toBe(false)
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL))).toBe(true)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryAdd 첫 add(디스크 v1) — 단일 write: .bak 이 v1 원본 (이중 write 제거 #6)', async () => {
+    const d = tmp()
+    seedV1(d, [{ content: 'v1 원본' }])
+    process.chdir(d)
+    await memoryAdd('새 항목')
+    // 단일 write 라 직전 상태(.bak)는 v1 원본 배열. 이중 write 였다면 중간 v2 가 됐을 것.
+    const bak = JSON.parse(fs.readFileSync(path.join(d, MEMORY_PATH_REL + '.bak'), 'utf-8'))
+    expect(Array.isArray(bak)).toBe(true)
+    expect(bak[0].content).toBe('v1 원본')
+    const mem = read(d)
+    expect(mem.schemaVersion).toBe(2)
+    expect(mem.decisions.map((x) => x.content)).toEqual(expect.arrayContaining(['v1 원본', '새 항목']))
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryAdd — 손상 memory.json 위 저장 시도 시 중단(exit 1) + 원본 보존 (#1 mutate-path blocker)', async () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    const corrupt = '{ "decisions": [ broken'
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), corrupt, 'utf-8')
+    process.chdir(d)
+    await memoryAdd('새 결정') // 손상 파일 위에 빈 v2 로 덮으면 안 됨
+    expect(process.exitCode).toBe(1)
+    expect(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')).toBe(corrupt)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('memoryArchive — 손상 memory.json 위 status 전이 시도 시 중단(exit 1) + 원본 보존', async () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    const corrupt = '{ broken'
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), corrupt, 'utf-8')
+    process.chdir(d)
+    await memoryArchive('1')
+    expect(process.exitCode).toBe(1)
+    expect(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')).toBe(corrupt)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('recordLesson — 손상 memory.json 이면 null 반환 + 원본 보존 (learn 중단)', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    const corrupt = '{ broken json'
+    fs.writeFileSync(path.join(d, MEMORY_PATH_REL), corrupt, 'utf-8')
+    expect(recordLesson(d, '교훈', 1)).toBeNull()
+    expect(fs.readFileSync(path.join(d, MEMORY_PATH_REL), 'utf-8')).toBe(corrupt)
     fs.rmSync(d, { recursive: true, force: true })
   })
 })
