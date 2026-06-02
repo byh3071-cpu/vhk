@@ -64,7 +64,10 @@ must(/COVERAGE_MIN/.test(rv) && /coverage\s*<\s*COVERAGE_MIN/.test(rv), 'coverag
 must(/assessFreshness|freshness/.test(rv) && /STALE_AGE_MS/.test(rv) && /stale/.test(rv), '증거 신선도 판정(stale 시 high 금지)')
 must(/unmappedCount|미검증/.test(rv), '미검증(unmapped) 완료조건 분류·노출')
 must(/checkedCount === 0|체크된 완료조건이 없|vacuous/.test(rv), 'vacuous(체크 0) 가드 — 거짓 high 금지')
-must(/vacuous \|\| cleanHigh \? 0 : 1/.test(rv) && /confidence === 'high'/.test(rv), 'exit 정책: high/vacuous 만 0, medium·low 는 1(통과 취급 금지)')
+must(/gaps\.length > 0 \|\| coverage < COVERAGE_MIN/.test(rv), 'unmapped(gaps>0) 이면 high 금지 (coverage 0.5라도 캡)')
+must(/cleanHigh\s*=\s*[\s\S]{0,80}gaps\.length === 0[\s\S]{0,40}'high'/.test(rv), "cleanHigh 조건에 gaps.length === 0 요구")
+must(/vacuous \|\| cleanHigh \? 0 : 1/.test(rv), 'exit 정책: vacuous/cleanHigh 만 0, 그 외 1(통과 취급 금지)')
+must(/!mergeOk/.test(rv) && /process\.exitCode = 1[\s\S]{0,200}return/.test(rv), '병합(write) 실패 → exit 1 + goal done 안내 금지')
 must(/cleanHigh[\s\S]{0,400}goal done --id/.test(rv), 'goal done 안내는 cleanHigh 일 때만(medium/low 금지)')
 must(/REPORT_PATH_REL.*없음|없음.*review|existsSync\(jsonPath\)/.test(rv), 'latest.json 부재 시 안내 분기(자동 생성 안 함)')
 const nr = read('src/lib/nlp-run.ts') ?? ''

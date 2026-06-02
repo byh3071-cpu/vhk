@@ -177,11 +177,12 @@ export function crossCheck(
 
   const coverage = checked.length === 0 ? 0 : mappedCount / checked.length
 
-  // confidence: 증거 없음 ≠ 통과. high 는 (의심 0 AND coverage 충분 AND 신선도 확인·신선) 일 때만.
+  // confidence: 증거 없음 ≠ 통과. high 는 (의심 0 AND 미검증 0 AND coverage 충분 AND 신선도 확인·신선)
+  // 일 때만 — 단 하나라도 unmapped(gaps>0) 이면 완료조건이 증거로 안 닿았으므로 high 금지.
   let confidence: ReviewAnalysis['confidence']
   if (checked.length === 0 || suspicions.length > 0) {
     confidence = 'low'
-  } else if (coverage < COVERAGE_MIN || !freshness.confirmed || freshness.stale) {
+  } else if (gaps.length > 0 || coverage < COVERAGE_MIN || !freshness.confirmed || freshness.stale) {
     confidence = 'medium'
   } else {
     confidence = 'high'
@@ -324,20 +325,33 @@ export async function review(opts: { id?: string } = {}): Promise<void> {
 
   // review 섹션 병합 — 새 증거 안 만들고 기존 latest.json 에 판정만 덧붙임(judgment 네임스페이스 'review').
   // 다음 vhk verify 는 리포트를 새로 빌드해 덮어쓰므로 stale 한 review 가 남지 않는다(크래시 없음).
+  let mergeOk = false
   try {
     const merged = { ...report, review: result }
     writeFileSync(jsonPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
+    mergeOk = true
     console.log(chalk.dim(`  📄 판정 병합: ${REPORT_PATH_REL} (review 섹션)`))
   } catch (e) {
-    console.error(chalk.yellow(`  ⚠️  review 섹션 기록 실패(권한?): ${e instanceof Error ? e.message : String(e)}`))
+    console.error(chalk.red(`  ❌ review 판정 기록 실패: ${e instanceof Error ? e.message : String(e)}`))
+  }
+
+  // 판정을 기록 못 하면 review 결과를 신뢰할 수 없음 → exit 1 + goal done 안내 금지(부분 성공 위장 차단).
+  if (!mergeOk) {
+    process.exitCode = 1
+    printNextStep({
+      message: 'review 판정 기록 실패(exit 1) — .vhk/reports 쓰기 권한 확인 후 재실행:',
+      command: 'vhk review',
+      cursorHint: '권한 확인 후 다시 검토해줘',
+    })
+    return
   }
 
   // exit code 정책 (테스트로 고정):
-  //  - exit 0 = 통과로 봐도 되는 경우만 → ① vacuous(완료 주장 없음) ② confidence high(의심 0 + 커버리지·신선도 충분)
-  //  - exit 1 = 그 외 전부 → 강한 거짓완료 의심 / 증거 불충분(medium·low: stale·미검증·커버리지 부족)
+  //  - exit 0 = 통과로 봐도 되는 경우만 → ① vacuous(완료 주장 없음) ② cleanHigh(의심 0 + 미검증 0 + high)
+  //  - exit 1 = 그 외 전부 → 강한 거짓완료 의심 / 증거 불충분(medium·low: stale·미검증·커버리지 부족) / 병합 실패
   //  stale·unmapped·coverage 부족은 절대 "통과"로 취급하지 않는다(거짓 안심 금지).
   const vacuous = result.checkedCount === 0
-  const cleanHigh = result.suspicions.length === 0 && result.confidence === 'high'
+  const cleanHigh = result.suspicions.length === 0 && result.gaps.length === 0 && result.confidence === 'high'
   process.exitCode = vacuous || cleanHigh ? 0 : 1
 
   if (vacuous) {

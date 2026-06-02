@@ -108,6 +108,16 @@ describe('review — crossCheck (순수)', () => {
     expect(r.confidence).toBe('medium')
   })
 
+  it('unmapped 1개라도 있으면(coverage 0.5라도) high 금지 — gaps>0 캡 (회귀 가드)', () => {
+    // 1 매핑(tsc) + 1 미검증 → coverage 0.5 (>= COVERAGE_MIN) 이지만 gaps>0 → high 안 됨.
+    const r = crossCheck([checked('tsc 통과'), checked('기능 X 동작 확인')], 'IN_PROGRESS', report('PASS', [gate('typecheck', 'pass')]), FRESH)
+    expect(r.suspicions).toHaveLength(0)
+    expect(r.coverage).toBe(0.5)
+    expect(r.unmappedCount).toBe(1)
+    expect(r.confidence).not.toBe('high')
+    expect(r.confidence).toBe('medium')
+  })
+
   it('증거 stale(>6h) → confidence high 금지(medium 캡)', () => {
     const gates = [gate('typecheck', 'pass'), gate('test', 'pass')]
     const r = crossCheck([checked('tsc 통과'), checked('테스트 통과')], 'IN_PROGRESS', report('PASS', gates), FRESH + STALE_AGE_MS + 1000)
@@ -266,6 +276,21 @@ ${checks.map((c) => `- [x] ${c}`).join('\n')}
     await review({ id: '9' })
     expect(process.exitCode).toBe(0)
     process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('review 병합(write) 실패 → exit 1 + goal done 안내 금지', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    // high 가 될 조건(매핑 1 + pass + 신선)이라도, 기록 실패면 통과시키지 않는다.
+    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과'])
+    const jsonPath = path.join(d, '.vhk', 'reports', 'latest.json')
+    seedReport(d, report('PASS', [gate('typecheck', 'pass')], new Date().toISOString()))
+    fs.chmodSync(jsonPath, 0o444) // 읽기 전용 → writeFileSync 실패 유도(write 막힘)
+    process.chdir(d)
+    await review({ id: '9' })
+    expect(process.exitCode).toBe(1)
+    process.chdir(origCwd)
+    fs.chmodSync(jsonPath, 0o644)
     fs.rmSync(d, { recursive: true, force: true })
   })
 
