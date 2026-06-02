@@ -43,6 +43,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'resume', '재개',
   'mode', '모드',
   'verify', '사전점검',
+  'review', '검토',
   'help',
 ])
 
