@@ -6,6 +6,28 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 (다음 릴리즈 누적 영역)
 
+## [2.0.0] - 2026-06-03
+
+> **BREAKING — memory schema v2 (Goal 18, Evolution Loop 도미노 2).** 평면 `.vhk/memory.json` →
+> 4버킷(decisions/failures/successes/patterns) + 교훈 단일 SoT(learn 통합). 패턴(19)·진화(20)의 학습 입력 토대.
+> GA 약속대로 `.vhk` 포맷 breaking 은 메이저에서.
+
+### Changed (BREAKING)
+
+- **`memory.json` v1 → v2** (`src/commands/memory.ts`) — 평면 배열 → `{ schemaVersion:2, decisions[],
+  failures[], successes[], patterns[] }`. 항목 생명주기 `status: active|resolved|archived`(+ `vhk memory archive`).
+  `add --type decision|failure|success`(failure: `--why`/`--lesson`, success: `--why`), `list [--type][--all]`,
+  `remove`, `migrate` 추가.
+- **`vhk learn` 통합** — 교훈을 `memory failures.lesson` **단일 SoT** 로 기록. `docs/state/learnings.md`
+  신규 기록 중단(과거 `vhk learn` 의 learnings.md 분리 기록 폐지). 기존 learnings.md 내용은 마이그레이션으로 흡수.
+
+### Migration (자동·무손상)
+
+- **자동 v1 → v2** — `vhk` 실행 시(`memory`/`context`/`brief`/`learn` 등) v1 파일이면 **read 경로에서도 1회**
+  v2 로 변환. 어느 명령으로 첫 실행해도 동일 결과(멱등 — 이미 v2 면 no-op).
+- **`.v1.bak` 원본 영구 백업**(write-once, 안 덮음) + `.bak` 롤링 백업 — 데이터 손실 0.
+- `context`/`brief` 는 v2 4버킷(active)을 "저장된 기억" 섹션에 렌더.
+
 ## [1.9.0] - 2026-06-03
 
 > **vhk mission — Mission Contract v0 (Goal 17, Trust Loop 배치 7).** 작업의 목표·허용/금지 범위를

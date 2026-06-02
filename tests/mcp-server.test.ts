@@ -46,6 +46,11 @@ describe('MCP Server', () => {
     expect(names.length).toBeGreaterThanOrEqual(24)
   })
 
+  it('v2.0 — learn 쓰기 tool 등록 (memory v2 SoT, Evolution Loop)', async () => {
+    const names = await getRegisteredToolNames()
+    expect(names).toContain('learn')
+  })
+
   it('SERVER_VERSION 이 package.json 과 정합 (lib/version SoT)', async () => {
     const { getVhkVersion } = await import('../src/lib/version.js')
     const pkgVersion = getVhkVersion()

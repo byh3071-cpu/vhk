@@ -3,11 +3,11 @@ import { ko } from '../i18n/ko.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import {
   appendBlocker,
-  appendLearning,
   clearHardStop,
   isHardStopActive,
   readHardStopReason,
 } from '../lib/state-files.js'
+import { recordLesson } from './memory.js'
 import { selectActiveId } from './goal.js'
 
 function activeGoalId(): number | undefined {
@@ -42,12 +42,18 @@ export async function learn(lesson: string): Promise<void> {
     process.exitCode = 1
     return
   }
+  // Goal 18(v2.0 breaking): 교훈은 memory v2 failures.lesson 한 곳(단일 출처)에 모은다.
+  // (과거엔 learnings.md 에 따로 적었으나 v2 는 통합 — learnings.md 기존 항목은 마이그레이션으로 흡수.)
   const goalId = activeGoalId()
-  appendLearning(lesson, goalId)
-  console.log(chalk.green('  ✅ learnings.md append.'))
-  console.log(
-    chalk.dim('  결정사항(decision)은 `vhk memory add` 로 별도 기록 — SoT 분리.')
-  )
+  const entry = recordLesson(process.cwd(), lesson, goalId)
+  if (!entry) {
+    // memory.json 손상 의심 — 빈 v2 로 덮지 않고 중단(데이터 손실 방지).
+    console.log(chalk.red('  ❌ memory.json 손상 의심 — 교훈 기록 중단. 원본/백업 확인 후 다시 시도하세요.'))
+    process.exitCode = 1
+    return
+  }
+  console.log(chalk.green(`  ✅ 교훈 기록 → memory failures.lesson (${entry.id})`))
+  console.log(chalk.dim('  교훈·결정·실패·성공 모두 vhk memory (단일 SoT). vhk memory list 로 확인.'))
 }
 
 export interface ResumeOptions {

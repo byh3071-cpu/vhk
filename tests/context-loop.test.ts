@@ -37,13 +37,17 @@ describe('vhk context — Goal 2 자율 루프 확장', () => {
     vi.restoreAllMocks()
   })
 
-  it('## Active Goal + ## Recent Learnings 섹션 포함', async () => {
+  it('## Active Goal + 교훈(memory v2 흡수) 섹션 포함', async () => {
     makeGoalFile(dir, 0, 'DONE', 'Done Goal')
     makeGoalFile(dir, 1, 'IN_PROGRESS', '진행 중 미션')
-    const { appendLearning } = await import('../src/lib/state-files.js')
-    appendLearning('lesson alpha')
-    appendLearning('lesson bravo')
-    appendLearning('lesson charlie')
+    // v2: learnings.md 의 교훈은 readMemory 가 failures 로 흡수 → "저장된 기억" 섹션에 노출.
+    // (v2.0 에서 appendLearning 제거 — learnings.md 는 마이그레이션 읽기 소스로만 남음. 직접 작성해 흡수 검증.)
+    mkdirSync(join(dir, 'docs', 'state'), { recursive: true })
+    writeFileSync(
+      join(dir, 'docs', 'state', 'learnings.md'),
+      '# Learnings\n\n- [2026-01-01 no-goal] lesson alpha\n- [2026-01-02 no-goal] lesson bravo\n- [2026-01-03 no-goal] lesson charlie\n',
+      'utf-8'
+    )
 
     const { context } = await import('../src/commands/context.js')
     await context()
@@ -52,7 +56,7 @@ describe('vhk context — Goal 2 자율 루프 확장', () => {
     expect(out).toContain('## Active Goal')
     expect(out).toContain('id**: 1')
     expect(out).toContain('진행 중 미션')
-    expect(out).toContain('## Recent Learnings')
+    expect(out).toContain('저장된 기억') // v2 memory 섹션(구 Recent Learnings 통합)
     expect(out).toContain('lesson alpha')
     expect(out).toContain('lesson charlie')
   })

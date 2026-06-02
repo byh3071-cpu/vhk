@@ -211,12 +211,23 @@ const RULES: NlpRule[] = [
     test: t =>
       /감사|취약점|audit|vulnerability|보안\s*감사|보안\s*취약|의존성\s*취약/.test(t),
   },
+  // memory 마이그레이션은 패키지매니저 migrate 보다 **먼저** 평가 — "기억/메모리 마이그레이트" 가
+  // pnpm 전환(vhk migrate)으로 새지 않도록. 기억/메모리/memory 한정이라 bare "마이그레이트"는 안 가로챔.
+  {
+    command: 'memory',
+    args: ['migrate'],
+    explanation: 'memory.json v1 → v2 마이그레이션 (vhk memory migrate)',
+    confidence: 'high',
+    test: t => /(기억|메모리|memory)\s*(을|를)?\s*(마이그레이|migrat)/.test(t),
+  },
   {
     command: 'migrate',
     explanation: '패키지 매니저 전환 (vhk migrate)',
     confidence: 'high',
     test: t =>
-      /전환|마이그레이트|migrate|패키지\s*매니저|npm.*pnpm|pnpm.*npm|yarn.*전환|npm.*전환|pnpm.*전환/.test(t),
+      /전환|마이그레이(트|션)|migrate|패키지\s*매니저|npm.*pnpm|pnpm.*npm|yarn.*전환|npm.*전환|pnpm.*전환/.test(t)
+      // memory 마이그레이션 **의도**만 제외(인접 매칭) — "메모리 누수 때문에 pnpm 전환" 같은 정상 전환은 통과.
+      && !/(기억|메모리|memory)\s*(을|를)?\s*(마이그레이|migrat)/.test(t),
   },
   {
     command: 'update',
@@ -244,9 +255,11 @@ const RULES: NlpRule[] = [
     command: 'memory',
     explanation: '기억 목록 조회 (vhk memory list)',
     confidence: 'high',
+    // 보관(archive)/해결(resolve)/마이그레이션은 list 가 아니다 → **제외 토큰 한 곳**에서 오라우팅 차단.
+    // archive/resolve 는 <번호> 인자가 필요해 NL 미지원 → 매칭 안 되면 notMatched 가 정직(잘못된 list 실행 금지).
     test: t =>
       (/^기억$|기억\s*(목록|보|확인|뭐)|memory.*list|결정사항\s*(목록|확인|보여)/.test(t))
-      && !/(추가|add|삭제|remove|저장|기록해)/.test(t),
+      && !/(추가|add|삭제|remove|저장|기록해|보관|아카이브|archive|마이그레이|migrat|해결|복구)/.test(t),
   },
   {
     command: 'brief',

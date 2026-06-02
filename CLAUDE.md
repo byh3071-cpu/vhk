@@ -13,17 +13,19 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v1.9.0 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
-- **MCP tool:** 24/24 (Goal 0 DONE)
-- **테스트:** 674 pass (vitest)
+- **버전:** v2.0.0 (package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
+- **MCP tool:** 25 (Goal 0 24 + `learn` v2.0 쓰기 도구)
+- **테스트:** 702 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 5 이후 — Goal 17(vhk mission, 배치 7) DONE → v1.9.0 릴리즈 PR. Trust Loop scope/verify/review 층 완성.
+- **Phase:** Phase 5 이후 — Goal 18(memory schema v2, Evolution Loop 도미노 2) DONE → v2.0.0 릴리즈 PR (breaking). 다음 = Goal 19(vhk pattern).
 - **블로커:** 없음
-- **다음 액션:** 배치 8+(Evolution Loop — 반복 패턴 감지/evolve). publish 는 사람(2FA OTP).
+- **다음 액션:** Goal 19(vhk pattern, v2.1.0), 20(vhk evolve, v2.2.0). publish 는 사람(2FA OTP).
 - **마지막 업데이트:** 2026-06-03
+
+> **기억 SoT (v2):** 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, `vhk learn`→`failures.lesson`). `docs/state/learnings.md` 는 v2 마이그레이션으로 흡수·신규기록 중단(분리 폐지).
 
 ## 코딩 컨벤션
 
@@ -78,7 +80,7 @@ tags: [process, documentation]
 
 - 단계별 미션은 `goals/<n>-<name>.md` (YAML frontmatter + 표준 섹션)
 - 공통 게이트는 `goals/_meta.md` + `scripts/check-meta.sh`
-- 현재 상태 SoT 는 `docs/state/next-task.md` / `blockers.md` / `learnings.md`
+- 현재 상태 SoT 는 `docs/state/next-task.md` / `blockers.md` (교훈은 v2 부터 `vhk memory` failures.lesson — `learnings.md` 는 흡수·동결)
 - 자세한 규약은 `goals/_meta.md` 와 `goals/0-mcp-full-coverage.md` 참조
 
 ## Stability Gates (v1.3.1+)

@@ -15,6 +15,9 @@ vi.mock('node:fs', () => ({
   readFileSync: (...a: unknown[]) => mockReadFileSync(...a),
   writeFileSync: (...a: unknown[]) => mockWriteFileSync(...a),
   mkdirSync: (...a: unknown[]) => mockMkdirSync(...a),
+  // writeMemory 는 백업(copyFileSync)과 원자적 쓰기(renameSync)를 쓴다 — 모킹 누락 시 마이그 write 가 throw.
+  copyFileSync: () => undefined,
+  renameSync: () => undefined,
 }))
 
 describe('brief', () => {
@@ -88,7 +91,7 @@ describe('brief', () => {
     expect(md).toContain('없음 ✅')
   })
 
-  it('memory.json 있으면 결정사항 섹션 포함', async () => {
+  it('memory.json 있으면 기억 섹션 포함 (v1 배열 자동 마이그)', async () => {
     mockExistsSync.mockImplementation((p: unknown) => String(p).includes('memory.json'))
     mockReadFileSync.mockImplementation((p: unknown) => {
       if (String(p).includes('memory.json'))
@@ -99,8 +102,10 @@ describe('brief', () => {
     const { brief } = await import('../src/commands/brief.js')
     await brief()
 
-    const md = String(mockWriteFileSync.mock.calls[0][1])
-    expect(md).toContain('저장된 결정사항')
+    // readMemory 가 v1 디스크를 v2 로 영구화(write)하므로 brief.md 쓰기를 경로로 특정한다.
+    const call = mockWriteFileSync.mock.calls.find((c) => String(c[0]).includes('brief.md'))
+    const md = String(call![1])
+    expect(md).toContain('저장된 기억')
     expect(md).toContain('결정-1')
   })
 })

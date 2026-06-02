@@ -13,6 +13,8 @@ dist/
 
 # VHK 개인 메모/참고링크 — 로컬 전용 (docs/spec.md 트래킹 정책)
 .vhk/memory.json
+# 백업·원자적 쓰기 임시 파일 (.bak / .v1.bak / .tmp) 도 로컬 전용 — 절대 커밋 금지
+.vhk/memory.json.*
 .vhk/refs.json
 # secret gist 포인터 (gistId) — 공개 repo 노출 방지 (VHK-022)
 .vhk/cloud.json
