@@ -60,7 +60,11 @@ must(/export function crossCheck/.test(rv) && /export function parseCompletionCh
 must(/--id/.test(idx) && /command\('review'\)/.test(idx), "index 에 review 커맨드 + --id 옵션")
 must(/readJsonFile<VerifyReport>/.test(rv) && /\.\.\.report,\s*review:/.test(rv), 'latest.json BOM-safe 읽기 + review 섹션 병합(새 증거 안 만듦)')
 must(/REVIEW_DISCLAIMER/.test(rv) && /보장(이)? 아니/.test(rv) && /reprompt/.test(rv), '"보장 아님" disclaimer + 재질문 프롬프트(거짓 PASS 단언 금지)')
-must(/REPORT_PATH_REL.*없음|없음.*verify|existsSync\(jsonPath\)/.test(rv), 'latest.json 부재 시 안내 분기(자동 생성 안 함)')
+must(/COVERAGE_MIN/.test(rv) && /coverage\s*<\s*COVERAGE_MIN/.test(rv), 'coverage 기반 confidence 캡(증거 없음 ≠ 통과)')
+must(/assessFreshness|freshness/.test(rv) && /STALE_AGE_MS/.test(rv) && /stale/.test(rv), '증거 신선도 판정(stale 시 high 금지)')
+must(/unmappedCount|미검증/.test(rv), '미검증(unmapped) 완료조건 분류·노출')
+must(/checkedCount === 0|체크된 완료조건이 없|vacuous/.test(rv), 'vacuous(체크 0) 가드 — 거짓 high 금지')
+must(/REPORT_PATH_REL.*없음|없음.*review|existsSync\(jsonPath\)/.test(rv), 'latest.json 부재 시 안내 분기(자동 생성 안 함)')
 must(!/maskSecret|f\.match|findSecretsInLine/.test(rv), 'review 가 시크릿 값 수집 안 함(파일 원문 echo 없음)')
 must(existsSync('tests/review.test.ts'), 'review 테스트 존재(거짓완료 회귀 가드 포함)')
 
