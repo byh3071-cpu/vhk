@@ -10,6 +10,9 @@ import { ensureVhkIgnored } from '../lib/backup.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { localDate } from '../lib/date.js'
 import { scanProjectForSecrets, filterSevereFindings } from '../lib/scan-secrets.js'
+import { renderReportHtml } from './verify-report.js'
+import { isInteractive } from '../lib/interactive.js'
+import { safeExecFile } from '../lib/exec.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -32,6 +35,8 @@ export function verificationChecklist(): string[] {
 export const REPORT_SCHEMA_VERSION = 1
 export const REPORT_DIR_REL = join('.vhk', 'reports')
 export const REPORT_PATH_REL = join(REPORT_DIR_REL, 'latest.json')
+/** Goal 14: 사람용 정적 HTML 리포트 경로(같은 증거 latest.json 을 렌더). */
+export const REPORT_HTML_PATH_REL = join(REPORT_DIR_REL, 'latest.html')
 
 export type GateRunStatus = 'pass' | 'fail' | 'skip'
 export type ReportStatus = 'PASS' | 'WARN' | 'FAIL'
@@ -277,11 +282,87 @@ const STATUS_BADGE: Record<ReportStatus, string> = {
   FAIL: chalk.red.bold('FAIL'),
 }
 
-export async function verify(opts: { json?: boolean } = {}): Promise<void> {
+/**
+ * Goal 14: `--report` — latest.json 을 사람용 정적 HTML 로 렌더.
+ * 새 증거를 만들지 않는다(단일 진실원천) — latest.json 이 있으면 읽고(BOM-safe),
+ * 없으면 verify 1회 선실행해 증거를 만든 뒤 같은 report 를 렌더.
+ */
+async function renderVerifyReport(cwd: string, opts: { open?: boolean }): Promise<void> {
+  const jsonPath = join(cwd, REPORT_PATH_REL)
+  let report: VerifyReport
+  if (existsSync(jsonPath)) {
+    try {
+      report = readJsonFile<VerifyReport>(jsonPath)
+    } catch {
+      // 손상된 latest.json → verify 재실행으로 증거 재생성(렌더 전용 원칙 유지: 깨진 증거는 무효).
+      console.log(chalk.yellow('  ⚠️  기존 latest.json 손상 — verify 재실행으로 증거를 다시 만듭니다.'))
+      report = verifyEvidence(cwd).report
+    }
+  } else {
+    console.log(chalk.dim('  latest.json 없음 — verify 1회 선실행으로 증거를 만듭니다.'))
+    report = verifyEvidence(cwd).report
+  }
+
+  const html = renderReportHtml(report)
+  const htmlPath = join(cwd, REPORT_HTML_PATH_REL)
+  try {
+    mkdirSync(join(cwd, REPORT_DIR_REL), { recursive: true })
+    writeFileSync(htmlPath, html, 'utf-8')
+  } catch (e) {
+    // 쓰기 권한 없음 등 → 크래시 대신 친절 안내 + 비-0 종료.
+    console.error(
+      chalk.red(`  ❌ 리포트 HTML 을 쓸 수 없습니다 (${REPORT_HTML_PATH_REL}): ${e instanceof Error ? e.message : String(e)}`)
+    )
+    console.error(chalk.dim('     해당 경로의 쓰기 권한을 확인하세요.'))
+    process.exitCode = 1
+    return
+  }
+
+  console.log(chalk.bold('\n🔎 검증 리포트 (verify --report)'))
+  console.log(`  결과: ${STATUS_BADGE[report.status]}`)
+  console.log(chalk.dim(`  📄 HTML: ${REPORT_HTML_PATH_REL}`))
+  process.exitCode = report.status === 'FAIL' ? 1 : 0
+
+  if (opts.open) {
+    // 비대화형/CI/MCP(비-TTY)에서는 브라우저 열기 자동 스킵.
+    if (isInteractive()) openReportInBrowser(htmlPath)
+    else console.log(chalk.dim('  (비대화형/CI/MCP — --open 자동 스킵)'))
+    return
+  }
+  printNextStep({
+    message: '리포트 생성 완료. 브라우저로 열려면:',
+    command: 'vhk verify --report --open',
+    cursorHint: '리포트 열어줘',
+  })
+}
+
+/** 기본 브라우저로 로컬 HTML 열기 — shell 없는 argv 호출(ref.ts 패턴 답습, 인젝션 차단). */
+function openReportInBrowser(filePath: string): void {
+  let result
+  if (process.platform === 'darwin') {
+    result = safeExecFile('open', [filePath])
+  } else if (process.platform === 'win32') {
+    // rundll32 url.dll,FileProtocolHandler: 쉘 없이 ShellExecute → cmd 파싱 없음.
+    result = safeExecFile('rundll32.exe', ['url.dll,FileProtocolHandler', filePath])
+  } else {
+    result = safeExecFile('xdg-open', [filePath])
+  }
+  if (result.ok) console.log(chalk.green('  ✅ 브라우저에서 열었습니다.'))
+  else console.log(chalk.yellow('  ⚠️  브라우저를 열 수 없습니다. 위 파일을 직접 여세요.'))
+}
+
+export async function verify(opts: { json?: boolean; report?: boolean; open?: boolean } = {}): Promise<void> {
   // HARD_STOP 활성 → 게이트 실행 거부 + exit 1 (PRD §9).
   if (!ensureNotHardStopped('verify')) return
 
   const cwd = process.cwd()
+
+  // --report: latest.json → 사람용 HTML 렌더(증거는 만들지 않고 읽음; 없으면 선실행). json 보다 우선.
+  if (opts.report) {
+    await renderVerifyReport(cwd, opts)
+    return
+  }
+
   const { report, path } = verifyEvidence(cwd)
 
   // --json: 경로 대신 stdout 으로 리포트 JSON (CI 용). 다른 콘솔 출력 없음.
