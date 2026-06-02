@@ -1,6 +1,6 @@
 {
   "name": "@byh3071/vhk",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Vibe Harness Kit — AI 코딩 도구·기기를 바꿔도 규칙·맥락이 따라가는 포터빌리티 CLI (sync: Cursor·Claude·Windsurf·Copilot·Antigravity / cloud 백업)",
   "bin": {
     "vhk": "dist/index.js",

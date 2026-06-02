@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 15
 title: vhk review (적대적 자기검증 v0) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 version: v1.8.0
+completed: 2026-06-02
 ---
 
 # Goal 15: vhk review (적대적 자기검증 v0)
