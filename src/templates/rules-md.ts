@@ -33,5 +33,8 @@ export function RULES_MD_TEMPLATE(name: string, description: string, stack: stri
     '## 기록 규칙',
     '- 세션 종료 시 docs/log/YYYY-MM-DD-{작업명}.md 생성',
     '- 기술 선택 시 docs/adr/ADR-{번호}-{제목}.md 생성',
+    '- 기능 완성 / 에러 해결 / ADR / 세션 종료 시 Notion "바이브코딩 Dev Log" DB에 1행 적재 (Notion MCP)',
+    '- 적재 직전 Dev Log DB 상단 "AI 적재 규칙" 콜아웃 확인 — 제목: (YYYY-MM-DD) 프로젝트명 - 제목',
+    '- 태그는 기존 옵션만 사용, 같은 작업 중복 적재 금지(SoT Key)',
   ].join('\n')
 }
