@@ -13,17 +13,17 @@ tags: [process, documentation]
 
 - **레포:** <https://github.com/byh3071-cpu/vhk> (public)
 - **npm:** @byh3071/vhk (public, scoped)
-- **버전:** v2.0.2 (npm latest. package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
-- **MCP tool:** 25 (Goal 0 24 + `learn` v2.0 쓰기 도구)
-- **테스트:** 761 pass (vitest)
+- **버전:** v2.2.0 (npm latest. package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
+- **MCP tool:** 29 (Goal 0 24 + `learn` v2.0 쓰기 도구 + `pattern-detect` + `pattern-list` v2.1 + `evolve-suggest` + `evolve-list` v2.2)
+- **테스트:** 816 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
 
-- **Phase:** Phase 5 이후 — Goal 18(memory schema v2, Evolution Loop 도미노 2) DONE → **npm v2.0.2 발행 완료**(breaking, learn MCP 툴 25 + 심링크 픽스 포함). 등록 goal 0~18 전부 DONE. 다음 = Goal 19(vhk pattern).
+- **Phase:** Goal 20(vhk evolve) 구현 완료, PR 대기. 등록 goal 0~20 전부 DONE. publish(v2.2.0)는 사람(2FA OTP).
 - **블로커:** 없음
-- **다음 액션:** Goal 19(vhk pattern, v2.1.0 — 설계 spike `feat/goal-19-pattern-spike` 브랜치, main 미머지), 20(vhk evolve, v2.2.0). publish 는 사람(2FA OTP).
-- **마지막 업데이트:** 2026-06-03
+- **다음 액션:** PR #116 머지 후 npm v2.3.0 발행(사람). publish 는 사람(2FA OTP).
+- **마지막 업데이트:** 2026-06-04
 
 > **기억 SoT (v2):** 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, `vhk learn`→`failures.lesson`). `docs/state/learnings.md` 는 v2 마이그레이션으로 흡수·신규기록 중단(분리 폐지).
 

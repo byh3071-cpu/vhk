@@ -103,6 +103,7 @@ import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalInit, goalList, goalNext, goalSync } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
+import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo } from './commands/evolve.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -145,6 +146,7 @@ const KO_ALIASES: Record<string, string> = {
   learn: '교훈',
   resume: '재개',
   pattern: '패턴',
+  evolve: '진화',
 }
 
 program
@@ -656,6 +658,45 @@ patternCmd
   .alias('보관')
   .description('오탐 패턴 dismiss (→archived, 재제안 안 됨)')
   .action(async (id: string) => { await patternDismiss(id) })
+
+const evolveCmd = program
+  .command('evolve')
+  .alias('진화')
+  .description('패턴 → 룰 후보 제안·반영·undo (Evolution Loop 도미노 4) — apply/undo는 TTY 필수')
+  .action(async () => { await evolveList() })
+
+evolveCmd
+  .command('suggest')
+  .alias('제안')
+  .option('--json', 'JSON 출력 (CI/MCP용)')
+  .description('active avoid 패턴 → 룰 초안 후보 생성·큐 적재')
+  .action(async (opts: { json?: boolean }) => { await evolveSuggest(opts) })
+
+evolveCmd
+  .command('list')
+  .alias('목록')
+  .option('--status <status>', 'pending|rejected|applied 필터')
+  .option('--json', 'JSON 출력 (CI/MCP용)')
+  .description('진화 후보 목록')
+  .action(async (opts: { status?: string; json?: boolean }) => { await evolveList(opts) })
+
+evolveCmd
+  .command('apply <id>')
+  .alias('반영')
+  .description('후보 TTY 확인 → RULES.md append → sync 재생성 (대화형 필수)')
+  .action(async (id: string) => { await evolveApply(id) })
+
+evolveCmd
+  .command('reject <id>')
+  .alias('기각')
+  .description('후보 기각 (재제안 억제)')
+  .action(async (id: string) => { await evolveReject(id) })
+
+evolveCmd
+  .command('undo')
+  .alias('되돌리기')
+  .description('최근 apply 1건 되돌리기(.bak 복원 + sync — 대화형 필수)')
+  .action(async () => { await evolveUndo() })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''
