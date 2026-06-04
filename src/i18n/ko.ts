@@ -257,6 +257,16 @@ export const ko = {
       `  ${drift ? '✏️  변경됨' : '·  동일'} : ${p}`,
     nonTtyAuto: (n: number, id: string) =>
       `🤖 비대화형(CI/에이전트) — ${n}개 백업 후 진행. 복원: vhk restore ${id}`,
+    // 배치1 — CLAUDE.md 를 vhk 마커(<!-- vhk:rules:start/end -->) 형식으로 1회 정리할 때의 안내.
+    // 사용자 섹션은 보존, RULES.md 기준 옛 자동생성 섹션만 재생성 교체(조용한 드롭 방지).
+    claudeMigrated: (preserved: string[], removed: string[]) =>
+      `ℹ️  CLAUDE.md 를 vhk 마커 형식으로 정리했어요 — 마커 밖 사용자 섹션은 보존됩니다.` +
+      (preserved.length
+        ? `\n     보존된 사용자 섹션 ${preserved.length}개: ${preserved.join(', ')}`
+        : '') +
+      (removed.length
+        ? `\n     RULES.md 기준으로 재생성·교체된 옛 자동생성 섹션 ${removed.length}개: ${removed.join(', ')} (필요 시 .vhk/backups 에서 복구)`
+        : ''),
   },
   restore: {
     title: '🛟 백업 복원',

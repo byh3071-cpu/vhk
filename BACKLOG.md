@@ -2,7 +2,12 @@
 
 > v1 OUT 기능은 여기에 기록. 범위 수비 필수.
 
-## 배치 1 (확정 — 배치0 적대적 검증서 도출) — CLAUDE.md 사용자 섹션 보존
+## 배치 1 ✅ DONE (브랜치 `fix/claude-md-marker`) — CLAUDE.md 사용자 섹션 보존
+
+> **구현 완료** — `<!-- vhk:rules:start/end -->` sentinel 마커 + 1회 마이그레이션 + 보존/제거 경고
+> (`ko.sync.claudeMigrated`). 순수함수 `buildVhkBlock`/`splitVhkBlock`/`stripLegacyAutogen`/
+> `claudeMdMigration` 분리, `toClaudeMd` 시그니처 유지. 게이트: tsc0·test green(신규 +14)·실
+> CLAUDE.md dry-run e2e·적대적 반례 5종(CRLF/다중마커/손글키섹션/빈입력/코드블록) 통과.
 
 > **확정 결함**(추측 아님). 배치0 R3 자체검증서 medium 으로 확인 — `toClaudeMd` 가 CLAUDE.md
 > 재생성 시 `## 현재 상태` + RULES record 섹션만 보존하고 **비-키 사용자 섹션(예 `## 프로젝트
