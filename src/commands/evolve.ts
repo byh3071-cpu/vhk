@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
@@ -132,11 +132,20 @@ export function readQueue(cwd: string): EvolveQueueFile {
 
 /**
  * queue.json 쓰기. 디렉터리가 없으면 재귀 생성.
+ * 원자적 쓰기: .tmp에 먼저 쓰고 rename — 프로세스 강제 종료 시 queue.json 손상 방지.
  */
 export function writeQueue(cwd: string, queue: EvolveQueueFile): void {
   const p = join(cwd, QUEUE_PATH_REL)
   mkdirSync(join(cwd, '.vhk', 'evolve'), { recursive: true })
-  writeFileSync(p, JSON.stringify(queue, null, 2) + '\n', 'utf-8')
+  // 원자적 쓰기: .tmp에 먼저 쓰고 rename — 프로세스 강제 종료 시 queue.json 손상 방지
+  const tmpPath = p + '.tmp'
+  writeFileSync(tmpPath, JSON.stringify(queue, null, 2) + '\n', 'utf-8')
+  try {
+    renameSync(tmpPath, p)
+  } catch (err) {
+    try { rmSync(tmpPath, { force: true }) } catch { /* 정리 실패 무시 */ }
+    throw err
+  }
 }
 
 /**
@@ -203,6 +212,8 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
   for (const c of newItems) {
     queue.items.push({ ...c, id: nextQueueId(queue), createdAt: now })
   }
+  // suggest는 --json 여부와 무관하게 항상 큐에 기록함 (write-first, then output).
+  // CI에서 read-only 조회가 필요하면 evolveList --json 사용.
   writeQueue(cwd, queue)
 
   if (opts.json) {
@@ -288,6 +299,7 @@ export async function evolveApply(idStr: string): Promise<void> {
   }
   if (item.status === 'applied') {
     console.log(chalk.yellow('\n⚠️  ' + t('evolve.alreadyApplied')))
+    process.exitCode = 1
     return
   }
 
@@ -299,9 +311,14 @@ export async function evolveApply(idStr: string): Promise<void> {
     return
   }
 
-  // 5. A4 댕글링 참조 가드
-  const mem = readMemory(cwd)
-  const srcPattern = (mem.patterns as PatternEntryV19[]).find(p => p.id === item.patternId)
+  // 5. A4 댕글링 참조 가드 (loadForMutation 단일 사용 — readMemory 이중 I/O 제거)
+  const memLoaded = loadForMutation(cwd)
+  if (!memLoaded.ok) {
+    console.log(chalk.red('\n❌ memory.json 손상 의심 — apply 중단 (원본 보존).'))
+    process.exitCode = 1
+    return
+  }
+  const srcPattern = (memLoaded.mem.patterns as PatternEntryV19[]).find(p => p.id === item.patternId)
   const refResult = checkApplyRef(srcPattern, queue.items)
   if (refResult === 'dismissed') {
     console.log(chalk.red('\n❌ ' + t('evolve.dismissed')))
@@ -350,14 +367,21 @@ export async function evolveApply(idStr: string): Promise<void> {
   const backupPath = rulesPath + '.bak'
   copyFileSync(rulesPath, backupPath)
 
-  // 9. RULES.md append
+  // 9. RULES.md append + sync — try-catch로 partial state 방지
   const appendContent = '\n' + editedDraft + '\n'
-  writeFileSync(rulesPath, rulesContent + appendContent, 'utf-8')
+  try {
+    writeFileSync(rulesPath, rulesContent + appendContent, 'utf-8')
+    await sync({ yes: true })
+  } catch (err) {
+    // sync/write 실패 → .bak으로 롤백, 상태 불변 유지
+    try { copyFileSync(backupPath, rulesPath) } catch { /* 롤백 실패는 치명적 아님 */ }
+    console.error(chalk.red('\n❌ RULES.md 반영 중 오류 — 원본 복원됨. 다시 시도하세요.'))
+    console.error(chalk.dim(`   ${err instanceof Error ? err.message : String(err)}`))
+    process.exitCode = 1
+    return
+  }
 
-  // 10. sync 비대화형 재생성 (yes:true — apply가 이미 확인 완료, 이중 프롬프트 금지)
-  await sync({ yes: true })
-
-  // 11. A3: queue item → applied, 소스 패턴 → archived
+  // 10. A3: queue item → applied, 소스 패턴 → archived
   const now = new Date().toISOString()
   item.status = 'applied'
   item.draft = editedDraft
@@ -366,14 +390,14 @@ export async function evolveApply(idStr: string): Promise<void> {
   writeQueue(cwd, queue)
 
   // 소스 패턴 archived (18 status 선순환 재사용, 신규 status 금지)
+  // memLoaded는 step 5에서 이미 로드됨 — 이중 I/O 없음
   if (srcPattern) {
-    const memLoaded = loadForMutation(cwd)
-    if (memLoaded.ok) {
-      const p = (memLoaded.mem.patterns as PatternEntryV19[]).find(x => x.id === srcPattern.id)
-      if (p) {
-        p.status = 'archived'
-        writeMemory(cwd, memLoaded.mem)
-      }
+    const p = (memLoaded.mem.patterns as PatternEntryV19[]).find(x => x.id === srcPattern.id)
+    if (p) {
+      p.status = 'archived'
+      writeMemory(cwd, memLoaded.mem)
+    } else {
+      console.error(chalk.yellow('  ⚠️  소스 패턴 archived 처리 실패 (memory.json 손상 의심). 룰은 반영됐습니다.'))
     }
   }
 
@@ -399,6 +423,12 @@ export async function evolveReject(idStr: string): Promise<void> {
 
   if (item.status === 'rejected') {
     console.log(chalk.dim(`  이미 기각된 후보입니다 — 변경 없음: ${item.id}`))
+    return
+  }
+
+  if (item.status === 'applied') {
+    console.log(chalk.red(`\n❌ 이미 반영된 항목은 기각할 수 없습니다 — vhk evolve undo 로 되돌리세요: ${item.id}`))
+    process.exitCode = 1
     return
   }
 
@@ -460,7 +490,14 @@ export async function evolveUndo(): Promise<void> {
   copyFileSync(last.rulesBackupPath, join(cwd, 'RULES.md'))
 
   // 6. undo 재sync 비대화형 (이중 프롬프트 금지)
-  await sync({ yes: true })
+  try {
+    await sync({ yes: true })
+  } catch (err) {
+    console.error(chalk.red('\n❌ sync 재실행 중 오류. RULES.md는 복원됐으나 .cursorrules 등 재생성 실패.'))
+    console.error(chalk.dim(`   ${err instanceof Error ? err.message : String(err)}`))
+    console.error(chalk.dim('   수동으로 `vhk sync` 실행하세요.'))
+    // queue/pattern 상태는 아래에서 계속 업데이트 (sync 실패해도 queue는 정리)
+  }
 
   // 7. queue item → pending (되돌리기), appliedAt + rulesBackupPath 제거
   last.status = 'pending'
