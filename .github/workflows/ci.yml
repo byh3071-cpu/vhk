@@ -39,3 +39,53 @@ jobs:
       # 네트워크 의존 없음 — cloud gist 실호출은 유닛테스트 대상 아님(순수 로직만 테스트).
       - name: 테스트
         run: pnpm test:run
+
+  # 자가 도그푸딩 — 방금 빌드한 vhk CLI 를 vhk 레포 자신에게 실행한다.
+  # 목적: SnapContext류 결함(서브커맨드 라우팅 누수·크래시)을 매 push 자동 포착.
+  #       유닛테스트(test 잡)가 못 잡는 "실제 실행" 결함을 막는 안전망.
+  # 범위: 비대화형·읽기/조회 명령만. apply/undo/suggest 등 TTY·쓰기 명령 제외
+  #       — 안전 1원칙 "자동 학습 OK · 자동 적용 금지". RULES.md 미사용 레포라 evolve suggest 제외.
+  dogfood:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: pnpm 설치
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.2.2
+
+      - name: Node 24 + pnpm 캐시
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      # 도그푸딩 대상 = 방금 빌드한 dist/index.js (bin: vhk). 배포될 실코드를 그대로 시식.
+      - name: 빌드
+        run: pnpm build
+
+      # 각 명령 비0 종료 시 스텝 실패(GHA bash -eo pipefail). 어떤 명령이 깨졌는지 group 로그로 표시.
+      - name: vhk 가 vhk 를 검사 (CLI 자가 동작 — 비대화형·읽기전용)
+        run: |
+          echo "::group::doctor — 개발 환경 점검"
+          node dist/index.js doctor
+          echo "::endgroup::"
+          echo "::group::status — 프로젝트 상태 대시보드"
+          node dist/index.js status
+          echo "::endgroup::"
+          echo "::group::memory list — 기억 v2 조회"
+          node dist/index.js memory list
+          echo "::endgroup::"
+          echo "::group::pattern list — 패턴 목록 (서브커맨드 라우팅 누수 회귀 가드)"
+          node dist/index.js pattern list --all
+          echo "::endgroup::"
+          echo "::group::pattern detect — Evolution Loop 패턴 감지 (읽기측·멱등)"
+          node dist/index.js pattern detect --json
+          echo "::endgroup::"
+          echo "::group::evolve list — 진화 후보 조회"
+          node dist/index.js evolve list
+          echo "::endgroup::"
