@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 20
 title: vhk evolve — Evolution Loop 도미노 4 (패턴→룰 후보→사람 승인→반영)
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P1
 version: v2.2.0
 depends_on:
