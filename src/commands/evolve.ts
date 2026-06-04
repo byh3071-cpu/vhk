@@ -1,9 +1,12 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
+import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
-import { readMemory } from './memory.js'
+import { ensureInteractive } from '../lib/interactive.js'
+import { readMemory, loadForMutation, writeMemory } from './memory.js'
+import { sync } from './sync.js'
 import type { PatternEntryV19 } from './pattern.js'
 
 /**
@@ -261,6 +264,127 @@ export async function evolveList(opts: { status?: string; json?: boolean } = {})
   }
 }
 
-export async function evolveApply(_idStr: string): Promise<void> { /* Task 3 */ }
+export async function evolveApply(idStr: string): Promise<void> {
+  // 1. TTY 가드 — 비-TTY면 즉시 종료
+  if (!ensureInteractive('apply는 TTY 확인이 필요합니다. 터미널에서 직접 실행하세요.')) return
+
+  const cwd = process.cwd()
+  const rulesPath = join(cwd, 'RULES.md')
+
+  // 2. RULES.md 존재 확인
+  if (!existsSync(rulesPath)) {
+    console.log(chalk.red('\n❌ ' + t('evolve.noRules')))
+    process.exitCode = 1
+    return
+  }
+
+  // 3. 큐 로드 + 항목 찾기
+  const queue = readQueue(cwd)
+  const item = queue.items.find(i => i.id === idStr?.trim())
+  if (!item) {
+    console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
+    process.exitCode = 1
+    return
+  }
+  if (item.status === 'applied') {
+    console.log(chalk.yellow('\n⚠️  ' + t('evolve.alreadyApplied')))
+    return
+  }
+
+  // 4. C1 단일 apply 제약: 미해소 apply 항목 있으면 차단
+  const hasUnresolved = queue.items.some(i => i.status === 'applied')
+  if (hasUnresolved) {
+    console.log(chalk.red('\n❌ ' + t('evolve.pendingApplyExists')))
+    process.exitCode = 1
+    return
+  }
+
+  // 5. A4 댕글링 참조 가드
+  const mem = readMemory(cwd)
+  const srcPattern = (mem.patterns as PatternEntryV19[]).find(p => p.id === item.patternId)
+  const refResult = checkApplyRef(srcPattern, queue.items)
+  if (refResult === 'dismissed') {
+    console.log(chalk.red('\n❌ ' + t('evolve.dismissed')))
+    process.exitCode = 1
+    return
+  }
+  if (refResult === 'already-applied') {
+    console.log(chalk.red('\n❌ ' + t('evolve.alreadyAppliedPattern')))
+    process.exitCode = 1
+    return
+  }
+
+  // 6. B3: RULES.md 중복 룰 감지
+  const rulesContent = readFileSync(rulesPath, 'utf-8')
+  if (isDuplicateRule(rulesContent, item.draft)) {
+    console.log(chalk.yellow('\n⚠️  ' + t('evolve.duplicateRule', item.draft)))
+    return
+  }
+
+  // 7. diff 출력 + B2: 사람이 문구 수정 가능
+  console.log(chalk.bold('\n🔄 ' + t('evolve.applyTitle')))
+  console.log(chalk.gray('─'.repeat(40)))
+  console.log(chalk.cyan('\n추가될 룰 초안:'))
+  console.log(chalk.white(`  ${item.draft}`))
+
+  const { editedDraft } = await inquirer.prompt<{ editedDraft: string }>([{
+    type: 'input',
+    name: 'editedDraft',
+    message: '룰 문구 수정 (Enter = 그대로):',
+    default: item.draft,
+  }])
+
+  const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([{
+    type: 'confirm',
+    name: 'confirmed',
+    message: `RULES.md에 이 룰을 추가할까요?\n  ${editedDraft}`,
+    default: false,
+  }])
+
+  if (!confirmed) {
+    console.log(chalk.dim('  취소됨.'))
+    return
+  }
+
+  // 8. .bak 저장 (undo용)
+  const backupPath = rulesPath + '.bak'
+  copyFileSync(rulesPath, backupPath)
+
+  // 9. RULES.md append
+  const appendContent = '\n' + editedDraft + '\n'
+  writeFileSync(rulesPath, rulesContent + appendContent, 'utf-8')
+
+  // 10. sync 비대화형 재생성 (yes:true — apply가 이미 확인 완료, 이중 프롬프트 금지)
+  await sync({ yes: true })
+
+  // 11. A3: queue item → applied, 소스 패턴 → archived
+  const now = new Date().toISOString()
+  item.status = 'applied'
+  item.draft = editedDraft
+  item.appliedAt = now
+  item.rulesBackupPath = backupPath
+  writeQueue(cwd, queue)
+
+  // 소스 패턴 archived (18 status 선순환 재사용, 신규 status 금지)
+  if (srcPattern) {
+    const memLoaded = loadForMutation(cwd)
+    if (memLoaded.ok) {
+      const p = (memLoaded.mem.patterns as PatternEntryV19[]).find(x => x.id === srcPattern.id)
+      if (p) {
+        p.status = 'archived'
+        writeMemory(cwd, memLoaded.mem)
+      }
+    }
+  }
+
+  console.log(chalk.green(`\n✅ 룰 반영 완료! [${item.id}]`))
+  console.log(chalk.dim('   RULES.md에 추가 + vhk sync 재생성됨'))
+  printNextStep({
+    message: '룰 반영 완료!',
+    command: 'vhk evolve list --status applied',
+    cursorHint: '반영된 룰 목록 보여줘',
+    alternative: 'vhk evolve undo — 되돌리기',
+  })
+}
 export async function evolveReject(_idStr: string): Promise<void> { /* Task 4 */ }
 export async function evolveUndo(): Promise<void> { /* Task 4 */ }

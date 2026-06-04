@@ -339,3 +339,23 @@ describe('generateCandidates — suggest 통합 시나리오', () => {
     expect(candidates[0].dedupeKey).toBe('p1:rule')
   })
 })
+
+// ── C1 단일 apply 제약 — hasUnresolved 로직 ──────────────────────────────────
+
+describe('C1 단일 apply 제약 — hasUnresolved 로직', () => {
+  it('applied 항목 없으면 hasUnresolved = false', () => {
+    const items: EvolveQueueItem[] = [
+      { id: 'e1', patternId: 'p1', kind: 'rule', status: 'pending',
+        draft: '룰', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z' },
+    ]
+    expect(items.some(i => i.status === 'applied')).toBe(false)
+  })
+
+  it('applied 항목 있으면 hasUnresolved = true (2번째 apply 차단)', () => {
+    const items: EvolveQueueItem[] = [
+      { id: 'e1', patternId: 'p1', kind: 'rule', status: 'applied',
+        draft: '반영됨', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z' },
+    ]
+    expect(items.some(i => i.status === 'applied')).toBe(true)
+  })
+})
