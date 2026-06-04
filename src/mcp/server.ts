@@ -728,6 +728,32 @@ export function createVhkMcpServer(): McpServer {
     }
   )
 
+  // ─── evolve-suggest ──────────────────────────────────────
+  server.registerTool(
+    'evolve-suggest',
+    {
+      description: 'active avoid 패턴 → 룰 초안 후보 생성·큐 적재 (Goal 20)',
+      inputSchema: {},
+    },
+    async () => runVhkCli(['evolve', 'suggest', '--json'], 'evolve suggest')
+  )
+
+  // ─── evolve-list ─────────────────────────────────────────
+  server.registerTool(
+    'evolve-list',
+    {
+      description: '진화 후보 목록 조회 (pending|rejected|applied — Goal 20)',
+      inputSchema: {
+        status: z.enum(['pending', 'rejected', 'applied']).optional().describe('상태 필터'),
+      },
+    },
+    async ({ status }) => {
+      const args = ['evolve', 'list', '--json']
+      if (status) args.push('--status', status)
+      return runVhkCli(args, 'evolve list')
+    }
+  )
+
   return server
 }
 
