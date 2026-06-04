@@ -38,6 +38,7 @@ import { verify } from '../commands/verify.js'
 import { review } from '../commands/review.js'
 import { missionShow } from '../commands/mission.js'
 import { patternList } from '../commands/pattern.js'
+import { evolveList } from '../commands/evolve.js'
 import { runGuarded } from './safety-guard.js'
 import { NL_GUARDED_ACTIONS } from './risk-policy.js'
 
@@ -139,6 +140,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return missionShow()
     case 'pattern':
       return patternList()
+    case 'evolve':
+      return evolveList()
   }
 }
 

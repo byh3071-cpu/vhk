@@ -418,6 +418,27 @@ export const ko = {
     listTitle: '패턴 목록',
     dismissTitle: '패턴 dismiss',
   },
+  evolve: {
+    suggestTitle: '진화 제안 생성',
+    listTitle: '진화 후보 목록',
+    applyTitle: '룰 반영',
+    rejectTitle: '후보 기각',
+    undoTitle: '최근 반영 되돌리기',
+    noRules: 'RULES.md 가 없습니다. vhk init으로 생성 후 다시 시도하세요.',
+    noPatterns: 'patterns[]가 비어있거나 active avoid 패턴이 없습니다. vhk pattern detect 로 먼저 감지하세요.',
+    noQueue: '후보가 없습니다. vhk evolve suggest 로 먼저 생성하세요.',
+    notFound: (id: string) => `후보 '${id}' 를 찾을 수 없습니다. vhk evolve list 로 확인하세요.`,
+    alreadyApplied: '이미 반영된 후보입니다.',
+    dismissed: '소스 패턴이 dismiss됨 — apply 거부 (dismiss된 패턴 기반 룰은 반영 안 됨)',
+    alreadyAppliedPattern: '소스 패턴이 이미 반영됨 — apply 거부',
+    duplicateRule: (draft: string) => `중복 룰 감지 — RULES.md에 이미 유사한 룰이 있습니다:\n  ${draft}`,
+    pendingApplyExists: '미해소 apply가 있습니다. vhk evolve undo 후 재시도하거나 그대로 유지하세요.',
+    noAppliedToUndo: 'undo할 반영 항목이 없습니다.',
+    noBackup: '.bak 파일이 없어 undo 불가합니다. RULES.md를 수동 복원하세요.',
+    allSuggested: '모든 패턴이 이미 제안됐거나 reject됐습니다.',
+    newCandidates: (n: number) => `신규 후보: ${n}개 추가됨`,
+    suggestHint: 'vhk evolve suggest 로 생성하세요.',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)
