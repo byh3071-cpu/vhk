@@ -12,12 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # pnpm 버전은 package.json "packageManager"(pnpm@11.2.2) 단일 소스에서 읽음.
+      # (pnpm 9 는 workspace overrides 거부 → 11.x 고정. Dependabot/corepack 도 동일 버전 사용.)
       - name: pnpm 설치
         uses: pnpm/action-setup@v6
-        with:
-          # 로컬 개발 환경과 정확히 일치 (Node 24 + pnpm 11.2.2).
-          # pnpm 9 는 workspace overrides 거부, pnpm 11.5 는 Node 20 builtin 미지원 → 둘 다 고정.
-          version: 11.2.2
 
       - name: Node 24 + pnpm 캐시
         uses: actions/setup-node@v6
@@ -69,10 +67,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # pnpm 버전은 package.json "packageManager" 단일 소스에서 읽음.
       - name: pnpm 설치
         uses: pnpm/action-setup@v6
-        with:
-          version: 11.2.2
 
       - name: Node 24 + pnpm 캐시
         uses: actions/setup-node@v6
