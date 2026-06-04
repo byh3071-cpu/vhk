@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { program } from '../src/index.js'
 import { CONTAINER_SUBCOMMANDS, CONTAINER_ALIASES } from '../src/lib/command-registry.js'
-import { detectNaturalLanguageInput } from '../src/lib/cli-args.js'
+import { detectNaturalLanguageInput, KNOWN_COMMAND_TOKENS } from '../src/lib/cli-args.js'
 
 // R1 드리프트 가드: commander 정의(index.ts)와 R1 가드의 단일 소스(command-registry)가
 // 따로 놀지 않는지 실제 introspect 로 검증. (주석 grep 이 아니라 코드 구조 검증)
@@ -37,6 +37,27 @@ describe('R1 드리프트 가드 — command-registry 단일 소스', () => {
         CONTAINER_SUBCOMMANDS[name],
         `새 컨테이너 '${name}' 가 command-registry 에 없음 → R1 가드 누락`
       ).toBeDefined()
+    }
+  })
+
+  // 실결함(Goal 19): pattern/evolve 가 registry 에는 있었지만 KNOWN_COMMAND_TOKENS 에 없어서,
+  // 옵션 없는 서브커맨드(vhk pattern dismiss <id>)가 NL 라우터로 새 동작이 깨졌다.
+  // registry 와 KNOWN_COMMAND_TOKENS 가 따로 노는 드리프트를 코드로 막는다.
+  it('모든 컨테이너 명령이 KNOWN_COMMAND_TOKENS 에 있음 (없으면 옵션 없는 서브커맨드가 NL 로 샘)', () => {
+    for (const container of Object.keys(CONTAINER_SUBCOMMANDS)) {
+      expect(
+        KNOWN_COMMAND_TOKENS.has(container),
+        `컨테이너 '${container}' 가 KNOWN_COMMAND_TOKENS 에 없음 → '${container} <sub>' 가 자연어로 둔갑`
+      ).toBe(true)
+    }
+  })
+
+  it('모든 한글 컨테이너 별칭도 KNOWN_COMMAND_TOKENS 에 있음', () => {
+    for (const alias of Object.keys(CONTAINER_ALIASES)) {
+      expect(
+        KNOWN_COMMAND_TOKENS.has(alias),
+        `한글 별칭 '${alias}' 가 KNOWN_COMMAND_TOKENS 에 없음 → 한글 서브커맨드가 자연어로 둔갑`
+      ).toBe(true)
     }
   })
 })
