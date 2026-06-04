@@ -297,3 +297,45 @@ describe('checkApplyRef', () => {
     expect(checkApplyRef(p, items)).toBe('dismissed')
   })
 })
+
+// ── generateCandidates — suggest 통합 시나리오 ──────────────────────────────
+
+describe('generateCandidates — suggest 통합 시나리오', () => {
+  it('여러 avoid 패턴에서 복수 후보 생성', () => {
+    const patterns: PatternEntryV19[] = [
+      pat('p1', 'build', 3),
+      pat('p2', 'env', 5),
+      pat('p3', 'auth', 4),
+    ]
+    const candidates = generateCandidates(patterns, [])
+    expect(candidates).toHaveLength(3)
+    // 알파벳 순 정렬 (p1, p2, p3)
+    expect(candidates[0].patternId).toBe('p1')
+    expect(candidates[1].patternId).toBe('p2')
+    expect(candidates[2].patternId).toBe('p3')
+  })
+
+  it('중복 제안 후 재실행 → 신규 후보 0개', () => {
+    const patterns = [pat('p1', 'build', 3)]
+    const existing = generateCandidates(patterns, [])
+      .map((c, i) => ({ ...c, id: `e${i + 1}`, createdAt: '2026-01-01T00:00:00Z' }))
+    // 이미 pending인 항목 있으면 재제안 안 됨
+    const second = generateCandidates(patterns, existing)
+    expect(second).toHaveLength(0)
+  })
+
+  it('각 후보는 status=pending, kind=rule 을 가짐', () => {
+    const patterns = [pat('p1', 'build', 3), pat('p2', 'env', 2)]
+    const candidates = generateCandidates(patterns, [])
+    for (const c of candidates) {
+      expect(c.status).toBe('pending')
+      expect(c.kind).toBe('rule')
+    }
+  })
+
+  it('dedupeKey 형식이 patternId:rule', () => {
+    const patterns = [pat('p1', 'build', 3)]
+    const candidates = generateCandidates(patterns, [])
+    expect(candidates[0].dedupeKey).toBe('p1:rule')
+  })
+})

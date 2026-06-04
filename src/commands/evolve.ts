@@ -1,5 +1,9 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import chalk from 'chalk'
+import { t } from '../i18n/ko.js'
+import { printNextStep } from '../lib/next-step.js'
+import { readMemory } from './memory.js'
 import type { PatternEntryV19 } from './pattern.js'
 
 /**
@@ -165,10 +169,98 @@ export function checkApplyRef(
   return hasApplied ? 'already-applied' : 'dismissed'
 }
 
-// ── 스텁 커맨드 (Task 2~4 에서 구현) ──────────────────────────────────────────
+// ── 커맨드 핸들러 ──────────────────────────────────────────────────────────────
 
-export async function evolveSuggest(_opts: { json?: boolean } = {}): Promise<void> { /* Task 2 */ }
-export async function evolveList(_opts: { status?: string; json?: boolean } = {}): Promise<void> { /* Task 2 */ }
+export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void> {
+  const cwd = process.cwd()
+
+  // RULES.md 없으면 suggest 의미 없음 (반영 타깃 없음)
+  if (!existsSync(join(cwd, 'RULES.md'))) {
+    console.log(chalk.yellow('\n⚠️  ' + t('evolve.noRules')))
+    process.exitCode = 1
+    return
+  }
+
+  const mem = readMemory(cwd)
+  const patterns = mem.patterns as PatternEntryV19[]
+  const queue = readQueue(cwd)
+  const newItems = generateCandidates(patterns, queue.items)
+
+  if (newItems.length === 0 && !opts.json) {
+    const activeAvoid = patterns.filter(p => p.kind === 'avoid' && p.status === 'active')
+    if (activeAvoid.length === 0) {
+      console.log(chalk.yellow('\n📭 ' + t('evolve.noPatterns')))
+      return
+    }
+    console.log(chalk.dim('\n  모든 패턴이 이미 제안됐거나 reject됐습니다.'))
+    return
+  }
+
+  const now = new Date().toISOString()
+  for (const c of newItems) {
+    queue.items.push({ ...c, id: nextQueueId(queue), createdAt: now })
+  }
+  writeQueue(cwd, queue)
+
+  if (opts.json) {
+    const pending = queue.items.filter(i => i.status === 'pending')
+    console.log(JSON.stringify(pending, null, 2))
+    return
+  }
+
+  console.log(chalk.bold('\n🔄 ' + t('evolve.suggestTitle')))
+  console.log(chalk.gray('─'.repeat(40)))
+  console.log(chalk.dim(`  신규 후보: ${newItems.length}개 추가됨`))
+
+  const pending = queue.items.filter(i => i.status === 'pending')
+  console.log(chalk.cyan(`\n후보 ${pending.length}개:\n`))
+  for (const item of pending) {
+    console.log(`  [${item.id}] (${item.status}) 패턴 ${item.patternId} → rule`)
+    console.log(chalk.dim(`      초안: ${item.draft}`))
+  }
+
+  printNextStep({
+    message: `진화 후보 ${pending.length}개 생성됨!`,
+    command: 'vhk evolve list',
+    cursorHint: '진화 후보 보여줘',
+    alternative: 'vhk evolve apply <id> 로 반영',
+  })
+}
+
+export async function evolveList(opts: { status?: string; json?: boolean } = {}): Promise<void> {
+  const cwd = process.cwd()
+  const queue = readQueue(cwd)
+
+  const VALID: EvolveItemStatus[] = ['pending', 'rejected', 'applied']
+  let items = queue.items
+  if (opts.status && VALID.includes(opts.status as EvolveItemStatus)) {
+    items = items.filter(i => i.status === opts.status)
+  }
+
+  if (opts.json) {
+    console.log(JSON.stringify(items, null, 2))
+    return
+  }
+
+  console.log(chalk.bold('\n🔄 ' + t('evolve.listTitle')))
+  console.log(chalk.gray('─'.repeat(40)))
+
+  if (items.length === 0) {
+    console.log(chalk.yellow('\n📭 ' + t('evolve.noQueue')))
+    console.log(chalk.gray('   vhk evolve suggest 로 생성하세요.'))
+    return
+  }
+
+  const STATUS_ICON: Record<EvolveItemStatus, string> = {
+    pending: '⏳', rejected: '❌', applied: '✅',
+  }
+  console.log(chalk.cyan(`\n${items.length}개:\n`))
+  for (const item of items) {
+    console.log(`  [${item.id}] ${STATUS_ICON[item.status]} (${item.status}) → ${item.draft}`)
+    if (item.appliedAt) console.log(chalk.dim(`      반영: ${item.appliedAt}`))
+  }
+}
+
 export async function evolveApply(_idStr: string): Promise<void> { /* Task 3 */ }
 export async function evolveReject(_idStr: string): Promise<void> { /* Task 4 */ }
 export async function evolveUndo(): Promise<void> { /* Task 4 */ }
