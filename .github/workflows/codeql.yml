@@ -1,0 +1,31 @@
+# CodeQL — GitHub 무료 정적 보안분석 (public 레포 무료).
+# 해킹 가능 패턴·취약 코드를 자동 탐지 → 결과는 레포 Security 탭에 보고.
+# JS/TS 는 인터프리터 언어라 빌드 불필요(autobuild 생략).
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # 주 1회 정기 스캔 (월요일 09:00 UTC) — 신규 룰셋 반영.
+    - cron: "0 9 * * 1"
+
+jobs:
+  analyze:
+    name: 분석 (javascript-typescript)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: CodeQL 초기화
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: CodeQL 분석
+        uses: github/codeql-action/analyze@v3
