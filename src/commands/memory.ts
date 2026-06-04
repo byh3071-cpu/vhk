@@ -123,14 +123,23 @@ export function migrateMemory(rawMemory: unknown, rawLearnings?: string): Memory
 
 // ── fs 경계 (impure) ──
 
-function readRaw(cwd: string): unknown {
+type RawResult = { kind: 'missing' } | { kind: 'parsed'; value: unknown } | { kind: 'error' }
+
+function readRaw(cwd: string): RawResult {
   const p = join(cwd, MEMORY_PATH_REL)
-  if (!existsSync(p)) return null
+  if (!existsSync(p)) return { kind: 'missing' }
   try {
-    return readJsonFile<unknown>(p)
+    return { kind: 'parsed', value: readJsonFile<unknown>(p) }
   } catch {
-    return null
+    return { kind: 'error' }
   }
+}
+
+function warnUnreadable(cwd: string): void {
+  const p = join(cwd, MEMORY_PATH_REL)
+  console.error(chalk.red(`\n⚠️  ${MEMORY_PATH_REL} 를 읽을 수 없습니다 (손상/부분 쓰기 의심).`))
+  console.error(chalk.yellow(`   덮어쓰지 않고 빈 메모리로 진행합니다 — 원본 보존됨.`))
+  console.error(chalk.dim(`   확인/복구: ${p}  (백업: ${p}.bak)`))
 }
 
 // learnings.md 는 JSON 이 아니라 텍스트 — BOM-safe 로 읽되 JSON.parse 안 함.
@@ -149,14 +158,36 @@ function readLearningsRaw(cwd: string): string | undefined {
  * **계약 일관성**: 디스크가 v1 이면 read 경로(memory list / context / brief 등)에서도 1회 실제
  * 마이그레이션을 영구화(v2 write + .v1.bak) — 어느 명령으로 첫 실행해도 동일 결과.
  * 멱등: 이미 v2 면 no-op(재흡수·재기록 없음). 파일이 아예 없으면 빈 v2 만 반환(쓰지 않음).
+ * 손상 파일(파싱 불가): 경고 출력 후 빈 v2 반환 — **절대 덮어쓰지 않음**(원본 보존).
  */
 export function readMemory(cwd: string = process.cwd()): MemoryFileV2 {
   const raw = readRaw(cwd)
-  if (isV2(raw)) return normalizeV2(raw)
-  const v2 = migrateMemory(raw, readLearningsRaw(cwd))
-  // 디스크에 v1 파일이 실재할 때만 영구화(없는데 read 하면서 빈 파일 만들지 않음).
-  if (existsSync(join(cwd, MEMORY_PATH_REL))) writeMemory(cwd, v2)
+  if (raw.kind === 'error') {
+    warnUnreadable(cwd)
+    return emptyV2()  // 손상 파일은 쓰지 않음
+  }
+  const value = raw.kind === 'parsed' ? raw.value : null
+  if (isV2(value)) return normalizeV2(value as MemoryFileV2)
+  const v2 = migrateMemory(value, readLearningsRaw(cwd))
+  // v1 파일이 실재할 때만 영구화(없는데 read 하면서 빈 파일 만들지 않음).
+  if (raw.kind === 'parsed') writeMemory(cwd, v2)
   return v2
+}
+
+/**
+ * 변경(mutating) 커맨드용 로더 — 손상 파일이면 `{ ok: false }` 반환해 호출자가 abort.
+ * `readMemory` 는 write 를 트리거하지 않는 read-only 경로에 사용.
+ * 이 함수는 write 전 안전 확인 용도로 pattern/memory mutating 커맨드가 호출.
+ */
+export function loadForMutation(cwd: string): { ok: true; mem: MemoryFileV2 } | { ok: false } {
+  const raw = readRaw(cwd)
+  if (raw.kind === 'error') {
+    warnUnreadable(cwd)
+    return { ok: false }
+  }
+  const value = raw.kind === 'parsed' ? raw.value : null
+  if (isV2(value)) return { ok: true, mem: normalizeV2(value as MemoryFileV2) }
+  return { ok: true, mem: migrateMemory(value, readLearningsRaw(cwd)) }
 }
 
 /**
@@ -170,7 +201,9 @@ export function writeMemory(cwd: string, mem: MemoryFileV2): void {
   mkdirSync(join(cwd, '.vhk'), { recursive: true })
   if (existsSync(p)) {
     // 마이그레이션 순간(디스크가 v1)에 v1 원본을 write-once 보존.
-    if (!isV2(readRaw(cwd)) && !existsSync(p + '.v1.bak')) {
+    const curRaw = readRaw(cwd)
+    const curValue = curRaw.kind === 'parsed' ? curRaw.value : null
+    if (!isV2(curValue) && !existsSync(p + '.v1.bak')) {
       try {
         copyFileSync(p, p + '.v1.bak')
       } catch {
@@ -317,11 +350,12 @@ export async function memoryArchive(indexStr: string): Promise<void> {
 export async function memoryMigrate(): Promise<void> {
   const cwd = process.cwd()
   const raw = readRaw(cwd)
-  if (isV2(raw)) {
+  const rawValue = raw.kind === 'parsed' ? raw.value : null
+  if (isV2(rawValue)) {
     console.log(chalk.dim('  이미 memory schema v2 입니다 — 변경 없음(멱등).'))
     return
   }
-  const v2 = migrateMemory(raw, readLearningsRaw(cwd))
+  const v2 = migrateMemory(rawValue, readLearningsRaw(cwd))
   writeMemory(cwd, v2)
   console.log(chalk.green('\n✅ memory.json v1 → v2 마이그레이션 완료 (.v1.bak 원본 영구 백업)'))
   console.log(
