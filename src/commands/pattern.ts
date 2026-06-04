@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
-import { readMemory, writeMemory, type MemoryFileV2, type MemEntry, type FailEntry, type PatternEntry } from './memory.js'
+import { loadForMutation, readMemory, writeMemory, type MemoryFileV2, type MemEntry, type FailEntry, type PatternEntry } from './memory.js'
 
 /**
  * Goal 19: pattern detection v0 — active failures/successes 에서 반복 패턴 감지.
@@ -75,7 +75,10 @@ export function detectCandidates(mem: MemoryFileV2, minFreq: number): RawCandida
     // 축1: 태그 군집
     const tagMap = new Map<string, string[]>()
     for (const e of active) {
-      for (const tag of e.tags) {
+      // Fix #7: null guard on e.tags
+      const uniqueTags = new Set(e.tags ?? [])
+      for (const tag of uniqueTags) {
+        // Fix #2: Set(e.tags) — 같은 항목 내 중복 태그로 인한 count 팽창 방지
         if (tag === 'no-goal') continue
         if (!tagMap.has(tag)) tagMap.set(tag, [])
         tagMap.get(tag)!.push(e.id)
@@ -83,8 +86,10 @@ export function detectCandidates(mem: MemoryFileV2, minFreq: number): RawCandida
     }
     for (const [tag, sources] of tagMap) {
       if (sources.length >= minFreq) {
-        const involved = active.filter((e) => sources.includes(e.id))
-        const sourceTags = [...new Set(involved.flatMap((e) => e.tags))]
+        // Fix efficiency: Set for O(1) lookup instead of O(n) includes
+        const sourceSet = new Set(sources)
+        const involved = active.filter((e) => sourceSet.has(e.id))
+        const sourceTags = [...new Set(involved.flatMap((e) => e.tags ?? []))]
         candidates.push({
           kind, axis: 'tag', signal: tag, count: sources.length, sources,
           summary: `[${kind}] 태그 '${tag}' ${sources.length}건 반복`,
@@ -107,8 +112,8 @@ export function detectCandidates(mem: MemoryFileV2, minFreq: number): RawCandida
     for (const [tok, sourceSet] of tokenMap) {
       if (sourceSet.size >= minFreq) {
         const sources = [...sourceSet]
-        const involved = active.filter((e) => sources.includes(e.id))
-        const sourceTags = [...new Set(involved.flatMap((e) => e.tags))]
+        const involved = active.filter((e) => sourceSet.has(e.id))
+        const sourceTags = [...new Set(involved.flatMap((e) => e.tags ?? []))]
         candidates.push({
           kind, axis: 'keyword', signal: tok, count: sourceSet.size, sources,
           summary: `[${kind}] 키워드 '${tok}' ${sourceSet.size}건 문서`,
@@ -148,10 +153,19 @@ export async function patternDetect(opts: { min?: string; json?: boolean } = {})
   }
 
   const cwd = process.cwd()
-  const mem = readMemory(cwd)
+
+  // Fix #1: loadForMutation 으로 교체 — 손상 파일 시 abort(데이터 소실 방지)
+  const loaded = loadForMutation(cwd)
+  if (!loaded.ok) {
+    console.log(chalk.red('❌ memory.json 손상 의심 — 감지 중단 (원본 보존). 백업 확인 후 재시도하세요.'))
+    process.exitCode = 1
+    return
+  }
+  const mem = loaded.mem
+
   const candidates = detectCandidates(mem, minFreq)
 
-  // 멱등 병합: 동일 시그니처 active 패턴은 갱신, 신규는 push.
+  // Fix #3: _sig 없는 레거시 엔트리도 kind+axis+signal 로 중복 탐색 → 멱등성 보장
   const now = new Date().toISOString()
   let added = 0, updated = 0
 
@@ -159,10 +173,13 @@ export async function patternDetect(opts: { min?: string; json?: boolean } = {})
     const sig = sigOf(c.kind, c.axis, c.signal)
     const existing = mem.patterns.find((p) => {
       const pp = p as PatternEntryV19
-      return pp._sig === sig && pp.status !== 'archived'
+      const sigMatch = pp._sig === sig
+      const fieldMatch = pp.kind === c.kind && pp.axis === c.axis && pp.signal === c.signal
+      return (sigMatch || fieldMatch) && pp.status !== 'archived'
     }) as PatternEntryV19 | undefined
 
     if (existing) {
+      existing._sig = sig  // _sig 없는 레거시 엔트리에 백필
       existing.count = c.count
       existing.sources = c.sources
       existing.summary = c.summary
@@ -187,7 +204,10 @@ export async function patternDetect(opts: { min?: string; json?: boolean } = {})
     }
   }
 
-  writeMemory(cwd, mem)
+  // Fix #6: 변경이 없으면 writeMemory 스킵 — .bak 슬롯 불필요 소비 방지
+  if (added > 0 || updated > 0) {
+    writeMemory(cwd, mem)
+  }
 
   if (opts.json) {
     const active = mem.patterns.filter((p) => (p as PatternEntryV19).status !== 'archived')
@@ -266,7 +286,16 @@ export async function patternDismiss(idStr: string): Promise<void> {
   }
 
   const cwd = process.cwd()
-  const mem = readMemory(cwd)
+
+  // Fix #5: loadForMutation — 손상 파일 시 명시적 abort + 정확한 오류 메시지
+  const loaded = loadForMutation(cwd)
+  if (!loaded.ok) {
+    console.log(chalk.red('❌ memory.json 손상 의심 — dismiss 중단 (원본 보존).'))
+    process.exitCode = 1
+    return
+  }
+  const mem = loaded.mem
+
   const pattern = mem.patterns.find((p) => p.id === idStr.trim()) as PatternEntryV19 | undefined
 
   if (!pattern) {
