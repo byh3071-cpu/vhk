@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { detectCandidates, tokenize, MIN_TAG_FREQ, MIN_KEYWORD_FREQ } from '../src/commands/pattern.js'
+import { detectCandidates, reconcilePatterns, tokenize, MIN_TAG_FREQ, MIN_KEYWORD_FREQ } from '../src/commands/pattern.js'
+import type { RawCandidate, PatternEntryV19 } from '../src/commands/pattern.js'
 import type { MemoryFileV2, FailEntry, SuccessEntry } from '../src/commands/memory.js'
 
 /**
@@ -215,5 +216,73 @@ describe('MIN_TAG_FREQ / MIN_KEYWORD_FREQ 상수', () => {
   it('매직넘버 아님 — 명명 상수 존재', () => {
     expect(MIN_TAG_FREQ).toBe(3)
     expect(MIN_KEYWORD_FREQ).toBe(3)
+  })
+})
+
+// ── reconcilePatterns (멱등 반영 + dismiss 존중) ───────────────────────────────
+
+const NOW = '2026-02-02T00:00:00Z'
+
+function cand(signal: string, count: number, sources: string[]): RawCandidate {
+  return {
+    kind: 'avoid', axis: 'tag', signal, count, sources,
+    summary: `[avoid] 태그 '${signal}' ${count}건 반복`, sourceTags: [signal],
+  }
+}
+
+function pat(id: string, signal: string, status: 'active' | 'archived', count = 2): PatternEntryV19 {
+  return {
+    id, kind: 'avoid', axis: 'tag', signal, count, sources: [],
+    summary: '', createdAt: NOW, status, tags: [], _sig: `avoid:tag:${signal}`,
+  }
+}
+
+describe('reconcilePatterns — 신규/갱신', () => {
+  it('신규 후보 → added, active 패턴 생성 + id 부여', () => {
+    const patterns: PatternEntryV19[] = []
+    const r = reconcilePatterns(patterns, [cand('build', 3, ['f1', 'f2', 'f3'])], NOW)
+    expect(r).toEqual({ added: 1, updated: 0 })
+    expect(patterns).toHaveLength(1)
+    expect(patterns[0].id).toBe('p1')
+    expect(patterns[0].signal).toBe('build')
+    expect(patterns[0].status).toBe('active')
+    expect(patterns[0].count).toBe(3)
+  })
+
+  it('기존 active 동일 시그널 → updated (count 갱신, 신규 생성 안 함)', () => {
+    const patterns: PatternEntryV19[] = [pat('p1', 'build', 'active', 2)]
+    const r = reconcilePatterns(patterns, [cand('build', 5, ['f1', 'f2', 'f3', 'f4', 'f5'])], NOW)
+    expect(r).toEqual({ added: 0, updated: 1 })
+    expect(patterns).toHaveLength(1)
+    expect(patterns[0].count).toBe(5)
+  })
+
+  it('신규 id 는 기존 max+1 (p1,p2 있으면 p3)', () => {
+    const patterns: PatternEntryV19[] = [pat('p1', 'a', 'active'), pat('p2', 'b', 'active')]
+    reconcilePatterns(patterns, [cand('c', 3, ['f1', 'f2', 'f3'])], NOW)
+    expect(patterns.find((p) => p.signal === 'c')?.id).toBe('p3')
+  })
+})
+
+describe('reconcilePatterns — dismiss(보관) 존중 (회귀: 재제안 금지)', () => {
+  // 실결함: dismiss 로 archived 된 시그널을 detect 재실행이 새 active 패턴으로 부활시켰다.
+  it('archived 시그널은 재제안 안 함 (skip — 새 active 안 생김)', () => {
+    const patterns: PatternEntryV19[] = [pat('p1', 'build', 'archived')]
+    const r = reconcilePatterns(patterns, [cand('build', 3, ['f1', 'f2', 'f3'])], NOW)
+    expect(r).toEqual({ added: 0, updated: 0 })
+    expect(patterns).toHaveLength(1)
+    expect(patterns.filter((p) => p.status === 'active')).toHaveLength(0)
+  })
+
+  it('archived 시그널은 다른 active 후보 처리에 영향 없음', () => {
+    const patterns: PatternEntryV19[] = [pat('p1', 'build', 'archived')]
+    const r = reconcilePatterns(
+      patterns,
+      [cand('build', 3, ['f1', 'f2', 'f3']), cand('lint', 3, ['f4', 'f5', 'f6'])],
+      NOW,
+    )
+    expect(r).toEqual({ added: 1, updated: 0 })
+    expect(patterns.find((p) => p.signal === 'lint')?.status).toBe('active')
+    expect(patterns.find((p) => p.signal === 'build')?.status).toBe('archived')
   })
 })
