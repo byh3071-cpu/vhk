@@ -38,6 +38,7 @@ export type NlpCommand =
   | 'verify'
   | 'review'
   | 'mission'
+  | 'pattern'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -63,6 +64,7 @@ function normalize(input: string): string {
 /** 자연어 → 명령 매칭용 키워드 (부분 문자열) */
 export const NLP_KEYWORDS: Partial<Record<NlpCommand, readonly string[]>> = {
   save: ['저장', '세이브', '커밋', '올려', '올리기', '푸시', 'push', 'commit'],
+  pattern: ['패턴', '되풀이', '버릇', 'pattern'],
   undo: ['되돌려', '되돌리기', '취소', '원래대로', '롤백', '리셋', 'reset', 'rollback'],
   status: ['상태', '현황', '어떻게', '어때', '지금'],
   diff: ['변경', '바뀐', '뭐바뀜', '바뀌었', '차이', '달라진', '수정된'],
@@ -372,6 +374,12 @@ const RULES: NlpRule[] = [
     test: t =>
       /^출시$|출시\s*해|^publish$|퍼블리시|npm\s*(배포|출시)|버전\s*올|^릴리즈$|^release$/.test(t) &&
       !/체크|준비|회고/.test(t),
+  },
+  {
+    command: 'pattern',
+    explanation: '패턴 후보 목록 (vhk pattern list) — 감지는 vhk pattern detect 직접 실행',
+    confidence: 'high',
+    test: t => matchesKeywords(t, 'pattern') || /^pattern$/.test(t),
   },
   // NLP 규칙은 한국어 표현만 매칭. 영문 `goal <sub>` 은 commander 가 직접 처리하도록
   // 가로채기 금지 — vhk goal list / next / check / done 그대로 동작.
