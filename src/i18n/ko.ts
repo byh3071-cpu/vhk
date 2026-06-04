@@ -435,6 +435,9 @@ export const ko = {
     pendingApplyExists: '미해소 apply가 있습니다. vhk evolve undo 후 재시도하거나 그대로 유지하세요.',
     noAppliedToUndo: 'undo할 반영 항목이 없습니다.',
     noBackup: '.bak 파일이 없어 undo 불가합니다. RULES.md를 수동 복원하세요.',
+    allSuggested: '모든 패턴이 이미 제안됐거나 reject됐습니다.',
+    newCandidates: (n: number) => `신규 후보: ${n}개 추가됨`,
+    suggestHint: 'vhk evolve suggest 로 생성하세요.',
   },
 } as const
 

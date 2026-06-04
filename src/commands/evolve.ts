@@ -192,7 +192,7 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
       console.log(chalk.yellow('\n📭 ' + t('evolve.noPatterns')))
       return
     }
-    console.log(chalk.dim('\n  모든 패턴이 이미 제안됐거나 reject됐습니다.'))
+    console.log(chalk.dim('\n  ' + t('evolve.allSuggested')))
     return
   }
 
@@ -210,7 +210,7 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
 
   console.log(chalk.bold('\n🔄 ' + t('evolve.suggestTitle')))
   console.log(chalk.gray('─'.repeat(40)))
-  console.log(chalk.dim(`  신규 후보: ${newItems.length}개 추가됨`))
+  console.log(chalk.dim('  ' + t('evolve.newCandidates', newItems.length)))
 
   const pending = queue.items.filter(i => i.status === 'pending')
   console.log(chalk.cyan(`\n후보 ${pending.length}개:\n`))
@@ -247,7 +247,7 @@ export async function evolveList(opts: { status?: string; json?: boolean } = {})
 
   if (items.length === 0) {
     console.log(chalk.yellow('\n📭 ' + t('evolve.noQueue')))
-    console.log(chalk.gray('   vhk evolve suggest 로 생성하세요.'))
+    console.log(chalk.gray('   ' + t('evolve.suggestHint')))
     return
   }
 
