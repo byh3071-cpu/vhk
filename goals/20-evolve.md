@@ -28,11 +28,13 @@ patterns[](Goal 19) → rule/check/prompt "후보" 생성 → 사람 승인 → 
 
 ### CLI (컨테이너 — memory/pattern과 동형)
 - `vhk evolve suggest`      # patterns[] → 후보 큐 적재(쓰기=큐만, 본문 반영 X)
-- `vhk evolve list`         # --status pending|approved|rejected|applied
-- `vhk evolve apply <id>`   # diff 출력 → 사람 확인 → 반영 + .bak
-- `vhk evolve reject <id>`  # 기각(archive)
-- `vhk evolve undo <id>`    # 마지막 반영 되돌리기(.bak 복원)
+- `vhk evolve list`         # --status pending|rejected|applied (approved 상태 없음 — 아래 주석)
+- `vhk evolve apply <id>`   # diff 출력 → 사람 TTY 확인(원스텝) → 반영 + .bak
+- `vhk evolve reject <id>`  # 기각(archived)
+- `vhk evolve undo`         # 최근 apply 1건만 undo(.bak 복원) — id 인자 없음(단일 제약)
 - `--json` (suggest/list, CI·MCP용) / alias: `진화` / MCP: suggest·list만 노출
+> **apply = 원스텝**: diff 출력 → 사람이 TTY에서 확인/문구 수정 → 즉시 반영. `approved`는
+> 별도 상태가 아님(two-step approve→apply 없음). status 값: `pending | rejected | applied`만 유효.
 
 ### 후보 저장 (Q1=A + 가드)
 - 위치: 별도 `.vhk/evolve/queue.json` (memory v2 스키마 불변)
@@ -50,7 +52,14 @@ patterns[](Goal 19) → rule/check/prompt "후보" 생성 → 사람 승인 → 
 ### 후보 라이프사이클 (그룹 A)
 - A1 재제안 억제: reject한 후보는 다음 suggest에서 억제(기각 기억)
 - A2 중복 suggest: dedupe 키(패턴id+종류)로 1건 유지
-- A3 반영 후 전이: apply된 패턴 status=applied/resolved(재제안 차단, 18 status 재사용)
+- A3 반영 후 전이: apply 완료 → 큐 항목 status=applied, 소스 패턴 status=archived
+  (재제안 차단 — archived는 18의 선순환 status 재사용. 'applied' 신규 status 추가 불필요)
+- A4 댕글링 참조 가드: apply 실행 전 참조 패턴 id의 현재 status 확인.
+  소스 패턴이 archived이면 archived 원인을 구분해 경고:
+  - dismiss로 archived(queue에 applied 항목 없음) → "소스 패턴이 dismiss됨 — apply 거부"
+  - A3 apply 완료로 archived(queue에 applied 항목 있음) → "이미 반영된 패턴 — apply 거부"
+  어느 경우든 apply 거부. 사용자가 의도하지 않은 중복 반영 방지.
+  구현 시 queue.json에서 동일 patternId 기준 applied 항목 존재 여부로 두 경우를 구분.
 
 ### rule 문구 (그룹 B)
 - B1 템플릿 기반 문구 생성(매직/LLM 금지)
@@ -59,7 +68,18 @@ patterns[](Goal 19) → rule/check/prompt "후보" 생성 → 사람 승인 → 
 
 ### 안전·게이트 (그룹 C)
 - C1 undo 경계: apply=RULES.md append+sync 2단계 → undo=RULES.md .bak 복원→재sync
+  - **apply 대화형 강제**: apply 진입 즉시 `ensureInteractive()` 가드 — 비-TTY(MCP·스크립트)면 에러 종료.
+    sync는 apply가 이미 사람 확인을 거친 후 `sync({ yes: true })` 또는 내부 non-interactive 분기로
+    호출(sync 자체의 TTY 프롬프트 중복 방지 + 비-TTY 자동 실행 차단). 이중 프롬프트 금지.
+  - **undo 대화형 강제 + 재sync 비대화형**: undo도 `ensureInteractive()` 가드 필수(apply와 동일).
+    undo 내 RULES.md .bak 복원 후 재sync 호출도 `sync({ yes: true })` 비대화형으로 실행
+    (undo 자체가 TTY 확인 후 진행이므로 재sync 이중 프롬프트 불필요·금지).
+  - **undo 단일 apply 제약(#2 연동)**: .bak은 파일 단위 롤링 단일 백업이므로 직전 apply 1건만 undo 가능.
+    다중 연속 apply 금지 — 2번째 apply 전에 반드시 이전 apply를 undo하거나 유지 결정해야 함.
+    구현에서 queue.json에 `appliedAt` + RULES.md 스냅샷 경로를 기록해 per-id 복원 가능하게 할 수도
+    있으나 v0는 "최근 apply 1건만 undo" 제약을 테스트·문서에 명시 필수.
 - C2 자동적용 금지 게이트: evolve가 AGENTS/CLAUDE 직접 write하는 코드 없는지 grep 게이트
+  (evolve.ts 구현 후 게이트가 해당 파일을 스캔하도록 check-goal-20.mjs 업데이트 필수)
 - HARD_STOP 체크 / apply·undo는 대화형(MCP·비대화형 차단)
 
 ## 수용 기준 (구현 단계 기준, 지금은 문서화만)
@@ -73,6 +93,9 @@ patterns[](Goal 19) → rule/check/prompt "후보" 생성 → 사람 승인 → 
 - suggest 매핑(avoid→rule 후보) 결정성
 - dedupe/재제안 억제
 - apply 승인·diff 가드 / undo 복원
+- **다중 apply 블로킹**: apply 후 2번째 apply 시도 시 에러 반환 (단일 apply 제약 시행)
+- undo → apply 후 재apply 가능 확인(undo로 단일 제약 해제)
+- A4 댕글링 가드: dismiss된 패턴 참조 큐 항목 apply 시도 → 거부 확인
 - 중복 룰 감지
 
 ## 의존·후속
