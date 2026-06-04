@@ -92,9 +92,54 @@ export function gitPostRelease(newVersion: string): GitReleaseResult {
   }
 }
 
+export type PublishPreflightCode = 'wrong-branch' | 'dirty'
+export interface PublishPreflightResult {
+  ok: boolean
+  code?: PublishPreflightCode
+}
+
+/**
+ * 발행 전 안전 점검(순수 판정) — feature 브랜치/미커밋 상태서 발행해 픽스 누락본이
+ * npm latest 로 나가는 사고 방지(v2.3.1 오발행 사례). 브랜치 위반을 dirty 보다 우선 보고.
+ */
+export function evaluatePublishPreflight(
+  branch: string,
+  trackedStatus: string,
+  defaultBranch: string
+): PublishPreflightResult {
+  if (branch !== defaultBranch) return { ok: false, code: 'wrong-branch' }
+  if (trackedStatus.trim()) return { ok: false, code: 'dirty' }
+  return { ok: true }
+}
+
+/**
+ * git 상태를 수집해 발행 전 점검. defaultBranch 는 origin/HEAD 에서 감지(실패 시 'main').
+ * untracked 파일(미커밋 plan 문서 등)은 발행 산출물에 영향 없어 검사 제외(tracked 변경만).
+ */
+export function publishPreflight(): PublishPreflightResult & { branch: string; defaultBranch: string } {
+  const br = safeExecFile('git', ['branch', '--show-current'])
+  const branch = br.ok ? br.out.trim() : ''
+  const head = safeExecFile('git', ['symbolic-ref', '--short', 'refs/remotes/origin/HEAD'])
+  const defaultBranch = head.ok ? head.out.trim().split('/').pop() || 'main' : 'main'
+  const st = safeExecFile('git', ['status', '--porcelain', '--untracked-files=no'])
+  const trackedStatus = st.ok ? st.out : ''
+  return { ...evaluatePublishPreflight(branch, trackedStatus, defaultBranch), branch, defaultBranch }
+}
+
 export async function publish(): Promise<void> {
   console.log(chalk.bold('\n📦 ' + t('publish.title')))
   console.log(chalk.gray('─'.repeat(40)))
+
+  // 발행 전 안전 점검 — feature 브랜치/미커밋서 발행해 픽스 누락본이 latest 로 나가는 사고 방지(v2.3.1 사례)
+  const pre = publishPreflight()
+  if (!pre.ok) {
+    const msg =
+      pre.code === 'wrong-branch'
+        ? t('publish.preflightWrongBranch', pre.branch || '(detached)', pre.defaultBranch)
+        : t('publish.preflightDirty')
+    console.log(chalk.red(`\n❌ ${msg}`))
+    return
+  }
 
   if (!existsSync('package.json')) {
     console.log(chalk.red('❌ package.json을 찾을 수 없습니다.'))
