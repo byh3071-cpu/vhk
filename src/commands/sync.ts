@@ -175,42 +175,128 @@ export function toAntigravityRules(sections: RulesSection[], projectName: string
 const CLAUDE_AUTOGEN_BANNER = '> ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.'
 
 /**
- * RULES.md 섹션을 CLAUDE.md 포맷으로 변환
+ * CLAUDE.md 내 vhk 관리 영역 sentinel 마커(안 보이는 HTML 주석).
+ * 마커 **안** = 매 sync 재생성(배너 + RULES 유래 record 섹션). 마커 **밖** = 사용자 영역(보존).
+ * 이전엔 마커가 없어 header + '## 현재 상태' 외 모든 사용자 섹션을 조용히 드롭했음(배치1 결함).
  */
-export function toClaudeMd(sections: RulesSection[], existing: string): string {
-  const recordSections = sections.filter(s =>
-    CLAUDE_MD_KEYS.some(k => s.title.includes(k))
-  )
+const VHK_BLOCK_START = '<!-- vhk:rules:start -->'
+const VHK_BLOCK_END = '<!-- vhk:rules:end -->'
 
-  // 멱등성: 기존 본문에서 이전 자동생성 배너(정확히 일치하는 줄)를 모두 제거 후 정확히 1개만
-  // 재삽입. 이러면 배너가 header/현재상태 어디에 끼었든 누적되지 않고(매 sync drift→백업 churn
-  // 방지), 사용자가 '## 현재 상태'에 직접 쓴 임의 '> ⚡' 인용줄은 배너 문구 전체와 일치하지 않아
-  // 보존된다. (배너 접두만 보던 이전 수정의 사용자-인용줄 절단 회귀를 제거.)
-  const cleaned = existing
-    .split('\n')
-    .filter(line => line.trim() !== CLAUDE_AUTOGEN_BANNER)
-    .join('\n')
-
-  const statusMatch = cleaned.match(/## 현재 상태[\s\S]*?(?=\n## |$)/)
-  const statusSection = statusMatch ? statusMatch[0].trimEnd() : ''
-  const header = cleaned.split('## ')[0].trim()
-
-  const lines = [
-    header,
-    '',
-    statusSection,
-    '',
-    CLAUDE_AUTOGEN_BANNER,
-    '',
-  ]
-
+/** vhk 관리 블록(배너 + record 섹션)을 마커로 감싸 생성. toClaudeMd 가 매 sync 이 형태로 재생성한다. */
+function buildVhkBlock(recordSections: RulesSection[]): string {
+  const lines = [VHK_BLOCK_START, CLAUDE_AUTOGEN_BANNER, '']
   for (const section of recordSections) {
     lines.push(`## ${section.title}`)
     lines.push(section.content)
     lines.push('')
   }
-
+  lines.push(VHK_BLOCK_END)
   return lines.join('\n')
+}
+
+/**
+ * 마커 쌍을 찾아 바깥(before/after = 사용자 영역)을 분리. 마커 없거나 훼손(start/end 누락·역전)이면
+ * null → 호출부가 마이그레이션 경로(stripLegacyAutogen)로 폴백.
+ */
+function splitVhkBlock(existing: string): { before: string; after: string } | null {
+  const start = existing.indexOf(VHK_BLOCK_START)
+  const end = existing.indexOf(VHK_BLOCK_END)
+  if (start === -1 || end === -1 || end < start) return null
+  return {
+    before: existing.slice(0, start),
+    after: existing.slice(end + VHK_BLOCK_END.length),
+  }
+}
+
+/**
+ * 마이그레이션(마커 없는 기존 CLAUDE.md): 옛 자동생성(배너 줄 + CLAUDE_MD_KEYS 매칭 `## ` 섹션)만
+ * 제거하고 사용자 콘텐츠(헤더 + 비-키 섹션 = '## 현재 상태'·'## 프로젝트 정보' 등)는 원래 순서로 보존.
+ * - 배너는 **정확히 일치하는 줄**만 제거 → 사용자가 직접 쓴 '> ⚡' 인용줄은 보존(절단 회귀 방지).
+ * - "사용자 섹션 vs RULES서 삭제된 스테일 vhk 섹션"을 구분 못 하므로, 키 매칭 섹션은 옛 자동생성으로
+ *   간주해 제거하고 RULES 유래 record 로 재생성한다(스테일 규칙이 유령으로 남아 단일출처 깨지는 것 방지).
+ * @returns cleaned 보존된 사용자 콘텐츠, removed 제거된 옛 자동생성 섹션 제목, preserved 보존된 사용자 섹션 제목
+ */
+function stripLegacyAutogen(existing: string): { cleaned: string; removed: string[]; preserved: string[] } {
+  // 배너 줄 + 훼손돼 split 에 안 잡힌 잔존 마커 줄(start/end)도 청소 — 폴백 출력에 마커가 새지 않아 멱등 유지.
+  // 사용자가 직접 쓴 '> ⚡' 인용줄은 배너 문구 전체와 불일치해 보존된다.
+  const lines = existing
+    .split('\n')
+    .filter(line => {
+      const t = line.trim()
+      return t !== CLAUDE_AUTOGEN_BANNER && t !== VHK_BLOCK_START && t !== VHK_BLOCK_END
+    })
+
+  const headerLines: string[] = []
+  const blocks: { title: string; body: string[] }[] = []
+  let cur: { title: string; body: string[] } | null = null
+  for (const line of lines) {
+    if (line.startsWith('## ')) {
+      if (cur) blocks.push(cur)
+      cur = { title: line.slice(3).trim(), body: [line] }
+    } else if (cur) {
+      cur.body.push(line)
+    } else {
+      headerLines.push(line)
+    }
+  }
+  if (cur) blocks.push(cur)
+
+  const removed: string[] = []
+  const preserved: string[] = []
+  const keptBodies: string[] = []
+  for (const b of blocks) {
+    if (CLAUDE_MD_KEYS.some(k => b.title.includes(k))) {
+      removed.push(b.title) // 옛 자동생성 → record 로 재생성
+    } else {
+      preserved.push(b.title) // 사용자 섹션 → 보존
+      keptBodies.push(b.body.join('\n').trimEnd())
+    }
+  }
+
+  const header = headerLines.join('\n').trim()
+  const cleaned = [header, ...keptBodies].filter(Boolean).join('\n\n')
+  return { cleaned, removed, preserved }
+}
+
+/** 마이그레이션 시 보존/제거 섹션 집계 — syncCore 가 result 로 노출하고 호출부가 경고 출력. */
+export interface ClaudeMdMigration {
+  migrated: boolean
+  removed: string[]
+  preserved: string[]
+}
+
+/**
+ * 기존 CLAUDE.md 가 마커 없는(=마이그레이션 대상) 상태인지와 보존/제거 섹션을 계산.
+ * 마커가 이미 있으면 migrated=false(추가 작업 없음). toClaudeMd 와 동일 분기 로직을 공유한다.
+ */
+export function claudeMdMigration(existing: string): ClaudeMdMigration {
+  if (splitVhkBlock(existing)) return { migrated: false, removed: [], preserved: [] }
+  const { removed, preserved } = stripLegacyAutogen(existing)
+  return { migrated: true, removed, preserved }
+}
+
+/**
+ * RULES.md 섹션을 CLAUDE.md 포맷으로 변환. vhk 영역만 sentinel 마커로 감싸 재생성하고
+ * 마커 밖(사용자 섹션)은 보존. 마커가 없으면 1회 마이그레이션(옛 자동생성만 제거 + 사용자 섹션 보존).
+ * 멱등: 마이그레이션 출력에 마커가 박히므로 재호출 시 마커 경로로 동일 결과를 낸다.
+ */
+export function toClaudeMd(sections: RulesSection[], existing: string): string {
+  const recordSections = sections.filter(s =>
+    CLAUDE_MD_KEYS.some(k => s.title.includes(k))
+  )
+  const vhkBlock = buildVhkBlock(recordSections)
+
+  const split = splitVhkBlock(existing)
+  if (split) {
+    // 마커 영역만 교체, 바깥(사용자 영역) 보존 → 멱등
+    const before = split.before.replace(/\s+$/, '')
+    const after = split.after.replace(/^\s+/, '').replace(/\s+$/, '')
+    return [before, vhkBlock, after].filter(s => s.length > 0).join('\n\n') + '\n'
+  }
+
+  // 마이그레이션 — 마커 없는 기존 CLAUDE.md: 사용자 섹션 보존 + 마커블록 재조립
+  const { cleaned } = stripLegacyAutogen(existing)
+  return [cleaned, vhkBlock].filter(s => s.length > 0).join('\n\n') + '\n'
 }
 
 /**
@@ -306,6 +392,8 @@ export interface SyncPlanItem {
   exists: boolean
   /** 기존 파일이 RULES.md 생성본과 다름(=수작업 수정 가능성). 정규화 비교(거짓 드리프트 방지). */
   drift: boolean
+  /** CLAUDE.md 전용 — 마커 없는 기존 파일을 마이그레이션할 때 보존/제거 섹션 집계(조용한 드롭 방지 경고용). */
+  migration?: ClaudeMdMigration
 }
 
 export interface SyncResult {
@@ -319,6 +407,8 @@ export interface SyncResult {
   plan: SyncPlanItem[]
   /** ③ 어느 타깃에도 매핑 안 돼 산출물에서 빠지는 섹션 제목 — 조용히 버리지 않게 호출자에 노출. */
   unmapped: string[]
+  /** CLAUDE.md 마커 마이그레이션 집계 — migrated=true 면 호출자가 보존/제거 섹션 경고를 출력. */
+  claudeMigration?: ClaudeMdMigration
 }
 
 /**
@@ -358,6 +448,8 @@ export function buildSyncPlan(
     doneMessage: ko.sync.claudeDone,
     exists: claudeExists,
     drift: claudeDrift,
+    // 기존 CLAUDE.md 가 있을 때만 마이그레이션 집계(첫 생성은 마이그레이션 아님). 추가 I/O 0 — 이미 읽은 existingClaude 재사용.
+    migration: claudeExists ? claudeMdMigration(existingClaude) : undefined,
   })
   return plan
 }
@@ -381,6 +473,8 @@ export async function syncCore(
   // ③ 실제 누락 발생 지점(섹션 → 타깃 매핑)에서 미매칭 섹션을 집계해 결과에 노출.
   // 콘솔 출력은 호출자(sync()/MCP)가 result.unmapped 로 한다(syncCore 는 순수 seam 유지).
   const unmapped = findUnmappedSections(sections)
+  // CLAUDE.md 마커 마이그레이션 집계(있으면) — 호출자가 보존/제거 섹션 경고에 사용. 추가 I/O 없음(plan 재사용).
+  const claudeMigration = plan.find((p) => p.path === 'CLAUDE.md')?.migration
 
   // --dry-run — 어떤 디스크 변경도 하지 않는다(백업·쓰기·마커 전부 생략)
   if (opts.dryRun) {
@@ -394,6 +488,7 @@ export async function syncCore(
       truncated: [],
       plan,
       unmapped,
+      claudeMigration,
     }
   }
 
@@ -436,7 +531,7 @@ export async function syncCore(
   fs.writeFileSync(path.join(rootDir, SYNCED_MARKER_REL), new Date().toISOString() + '\n', 'utf-8')
   ensureVhkIgnored(rootDir, '.synced')
 
-  return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan, unmapped }
+  return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan, unmapped, claudeMigration }
 }
 
 export async function sync(opts: SyncOptions = {}): Promise<void> {
@@ -491,6 +586,15 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
       chalk.yellow(
         `  ⚠️  ${result.unmapped.length}개 섹션이 어느 타깃에도 매핑 안 돼 산출물에서 제외됨: ${result.unmapped.join(', ')}` +
           `\n     (코딩 규칙/기술 스택/커밋/기록 등 표준 제목을 쓰거나, 이 섹션은 RULES.md 에만 보존됩니다.)`
+      )
+    )
+  }
+
+  // 배치1 — 마커 없는 기존 CLAUDE.md 를 마커 형식으로 1회 정리. 보존/교체 섹션을 안내(조용한 드롭 방지).
+  if (result.claudeMigration?.migrated) {
+    console.log(
+      chalk.cyan(
+        `  ${ko.sync.claudeMigrated(result.claudeMigration.preserved, result.claudeMigration.removed)}`
       )
     )
   }
