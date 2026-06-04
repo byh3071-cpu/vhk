@@ -8,8 +8,10 @@ import {
   parseRulesMd,
   deriveProjectName,
   toClaudeMd,
+  claudeMdMigration,
 } from '../src/commands/sync.js'
 import { listBackups } from '../src/lib/backup.js'
+import { ko } from '../src/i18n/ko.js'
 
 const RULES = `# 데모 — Rules
 
@@ -211,5 +213,165 @@ describe('toClaudeMd — 멱등성 + 사용자 콘텐츠 보존 (라운드2 회�
     expect(out).toContain('사용자가 직접 쓴 강조 메모')
     expect(out).toContain('다음 액션')
     expect(toClaudeMd(sections, out)).toBe(out) // 보존하면서도 멱등
+  })
+})
+
+describe('toClaudeMd — 마커 기반 사용자 섹션 보존 (배치1: 사용자 섹션 조용한 드롭 결함)', () => {
+  const sections = parseRulesMd(RULES) // [코딩 규칙, 기록 규칙] → record=[기록 규칙]
+  const name = deriveProjectName(RULES)
+
+  it('마이그레이션: 마커 없는 CLAUDE.md 의 비-키 사용자 섹션(`## 프로젝트 정보`)을 드롭하지 않고 보존', () => {
+    const existing = `# 기록 규칙 (${name})\n\n## 프로젝트 정보\n- repo: x\n\n## 현재 상태\n- **Phase:** P5\n\n## 기록 규칙\n- 옛 자동생성\n`
+    const out = toClaudeMd(sections, existing)
+    // 결함: 기존 toClaudeMd 는 header + 현재 상태 + record 만 보존하고 `## 프로젝트 정보` 를 조용히 드롭
+    expect(out).toContain('## 프로젝트 정보')
+    expect(out).toContain('repo: x')
+    // 현재 상태도 여전히 보존
+    expect(out).toContain('## 현재 상태')
+    // RULES 유래 record 섹션은 재생성
+    expect(out).toContain('## 기록 규칙')
+    // 마이그레이션 출력엔 마커가 박혀 다음 sync 부터 마커 경로
+    expect(out).toContain('<!-- vhk:rules:start -->')
+    expect(out).toContain('<!-- vhk:rules:end -->')
+  })
+
+  it('마이그레이션도 멱등 — 재호출 시 바이트 동일', () => {
+    const a = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 프로젝트 정보\n- x\n\n## 현재 상태\n- P5\n`)
+    expect(toClaudeMd(sections, a)).toBe(a)
+  })
+
+  it('CRLF(\\r\\n) 입력도 멱등 + 사용자 섹션 보존 (Windows CLAUDE.md 회귀)', () => {
+    const crlf = `# 기록 규칙 (${name})\r\n\r\n## 프로젝트 정보\r\n- x\r\n\r\n## 현재 상태\r\n- P5\r\n`
+    const a = toClaudeMd(sections, crlf)
+    expect(a).toContain('## 프로젝트 정보')
+    expect(toClaudeMd(sections, a)).toBe(a) // 배너/마커 trim 비교가 \r 흡수 → 누적 없음
+  })
+
+  it('마커 밖 before/after 사용자 콘텐츠 보존 + 마커 안만 교체', () => {
+    const migrated = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 프로젝트 정보\n- repo: x\n\n## 현재 상태\n- P5\n`)
+    // 사용자가 마커 뒤에 새 섹션 추가
+    const edited = migrated.trimEnd() + '\n\n## 사람이 마커 뒤에 추가\n- 메모\n'
+    const out = toClaudeMd(sections, edited)
+    expect(out).toContain('## 프로젝트 정보') // before(마커 앞) 보존
+    expect(out).toContain('## 사람이 마커 뒤에 추가') // after(마커 뒤) 보존
+    expect(out).toContain('## 기록 규칙') // 마커 안 record 재생성
+    expect((out.match(/⚡ 아래 규칙 섹션은/g) || []).length).toBe(1) // 배너 누적 없음
+  })
+
+  it('RULES 에서 record 섹션이 사라지면 마커 안에서도 제거 (스테일 유령 방지)', () => {
+    const withRecord = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- P5\n`)
+    expect(withRecord).toContain('## 기록 규칙')
+    const noRecord = parseRulesMd(`# 데모 — Rules\n\n## 코딩 규칙\n- a\n`) // 기록 규칙 제거됨
+    const out = toClaudeMd(noRecord, withRecord)
+    expect(out).not.toContain('## 기록 규칙') // 마커 안 스테일 제거
+    expect(out).toContain('## 현재 상태') // 사용자 영역 보존
+  })
+
+  it('마커 훼손(end 누락) → 마이그레이션 폴백, 사용자 섹션 드롭 안 함', () => {
+    const broken = `# 기록 규칙 (${name})\n\n## 프로젝트 정보\n- repo: x\n\n<!-- vhk:rules:start -->\n> ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.\n\n## 기록 규칙\n- 옛것\n` // end 마커 없음
+    const out = toClaudeMd(sections, broken)
+    expect(out).toContain('## 프로젝트 정보') // 폴백서도 사용자 섹션 보존
+    expect(out).toContain('<!-- vhk:rules:end -->') // 정상 마커쌍 재생성
+    expect(toClaudeMd(sections, out)).toBe(out) // 복구 후 멱등
+  })
+})
+
+describe('claudeMdMigration — 마이그레이션 보존/제거 집계 (경고용)', () => {
+  const name = deriveProjectName(RULES)
+
+  it('마커 없으면 migrated=true + preserved(사용자)/removed(키 섹션) 집계', () => {
+    const r = claudeMdMigration(`# 기록 규칙 (${name})\n\n## 프로젝트 정보\n- x\n\n## 현재 상태\n- P5\n\n## 작업 로그\n- 옛것\n`)
+    expect(r.migrated).toBe(true)
+    expect(r.preserved).toEqual(expect.arrayContaining(['프로젝트 정보', '현재 상태']))
+    expect(r.removed).toContain('작업 로그') // '로그' 키 매칭 → 옛 자동생성 간주 제거
+  })
+
+  it('마커 이미 있으면 migrated=false (재작업·경고 없음)', () => {
+    const sections = parseRulesMd(RULES)
+    const withMarker = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- P5\n`)
+    expect(claudeMdMigration(withMarker).migrated).toBe(false)
+  })
+})
+
+describe('syncCore — CLAUDE.md 마이그레이션 경고 노출 (배치1, 조용한 드롭 방지)', () => {
+  it('마커 없는 기존 CLAUDE.md → result.claudeMigration.migrated=true + 보존 섹션 노출', async () => {
+    fs.writeFileSync(
+      path.join(dir, 'CLAUDE.md'),
+      `# 기록 규칙 (데모)\n\n## 프로젝트 정보\n- repo: x\n\n## 현재 상태\n- P5\n`,
+      'utf-8'
+    )
+    const r = await syncCore(dir, { dryRun: true }, alwaysYes)
+    expect(r.claudeMigration?.migrated).toBe(true)
+    expect(r.claudeMigration?.preserved).toContain('프로젝트 정보')
+  })
+
+  it('이미 마커 있는(=마이그레이션 완료) CLAUDE.md → migrated=false', async () => {
+    const sections = parseRulesMd(read('RULES.md'))
+    const migrated = toClaudeMd(sections, `# 기록 규칙 (데모)\n\n## 현재 상태\n- P5\n`)
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), migrated, 'utf-8')
+    const r = await syncCore(dir, { dryRun: true }, alwaysYes)
+    expect(r.claudeMigration?.migrated).toBe(false)
+  })
+
+  it('CLAUDE.md 자체가 없으면 claudeMigration 없음(마이그레이션 비대상)', async () => {
+    const r = await syncCore(dir, { dryRun: true }, alwaysYes)
+    expect(r.claudeMigration?.migrated).toBeFalsy()
+  })
+
+  // BACKLOG 배치1 게이트 — 실제 vhk CLAUDE.md 유사 구조(frontmatter + 다수 비-키 섹션) 보존 e2e
+  it('실 CLAUDE.md 구조(frontmatter + 다수 사용자 섹션) → 모든 비-키 섹션 + frontmatter 보존', async () => {
+    const real = `---
+id: claude-md-vhk
+tags: [process, documentation]
+---
+
+# 기록 규칙 (vhk)
+
+> 이 파일은 기록/운영 전용. 코딩/디자인 → .cursorrules 참조.
+
+## 프로젝트 정보
+- repo: x
+
+## 현재 상태
+- Phase: P5
+
+## 코딩 컨벤션
+- execSync 금지
+
+## MCP 모드 규칙
+- handler 내부 process.exit() 금지
+
+## Safety — HARD_STOP
+- .vhk/HARD_STOP 확인
+
+## Stability Gates
+- build && test 통과 필수
+`
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), real, 'utf-8')
+    const r = await syncCore(dir, { dryRun: true }, alwaysYes)
+    const claudeNew = r.plan.find((p) => p.path === 'CLAUDE.md')!.newContent
+    for (const sec of ['프로젝트 정보', '현재 상태', '코딩 컨벤션', 'MCP 모드 규칙', 'Safety — HARD_STOP', 'Stability Gates']) {
+      expect(claudeNew).toContain(`## ${sec}`)
+    }
+    expect(claudeNew).toContain('id: claude-md-vhk') // frontmatter 보존
+    expect(claudeNew).toContain('handler 내부 process.exit() 금지') // 본문 보존
+    expect(r.claudeMigration?.migrated).toBe(true)
+    expect(r.claudeMigration?.preserved).toEqual(
+      expect.arrayContaining(['프로젝트 정보', '코딩 컨벤션', 'MCP 모드 규칙', 'Safety — HARD_STOP', 'Stability Gates'])
+    )
+  })
+})
+
+describe('ko.sync.claudeMigrated — 마이그레이션 경고 문구', () => {
+  it('보존/제거 섹션을 문구에 반영', () => {
+    const msg = ko.sync.claudeMigrated(['프로젝트 정보', '현재 상태'], ['작업 로그'])
+    expect(msg).toContain('보존')
+    expect(msg).toContain('프로젝트 정보')
+    expect(msg).toContain('작업 로그')
+  })
+
+  it('제거 0이면 교체 줄 생략(노이즈 0)', () => {
+    const msg = ko.sync.claudeMigrated(['프로젝트 정보'], [])
+    expect(msg).not.toContain('교체')
   })
 })
