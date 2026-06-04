@@ -5,7 +5,7 @@ id: 20
 title: vhk evolve — Evolution Loop 도미노 4 (패턴→룰 후보→사람 승인→반영)
 status: IN_PROGRESS
 priority: P1
-version: v2.2.0
+version: v2.3.0
 depends_on:
   - goal-18-memory-schema-v2
   - goal-19-pattern

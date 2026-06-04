@@ -55,7 +55,7 @@ must(g20.includes('id: 20'), 'goals/20-evolve.md: id: 20')
 // status 유효값 체크 (IN_PROGRESS/DONE 모두 허용)
 const VALID_GOAL_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'DONE', 'BLOCKED']
 must(VALID_GOAL_STATUSES.some(s => g20.includes('status: ' + s)), 'goals/20-evolve.md: 유효한 status 값')
-must(g20.includes('version: v2.2.0'), 'goals/20-evolve.md: version v2.2.0')
+must(g20.includes('version: v2.3.0'), 'goals/20-evolve.md: version v2.3.0')
 must(g20.includes('depends_on'), 'goals/20-evolve.md: depends_on 선언')
 must(g20.includes('goal-19-pattern'), 'goals/20-evolve.md: goal-19-pattern 의존')
 
