@@ -131,3 +131,90 @@ describe('publish — gitPostRelease (commit 실패 시 tag 미생성)', () => {
     expect(r.warning).toBeUndefined()
   })
 })
+
+describe('evaluatePublishPreflight — 발행 전 브랜치/clean 가드 (2.3.1 오발행 재발 방지)', () => {
+  it('default 브랜치 + clean → ok', async () => {
+    const { evaluatePublishPreflight } = await import('../src/commands/publish.js')
+    expect(evaluatePublishPreflight('main', '', 'main')).toEqual({ ok: true })
+  })
+
+  it('feature 브랜치 → wrong-branch 차단 (이번 2.3.1 오발행 원인)', async () => {
+    const { evaluatePublishPreflight } = await import('../src/commands/publish.js')
+    const r = evaluatePublishPreflight('feat/goal-20-evolve', '', 'main')
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe('wrong-branch')
+  })
+
+  it('tracked 미커밋 변경 → dirty 차단', async () => {
+    const { evaluatePublishPreflight } = await import('../src/commands/publish.js')
+    const r = evaluatePublishPreflight('main', ' M src/x.ts', 'main')
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe('dirty')
+  })
+
+  it('detached HEAD(빈 브랜치) → wrong-branch 차단', async () => {
+    const { evaluatePublishPreflight } = await import('../src/commands/publish.js')
+    expect(evaluatePublishPreflight('', '', 'main').code).toBe('wrong-branch')
+  })
+
+  it('브랜치 위반 우선 — feature + dirty 면 wrong-branch 먼저', async () => {
+    const { evaluatePublishPreflight } = await import('../src/commands/publish.js')
+    expect(evaluatePublishPreflight('feat/x', ' M a', 'main').code).toBe('wrong-branch')
+  })
+
+  it('master 등 다른 default 도 인식 (하드코딩 아님)', async () => {
+    const { evaluatePublishPreflight } = await import('../src/commands/publish.js')
+    expect(evaluatePublishPreflight('master', '', 'master')).toEqual({ ok: true })
+    expect(evaluatePublishPreflight('main', '', 'master').code).toBe('wrong-branch')
+  })
+})
+
+describe('publishPreflight — git 수집 + default 브랜치 추출', () => {
+  const exec = vi.mocked(safeExecFile)
+
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+
+  it('origin/HEAD 에서 default 추출 + feature 브랜치 차단', async () => {
+    exec.mockImplementation((_c: string, args: string[]) => {
+      if (args[0] === 'branch') return { ok: true, out: 'feat/x' }
+      if (args[0] === 'symbolic-ref') return { ok: true, out: 'origin/main' }
+      if (args[0] === 'status') return { ok: true, out: '' }
+      return { ok: true, out: '' }
+    })
+    const { publishPreflight } = await import('../src/commands/publish.js')
+    const r = publishPreflight()
+    expect(r.defaultBranch).toBe('main')
+    expect(r.branch).toBe('feat/x')
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe('wrong-branch')
+  })
+
+  it('origin/HEAD 감지 실패 → main fallback + main 이면 통과', async () => {
+    exec.mockImplementation((_c: string, args: string[]) => {
+      if (args[0] === 'branch') return { ok: true, out: 'main' }
+      if (args[0] === 'symbolic-ref') return { ok: false, err: 'no remote', out: '' }
+      if (args[0] === 'status') return { ok: true, out: '' }
+      return { ok: true, out: '' }
+    })
+    const { publishPreflight } = await import('../src/commands/publish.js')
+    const r = publishPreflight()
+    expect(r.defaultBranch).toBe('main')
+    expect(r.ok).toBe(true)
+  })
+
+  it('default 브랜치인데 tracked 변경 있으면 dirty 차단', async () => {
+    exec.mockImplementation((_c: string, args: string[]) => {
+      if (args[0] === 'branch') return { ok: true, out: 'main' }
+      if (args[0] === 'symbolic-ref') return { ok: true, out: 'origin/main' }
+      if (args[0] === 'status') return { ok: true, out: ' M src/x.ts' }
+      return { ok: true, out: '' }
+    })
+    const { publishPreflight } = await import('../src/commands/publish.js')
+    const r = publishPreflight()
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe('dirty')
+  })
+})

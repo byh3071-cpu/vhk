@@ -377,6 +377,11 @@ export const ko = {
     publishing: 'npm 배포 중...',
     publishSuccess: 'npm 배포 성공!',
     publishFailed: 'npm 배포 실패',
+    // 발행 전 안전 가드 — feature 브랜치/미커밋 발행로 픽스 누락본이 latest 로 나가는 사고 방지(v2.3.1 사례)
+    preflightWrongBranch: (branch: string, def: string) =>
+      `발행 중단 — 현재 '${branch}' 브랜치입니다. 발행은 '${def}' 에서만 하세요 (feature 브랜치 발행 → 픽스 누락본이 npm latest 로 나가는 사고 방지). git checkout ${def} && git pull 후 재시도.`,
+    preflightDirty:
+      '발행 중단 — 커밋 안 된 변경이 있습니다. 발행 전 커밋/정리하세요 (untracked 파일은 무시).',
   },
   harness: {
     title: '통합 품질 점검',
