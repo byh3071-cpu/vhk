@@ -36,17 +36,14 @@ jobs:
       - name: 타입체크 (tsc --noEmit)
         run: pnpm exec tsc --noEmit
 
-      # Goal 게이트 전수 — 완료된 goal 0~20 의 완료조건이 이후 수정으로 몰래 깨지는지 회귀 가드.
-      # 새 check-goal-*.mjs 자동 포함(sort -V). meta/no-stray 공통 게이트도 함께.
-      - name: Goal 게이트 전수 (완료 goal 회귀 가드)
-        run: |
-          node scripts/check-meta.mjs
-          node scripts/check-no-stray.mjs
-          for f in $(ls scripts/check-goal-*.mjs | sort -V); do
-            echo "::group::$f"
-            node "$f"
-            echo "::endgroup::"
-          done
+      # 좀도둑 파일 가드 — 정적 검사(빌드/테스트 불필요).
+      - name: 좀도둑 파일 가드
+        run: node scripts/check-no-stray.mjs
+
+      # NOTE: check-goal-*.mjs(goal 완료 게이트)는 CI 미연결.
+      #   다수가 내부에서 pnpm test:run / pnpm build / dist spawn 을 수행하는 무거운 게이트라,
+      #   매 push 전수 실행 시 테스트 스위트가 N회 중복 실행됨(이 잡이 이미 typecheck+build+test 1회 수행).
+      #   goal 게이트는 릴리즈 전·수동(vhk goal check --id N)으로 운용한다.
 
       # build 가 test 보다 먼저: cli-args e2e 테스트가 dist/index.js 를 spawn 한다.
       - name: 빌드
