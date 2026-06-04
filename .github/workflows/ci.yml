@@ -68,6 +68,11 @@ jobs:
       - name: 빌드
         run: pnpm build
 
+      # 보안 게이트 — public npm 패키지라 시크릿/키 유출 = 사고. vhk 자체 스캐너로 매 push 검사.
+      # 유출 탐지 시 비0 종료 → 빌드 실패(머지 차단).
+      - name: 보안 스캔 (시크릿·키 유출 가드)
+        run: node dist/index.js secure scan
+
       # 각 명령 비0 종료 시 스텝 실패(GHA bash -eo pipefail). 어떤 명령이 깨졌는지 group 로그로 표시.
       - name: vhk 가 vhk 를 검사 (CLI 자가 동작 — 비대화형·읽기전용)
         run: |

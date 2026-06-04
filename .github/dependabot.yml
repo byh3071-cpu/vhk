@@ -1,0 +1,27 @@
+# Dependabot — 의존성·GitHub 액션 새 버전 나오면 자동으로 업데이트 PR 생성.
+# (수동으로 했던 액션 v4→v6 같은 작업을 봇이 대신함. PR 만 올리고 머지는 사람이.)
+version: 2
+updates:
+  # npm 의존성 (pnpm-lock.yaml 지원). 주 1회, 자잘한 업뎃은 묶어 PR 수 최소화.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # minor/patch 는 한 PR 로 묶음 (노이즈 감소). major 는 개별 PR (수동 검토).
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  # GitHub 액션 (checkout/setup-node/pnpm-action 등). 이번 v4→v6 같은 deprecation 자동 대응.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci(deps)"
+    groups:
+      actions:
+        patterns: ["*"]
