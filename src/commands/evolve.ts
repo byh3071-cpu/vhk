@@ -386,5 +386,102 @@ export async function evolveApply(idStr: string): Promise<void> {
     alternative: 'vhk evolve undo — 되돌리기',
   })
 }
-export async function evolveReject(_idStr: string): Promise<void> { /* Task 4 */ }
-export async function evolveUndo(): Promise<void> { /* Task 4 */ }
+export async function evolveReject(idStr: string): Promise<void> {
+  const cwd = process.cwd()
+  const queue = readQueue(cwd)
+  const item = queue.items.find(i => i.id === idStr?.trim())
+
+  if (!item) {
+    console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
+    process.exitCode = 1
+    return
+  }
+
+  if (item.status === 'rejected') {
+    console.log(chalk.dim(`  이미 기각된 후보입니다 — 변경 없음: ${item.id}`))
+    return
+  }
+
+  item.status = 'rejected'
+  writeQueue(cwd, queue)
+
+  console.log(chalk.green(`\n❌ 후보 기각됨: [${item.id}] ${item.draft}`))
+  console.log(chalk.dim('   (A1: 다음 suggest에서 재제안 안 됨)'))
+
+  printNextStep({
+    message: '기각 완료!',
+    command: 'vhk evolve list',
+    cursorHint: '남은 후보 보여줘',
+  })
+}
+
+export async function evolveUndo(): Promise<void> {
+  // 1. TTY 가드
+  if (!ensureInteractive('undo는 TTY 확인이 필요합니다. 터미널에서 직접 실행하세요.')) return
+
+  const cwd = process.cwd()
+  const queue = readQueue(cwd)
+  const applied = queue.items.filter(i => i.status === 'applied')
+
+  if (applied.length === 0) {
+    console.log(chalk.yellow('\n📭 ' + t('evolve.noAppliedToUndo')))
+    return
+  }
+
+  // 2. 가장 최근 apply 1건 (appliedAt 기준 내림차순)
+  const last = applied.sort((a, b) =>
+    (b.appliedAt ?? '').localeCompare(a.appliedAt ?? '')
+  )[0]
+
+  // 3. .bak 존재 확인
+  if (!last.rulesBackupPath || !existsSync(last.rulesBackupPath)) {
+    console.log(chalk.red('\n❌ ' + t('evolve.noBackup')))
+    process.exitCode = 1
+    return
+  }
+
+  console.log(chalk.bold('\n🔄 ' + t('evolve.undoTitle')))
+  console.log(chalk.dim(`  되돌릴 항목: [${last.id}] ${last.draft}`))
+
+  // 4. 확인 프롬프트
+  const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([{
+    type: 'confirm',
+    name: 'confirmed',
+    message: 'RULES.md를 .bak으로 복원하고 vhk sync를 재실행할까요?',
+    default: false,
+  }])
+
+  if (!confirmed) {
+    console.log(chalk.dim('  취소됨.'))
+    return
+  }
+
+  // 5. RULES.md .bak 복원
+  copyFileSync(last.rulesBackupPath, join(cwd, 'RULES.md'))
+
+  // 6. undo 재sync 비대화형 (이중 프롬프트 금지)
+  await sync({ yes: true })
+
+  // 7. queue item → pending (되돌리기), appliedAt + rulesBackupPath 제거
+  last.status = 'pending'
+  delete last.appliedAt
+  delete last.rulesBackupPath
+  writeQueue(cwd, queue)
+
+  // 8. 소스 패턴 → active 복구 (archived → active)
+  const memLoaded = loadForMutation(cwd)
+  if (memLoaded.ok) {
+    const p = (memLoaded.mem.patterns as PatternEntryV19[]).find(x => x.id === last.patternId)
+    if (p && p.status === 'archived') {
+      p.status = 'active'
+      writeMemory(cwd, memLoaded.mem)
+    }
+  }
+
+  console.log(chalk.green('\n✅ 되돌리기 완료! RULES.md 복원 + sync 재실행됨'))
+  printNextStep({
+    message: '되돌리기 완료!',
+    command: 'vhk evolve list',
+    cursorHint: '후보 목록 보여줘',
+  })
+}

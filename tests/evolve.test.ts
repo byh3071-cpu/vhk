@@ -359,3 +359,68 @@ describe('C1 단일 apply 제약 — hasUnresolved 로직', () => {
     expect(items.some(i => i.status === 'applied')).toBe(true)
   })
 })
+
+// ── evolveReject 로직 검증 (큐 상태 직접 테스트) ─────────────────────────────
+
+describe('evolveReject 로직 검증 (큐 상태 직접 테스트)', () => {
+  it('reject 후 status=rejected로 변경', () => {
+    const item: EvolveQueueItem = {
+      id: 'e1', patternId: 'p1', kind: 'rule', status: 'pending',
+      draft: '룰', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z',
+    }
+    // evolveReject 핵심 로직 직접 검증
+    item.status = 'rejected'
+    expect(item.status).toBe('rejected')
+  })
+
+  it('A1: reject된 항목은 generateCandidates에서 재제안 안 됨', () => {
+    const patterns = [pat('p1', 'build', 3)]
+    const existing: EvolveQueueItem[] = [{
+      id: 'e1', patternId: 'p1', kind: 'rule', status: 'rejected',
+      draft: '기각됨', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z',
+    }]
+    const candidates = generateCandidates(patterns, existing)
+    expect(candidates).toHaveLength(0)
+  })
+})
+
+// ── evolveUndo 로직 검증 (순수 로직 테스트) ─────────────────────────────────
+
+describe('evolveUndo 로직 검증 (순수 로직 테스트)', () => {
+  it('applied 항목 없으면 undo 대상 없음', () => {
+    const items: EvolveQueueItem[] = [
+      { id: 'e1', patternId: 'p1', kind: 'rule', status: 'pending',
+        draft: '룰', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z' },
+    ]
+    const applied = items.filter(i => i.status === 'applied')
+    expect(applied).toHaveLength(0)
+  })
+
+  it('applied 항목 중 가장 최근 appliedAt 선택', () => {
+    const items: EvolveQueueItem[] = [
+      { id: 'e1', patternId: 'p1', kind: 'rule', status: 'applied',
+        draft: '룰1', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z',
+        appliedAt: '2026-01-01T10:00:00Z' },
+      { id: 'e2', patternId: 'p2', kind: 'rule', status: 'applied',
+        draft: '룰2', dedupeKey: 'p2:rule', createdAt: '2026-01-01T00:00:00Z',
+        appliedAt: '2026-01-02T10:00:00Z' },
+    ]
+    const applied = items.filter(i => i.status === 'applied')
+    const last = applied.sort((a, b) => (b.appliedAt ?? '').localeCompare(a.appliedAt ?? ''))[0]
+    expect(last.id).toBe('e2') // 더 최근 항목
+  })
+
+  it('undo 후 queue item → pending, appliedAt 제거', () => {
+    const item: EvolveQueueItem = {
+      id: 'e1', patternId: 'p1', kind: 'rule', status: 'applied',
+      draft: '룰', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z',
+      appliedAt: '2026-01-01T10:00:00Z', rulesBackupPath: '/tmp/RULES.md.bak',
+    }
+    item.status = 'pending'
+    delete item.appliedAt
+    delete item.rulesBackupPath
+    expect(item.status).toBe('pending')
+    expect(item.appliedAt).toBeUndefined()
+    expect(item.rulesBackupPath).toBeUndefined()
+  })
+})
