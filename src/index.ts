@@ -101,6 +101,7 @@ async function guardCliDefer(
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalInit, goalList, goalNext, goalSync } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
+import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -142,6 +143,7 @@ const KO_ALIASES: Record<string, string> = {
   blocker: '블로커',
   learn: '교훈',
   resume: '재개',
+  pattern: '패턴',
 }
 
 program
@@ -610,6 +612,35 @@ program
   .option('--confirm', '사람 확인 — 자동 호출 금지 (Forbidden 위반)')
   .description('.vhk/HARD_STOP 해제 (사용자가 사유 확인 후 --confirm 필요)')
   .action(async (opts: { confirm?: boolean }) => { await guardCliDefer('resume', opts?.confirm === true, () => resume(opts)) })
+
+const patternCmd = program
+  .command('pattern')
+  .alias('패턴')
+  .description('반복 패턴 감지·목록·dismiss (avoid/reinforce 후보) — Goal 19')
+  .action(async () => { await patternList() })
+
+patternCmd
+  .command('detect')
+  .alias('감지')
+  .option('--min <n>', '임계 횟수 (기본 3)', '3')
+  .option('--json', 'JSON 출력 (CI/MCP용)')
+  .description('active failures+successes 2축 분석 → patterns[] 갱신')
+  .action(async (opts: { min?: string; json?: boolean }) => { await patternDetect(opts) })
+
+patternCmd
+  .command('list')
+  .alias('목록')
+  .option('--kind <kind>', 'avoid|reinforce 필터')
+  .option('--all', '보관(archived) 포함')
+  .option('--json', 'JSON 출력 (CI/MCP용)')
+  .description('패턴 후보 목록 (기본 활성)')
+  .action(async (opts: { kind?: string; all?: boolean; json?: boolean }) => { await patternList(opts) })
+
+patternCmd
+  .command('dismiss <id>')
+  .alias('보관')
+  .description('오탐 패턴 dismiss (→archived, 재제안 안 됨)')
+  .action(async (id: string) => { await patternDismiss(id) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''

@@ -413,6 +413,11 @@ export const ko = {
     learnTitle: '🧠 Learning 기록',
     resumeTitle: '▶️  HARD_STOP 해제',
   },
+  pattern: {
+    detectTitle: '패턴 감지',
+    listTitle: '패턴 목록',
+    dismissTitle: '패턴 dismiss',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)

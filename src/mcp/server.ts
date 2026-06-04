@@ -680,6 +680,40 @@ export function createVhkMcpServer(): McpServer {
     async () => runVhkCli(['mcp-init'], 'mcp-init')
   )
 
+  // ─── pattern-detect ──────────────────────────────────────
+  server.registerTool(
+    'pattern-detect',
+    {
+      description: 'active failures+successes 2축 분석 → avoid/reinforce 후보 감지 · patterns[] 갱신 (Goal 19)',
+      inputSchema: {
+        min: z.number().int().min(1).optional().describe('임계 횟수 (기본 3)'),
+      },
+    },
+    async ({ min }) => {
+      const args = ['pattern', 'detect', '--json']
+      if (min !== undefined) args.push('--min', String(min))
+      return runVhkCli(args, 'pattern detect')
+    }
+  )
+
+  // ─── pattern-list ────────────────────────────────────────
+  server.registerTool(
+    'pattern-list',
+    {
+      description: '패턴 후보 목록 조회 (avoid/reinforce · 활성 기본) — Goal 19',
+      inputSchema: {
+        kind: z.enum(['avoid', 'reinforce']).optional().describe('종류 필터'),
+        all: z.boolean().optional().describe('보관(archived) 포함'),
+      },
+    },
+    async ({ kind, all }) => {
+      const args = ['pattern', 'list', '--json']
+      if (kind) args.push('--kind', kind)
+      if (all) args.push('--all')
+      return runVhkCli(args, 'pattern list')
+    }
+  )
+
   return server
 }
 
