@@ -10,17 +10,17 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: pnpm 설치
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           # 로컬 개발 환경과 정확히 일치 (Node 24 + pnpm 11.2.2).
           # pnpm 9 는 workspace overrides 거부, pnpm 11.5 는 Node 20 builtin 미지원 → 둘 다 고정.
           version: 11.2.2
 
       - name: Node 24 + pnpm 캐시
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
@@ -48,15 +48,15 @@ jobs:
   dogfood:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: pnpm 설치
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.2.2
 
       - name: Node 24 + pnpm 캐시
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
