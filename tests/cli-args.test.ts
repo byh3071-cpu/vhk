@@ -129,6 +129,30 @@ describe('detectNaturalLanguageInput — 서브커맨드 명령 경로 가드 (R
   })
 })
 
+describe('detectNaturalLanguageInput — pattern/evolve 라우팅 (회귀: Goal 19/20)', () => {
+  // 실결함: pattern/evolve 가 KNOWN_COMMAND_TOKENS 에 없어서, 옵션 없는 서브커맨드
+  // (vhk pattern dismiss <id>, vhk pattern detect, vhk evolve <sub>)가 NL 라우터로 새서
+  // patternList()/evolveList() 로 둔갑 → dismiss/detect 가 동작하지 않았다.
+  it('vhk pattern dismiss <id> → null (commander 가 dismiss 처리, NL 가로채기 금지)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'pattern', 'dismiss', 'p1'])).toBeNull()
+  })
+  it('vhk pattern detect → null (옵션 없어도 commander)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'pattern', 'detect'])).toBeNull()
+  })
+  it('vhk pattern list → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'pattern', 'list'])).toBeNull()
+  })
+  it('vhk 패턴 dismiss <id> → null (한글 컨테이너 + 영문 서브)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '패턴', 'dismiss', 'p1'])).toBeNull()
+  })
+  it('vhk evolve suggest → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'evolve', 'suggest'])).toBeNull()
+  })
+  it('vhk evolve apply <id> → null (인자 보존)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'evolve', 'apply', 'r1'])).toBeNull()
+  })
+})
+
 describe('cli NL e2e', () => {
   const bin = path.join(process.cwd(), 'dist', 'index.js')
 

@@ -46,7 +46,7 @@ function isActive(e: MemEntry): boolean {
   return e.status !== 'archived' && e.status !== 'resolved'
 }
 
-interface RawCandidate {
+export interface RawCandidate {
   kind: 'avoid' | 'reinforce'
   axis: 'tag' | 'keyword'
   signal: string
@@ -134,14 +134,62 @@ export function detectCandidates(mem: MemoryFileV2, minFreq: number): RawCandida
   return candidates.sort((a, b) => b.count - a.count || a.signal.localeCompare(b.signal))
 }
 
-function nextPatternId(mem: MemoryFileV2): string {
-  const re = /^p(\d+)$/
-  let max = 0
-  for (const p of mem.patterns) {
-    const m = p.id.match(re)
-    if (m) max = Math.max(max, Number(m[1]))
+/**
+ * 순수 reconcile — 후보를 기존 patterns[] 에 멱등 반영(부수효과 없음, 배열만 변형).
+ * - dismiss(보관)된 시그널은 재제안 금지(skip): 사용자가 오탐으로 보관한 것을 존중.
+ *   (이게 없으면 detect 재실행이 archived 패턴을 새 active 로 부활시켜 dismiss 가 무의미해짐.)
+ * - 같은 시그널의 active 패턴이 있으면 갱신, 없으면 신규 추가.
+ */
+export function reconcilePatterns(
+  patterns: PatternEntryV19[],
+  candidates: RawCandidate[],
+  now: string,
+): { added: number; updated: number } {
+  let added = 0
+  let updated = 0
+
+  // 신규 id 채번용 max — 한 번만 스캔하고 증가시킨다(매 push 마다 재스캔 방지).
+  let maxId = 0
+  for (const p of patterns) {
+    const m = p.id.match(/^p(\d+)$/)
+    if (m) maxId = Math.max(maxId, Number(m[1]))
   }
-  return `p${max + 1}`
+
+  for (const c of candidates) {
+    const sig = sigOf(c.kind, c.axis, c.signal)
+    const matches = (pp: PatternEntryV19): boolean =>
+      pp._sig === sig || (pp.kind === c.kind && pp.axis === c.axis && pp.signal === c.signal)
+
+    // dismiss(보관)된 시그널 → 재제안 금지
+    if (patterns.some((p) => matches(p) && p.status === 'archived')) continue
+
+    const existing = patterns.find((p) => matches(p) && p.status !== 'archived')
+    if (existing) {
+      existing._sig = sig // _sig 없는 레거시 엔트리에 백필
+      existing.count = c.count
+      existing.sources = c.sources
+      existing.summary = c.summary
+      existing.tags = c.sourceTags
+      updated++
+    } else {
+      patterns.push({
+        id: `p${++maxId}`,
+        kind: c.kind,
+        axis: c.axis,
+        signal: c.signal,
+        count: c.count,
+        sources: c.sources,
+        summary: c.summary,
+        createdAt: now,
+        status: 'active',
+        tags: c.sourceTags,
+        _sig: sig,
+      })
+      added++
+    }
+  }
+
+  return { added, updated }
 }
 
 export async function patternDetect(opts: { min?: string; json?: boolean } = {}): Promise<void> {
@@ -166,43 +214,9 @@ export async function patternDetect(opts: { min?: string; json?: boolean } = {})
   const candidates = detectCandidates(mem, minFreq)
 
   // Fix #3: _sig 없는 레거시 엔트리도 kind+axis+signal 로 중복 탐색 → 멱등성 보장
+  // dismiss 존중·신규/갱신 판정은 순수 reconcilePatterns 가 담당(테스트 가능).
   const now = new Date().toISOString()
-  let added = 0, updated = 0
-
-  for (const c of candidates) {
-    const sig = sigOf(c.kind, c.axis, c.signal)
-    const existing = mem.patterns.find((p) => {
-      const pp = p as PatternEntryV19
-      const sigMatch = pp._sig === sig
-      const fieldMatch = pp.kind === c.kind && pp.axis === c.axis && pp.signal === c.signal
-      return (sigMatch || fieldMatch) && pp.status !== 'archived'
-    }) as PatternEntryV19 | undefined
-
-    if (existing) {
-      existing._sig = sig  // _sig 없는 레거시 엔트리에 백필
-      existing.count = c.count
-      existing.sources = c.sources
-      existing.summary = c.summary
-      existing.tags = c.sourceTags
-      updated++
-    } else {
-      const entry: PatternEntryV19 = {
-        id: nextPatternId(mem),
-        kind: c.kind,
-        axis: c.axis,
-        signal: c.signal,
-        count: c.count,
-        sources: c.sources,
-        summary: c.summary,
-        createdAt: now,
-        status: 'active',
-        tags: c.sourceTags,
-        _sig: sig,
-      }
-      mem.patterns.push(entry)
-      added++
-    }
-  }
+  const { added, updated } = reconcilePatterns(mem.patterns as PatternEntryV19[], candidates, now)
 
   // Fix #6: 변경이 없으면 writeMemory 스킵 — .bak 슬롯 불필요 소비 방지
   if (added > 0 || updated > 0) {
