@@ -37,6 +37,7 @@ import { mode } from '../commands/mode.js'
 import { verify } from '../commands/verify.js'
 import { review } from '../commands/review.js'
 import { missionShow } from '../commands/mission.js'
+import { patternList } from '../commands/pattern.js'
 import { runGuarded } from './safety-guard.js'
 import { NL_GUARDED_ACTIONS } from './risk-policy.js'
 
@@ -136,6 +137,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return review()
     case 'mission':
       return missionShow()
+    case 'pattern':
+      return patternList()
   }
 }
 

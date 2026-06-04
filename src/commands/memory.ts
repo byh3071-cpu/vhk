@@ -214,7 +214,7 @@ type LoadOutcome = { ok: true; mem: MemoryFileV2 } | { ok: false }
  * **안전(blocker)**: 파일이 손상(parse/IO 실패)이면 `{ ok:false }` — 호출자는 **반드시 중단**해야 한다.
  * 빈 v2 를 손상 파일 위에 mutate-write 하면 live 데이터·롤링 .bak 이 파괴됨(읽기 경로와 동일 원칙).
  */
-function loadForMutation(cwd: string): LoadOutcome {
+export function loadForMutation(cwd: string): LoadOutcome {
   const raw = readRaw(cwd)
   if (raw.kind === 'error') {
     warnUnreadable(cwd)
