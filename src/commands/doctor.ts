@@ -65,7 +65,7 @@ export function compareSemver(a: string, b: string): number {
   return a3 - b3
 }
 
-export async function doctor() {
+export async function doctor(opts: { strict?: boolean } = {}) {
   console.log(chalk.bold(`\n${ko.doctor.title}\n`))
 
   const checks: CheckResult[] = [
@@ -132,9 +132,9 @@ export async function doctor() {
       }
     } else if (file.name === '.env' && fs.existsSync(path.join(cwd, '.env.local'))) {
       // VHK-009: .env 없어도 .env.local 있으면 정상(Vite 관례) — 모호한 부재 안내 대신 인식.
-      console.log(chalk.green('    ✅ .env.local') + chalk.dim(' — 로컬 env 사용 중 (.env 없어도 정상)'))
+      console.log(chalk.green('    ✅ .env.local') + chalk.dim(' — 로컴 env 사용 중 (.env 없어도 정상)'))
     } else {
-      console.log(chalk.dim(`    ⬚ ${file.name}`) + chalk.dim(` — ${file.hint}`))
+      console.log(chalk.dim(`    ⚫ ${file.name}`) + chalk.dim(` — ${file.hint}`))
     }
   }
 
@@ -142,6 +142,8 @@ export async function doctor() {
   console.log('')
   console.log(chalk.bold(`  ${ko.doctor.driftTitle}`))
   const ruleDrift = checkRuleDrift(cwd)
+  // --strict 게이트용 — 규칙 드리프트 발생 여부만 추적(context 드리프트는 제외: 생성물이라 비차단).
+  let ruleDrifted = false
   if (!ruleDrift.checked) {
     console.log(chalk.dim(`    ${ko.doctor.driftNoRules}`))
   } else {
@@ -150,6 +152,7 @@ export async function doctor() {
       console.log(chalk.green(`    ${ko.doctor.driftRuleClean}`))
     } else {
       console.log(chalk.yellow(`    ${ko.doctor.driftRuleWarn(drifted.map(d => d.path).join(', '))}`))
+      ruleDrifted = true
     }
   }
   const ctxDrift = checkContextDrift(cwd)
@@ -172,6 +175,13 @@ export async function doctor() {
       command: 'vhk doctor',
       cursorHint: '환경 다시 점검해줘',
     })
+    process.exitCode = 1
+  }
+
+  // SoT(3층) CI 게이트: --strict 면 규칙 드리프트를 실패로 승격(exit 1). 기본 호출은 경고만 유지.
+  if (opts.strict && ruleDrifted) {
+    console.log('')
+    console.log(chalk.red.bold('  ❌ --strict: 규칙 드리프트 발견 → 실패 처리 (vhk sync 로 동기화 후 다시 실행)'))
     process.exitCode = 1
   }
 }
