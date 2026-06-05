@@ -428,6 +428,10 @@ export const ko = {
     learnTitle: '🧠 Learning 기록',
     resumeTitle: '▶️  HARD_STOP 해제',
   },
+  work: {
+    workTitle: '🚀 vhk work — 작업 시작/이어하기',
+    handoffTitle: '⏸️  vhk work handoff — 중단 정리',
+  },
   pattern: {
     detectTitle: '패턴 감지',
     listTitle: '패턴 목록',

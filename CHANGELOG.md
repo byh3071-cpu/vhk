@@ -4,7 +4,13 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-_다음 릴리즈 예정 항목 없음 — 최근 변경은 아래 버전 기록 참조._
+### Added
+
+- **`vhk work` / `vhk work handoff`** (`src/commands/work.ts`) — AI 작업 세션 이어받기/인수인계. Claude CLI 세션 기억이 휘발돼도 repo 파일(CLAUDE.md·next-task.md) + VHK 상태로 빠르게 이어가도록, 상태를 수집해 "시작/중단 정리 프롬프트"를 만들고 클립보드에 복사한다.
+  - `work` — git status + active goal + `.vhk/context.md` 갱신 → 시작 프롬프트(CLAUDE.md 1순위·AGENTS.md는 Codex/보조 참고) 생성·복사.
+  - `work handoff` — git status 수집 → 완료/미완료 분리·테스트 기록·next-task 갱신·커밋 판단을 요청하는 인수인계 프롬프트 생성·복사.
+  - **안전 1원칙**: CLI는 상태 수집 + 프롬프트 준비만. 커밋/stash/reset/goal done/파일 삭제 0. HARD_STOP 활성 시 즉시 중단. 별칭 `작업`/`인수인계`, NLP `작업 시작`·`인수인계`.
+- **`src/lib/clipboard.ts`** — 외부 의존성 0 클립보드 헬퍼. Windows는 PowerShell `Set-Clipboard`에 base64(UTF-8) 전달(한글 보존), mac `pbcopy`, linux `wl-copy`/`xclip`/`xsel`. 실패 시 `.vhk/work-prompt.md` 사본 + 화면 출력 폴백.
 
 ## [2.3.0] - 2026-06-04
 
