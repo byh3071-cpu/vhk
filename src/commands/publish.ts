@@ -21,6 +21,24 @@ export function bumpVersion(current: string, type: BumpType): string {
   }
 }
 
+/**
+ * CHANGELOG.md 에 신버전 스텁(`## [version] - date`)을 삽입한다 (자동화 D).
+ * 버전 누락(2.3.1·2.3.2 미기록 사고) 방지용 안전망. 본문은 사람이 보강한다.
+ * - 이미 해당 버전 항목이 있으면 원본 그대로 반환(멱등 — 사람이 미리 작성한 경우 no-op).
+ * - 첫 릴리즈 항목(`## [x.y.z]`) 바로 앞에 삽입(= Unreleased 다음, 최신순 유지).
+ * - 버전 항목이 하나도 없으면 끝에 덧붙임.
+ */
+export function insertChangelogStub(content: string, version: string, date: string): string {
+  const escaped = version.replace(/\./g, '\\.')
+  if (new RegExp(`^## \\[${escaped}\\]`, 'm').test(content)) return content
+  const stub = `## [${version}] - ${date}\n\n_변경 내역 작성 필요._\n\n`
+  const firstEntry = content.match(/^## \[\d+\.\d+\.\d+\]/m)
+  if (firstEntry && firstEntry.index !== undefined) {
+    return content.slice(0, firstEntry.index) + stub + content.slice(firstEntry.index)
+  }
+  return content.trimEnd() + '\n\n' + stub
+}
+
 interface Pkg {
   version?: string
   [key: string]: unknown
@@ -45,7 +63,9 @@ export interface GitReleaseResult {
  * npm publish 는 이미 성공했으므로 어떤 실패에서도 package.json 롤백은 하지 않는다.
  */
 export function gitPostRelease(newVersion: string): GitReleaseResult {
-  const add = safeExecFile('git', ['add', 'package.json'])
+  // CHANGELOG.md 가 있으면 함께 스테이징 (자동화 D 스텁이 릴리즈 커밋에 포함되도록).
+  const filesToAdd = existsSync('CHANGELOG.md') ? ['package.json', 'CHANGELOG.md'] : ['package.json']
+  const add = safeExecFile('git', ['add', ...filesToAdd])
   if (!add.ok) {
     return {
       added: false,
@@ -233,6 +253,17 @@ export async function publish(): Promise<void> {
     return
   }
   console.log(chalk.green(`\n✔ ${t('publish.publishSuccess')}`))
+
+  // CHANGELOG 스텁 (자동화 D) — 버전 누락 방지. 이미 항목 있으면 no-op. 본문은 사람이 보강.
+  if (existsSync('CHANGELOG.md')) {
+    const cl = readFileSync('CHANGELOG.md', 'utf-8')
+    const date = new Date().toISOString().slice(0, 10)
+    const updated = insertChangelogStub(cl, newVersion, date)
+    if (updated !== cl) {
+      writeFileSync('CHANGELOG.md', updated, 'utf-8')
+      console.log(chalk.green(`✅ CHANGELOG.md 에 [${newVersion}] 스텁 추가 — 본문 보강 필요`))
+    }
+  }
 
   // git 후처리 (옵션 — 실패해도 npm publish 는 이미 성공, package.json 롤백 안 함)
   const git = gitPostRelease(newVersion)
