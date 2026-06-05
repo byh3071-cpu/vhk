@@ -50,6 +50,9 @@ describe('work — 프롬프트 빌더', () => {
     expect(p).toContain('승인하기 전에는')
     expect(p).toContain(' M a.ts')
     expect(p).toContain('Goal 1 — x')
+    // SoT 최적화 1층: 작업 전 Source of Truth 체크 블록이 프롬프트에 포함되어야 함.
+    expect(p).toContain('Source of Truth')
+    expect(p).toContain('RULES.md 한 곳')
   })
 
   it('buildStartPrompt — git 비면 "(변경 없음)"', async () => {

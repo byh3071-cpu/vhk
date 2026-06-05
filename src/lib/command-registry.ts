@@ -39,7 +39,7 @@ export const CONTAINER_ALIASES: Record<string, string> = {
 
 /**
  * 최상위(top-level) 명령 카탈로그 — `vhk context`(.vhk/context.md)의 "명령 목록"의 **단일 소스**.
- * 과거 context.ts 가 별도 하드코딩 목록(getVhkCommands)을 갖고 있어 work/handoff/goal 등이
+ * 과거 context.ts 가 별도 하드코딩 목록(getVhkCommands)을 가져 work/handoff/goal 등이
  * 누락·드리프트됐다(영상의 "같은 진실을 또 정의" 안티패턴). 이제 목록은 여기 하나로 모으고,
  * commander 실제 등록과의 일치는 tests/command-registry.test.ts 의 드리프트 가드가 강제한다
  * (누락/유령 명령 시 테스트 실패).
@@ -53,7 +53,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'recap', desc: '오늘 한 일 정리 + ADR 분리' },
   { name: 'sync', desc: 'RULES.md → 규칙 파일 동기화' },
   { name: 'check', desc: 'RULES.md 규칙 점검' },
-  { name: 'secure', desc: '보안 스캔 (secret 유출 검사)' },
+  { name: 'secure', desc: '보안 스캔 (시크릿 유출 검사)' },
   { name: 'cloud', desc: '.vhk 클라우드 백업·복원 (push/pull)' },
   { name: 'ship', desc: '배포 체크리스트 + 회고' },
   { name: 'doctor', desc: '개발 환경 점검 (+ --strict 드리프트 게이트)' },
@@ -80,6 +80,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'mode', desc: 'Safety Mode 조회/변경 (lite|standard|strict)' },
   { name: 'verify', desc: '검증 게이트 실행 + 증거 기록' },
   { name: 'review', desc: '적대적 자기검증 (거짓완료 의심 탐지)' },
+  { name: 'mission', desc: '미션 계약 — 작업 목표·허용/금지 범위 선언·검증' },
   { name: 'context-show', desc: '컨텍스트 파일 내용 출력' },
   { name: 'memory', desc: '기억 관리 v2 (decisions/failures/successes)' },
   { name: 'brief', desc: '프로젝트 요약 보고서 생성' },
