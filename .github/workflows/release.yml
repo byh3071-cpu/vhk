@@ -1,0 +1,52 @@
+# Release — 버전 태그(vX.Y.Z) push 시 CHANGELOG 해당 섹션을 뽑아 GitHub Release 자동 게시 (자동화 A).
+# 지금 태그는 30+개인데 Release 페이지는 0개라 출시 흔적이 GitHub 에 안 남았음 → 이 워크플로가 메움.
+# 읽기·게시 전용(코드/npm 무영향). vhk publish 의 gitPostRelease 가 태그를 push 하면 자동 발동.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # Release 생성 권한
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: CHANGELOG 섹션 추출 + GitHub Release 생성
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" # v2.3.2 → 2.3.2
+          echo "릴리즈 버전: $VERSION (태그 $GITHUB_REF_NAME)"
+
+          # 이미 Release 가 있으면 중복 생성 금지(재실행 안전).
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME 이미 존재 — 건너뜀."
+            exit 0
+          fi
+
+          # CHANGELOG.md 에서 `## [VERSION]` 부터 다음 `## [` 직전까지 본문 추출.
+          # index() 문자열 매칭 사용 — 동적 regex 의 대괄호 escape 가 awk 마다 다르게 해석되는 문제 회피.
+          NOTES=$(awk -v hdr="## [$VERSION]" '
+            index($0, hdr) == 1 { flag=1; next }
+            flag && index($0, "## [") == 1 { flag=0 }
+            flag { print }
+          ' CHANGELOG.md)
+
+          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
+            NOTES="(CHANGELOG.md 에 [$VERSION] 항목이 없거나 비어 있음 — 본문 보강 필요)"
+          fi
+
+          printf '%s\n' "$NOTES" > release-notes.md
+          echo "── 릴리즈 노트 미리보기 ──"
+          cat release-notes.md
+
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "v$VERSION" \
+            --notes-file release-notes.md

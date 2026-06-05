@@ -217,4 +217,29 @@ describe('publishPreflight — git 수집 + default 브랜치 추출', () => {
     expect(r.ok).toBe(false)
     expect(r.code).toBe('dirty')
   })
+
+  // 자동화 D — CHANGELOG 스텁 삽입(순수함수)
+  const CL = '# Changelog\n\n## [Unreleased]\n\n## [2.3.0] - 2026-06-04\n\n> 기존 항목\n'
+
+  it('insertChangelogStub: 신버전 스텁을 첫 릴리즈 항목 앞(Unreleased 다음)에 삽입', async () => {
+    const { insertChangelogStub } = await import('../src/commands/publish.js')
+    const out = insertChangelogStub(CL, '2.4.0', '2026-06-05')
+    expect(out).toContain('## [2.4.0] - 2026-06-05')
+    // 2.4.0 이 2.3.0 보다 앞에 와야 함(최신순)
+    expect(out.indexOf('## [2.4.0]')).toBeLessThan(out.indexOf('## [2.3.0]'))
+    // Unreleased 는 여전히 맨 위
+    expect(out.indexOf('## [Unreleased]')).toBeLessThan(out.indexOf('## [2.4.0]'))
+  })
+
+  it('insertChangelogStub: 이미 해당 버전 항목 있으면 원본 그대로(멱등)', async () => {
+    const { insertChangelogStub } = await import('../src/commands/publish.js')
+    expect(insertChangelogStub(CL, '2.3.0', '2026-06-05')).toBe(CL)
+  })
+
+  it('insertChangelogStub: 버전 항목이 하나도 없으면 끝에 덧붙임', async () => {
+    const { insertChangelogStub } = await import('../src/commands/publish.js')
+    const bare = '# Changelog\n\n## [Unreleased]\n'
+    const out = insertChangelogStub(bare, '1.0.0', '2026-06-05')
+    expect(out).toContain('## [1.0.0] - 2026-06-05')
+  })
 })
