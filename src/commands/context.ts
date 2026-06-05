@@ -17,6 +17,7 @@ import { selectActiveId } from './goal.js'
 import { getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
 import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
+import { TOP_LEVEL_COMMANDS } from '../lib/command-registry.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
 
@@ -106,37 +107,10 @@ function extractTechStack(): Record<string, string> {
 }
 
 function getVhkCommands(): string[] {
-  return [
-    'gate — 아이디어 검증',
-    'init — 프로젝트 초기화',
-    'recap — 세션 요약 저장',
-    'sync — 규칙 파일 동기화',
-    'check — 규칙 점검',
-    'secure — 보안 스캔',
-    'ship — 배포 체크 + 회고',
-    'doctor — 환경 진단',
-    'save — git 저장 (add+commit+push)',
-    'undo — 최근 커밋 되돌리기',
-    'status — git 상태 확인',
-    'diff — git 변경 사항 요약',
-    'deploy — 프로덕션 배포',
-    'env — 환경변수 관리',
-    'publish — npm 배포 자동화',
-    'design — 디자인 토큰 생성',
-    'design-palette — 컬러 팔레트 선택',
-    'theme — 다크/라이트 모드',
-    'ref add|list|open — 레퍼런스 URL 관리',
-    'harness — 통합 품질 점검',
-    'audit — 보안 취약점 감사',
-    'migrate — 패키지 매니저 전환',
-    'update — VHK CLI 셀프 업데이트',
-    'context — 프로젝트 맥락 생성',
-    'context-show — 맥락 파일 보기',
-    'memory add|list|remove — 결정사항 기억',
-    'brief — 프로젝트 요약 보고서',
-    'mcp — MCP 서버 시작',
-    'mcp-init — Cursor MCP 설정',
-  ]
+  // SoT(2층): 명령 목록은 command-registry.ts(TOP_LEVEL_COMMANDS) 단일 소스에서만 가져온다.
+  // 과거엔 여기 명령을 하드코딩해 work/goal 등이 누락·드리프트됐다(영상의 "같은 진실을 또 정의" 안티패턴).
+  // 출력 형태(`- \`vhk gate — ...\``)는 그대로 유지.
+  return TOP_LEVEL_COMMANDS.map((c) => `${c.name} — ${c.desc}`)
 }
 
 /**
@@ -158,6 +132,19 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   lines.push('')
   lines.push('> 이 파일은 `vhk context`로 자동 생성되었습니다.')
   lines.push('> AI 어시스턴트에게 프로젝트 맥락을 제공합니다.')
+  lines.push('')
+
+  // SoT(2층) 원본 지도: "무엇을 고칠 때 어디를 고쳐야 하는가"를 AI·사람 모두에게 명시.
+  // 규칙은 RULES.md 한 곳만 원본, 나머지는 vhk sync 파생본 — 중복 수정·드리프트 방지.
+  lines.push('## 원본 지도 (Source of Truth)')
+  lines.push('')
+  lines.push('> 무엇을 고칠 땀 "원본" 한 곳만 고치세요. 나머지는 파생본이라 자동 생성됩니다.')
+  lines.push('')
+  lines.push('- **규칙(원본)**: `RULES.md` — 규칙은 여기 한 곳에서만 수정')
+  lines.push('- **작업 상태**: `docs/state/next-task.md`, `docs/state/blockers.md`')
+  lines.push('- **버전·릴리스**: `package.json`, `CHANGELOG.md`')
+  lines.push('- **명령 목록**: `COMMANDS.md` (+ `vhk help`)')
+  lines.push('- **파생본(직접 수정 금지)**: `.cursorrules`·`.windsurfrules`·`.github/copilot-instructions.md`·`AGENTS.md`·`GEMINI.md` 등 7종 + `CLAUDE.md` 규칙 영역 → `vhk sync` 로 생성')
   lines.push('')
 
   lines.push('## 기술 스택')
@@ -236,9 +223,10 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   if (compact) {
     lines.push('## 참조 문서 (필요시 열람)')
     lines.push('')
+    lines.push('- 규칙 원본(SoT): `RULES.md` — 규칙은 여기서만 수정')
     lines.push('- 작동 규약(요약): `docs/context/agent-compact.md`')
     lines.push('- 규약 상세: `AGENTS.md`')
-    lines.push('- 기록 규칙: `CLAUDE.md`')
+    lines.push('- 운영 안내·기록: `CLAUDE.md`')
     lines.push('- 명령 상세: `COMMANDS.md`')
     lines.push('- 구조 상세: `docs/ARCHITECTURE.md`')
     lines.push('- 현재 상태: `docs/state/next-task.md`')

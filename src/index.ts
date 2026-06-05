@@ -287,8 +287,9 @@ program
   .command('doctor')
   .alias('환경')
   .alias('진단')
+  .option('--strict', '규칙 드리프트 발견 시 실패 처리 (exit 1, CI 게이트용)')
   .description('개발 환경 점검 — Node/Git/npm 상태 확인')
-  .action(doctor)
+  .action(async (opts: { strict?: boolean }) => { await doctor(opts) })
 
 program
   .command('save')
