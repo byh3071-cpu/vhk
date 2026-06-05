@@ -287,8 +287,9 @@ program
   .command('doctor')
   .alias('환경')
   .alias('진단')
+  .option('--strict', '규칙 드리프트 발견 시 실패 처리 (exit 1, CI 게이트용)')
   .description('개발 환경 점검 — Node/Git/npm 상태 확인')
-  .action(doctor)
+  .action(async (opts: { strict?: boolean }) => { await doctor(opts) })
 
 program
   .command('save')
@@ -512,7 +513,7 @@ const memoryCmd = program
 memoryCmd
   .command('add <content>')
   .option('--type <type>', '버킷: decision|failure|success (기본 decision)')
-  .option('--tags <tags>', '태그 (쉼표 구분)')
+  .option('--tags <tags>', '태그 (쉰표 구분)')
   .option('--why <why>', '원인 (failure/success)')
   .option('--lesson <lesson>', '교훈 (failure)')
   .description('기억 저장 (--type 으로 결정/실패/성공 구분)')
@@ -726,7 +727,7 @@ program.action(async () => {
   const { choice } = await inquirer.prompt<{ choice: string }>([{
     type: 'list',
     name: 'choice',
-    message: '뭘 도와드릴까요?',
+    message: '뵔 도와드릴까요?',
     choices: [
       { name: '💡 새 아이디어 검증하기', value: 'gate' },
       { name: '🚀 새 프로젝트 시작 마법사 (start)', value: 'start' },
