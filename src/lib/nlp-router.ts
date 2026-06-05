@@ -40,6 +40,7 @@ export type NlpCommand =
   | 'mission'
   | 'pattern'
   | 'evolve'
+  | 'work'
 
 export type NlpConfidence = 'high' | 'low'
 
@@ -70,6 +71,7 @@ export const NLP_KEYWORDS: Partial<Record<NlpCommand, readonly string[]>> = {
   undo: ['되돌려', '되돌리기', '취소', '원래대로', '롤백', '리셋', 'reset', 'rollback'],
   status: ['상태', '현황', '어떻게', '어때', '지금'],
   diff: ['변경', '바뀐', '뭐바뀜', '바뀌었', '차이', '달라진', '수정된'],
+  work: ['이어서', '이어하기', 'work'],
 }
 
 function matchesKeywords(text: string, command: NlpCommand): boolean {
@@ -426,6 +428,20 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     args: ['sync'],
     test: t => /(게이트|목표).*(스크립트|동기화)|체크\s*스크립트\s*(생성|만들)/.test(t),
+  },
+  // work — handoff(인수인계)를 먼저 평가(더 구체적), 그다음 작업 시작/이어하기.
+  {
+    command: 'work',
+    explanation: '작업 중단 정리 프롬프트 (vhk work handoff)',
+    confidence: 'high',
+    args: ['handoff'],
+    test: t => /인수인계|핸드오프|handoff|작업\s*(넘기|넘겨|전달|마무리)|중단\s*정리/.test(t),
+  },
+  {
+    command: 'work',
+    explanation: '작업 시작/이어하기 프롬프트 (vhk work)',
+    confidence: 'high',
+    test: t => matchesKeywords(t, 'work') || /작업\s*(시작|이어|이어서|계속)|이어서\s*(작업|하자|할래)|^work$/.test(t),
   },
 ]
 

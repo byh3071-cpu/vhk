@@ -29,6 +29,7 @@ import { update } from '../commands/update.js'
 import { context, contextShow } from '../commands/context.js'
 import { memoryList, memoryMigrate } from '../commands/memory.js'
 import { brief } from '../commands/brief.js'
+import { work, workHandoff } from '../commands/work.js'
 import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext, goalSync } from '../commands/goal.js'
 import { cloudPush, cloudPull } from '../commands/cloud.js'
@@ -142,6 +143,10 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return patternList()
     case 'evolve':
       return evolveList()
+    case 'work': {
+      if (route.args?.[0] === 'handoff') return workHandoff()
+      return work()
+    }
   }
 }
 

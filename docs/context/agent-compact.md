@@ -12,6 +12,9 @@
 - 해제는 `vhk resume --confirm` (사람만). 자동 호출 금지.
 - 블로커 3건 누적 시 HARD_STOP 자동 생성.
 
+## 세션 이어받기
+- 시작/이어하기: `vhk work` (시작 프롬프트 생성·클립보드 복사). 중단 시: `vhk work handoff` (인수인계 프롬프트). CLI는 수집·프롬프트만, 커밋/done은 사람 승인.
+
 ## 작업 원칙
 - **active goal 만 작업** (`vhk goal next` 가 고른 첫 NOT_STARTED / IN_PROGRESS).
 - 사용자 변경 **revert 금지**. `git status --short` 먼저 확인, 기존 수정 보존, 최소 범위 패치.

@@ -35,6 +35,7 @@ import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, type MemBucket } from './commands/memory.js'
 import { brief } from './commands/brief.js'
+import { work, workHandoff } from './commands/work.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
@@ -147,6 +148,7 @@ const KO_ALIASES: Record<string, string> = {
   resume: '재개',
   pattern: '패턴',
   evolve: '진화',
+  work: '작업',
 }
 
 program
@@ -566,6 +568,19 @@ program
   .alias('브리핑')
   .description('프로젝트 상태 요약 보고서 생성 (.vhk/brief.md)')
   .action(async () => { await brief() })
+
+// AI 작업 세션 이어받기/인수인계 — 상태 수집 + Claude 에게 줄 프롬프트를 클립보드에 복사.
+const workCmd = program
+  .command('work')
+  .alias('작업')
+  .description('AI 작업 시작/이어하기 — 시작 프롬프트 생성 후 클립보드 복사')
+  .action(async () => { await work() })
+
+workCmd
+  .command('handoff')
+  .alias('인수인계')
+  .description('작업 중단 정리 — 인수인계 프롬프트 생성 후 클립보드 복사')
+  .action(async () => { await workHandoff() })
 
 const goalCmd = program
   .command('goal')

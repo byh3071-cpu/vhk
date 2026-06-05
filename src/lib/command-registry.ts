@@ -18,6 +18,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   mission: ['set', 'check', 'clear'],
   pattern: ['detect', 'list', 'dismiss'],
   evolve: ['suggest', 'list', 'apply', 'reject', 'undo'],
+  work: ['handoff'],
 }
 
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
@@ -33,4 +34,5 @@ export const CONTAINER_ALIASES: Record<string, string> = {
   미션: 'mission',
   패턴: 'pattern',
   진화: 'evolve',
+  작업: 'work',
 }
