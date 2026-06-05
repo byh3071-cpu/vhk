@@ -110,3 +110,11 @@ jobs:
           echo "::group::evolve list — 진화 후보 조회"
           node dist/index.js evolve list
           echo "::endgroup::"
+
+          # 규칙 드리프트 관찰 — 비차단(continue-on-error). 안정되면 차단형으로 승격.
+      - name: doctor --strict (규칙 드리프트 관찰 — 비차단)
+        continue-on-error: true
+        run: |
+          echo "::group::doctor --strict — 규칙 드리프트 관찰"
+          node dist/index.js doctor --strict
+          echo "::endgroup::"
