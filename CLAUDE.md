@@ -21,7 +21,7 @@ tags: [process, constitution]
 ## 프로젝트 좌표 (포인터)
 - 레포: github.com/byh3071-cpu/vhk (public) · npm: @byh3071/vhk
 - 패키지 매니저: pnpm (npm 아님)
-- 코딩·디자인 규칙 → .cursorrules / 에이전트 루프 → AGENTS.md / 명령 사용법 → COMMANDS.md
+- 규칙 단일소스 → RULES.md → (vhk sync) → .cursorrules·AGENTS.md 등 / 명령 사용법 → COMMANDS.md
 - 단계 미션 → goals/<n>-<name>.md · 공통 게이트 → goals/_meta.md
 - 상태 SoT → docs/state/next-task.md · blockers.md
 
@@ -43,13 +43,17 @@ tags: [process, constitution]
 - dev log `docs/log/YYYY-MM-DD-<작업명>.md` = append-only. 추가만, 수정·삭제 금지.
 - 미완으로 꺼도 next-task.md에 "다음 할 일" 반드시 남김
 
-## 기록물 위치
-- 의사결정 → docs/adr/ · 에러 → docs/troubleshooting/ · 배움 → docs/til.md · 설계 → docs/rfc/
-- 코드 변경이 동작/사용법을 바꾸면 README만 같이 갱신 (이 파일은 갱신 대상 아님)
+<!-- vhk:rules:start -->
+> ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.
 
-## 기억 SoT
-- 교훈·결정·실패·성공 = `vhk memory`(4버킷) / `vhk learn`.
-- learnings.md는 v2로 흡수·동결 → 신규 기록 금지.
+## 기록 규칙
+- 의사결정 → docs/adr/ · 에러 → docs/troubleshooting/ · 배움 → docs/til.md · 설계 → docs/rfc/
+- dev log `docs/log/YYYY-MM-DD-<작업명>.md` = append-only (추가만, 수정·삭제 금지)
+- 코드 변경이 동작/사용법을 바꾸면 README 만 같이 갱신 (CLAUDE.md 는 갱신 대상 아님)
+- 교훈·결정·실패·성공 = `vhk memory`(4버킷) / `vhk learn`. learnings.md 는 v2 흡수·동결 → 신규 기록 금지.
+- 상태 SoT = docs/state/next-task.md · blockers.md (append-only)
+
+<!-- vhk:rules:end -->
 
 ## Safety — HARD_STOP
 - 작업 시작 시 `.vhk/HARD_STOP` 확인 → 있으면 즉시 중단 (vhk work가 자동 체크)
@@ -73,7 +77,7 @@ tags: [process, constitution]
 - 🔒 영구 구역 수정 / 상태값을 영구 구역에 박제 금지 (버전 줄은 LIVE 예외 ↓)
 - dev log·blockers 과거 항목 수정·삭제 금지 (append-only)
 - 게이트 실패에 done / `vhk resume` 자동 호출 금지
-- 코딩·디자인 규칙 여기 적기 금지 → .cursorrules
+- 코딩·디자인 규칙 여기 적기 금지 → RULES.md
 - AGENTS.md·.cursorrules 직접 편집 금지 → RULES.md 단일소스 + `vhk sync` 로만
 
 ════════════ ✏️ LIVE — 현재 상태 (매 세션 갱신 · 여기만 수정) ════════════
@@ -85,8 +89,8 @@ tags: [process, constitution]
 **마지막 갱신:** 2026-06-05
 - **버전:** v2.3.2 (npm latest) — 사실 확인은 package.json·CHANGELOG
 - **테스트:** 868 pass · **MCP tools:** 29
-- **Phase:** 등록 goal 0~20 전부 DONE · v2.3.2 발행 완료 (발행 라인 종료)
+- **Phase:** 등록 goal 0~20 전부 DONE · v2.3.2 발행 완료
 - **블로커:** 없음
-- **진행 중(미발행):** `vhk work` / `vhk work handoff` (feat/vhk-work-session-handoff 브랜치, [Unreleased] · 버전 범프·발행 대기)
-- **다음 할 일:** 뒷단 Goal 21~24 (launch·content·sell·ops) → docs/state/roadmap.md
+- **진행 중(미발행):** `vhk work` / `vhk work handoff` (main 병합 완료 #122 · 버전 범프·발행 대기 = `vhk publish`)
+- **다음 할 일:** RULES.md 단일소스 부활 후 `vhk sync` 1회 실행 → 그다음 뒷단 Goal 21~24 (launch·content·sell·ops)
 - **주의:** publish는 main에서만(#119)
