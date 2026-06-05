@@ -513,7 +513,7 @@ const memoryCmd = program
 memoryCmd
   .command('add <content>')
   .option('--type <type>', '버킷: decision|failure|success (기본 decision)')
-  .option('--tags <tags>', '태그 (쉰표 구분)')
+  .option('--tags <tags>', '태그 (쉼표 구분)')
   .option('--why <why>', '원인 (failure/success)')
   .option('--lesson <lesson>', '교훈 (failure)')
   .description('기억 저장 (--type 으로 결정/실패/성공 구분)')
@@ -727,7 +727,7 @@ program.action(async () => {
   const { choice } = await inquirer.prompt<{ choice: string }>([{
     type: 'list',
     name: 'choice',
-    message: '뵔 도와드릴까요?',
+    message: '뭘 도와드릴까요?',
     choices: [
       { name: '💡 새 아이디어 검증하기', value: 'gate' },
       { name: '🚀 새 프로젝트 시작 마법사 (start)', value: 'start' },
