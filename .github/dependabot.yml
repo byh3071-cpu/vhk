@@ -2,19 +2,6 @@
 # (수동으로 했던 액션 v4→v6 같은 작업을 봇이 대신함. PR 만 올리고 머지는 사람이.)
 version: 2
 updates:
-  # npm 의존성 (pnpm-lock.yaml 지원). 주 1회, 자잘한 업뎃은 묶어 PR 수 최소화.
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    groups:
-      # minor/patch 는 한 PR 로 묶음 (노이즈 감소). major 는 개별 PR (수동 검토).
-      minor-and-patch:
-        update-types: ["minor", "patch"]
-
   # GitHub 액션 (checkout/setup-node/pnpm-action 등). 이번 v4→v6 같은 deprecation 자동 대응.
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -25,3 +12,10 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  # NOTE: npm 생태계는 비활성.
+  #   pnpm-workspace.yaml 의 self-link override(`overrides: { vhk: 'link:' }`)를
+  #   Dependabot npm 파서가 버전 스펙으로 해석 못 해 update_files 단계에서 즉시 실패
+  #   (pnpm 11.2.2 활성화는 정상 — 파서 한계). 이 override 는 로컬 vhk 바이너리 링크용 필수 설정이라 제거 불가.
+  #   → npm 의존성 업데이트는 수동(`pnpm update` / `pnpm outdated`)으로 운용.
+  #   보안 경보(Dependabot security alerts)는 이 설정과 무관하게 계속 동작함.
