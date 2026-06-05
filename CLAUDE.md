@@ -15,7 +15,7 @@ tags: [process, documentation]
 - **npm:** @byh3071/vhk (public, scoped)
 - **버전:** v2.3.2 (npm latest. package.json + MCP SERVER_VERSION 정합, getVhkVersion 동적)
 - **MCP tool:** 29 (Goal 0 24 + `learn` v2.0 쓰기 도구 + `pattern-detect` + `pattern-list` v2.1 + `evolve-suggest` + `evolve-list` v2.2)
-- **테스트:** 852 pass (vitest)
+- **테스트:** 868 pass (vitest)
 - **패키지 매니저:** pnpm
 
 ## 현재 상태
@@ -23,6 +23,7 @@ tags: [process, documentation]
 - **Phase:** 등록 goal 0~20 전부 DONE. CLAUDE.md sentinel marker(#117)·pattern dismiss/detect 누수(#118) 픽스 + publish 브랜치/clean 가드(#119) main 머지, **v2.3.2 발행 완료**. npm 2.3.1 은 오발행(`feat/goal-20-evolve` 서 발행 → 픽스 누락) → deprecate 처리됨(unpublish 금지·immutable).
 - **블로커:** 없음
 - **다음 액션:** 없음(vhk 발행 라인 종료). 별개 라인 = Goal 19 도그푸딩 → 20(다른 세션). ⚠️ publish 는 항상 `main` 에서만(가드 #119 가 feature 브랜치/미커밋 발행 차단).
+- **진행 중(미발행):** `vhk work` / `vhk work handoff` — AI 세션 이어받기/인수인계 기능(`src/commands/work.ts` + `src/lib/clipboard.ts`). CLI는 수집·프롬프트만, 커밋/done 0. [Unreleased] 상태, 버전 범프·발행 대기.
 - **마지막 업데이트:** 2026-06-05
 
 > **기억 SoT (v2):** 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, `vhk learn`→`failures.lesson`). `docs/state/learnings.md` 는 v2 마이그레이션으로 흡수·신규기록 중단(분리 폐지).
