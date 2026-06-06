@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -25,7 +26,7 @@ function loadRefs(): RefEntry[] {
 
 function saveRefs(refs: RefEntry[]): void {
   mkdirSync('.vhk', { recursive: true })
-  writeFileSync(REFS_PATH, JSON.stringify(refs, null, 2) + '\n', 'utf-8')
+  atomicWriteFile(REFS_PATH, JSON.stringify(refs, null, 2) + '\n')
 }
 
 export async function refAdd(url: string, memo = ''): Promise<void> {

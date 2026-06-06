@@ -1,4 +1,5 @@
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { listGoals, type ParsedGoal } from '../lib/goal-frontmatter.js'
@@ -328,7 +329,7 @@ export async function review(opts: { id?: string } = {}): Promise<void> {
   let mergeOk = false
   try {
     const merged = { ...report, review: result }
-    writeFileSync(jsonPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8')
+    atomicWriteFile(jsonPath, JSON.stringify(merged, null, 2) + '\n')
     mergeOk = true
     console.log(chalk.dim(`  📄 판정 병합: ${REPORT_PATH_REL} (review 섹션)`))
   } catch (e) {
