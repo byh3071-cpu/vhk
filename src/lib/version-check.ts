@@ -45,8 +45,8 @@ export function compareSemver(a: string, b: string): number {
 }
 
 export interface VersionCache {
-  latest: string
-  checkedAt: number // 성공 갱신 시각(Date.now())
+  latest?: string // 조회 성공 시에만. 실패-쿨다운 기록(캐시 없던 상태)엔 없을 수 있음.
+  checkedAt: number // 성공 갱신 시각(Date.now()). 미성공 쿨다운 기록은 0.
   lastTriedAt?: number // 실패 포함 마지막 시도 시각(쿨다운용)
 }
 
@@ -69,7 +69,11 @@ export function readCache(): VersionCache | null {
     const p = getCachePath()
     if (!fs.existsSync(p)) return null
     const data = readJsonFile<Partial<VersionCache>>(p)
-    if (!data || typeof data.latest !== 'string' || typeof data.checkedAt !== 'number') {
+    if (
+      !data ||
+      typeof data.checkedAt !== 'number' ||
+      (data.latest !== undefined && typeof data.latest !== 'string')
+    ) {
       return null
     }
     return { latest: data.latest, checkedAt: data.checkedAt, lastTriedAt: data.lastTriedAt }
@@ -119,8 +123,9 @@ export function getUpdateInfo(now: number = Date.now()): UpdateInfo {
         writeCache({ latest: fetched, checkedAt: now, lastTriedAt: now })
         latest = fetched
       } else {
-        // 조회 실패 — 쿨다운 기록 + 이전 값(있으면) 유지.
-        if (cache) writeCache({ ...cache, lastTriedAt: now })
+        // 조회 실패 — 쿨다운 기록(캐시가 없던 경우에도 lastTriedAt 를 남겨야 매 실행 1.5s 재조회를
+        // 무한 반복하지 않는다 — 오프라인 신규 사용자 hang 방지). 이전 latest·checkedAt 은 보존.
+        writeCache({ latest: cache?.latest, checkedAt: cache?.checkedAt ?? 0, lastTriedAt: now })
         latest = cache?.latest
       }
     } else {
