@@ -5,6 +5,7 @@ import { ko } from '../i18n/ko.js'
 import { localDate } from '../lib/date.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import {
   listGoals,
   findDuplicateIds,
@@ -90,6 +91,7 @@ function printSkippedGoalWarnings(skipped: ReturnType<typeof findSkippedGoalFile
 }
 
 export async function goalNext(): Promise<void> {
+  if (!ensureNotHardStopped('goal next')) return // HARD_STOP 활성 시 next-task.md 변경 차단
   console.log(chalk.bold(`\n${ko.goal.nextTitle}\n`))
   const goals = listGoals(GOALS_DIR)
   // VHK-017: goal 0개와 '전부 완료'를 구분(같은 상태를 정반대로 묘사하던 오보 제거).
@@ -186,6 +188,7 @@ const STATE_LEARNINGS_TEMPLATE =
   '# Learnings\n\n_Append-only. 한 줄 = 한 교훈._\n'
 
 export async function goalInit(): Promise<void> {
+  if (!ensureNotHardStopped('goal init')) return // HARD_STOP 활성 시 scaffold 생성 차단
   console.log(chalk.bold(`\n${ko.goal.initTitle}\n`))
   const targets: Array<{ path: string; content: string }> = [
     { path: join(GOALS_DIR, '_meta.md'), content: META_TEMPLATE },
@@ -290,6 +293,7 @@ export async function goalCheck(opts: { id?: string }): Promise<void> {
 }
 
 export async function goalDone(opts: { id?: string }): Promise<void> {
+  if (!ensureNotHardStopped('goal done')) return // HARD_STOP 활성 시 status 전이 차단
   console.log(chalk.bold(`\n${ko.goal.doneTitle}\n`))
   const goals = listGoals(GOALS_DIR)
   const id = resolveGoalId(opts.id, goals)
