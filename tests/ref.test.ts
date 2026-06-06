@@ -5,12 +5,18 @@ const mockMkdirSync = vi.fn()
 const mockReadFileSync = vi.fn()
 const mockWriteFileSync = vi.fn()
 const mockSafeExecFile = vi.fn()
+const mockAtomicWrite = vi.fn()
 
 vi.mock('node:fs', () => ({
   existsSync: (...a: unknown[]) => mockExistsSync(...a),
   mkdirSync: (...a: unknown[]) => mockMkdirSync(...a),
   readFileSync: (...a: unknown[]) => mockReadFileSync(...a),
   writeFileSync: (...a: unknown[]) => mockWriteFileSync(...a),
+}))
+
+// ref.ts 는 저장 시 atomicWriteFile 사용(Goal 37) → 쓰기 검증은 이 mock 으로.
+vi.mock('../src/lib/atomic-write.js', () => ({
+  atomicWriteFile: (...a: unknown[]) => mockAtomicWrite(...a),
 }))
 
 vi.mock('../src/lib/exec.js', () => ({
@@ -33,7 +39,7 @@ describe('ref', () => {
   it('refAdd — 빈 URL이면 안내만 출력하고 파일은 쓰지 않는다', async () => {
     const { refAdd } = await import('../src/commands/ref.js')
     await refAdd('')
-    expect(mockWriteFileSync).not.toHaveBeenCalled()
+    expect(mockAtomicWrite).not.toHaveBeenCalled()
   })
 
   it('refAdd — 새 URL이면 .vhk/refs.json에 항목을 추가한다', async () => {
@@ -42,7 +48,7 @@ describe('ref', () => {
     await refAdd('https://example.com', '참고 사이트')
 
     expect(mockMkdirSync).toHaveBeenCalledWith('.vhk', { recursive: true })
-    const call = mockWriteFileSync.mock.calls[0]
+    const call = mockAtomicWrite.mock.calls[0]
     expect(String(call[0])).toContain('refs.json')
     const data = JSON.parse(String(call[1]))
     expect(data).toHaveLength(1)
@@ -58,7 +64,7 @@ describe('ref', () => {
     )
     const { refAdd } = await import('../src/commands/ref.js')
     await refAdd('https://example.com')
-    expect(mockWriteFileSync).not.toHaveBeenCalled()
+    expect(mockAtomicWrite).not.toHaveBeenCalled()
   })
 
   it('refList — 저장된 항목이 없으면 안내만 출력', async () => {

@@ -7,6 +7,7 @@ import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { normalizeForCompare } from '../lib/drift.js'
 import { saveBackup, pruneBackups, ensureVhkIgnored } from '../lib/backup.js'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import { PREAMBLE_TITLE } from '../lib/rules-import.js'
 import { isInteractive, promptOrDefault } from '../lib/interactive.js'
 
@@ -518,6 +519,8 @@ export async function syncCore(
     }
     const fullPath = path.join(rootDir, item.path)
     fs.mkdirSync(path.dirname(fullPath), { recursive: true }) // 중첩 경로(.github/·.agents/rules/) 보장
+    // 미러 파일(.cursorrules 등)은 RULES.md 에서 언제든 재생성 가능(vhk sync 재실행) → 원자성 불필요.
+    // 영속 상태(refs.json·latest.json·.synced)만 atomicWriteFile(Goal 37) — 손상 시 복구 불가라.
     fs.writeFileSync(fullPath, item.newContent, 'utf-8')
     written.push(item.path)
     // 절삭 마커는 antigravity 만 생성 — 전체 마커 문구로 한정(오탐 방지)
@@ -528,7 +531,7 @@ export async function syncCore(
 
   // 동기화 마커(로컬 전용) — 다음 실행 firstSync 판정용
   fs.mkdirSync(path.join(rootDir, '.vhk'), { recursive: true })
-  fs.writeFileSync(path.join(rootDir, SYNCED_MARKER_REL), new Date().toISOString() + '\n', 'utf-8')
+  atomicWriteFile(path.join(rootDir, SYNCED_MARKER_REL), new Date().toISOString() + '\n')
   ensureVhkIgnored(rootDir, '.synced')
 
   return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan, unmapped, claudeMigration }
