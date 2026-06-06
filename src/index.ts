@@ -36,6 +36,8 @@ import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, type MemBucket } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { work, workHandoff } from './commands/work.js'
+import { getUpdateInfo } from './lib/version-check.js'
+import { QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
@@ -722,29 +724,53 @@ program.on('command:*', async (operands: string[]) => {
 })
 
 program.action(async () => {
-  console.log('\n🎯 VHK — 바이브코딩 프로젝트 코치\n')
+  // 헤더: 현재 버전(즉시·네트워크 0) + 업데이트 알림(캐시 기반 "가끔 자동 확인") + 직접입력 안내.
+  const info = getUpdateInfo()
+  console.log('\n🎯 VHK — 바이브코딩 프로젝트 코치  ' + chalk.dim(`v${info.current}`))
+  if (info.updateAvailable && info.latest) {
+    console.log(chalk.yellow(`🆕 업데이트 가능: v${info.latest}`) + chalk.dim('  →  vhk update'))
+  }
+  const sample = QUICK_ACTIONS[0]?.say ?? '상태 알려줘'
+  console.log(
+    chalk.dim('💬 명령 직접 입력도 돼요 — 예: ') + chalk.cyan('vhk status') +
+    chalk.dim('  ·  자연어 OK: ') + chalk.cyan(`"${sample}"`)
+  )
+  console.log('')
+
+  const choices = [
+    { name: '🚀 작업 시작/이어하기 (work)', value: 'work' },
+    { name: '💡 새 아이디어 검증하기', value: 'gate' },
+    { name: '🆕 새 프로젝트 시작 마법사 (start)', value: 'start' },
+    { name: '🎯 다음 목표 보기 (goal)', value: 'goal-next' },
+    { name: '📝 오늘 한 일 정리하기', value: 'recap' },
+    { name: '🔍 규칙 파일 점검하기', value: 'check' },
+    { name: '🔒 보안 스캔 돌리기', value: 'secure' },
+    { name: '🔄 규칙 파일 동기화', value: 'sync' },
+    { name: '🚀 배포하기', value: 'ship' },
+    { name: '🩺 환경 점검하기', value: 'doctor' },
+    { name: '💾 Git에 저장하기', value: 'save' },
+    { name: '⏪ 최근 커밋 되돌리기', value: 'undo' },
+    { name: '🔍 변경사항 보기', value: 'diff' },
+    { name: '📊 프로젝트 상태 보기', value: 'status' },
+    { name: '⏸️  작업 중단 정리 (handoff)', value: 'work-handoff' },
+  ]
 
   const { choice } = await inquirer.prompt<{ choice: string }>([{
     type: 'list',
     name: 'choice',
     message: '뭘 도와드릴까요?',
-    choices: [
-      { name: '💡 새 아이디어 검증하기', value: 'gate' },
-      { name: '🚀 새 프로젝트 시작 마법사 (start)', value: 'start' },
-      { name: '📝 오늘 한 일 정리하기', value: 'recap' },
-      { name: '🔍 규칙 파일 점검하기', value: 'check' },
-      { name: '🔒 보안 스캔 돌리기', value: 'secure' },
-      { name: '🔄 규칙 파일 동기화', value: 'sync' },
-      { name: '🚀 배포하기', value: 'ship' },
-      { name: '🩺 환경 점검하기', value: 'doctor' },
-      { name: '💾 Git에 저장하기', value: 'save' },
-      { name: '⏪ 최근 커밋 되돌리기', value: 'undo' },
-      { name: '🔍 변경사항 보기', value: 'diff' },
-      { name: '📊 프로젝트 상태 보기', value: 'status' },
-    ],
+    pageSize: choices.length, // 스크롤 잔상/잘림 방지(Windows conhost): 한 화면에 전부
+    loop: false,
+    choices,
   }])
 
   switch (choice) {
+    case 'work':
+      return work()
+    case 'work-handoff':
+      return workHandoff()
+    case 'goal-next':
+      return goalNext()
     case 'gate':
       return gate()
     case 'start':
