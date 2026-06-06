@@ -66,7 +66,7 @@ export function parseRules(rulesPath: string): Rule[] {
     // VHK-012: '금지' 인접 백틱 토큰만 — `X` 금지 / 금지: `X`. URL·경로는 제외(금지 뒤 먼 URL 오탐 방지).
     const banToken = extractBanToken(ruleText)
     if (banToken) {
-      rules.push(createContentRule(`ban-L${lineNo}`, currentSection, ruleText, banToken, 'banned'))
+      rules.push(createContentRule(`ban-L${lineNo}`, currentSection, ruleText, banToken))
     }
   }
 
@@ -126,15 +126,23 @@ function createNamingRule(
 
       walkFiles(srcDir, filePath => {
         const name = path.basename(filePath, path.extname(filePath))
+        const exempt = ['index', 'vite.config', 'tsconfig']
+        if (exempt.includes(name)) return
         if (convention === 'kebab-case' && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(name)) {
-          if (!['index', 'vite.config', 'tsconfig'].includes(name)) {
-            violations.push({
-              ruleId: id,
-              severity: 'warning',
-              message: `파일명이 kebab-case가 아님: ${name}`,
-              file: path.relative(cwd, filePath),
-            })
-          }
+          violations.push({
+            ruleId: id,
+            severity: 'warning',
+            message: `파일명이 kebab-case가 아님: ${name}`,
+            file: path.relative(cwd, filePath),
+          })
+        } else if (convention === 'camelCase' && !/^[a-z][a-zA-Z0-9]*$/.test(name)) {
+          // 과거 camelCase 분기는 미구현(검사 없이 통과)이라 위반이 silent 무시됐다 → 실제 검사 추가.
+          violations.push({
+            ruleId: id,
+            severity: 'warning',
+            message: `파일명이 camelCase가 아님: ${name}`,
+            file: path.relative(cwd, filePath),
+          })
         }
       })
 
@@ -179,12 +187,13 @@ export function codePortionForScan(line: string): string {
   return ci >= 0 ? noStr.slice(0, ci) : noStr
 }
 
+// 금지(banned) 패턴 규칙만 생성한다. 과거 'required'(필수 패턴) 타입이 있었으나 호출처가 0인
+// dead path 였고 분기 로직도 역전(패턴 발견 시 '누락' 보고)이라 제거 — 필요해지면 별도 설계로 추가.
 function createContentRule(
   id: string,
   section: string,
   desc: string,
-  pattern: string,
-  type: 'banned' | 'required'
+  pattern: string
 ): Rule {
   return {
     id,
@@ -205,10 +214,8 @@ function createContentRule(
           if (regex.test(codePortionForScan(line))) {
             violations.push({
               ruleId: id,
-              severity: type === 'banned' ? 'error' : 'warning',
-              message: type === 'banned'
-                ? `금지 패턴 발견: \`${pattern}\``
-                : `필수 패턴 누락: \`${pattern}\``,
+              severity: 'error',
+              message: `금지 패턴 발견: \`${pattern}\``,
               file: path.relative(cwd, filePath),
               line: idx + 1,
             })
