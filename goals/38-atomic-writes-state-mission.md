@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 38
 title: 원자적 쓰기 확대 — mission.json + state-files (HARD_STOP/blockers) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-07
+completed: 2026-06-07
 ---
 
 # Goal 38: 원자적 쓰기 확대 — 나머지 영속 상태 파일

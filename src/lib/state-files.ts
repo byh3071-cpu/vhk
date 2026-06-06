@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, appendFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, appendFileSync, rmSync } from 'node:fs'
+import { atomicWriteFile } from './atomic-write.js'
 import { join } from 'node:path'
 import { localDate } from './date.js'
 
@@ -47,10 +48,9 @@ export function appendBlocker(description: string, goalId?: number): {
   const tag = goalId !== undefined ? `goal-${goalId}` : 'no-goal'
   const line = `- [${isoDate()} ${tag}] ${description.trim()}`
   if (!existsSync(BLOCKERS_PATH)) {
-    writeFileSync(
+    atomicWriteFile(
       BLOCKERS_PATH,
-      `# Blockers\n\n_Append-only. 해결 항목은 ~~취소선~~으로 표기._\n\n${line}\n`,
-      'utf-8'
+      `# Blockers\n\n_Append-only. 해결 항목은 ~~취소선~~으로 표기._\n\n${line}\n`
     )
   } else {
     appendFileSync(BLOCKERS_PATH, `${line}\n`, 'utf-8')
@@ -89,7 +89,7 @@ export function getActiveBlockers(limit = 3): string[] {
 export function writeHardStop(reason: string): void {
   ensureVhkDir()
   const ts = new Date().toISOString()
-  writeFileSync(HARD_STOP_PATH, `${ts}\n${reason}\n`, 'utf-8')
+  atomicWriteFile(HARD_STOP_PATH, `${ts}\n${reason}\n`)
 }
 
 export function isHardStopActive(): boolean {
