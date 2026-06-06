@@ -47,6 +47,21 @@ describe('parseRules (VHK-011/012)', () => {
     fs.rmSync(path.dirname(p), { recursive: true })
   })
 
+  it('camelCase 룰이 위반 파일을 실제로 잡는다 (과거 silent 무시 회귀 가드)', () => {
+    const proj = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-naming-'))
+    fs.mkdirSync(path.join(proj, 'src'))
+    fs.writeFileSync(path.join(proj, 'src', 'bad-name.ts'), '', 'utf-8') // 하이픈 → camelCase 위반
+    fs.writeFileSync(path.join(proj, 'src', 'goodName.ts'), '', 'utf-8') // camelCase 통과
+    const p = writeRules(['## 코딩 규칙', '- 파일명은 camelCase 로'].join('\n'))
+    const naming = parseRules(p).find((r) => r.type === 'naming')
+    expect(naming).toBeDefined()
+    const violations = naming!.check(proj)
+    expect(violations.some((v) => v.file?.includes('bad-name') && v.message.includes('camelCase'))).toBe(true)
+    expect(violations.some((v) => v.file?.includes('goodName'))).toBe(false)
+    fs.rmSync(proj, { recursive: true })
+    fs.rmSync(path.dirname(p), { recursive: true })
+  })
+
   it('codePortionForScan — 주석/문자열 내 토큰 제외, 실제 코드 사용은 유지 (자기 코드 오탐 방지)', () => {
     // 위반 오탐원: 주석/문자열 속 금지 토큰. 코드 부분만 남겨야 한다.
     expect(codePortionForScan('  // A: `execSync` 신규 사용 금지')).toBe('') // 주석 줄
