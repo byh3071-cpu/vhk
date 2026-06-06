@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { diagNode } from '../../src/doctor/diagnostics/node.js'
+import { diagNpm } from '../../src/doctor/diagnostics/npm.js'
 import { diagPnpm } from '../../src/doctor/diagnostics/pnpm.js'
 import { diagGit } from '../../src/doctor/diagnostics/git.js'
 import { diagOs } from '../../src/doctor/diagnostics/os.js'
@@ -15,13 +16,32 @@ function deps(over: Partial<DiagDeps> = {}, responses: Record<string, { ok: bool
   }
 }
 
-describe('diagNode (nodeMeetsShimSafe 재사용)', () => {
-  it('shim-safe 버전 → ok', () => {
-    expect(diagNode({}, deps({ nodeVersion: 'v20.18.0' })).status).toBe('ok')
+describe('diagNode (nodeMeetsShimSafe 재사용 + PATH 도달성)', () => {
+  it('shim-safe 버전 + PATH node 도달 → ok', () => {
+    const r = diagNode({}, deps({ nodeVersion: 'v20.18.0' }, { 'node --version': { ok: true, out: 'v20.18.0' } }))
+    expect(r.status).toBe('ok')
   })
   it('취약 버전 → warn + 권장 조치', () => {
-    const r = diagNode({}, deps({ nodeVersion: 'v20.10.0' }))
+    const r = diagNode({}, deps({ nodeVersion: 'v20.10.0' }, { 'node --version': { ok: true, out: 'v20.10.0' } }))
     expect(r.status).toBe('warn')
+    expect(r.advice).toBeTruthy()
+  })
+  it('PATH 에 node 없음(셸 미인식) → fail (옛 checkCommand 가드 복원)', () => {
+    const r = diagNode({}, deps({ nodeVersion: 'v20.18.0' }, { 'node --version': { ok: false, out: '', err: 'not found' } }))
+    expect(r.status).toBe('fail')
+    expect(r.advice).toBeTruthy()
+  })
+})
+
+describe('diagNpm', () => {
+  it('설치됨 → ok + 버전', () => {
+    const r = diagNpm({}, deps({}, { 'npm --version': { ok: true, out: '10.8.0' } }))
+    expect(r.status).toBe('ok')
+    expect(r.value).toContain('10.8.0')
+  })
+  it('npm 없음/PATH 누락 → fail (publish·update 흐름이 npm 의존)', () => {
+    const r = diagNpm({}, deps({}, { 'npm --version': { ok: false, out: '', err: 'not found' } }))
+    expect(r.status).toBe('fail')
     expect(r.advice).toBeTruthy()
   })
 })

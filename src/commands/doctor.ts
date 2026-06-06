@@ -8,11 +8,11 @@ import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
 import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
 import os from 'node:os'
-import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import type { Runner } from '../lib/preflight.js'
 import { runDiagnostics } from '../doctor/runner.js'
 import { formatDiagnostics } from '../doctor/report.js'
 import { diagNode } from '../doctor/diagnostics/node.js'
+import { diagNpm } from '../doctor/diagnostics/npm.js'
 import { diagPnpm } from '../doctor/diagnostics/pnpm.js'
 import { diagGit } from '../doctor/diagnostics/git.js'
 import { diagOs } from '../doctor/diagnostics/os.js'
@@ -58,7 +58,8 @@ function getVhkVersion(): string | undefined {
 }
 
 export async function doctor(opts: DoctorOptions = {}) {
-  if (!ensureNotHardStopped('doctor')) return // VHK-020 HARD_STOP 가드
+  // 읽기전용 진단 — HARD_STOP 으로 막지 않는다(가드 docstring: '제외: 읽기전용(status 등)').
+  // 오히려 HARD_STOP 켜진 순간이 환경 진단이 가장 필요한 때.
   console.log(chalk.bold(`\n${ko.doctor.title}\n`))
 
   // 환경 진단(Phase 1: Node/pnpm/git/OS) — doctor 엔진(병렬 + throw 격리, 진단만).
@@ -73,9 +74,10 @@ export async function doctor(opts: DoctorOptions = {}) {
     platform: process.platform,
     osRelease: os.release(),
   }
-  const diags = await runDiagnostics([diagNode, diagPnpm, diagGit, diagOs], opts, deps)
+  const diags = await runDiagnostics([diagNode, diagNpm, diagPnpm, diagGit, diagOs], opts, deps)
   for (const line of formatDiagnostics(diags)) console.log(line)
   const anyFail = diags.some((d) => d.status === 'fail')
+  const warnCount = diags.filter((d) => d.status === 'warn').length
 
   console.log('')
   const vhkVersion = getVhkVersion()
@@ -152,14 +154,8 @@ export async function doctor(opts: DoctorOptions = {}) {
   }
 
   console.log('')
-  if (!anyFail) {
-    console.log(chalk.green.bold(`  ${ko.doctor.allOk}`))
-    printNextStep({
-      message: ko.doctor.nextOkMessage,
-      command: 'vhk 시작',
-      cursorHint: '프로젝트 만들어줘',
-    })
-  } else {
+  if (anyFail) {
+    // 치명(fail) — 도구 부재 등. exit 1.
     console.log(chalk.yellow.bold(`  ${ko.doctor.missing} ${ko.doctor.missingHint}`))
     printNextStep({
       message: ko.doctor.nextRetryMessage,
@@ -167,6 +163,21 @@ export async function doctor(opts: DoctorOptions = {}) {
       cursorHint: '환경 다시 점검해줘',
     })
     process.exitCode = 1
+  } else if (warnCount > 0) {
+    // 경고(warn) — '준비 완료' 로 묻지 않고 권장 조치를 안내. exit 0 유지(권고).
+    console.log(chalk.yellow.bold(`  ${ko.doctor.warnSummary(warnCount)}`))
+    printNextStep({
+      message: '위 권장 조치 확인 (필수는 아님).',
+      command: 'vhk doctor',
+      cursorHint: '환경 다시 점검해줘',
+    })
+  } else {
+    console.log(chalk.green.bold(`  ${ko.doctor.allOk}`))
+    printNextStep({
+      message: ko.doctor.nextOkMessage,
+      command: 'vhk 시작',
+      cursorHint: '프로젝트 만들어줘',
+    })
   }
 
   // SoT(3층) CI 게이트: --strict 면 규칙 드리프트를 실패로 승격(exit 1). 기본 호출은 경고만 유지.

@@ -58,27 +58,30 @@ const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
 for (const f of ['types', 'runner', 'report']) {
   must(existsSync(`src/doctor/${f}.ts`), `src/doctor/${f}.ts 존재`)
 }
-for (const d of ['node', 'pnpm', 'git', 'os']) {
-  must(existsSync(`src/doctor/diagnostics/${d}.ts`), `diagnostics/${d}.ts 존재 (Phase 1)`)
+// 필수 4대 도구 전수(node/npm/pnpm/git) + os 진단 존재 (npm 회귀 복구 — 리뷰 반영)
+for (const d of ['node', 'npm', 'pnpm', 'git', 'os']) {
+  must(existsSync(`src/doctor/diagnostics/${d}.ts`), `diagnostics/${d}.ts 존재`)
 }
 must(existsSync('tests/doctor/runner.test.ts'), 'tests/doctor/ 단위테스트 존재')
 // 재사용: node 진단은 Goal 29 nodeMeetsShimSafe import(이중 구현 금지)
 must(/nodeMeetsShimSafe/.test(read('src/doctor/diagnostics/node.ts') ?? ''), 'node 진단이 nodeMeetsShimSafe 재사용')
-// runner: 병렬 + throw→fail 격리
+// runner: 동시 수집 + throw→fail 격리
 const runner = read('src/doctor/runner.ts') ?? ''
-must(/Promise\.all/.test(runner), 'runner 가 Promise.all 병렬 실행')
+must(/Promise\.all/.test(runner), 'runner 가 Promise.all 로 수집')
 must(/try/.test(runner) && /catch/.test(runner), 'runner 가 try/catch 로 throw 격리')
-// 불변규칙: 자동 수정 없음(진단만) — doctor 엔진에 파일 쓰기/복사 없음
-for (const f of ['runner', 'report', 'diagnostics/node', 'diagnostics/git']) {
+// 불변규칙: 자동 수정 없음(진단만) — doctor 엔진 전 파일에 파일 쓰기/복사/execSync 없음 (pnpm·os 포함 — 리뷰 반영)
+for (const f of ['runner', 'report', 'diagnostics/node', 'diagnostics/npm', 'diagnostics/pnpm', 'diagnostics/git', 'diagnostics/os']) {
   const src = read(`src/doctor/${f}.ts`) ?? ''
   must(!/writeFileSync|copyFileSync|execSync/.test(src), `${f}.ts 자동수정/execSync 없음(진단만)`)
 }
-// 흡수: 기존 doctor.ts export 보존(중복 명령 금지) + HARD_STOP 가드
+// 흡수: 기존 doctor.ts export 보존(중복 명령 금지)
 const doc = read('src/commands/doctor.ts') ?? ''
 must(/export \{ fetchLatestNpmVersion, compareSemver \}|compareSemver/.test(doc), 'doctor.ts compareSemver export 보존')
 must(/checkCommand/.test(doc), 'doctor.ts checkCommand export 보존(test 호환)')
-must(/ensureNotHardStopped/.test(doc), 'doctor.ts HARD_STOP 가드')
+must(/diagNpm/.test(doc), 'doctor.ts 가 npm 진단 포함(회귀 복구)')
 must(/runDiagnostics/.test(doc), 'doctor.ts 가 새 진단 엔진 흡수')
+// 읽기전용 진단 — HARD_STOP 가드 없어야 함(가드 docstring: 읽기전용 제외 — 리뷰 반영)
+must(!/ensureNotHardStopped/.test(doc), 'doctor.ts 는 HARD_STOP 가드 없음(읽기전용)')
 
 if (pass) { console.log('✅ goal 31 gate passes'); process.exit(0) }
 console.log('❌ goal 31 gate failed'); process.exit(1)

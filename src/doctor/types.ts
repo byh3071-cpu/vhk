@@ -14,7 +14,7 @@ export interface Diagnostic {
 export interface DoctorOptions {
   online?: boolean // CVE DB 보정(Phase 2)
   audit?: boolean // pnpm audit(Phase 2)
-  json?: boolean
+  json?: boolean // 기계가독 출력(Phase 2 — 아직 CLI 미등록·미배선)
   strict?: boolean // 드리프트 게이트(기존)
 }
 
