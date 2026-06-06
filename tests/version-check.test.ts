@@ -99,13 +99,37 @@ describe('getUpdateInfo — 가끔 자동 확인', () => {
     expect(info.latest).toBe('2.5.0')
   })
 
-  it('⑥ 캐시 없음 + 조회 실패 → latest undefined, 크래시 0', async () => {
+  it('⑥ 캐시 없음 + 조회 실패 → 쿨다운 기록(BUG#1 가드), latest undefined', async () => {
     mockExistsSync.mockReturnValue(false)
     mockSafeExecFile.mockReturnValue({ ok: false, err: 'offline', out: '' })
     const { getUpdateInfo } = await import('../src/lib/version-check.js')
     const info = getUpdateInfo(NOW)
     expect(info).toEqual({ current: '2.4.0', latest: undefined, updateAvailable: false })
-    expect(mockWriteFileSync).not.toHaveBeenCalled() // 캐시 없으면 write 안 함
+    // BUG#1: 캐시 없어도 lastTriedAt 기록해야 다음 호출이 1.5s 재조회를 반복하지 않음.
+    expect(mockWriteFileSync).toHaveBeenCalled()
+    const payload = JSON.parse(String(mockWriteFileSync.mock.calls[0][1]))
+    expect(payload.lastTriedAt).toBe(NOW)
+    expect(payload.latest).toBeUndefined()
+  })
+
+  it('⑥-b 캐시 없음 + 조회 성공 → 첫날 알림 + 캐시 생성', async () => {
+    mockExistsSync.mockReturnValue(false)
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '2.9.0' })
+    const { getUpdateInfo } = await import('../src/lib/version-check.js')
+    const info = getUpdateInfo(NOW)
+    expect(info.latest).toBe('2.9.0')
+    expect(info.updateAvailable).toBe(true)
+    expect(mockWriteFileSync).toHaveBeenCalled()
+  })
+
+  it('⑥-c 조회 실패 후 쿨다운 내 재호출 → 재조회 0 (1.5s hang 방지 회귀 가드)', async () => {
+    // 첫 실패가 남긴 캐시(latest 없음, checkedAt 0, lastTriedAt=NOW)를 읽는 상황
+    mockExistsSync.mockReturnValue(true)
+    mockReadJsonFile.mockReturnValue({ checkedAt: 0, lastTriedAt: NOW })
+    mockSafeExecFile.mockReturnValue({ ok: false, err: 'offline', out: '' })
+    const { getUpdateInfo } = await import('../src/lib/version-check.js')
+    getUpdateInfo(NOW + 10 * 60 * 1000) // 10분 후(쿨다운 1h 내)
+    expect(mockSafeExecFile).not.toHaveBeenCalled() // 쿨다운 → 네트워크 0
   })
 
   it('⑦ 캐시 JSON 손상 → readCache null, throw 0 (알림만 생략)', async () => {
