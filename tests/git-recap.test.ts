@@ -4,6 +4,7 @@ import {
   filterRecapFiles,
   inferFileStatusFromDiff,
   buildSessionDiffFromSummary,
+  withMidnight,
 } from '../src/lib/git.js'
 
 describe('git recap filters', () => {
@@ -33,6 +34,14 @@ describe('git recap filters', () => {
     expect(diff.filesChanged).toBe(1)
     expect(diff.files[0].file).toBe('src/a.ts')
     expect(diff.insertions).toBe(10)
+  })
+
+  it('withMidnight — 시각 없는 날짜에 자정 보강(git approxidate 함정 방지)', () => {
+    // git 은 `--since=2026-06-06`(시각 없음)을 자정이 아니라 '현재 시각'으로 채워
+    // 그날 커밋을 전부 누락시킨다(특히 밤에 recap). 시각 없으면 00:00:00 명시해야 한다.
+    expect(withMidnight('2026-06-06')).toBe('2026-06-06 00:00:00')
+    expect(withMidnight('2026-06-06 14:30')).toBe('2026-06-06 14:30') // 시각 있으면 그대로
+    expect(withMidnight('2026-06-06 23:05:08')).toBe('2026-06-06 23:05:08')
   })
 
   it('filterRecapFiles가 noise를 제거한다', () => {

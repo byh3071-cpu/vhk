@@ -168,6 +168,17 @@ function createStructureRule(
   }
 }
 
+// 한 줄에서 '코드 부분'만 추출 — 주석 줄/줄끝 주석/문자열·백틱 리터럴 내 토큰은 '실제 사용'이
+// 아니다. 이 가드 없이 라인 전체를 매칭하면 금지패턴 추출기 자신의 설명 주석(예: `execSync` 예시)을
+// 위반으로 오탐한다(자기 코드 도그푸딩 함정).
+export function codePortionForScan(line: string): string {
+  const t = line.trimStart()
+  if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return ''
+  const noStr = line.replace(/(['"`])(?:\\.|(?!\1).)*?\1/g, '')
+  const ci = noStr.indexOf('//')
+  return ci >= 0 ? noStr.slice(0, ci) : noStr
+}
+
 function createContentRule(
   id: string,
   section: string,
@@ -191,7 +202,7 @@ function createContentRule(
         const fileContent = fs.readFileSync(filePath, 'utf-8')
         const fileLines = fileContent.split('\n')
         fileLines.forEach((line, idx) => {
-          if (regex.test(line)) {
+          if (regex.test(codePortionForScan(line))) {
             violations.push({
               ruleId: id,
               severity: type === 'banned' ? 'error' : 'warning',
