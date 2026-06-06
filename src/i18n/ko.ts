@@ -217,6 +217,13 @@ export const ko = {
       `⚠️ RULES.md와 어긋난 규칙 파일: ${files} — vhk sync 를 다시 실행하세요`,
     driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
   },
+  preflight: {
+    title: '🛫 Preflight — 출고 전 안전점검',
+    resultBlocked: (n: number) => `결과: 차단 — 치명 실패 ${n}개. 고친 뒤 다시 실행하세요.`,
+    resultPass: (warn: number) => (warn > 0 ? `결과: 통과 (경고 ${warn})` : '결과: 통과'),
+    nextBlocked: '치명(🔴) 항목을 수정한 뒤 다시 실행하세요.',
+    nextPass: 'publish/PR 진행 가능',
+  },
   nlp: {
     matched: '이게 맞나요?',
     notMatched: '무슨 뜻인지 모르겠어요. vhk를 입력하면 메뉴에서 선택할 수 있습니다.',

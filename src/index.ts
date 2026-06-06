@@ -41,6 +41,7 @@ import { QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
+import { preflight } from './commands/preflight.js'
 import { review } from './commands/review.js'
 import { missionSet, missionShow, missionCheck, missionClear } from './commands/mission.js'
 import { runGuarded } from './lib/safety-guard.js'
@@ -143,6 +144,7 @@ const KO_ALIASES: Record<string, string> = {
   memory: '기억',
   brief: '브리핑',
   goal: '목표',
+  preflight: '출고점검',
   review: '검토',
   mission: '미션',
   blocker: '블로커',
@@ -462,6 +464,15 @@ program
   .option('--open', '리포트 생성 후 기본 브라우저로 열기 (비대화형/CI/MCP 자동 스킵)')
   .description('검증 게이트(tsc/test/build/secure) 실제 실행 + 증거 기록 (.vhk/reports/latest.json)')
   .action(async (opts: { json?: boolean; report?: boolean; open?: boolean }) => { await verify(opts) })
+
+program
+  .command('preflight')
+  .alias('출고점검')
+  .option('--publish', 'publish 직전 점검 (2FA·버전 강조)')
+  .option('--pr', 'PR 직전 점검 (lint·테스트·브랜치 강조)')
+  .option('--full', '테스트 전체 실행 (--changed 캐시 미사용)')
+  .description('출고 전 안전점검 — 2FA·shim·env·lint·타입·테스트·git 8개 항목, 치명 실패 시 차단')
+  .action(async (opts: { publish?: boolean; pr?: boolean; full?: boolean }) => { await preflight(opts) })
 
 program
   .command('review')

@@ -61,6 +61,17 @@ Cursor에게 한국어로 말해도 됩니다.
 
 > **v2.0 BREAKING**: 평면 memory.json → 4버킷(결정/실패/성공/패턴). **조회 명령(`vhk memory list`·`context`·`brief`) 첫 실행 시에도 v1→v2 자동 마이그레이션 + `.v1.bak` 원본 백업**(어느 명령으로 먼저 실행해도 동일). **교훈은 `vhk learn`·`memory failure --lesson` 단일 SoT** (구 `docs/state/learnings.md` 분리 폐지·흡수). 보관(archive)된 항목은 패턴·진화에서 제외(선순환).
 
+## 출고 전 안전점검 (preflight)
+
+| 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
+|-------------|-----------|------------------|
+| 출고 전 일괄 점검 | `vhk preflight` | "출고 전 점검해" |
+| publish 직전 점검 | `vhk preflight --publish` | "출시 전 점검해" |
+| PR 직전 점검 | `vhk preflight --pr` | "PR 전 점검해" |
+| 테스트 전체 실행 | `vhk preflight --full` | "전체 테스트로 점검해" |
+
+> `preflight` 는 publish/PR 직전 **2FA·shim·worktree env·lint·타입·테스트·git·브랜치 8개**를 한 번에 점검합니다. 치명(🔴: env/lint/타입/테스트) 실패가 1개라도 있으면 `--force` 없이 차단(exit 1). 기본 테스트는 `vitest --changed`(통과분 캐시 스킵), `--full` 로 전체 실행. (읽기 전용 — 자동 수정은 후속)
+
 ## 환경 점검
 
 ```bash

@@ -150,6 +150,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk secure` | `보안` | 시크릿·키 유출 스캔 (`scan` / `스캔` 동일). **CRITICAL/HIGH 발견 시 exit code 1** (CI용) |
 | `vhk ship` | `출하` | 배포 체크리스트 + 회고 + 빌드 로그 |
 | `vhk doctor` | `환경`, `진단` | Node / npm / pnpm / Git 환경 점검 |
+| `vhk preflight` | `출고점검` | 출고 전 안전점검 — 2FA·shim·worktree env·lint·타입·테스트·git·브랜치 8개 일괄, 치명(env/lint/타입/테스트) 실패 시 차단(exit 1). 기본 `vitest --changed`, `--publish`/`--pr`/`--full` |
 | `vhk cloud push` | `클라우드`, `올리기` | `.vhk/` 를 GitHub secret gist 로 백업 (gh CLI 인증 사용) |
 | `vhk cloud pull` | `내리기` | gist 에서 `.vhk/` 복원 (`vhk cloud pull <gistId>` 또는 cloud.json) |
 | `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에 |

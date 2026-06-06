@@ -79,6 +79,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'context', desc: '프로젝트 맥락 파일 생성 (.vhk/context.md)' },
   { name: 'mode', desc: 'Safety Mode 조회/변경 (lite|standard|strict)' },
   { name: 'verify', desc: '검증 게이트 실행 + 증거 기록' },
+  { name: 'preflight', desc: '출고 전 안전점검 (2FA·shim·env·lint·타입·테스트·git, 치명 시 차단)' },
   { name: 'review', desc: '적대적 자기검증 (거짓완료 의심 탐지)' },
   { name: 'mission', desc: '미션 계약 — 작업 목표·허용/금지 범위 선언·검증' },
   { name: 'context-show', desc: '컨텍스트 파일 내용 출력' },
