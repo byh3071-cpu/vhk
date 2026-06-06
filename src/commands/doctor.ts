@@ -7,6 +7,16 @@ import { ko } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
 import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
+import os from 'node:os'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import type { Runner } from '../lib/preflight.js'
+import { runDiagnostics } from '../doctor/runner.js'
+import { formatDiagnostics } from '../doctor/report.js'
+import { diagNode } from '../doctor/diagnostics/node.js'
+import { diagPnpm } from '../doctor/diagnostics/pnpm.js'
+import { diagGit } from '../doctor/diagnostics/git.js'
+import { diagOs } from '../doctor/diagnostics/os.js'
+import type { DiagDeps, DoctorOptions } from '../doctor/types.js'
 // 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
 // (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
 import { fetchLatestNpmVersion, compareSemver, recordLatest } from '../lib/version-check.js'
@@ -47,27 +57,25 @@ function getVhkVersion(): string | undefined {
   return undefined
 }
 
-export async function doctor(opts: { strict?: boolean } = {}) {
+export async function doctor(opts: DoctorOptions = {}) {
+  if (!ensureNotHardStopped('doctor')) return // VHK-020 HARD_STOP 가드
   console.log(chalk.bold(`\n${ko.doctor.title}\n`))
 
-  const checks: CheckResult[] = [
-    checkCommand('Node.js', 'node', '설치: https://nodejs.org (LTS 권장)'),
-    checkCommand('npm', 'npm', 'Node.js 설치 시 함께 설치됩니다'),
-    checkCommand('pnpm', 'pnpm', '설치: npm i -g pnpm'),
-    checkCommand('Git', 'git', '설치: https://git-scm.com'),
-  ]
-
-  let allOk = true
-
-  for (const check of checks) {
-    if (check.ok) {
-      console.log(chalk.green(`  ✅ ${check.name}`) + chalk.dim(` — ${check.version}`))
-    } else {
-      console.log(chalk.red(`  ❌ ${check.name} 없음`))
-      console.log(chalk.dim(`     → ${check.hint}`))
-      allOk = false
-    }
+  // 환경 진단(Phase 1: Node/pnpm/git/OS) — doctor 엔진(병렬 + throw 격리, 진단만).
+  // Node 판정은 Goal 29 nodeMeetsShimSafe 재사용.
+  const run: Runner = (cmd, args) => {
+    const r = safeExecFile(cmd, args)
+    return r.ok ? { ok: true, out: r.out } : { ok: false, out: r.out, err: r.err }
   }
+  const deps: DiagDeps = {
+    run,
+    nodeVersion: process.version,
+    platform: process.platform,
+    osRelease: os.release(),
+  }
+  const diags = await runDiagnostics([diagNode, diagPnpm, diagGit, diagOs], opts, deps)
+  for (const line of formatDiagnostics(diags)) console.log(line)
+  const anyFail = diags.some((d) => d.status === 'fail')
 
   console.log('')
   const vhkVersion = getVhkVersion()
@@ -144,7 +152,7 @@ export async function doctor(opts: { strict?: boolean } = {}) {
   }
 
   console.log('')
-  if (allOk) {
+  if (!anyFail) {
     console.log(chalk.green.bold(`  ${ko.doctor.allOk}`))
     printNextStep({
       message: ko.doctor.nextOkMessage,
