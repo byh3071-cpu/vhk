@@ -80,12 +80,19 @@ export function buildSessionDiffFromSummary(diffSummary: {
 /** 빈 트리 SHA — since 가 전체 히스토리를 포함할 때(boundary 없음) diff 기준점. */
 const EMPTY_TREE_SHA = '4b825dc642cb6eb9a060e54bf8d69288fbee4904'
 
+// git approxidate 함정: `--since`/`--before` 에 시각 없는 날짜("2026-06-06")만 주면 git 이
+// 자정이 아니라 **현재 시각**을 붙여 해석한다 → `--since=오늘` 은 "지금 이후"라 그날 커밋이 전부
+// 누락(특히 밤에 recap 시 그날 작업 0건 오판). 시각이 없으면 자정(00:00:00)을 명시한다.
+export function withMidnight(d: string): string {
+  return /\d{1,2}:\d{2}/.test(d) ? d : `${d} 00:00:00`
+}
+
 export async function getSessionDiff(since?: string): Promise<SessionDiff> {
   const sinceDate = since || localDate() // VHK-019: 기본 since 는 로컬 '오늘'
   try {
     // VHK-015: `git diff --since` 는 무효(--since 는 log 옵션) → 워킹트리만 diff 해 항상 0.
     // since 직전 커밋(boundary)..HEAD 의 커밋 범위를 diff 해 실제 변경 통계를 낸다.
-    const boundary = (await git.raw(['rev-list', '-1', `--before=${sinceDate}`, 'HEAD'])).trim()
+    const boundary = (await git.raw(['rev-list', '-1', `--before=${withMidnight(sinceDate)}`, 'HEAD'])).trim()
     const base = boundary || EMPTY_TREE_SHA
     const diffSummary = await git.diffSummary([`${base}..HEAD`])
     // simple-git DiffResult.files 는 text/binary/name-status 의 union.
@@ -114,7 +121,7 @@ export async function getRecentCommits(
   since?: string
 ): Promise<RecentCommit[]> {
   const options: Record<string, unknown> = { maxCount: count }
-  if (since) options['--since'] = since
+  if (since) options['--since'] = withMidnight(since) // 시각 없는 날짜는 자정 명시(approxidate 함정)
 
   try {
     const log = await git.log(options)

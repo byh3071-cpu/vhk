@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { parseRules } from '../src/lib/rules-parser.js'
+import { parseRules, codePortionForScan } from '../src/lib/rules-parser.js'
 
 function writeRules(content: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-rules-'))
@@ -45,6 +45,17 @@ describe('parseRules (VHK-011/012)', () => {
     // URL 토큰은 금지 패턴으로 등록 안 됨
     expect(content.map((r) => r.pattern?.source ?? '').join(' ')).not.toContain('github')
     fs.rmSync(path.dirname(p), { recursive: true })
+  })
+
+  it('codePortionForScan — 주석/문자열 내 토큰 제외, 실제 코드 사용은 유지 (자기 코드 오탐 방지)', () => {
+    // 위반 오탐원: 주석/문자열 속 금지 토큰. 코드 부분만 남겨야 한다.
+    expect(codePortionForScan('  // A: `execSync` 신규 사용 금지')).toBe('') // 주석 줄
+    expect(codePortionForScan('   * `execSync` 예시')).toBe('') // JSDoc 줄
+    expect(codePortionForScan("const p = 'execSync'")).not.toContain('execSync') // 문자열 리터럴
+    expect(codePortionForScan('foo() // execSync 주석')).not.toContain('execSync') // 줄끝 주석
+    // 실제 코드 사용은 반드시 유지(진짜 위반 놓치면 안 됨)
+    expect(codePortionForScan('execSync("npm view")')).toContain('execSync')
+    expect(codePortionForScan("import { execSync } from 'node:child_process'")).toContain('execSync')
   })
 
   it('VHK-012: 구조(필수 디렉터리) 규칙은 아키텍처 섹션에서만', () => {
