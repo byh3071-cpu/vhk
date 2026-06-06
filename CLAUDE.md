@@ -87,7 +87,7 @@ tags: [process, constitution]
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
 **마지막 갱신:** 2026-06-05
-- **버전:** v2.3.2 (npm latest) — 사실 확인은 package.json·CHANGELOG
+- **버전:** v2.4.0 (npm latest) — 사실 확인은 package.json·CHANGELOG
 - **테스트:** 868 pass · **MCP tools:** 29
 - **Phase:** 등록 goal 0~20 전부 DONE · v2.3.2 발행 완료
 - **블로커:** 없음
