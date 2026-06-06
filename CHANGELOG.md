@@ -12,6 +12,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   - **안전 1원칙**: CLI는 상태 수집 + 프롬프트 준비만. 커밋/stash/reset/goal done/파일 삭제 0. HARD_STOP 활성 시 즉시 중단. 별칭 `작업`/`인수인계`, NLP `작업 시작`·`인수인계`.
 - **`src/lib/clipboard.ts`** — 외부 의존성 0 클립보드 헬퍼. Windows는 PowerShell `Set-Clipboard`에 base64(UTF-8) 전달(한글 보존), mac `pbcopy`, linux `wl-copy`/`xclip`/`xsel`. 실패 시 `.vhk/work-prompt.md` 사본 + 화면 출력 폴백.
 
+## [2.4.0] - 2026-06-06
+
+_변경 내역 작성 필요._
+
 ## [2.3.0] - 2026-06-04
 
 > **vhk evolve — Evolution Loop 도미노 4 (Goal 20).** 패턴(Goal 19) → 룰 후보 → 사람 승인 → RULES.md 반영 → sync.
