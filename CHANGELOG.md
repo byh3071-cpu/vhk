@@ -4,6 +4,16 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+_다음 릴리즈 예정 항목 없음._
+
+## [2.4.1] - 2026-06-06
+
+### Fixed
+
+- **version-check 오프라인 hang** (`src/lib/version-check.ts`, #135) — 캐시가 한 번도 없던 상태 + 오프라인이면 `vhk` 메뉴가 매 실행 1.5s `npm view` 를 무한 재시도하던 결함(적대 검증으로 발견). 조회 실패 시 캐시가 없어도 쿨다운(`lastTriedAt`)을 기록해 1h 동안 재조회 차단 → 메뉴 hang 제거. `VersionCache.latest` optional 화 + `readCache` 검증 완화. 회귀 가드 테스트 추가(890 pass).
+
+## [2.4.0] - 2026-06-06
+
 ### Added
 
 - **`vhk work` / `vhk work handoff`** (`src/commands/work.ts`) — AI 작업 세션 이어받기/인수인계. Claude CLI 세션 기억이 휘발돼도 repo 파일(CLAUDE.md·next-task.md) + VHK 상태로 빠르게 이어가도록, 상태를 수집해 "시작/중단 정리 프롬프트"를 만들고 클립보드에 복사한다.
@@ -13,14 +23,6 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`src/lib/clipboard.ts`** — 외부 의존성 0 클립보드 헬퍼. Windows는 PowerShell `Set-Clipboard`에 base64(UTF-8) 전달(한글 보존), mac `pbcopy`, linux `wl-copy`/`xclip`/`xsel`. 실패 시 `.vhk/work-prompt.md` 사본 + 화면 출력 폴백.
 - **`vhk` 대화형 메뉴 개선** (`src/index.ts`) — 헤더에 현재 버전(`v2.4.0`) + 업데이트 알림(`🆕 업데이트 가능: vX → vhk update`) + 직접입력/자연어 안내(`💬`) 표시. 메뉴 항목에 `🚀 작업 시작/이어하기(work)`(최상단)·`🎯 다음 목표 보기(goal)`·`⏸️ 작업 중단 정리(handoff)` 추가. `pageSize`/`loop:false`로 Windows 콘솔 스크롤 잔상·잘림 수정.
 - **`src/lib/version-check.ts`** — 설치 버전 업데이트 체크 캐시(글로벌 `~/.vhk/version-check.json`). "가끔 자동 확인": 신선(24h) 캐시면 네트워크 0, 만료 시 1회 1.5s `npm view` + 1h 실패 쿨다운 → 메뉴는 거의 항상 즉시. `fetchLatestNpmVersion`/`compareSemver`를 doctor.ts에서 이 단일 소스로 이동(re-export로 호환), `vhk doctor`/`vhk update`가 캐시를 점진적으로 채움.
-
-## [2.4.1] - 2026-06-06
-
-_변경 내역 작성 필요._
-
-## [2.4.0] - 2026-06-06
-
-_변경 내역 작성 필요._
 
 ## [2.3.0] - 2026-06-04
 
