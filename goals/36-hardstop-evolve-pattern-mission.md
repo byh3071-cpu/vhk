@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 36
 title: HARD_STOP 가드 — evolve/pattern/mission mutate 명령 — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-07
+completed: 2026-06-07
 leads_to: goal-37-atomic-writes
 ---
 

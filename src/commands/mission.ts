@@ -222,6 +222,7 @@ export async function missionCheck(): Promise<void> {
 }
 
 export async function missionClear(): Promise<void> {
+  if (!ensureNotHardStopped('mission clear')) return
   const cwd = process.cwd()
   const p = join(cwd, MISSION_PATH_REL)
   if (!existsSync(p)) {
