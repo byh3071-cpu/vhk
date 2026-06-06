@@ -81,7 +81,7 @@ _다음 릴리즈 예정 항목 없음._
 ## [2.0.1] - 2026-06-03
 
 > ℹ️ npm 발행 버전은 **2.0.1** (2.0.0 은 npm 미발행 — `vhk publish` 강제 patch 범프로 건너뜀). 내용은 v2.0 메이저(BREAKING)이며, major=2 가 breaking 신호.
-
+>
 > **BREAKING — memory schema v2 (Goal 18, Evolution Loop 도미노 2).** 평면 `.vhk/memory.json` →
 > 4버킷(decisions/failures/successes/patterns) + 교훈 단일 SoT(learn 통합). 패턴(19)·진화(20)의 학습 입력 토대.
 > GA 약속대로 `.vhk` 포맷 breaking 은 메이저에서.
@@ -356,7 +356,7 @@ _다음 릴리즈 예정 항목 없음._
 - npm `description`/`keywords` 를 포터빌리티 포지셔닝으로 갱신
   ("풀사이클 CLI" → "도구·기기를 바꿔도 규칙·맥락이 따라가는 포터빌리티 CLI",
   keywords 에 portability·cursor·claude·windsurf·copilot·context-sync 추가).
-  *(코드 변경은 #39 에서 머지됨, 본 릴리즈는 버전 범프만.)*
+  _(코드 변경은 #39 에서 머지됨, 본 릴리즈는 버전 범프만.)_
 
 ## [1.5.0] - 2026-05-30
 
