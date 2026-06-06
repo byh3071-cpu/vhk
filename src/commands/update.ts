@@ -7,6 +7,7 @@ import { t } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import { printNextStep } from '../lib/next-step.js'
+import { recordLatest } from '../lib/version-check.js'
 
 const PACKAGE = '@byh3071/vhk'
 
@@ -52,6 +53,7 @@ export async function update(): Promise<void> {
 
   const spinner = ora('최신 버전 확인 중...').start()
   const latest = getLatestVersion()
+  if (latest) recordLatest(latest) // 메뉴(getUpdateInfo)가 다음에 활용할 캐시 적재
 
   if (!latest) {
     spinner.fail('최신 버전을 확인할 수 없습니다.')

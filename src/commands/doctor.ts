@@ -5,8 +5,12 @@ import { fileURLToPath } from 'node:url'
 import { printNextStep } from '../lib/next-step.js'
 import { ko } from '../i18n/ko.js'
 import { readJsonFile } from '../lib/read-json.js'
-import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
+import { safeExecFile } from '../lib/exec.js'
 import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
+// 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
+// (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
+import { fetchLatestNpmVersion, compareSemver, recordLatest } from '../lib/version-check.js'
+export { fetchLatestNpmVersion, compareSemver }
 
 export interface CheckResult {
   name: string
@@ -43,28 +47,6 @@ function getVhkVersion(): string | undefined {
   return undefined
 }
 
-export function fetchLatestNpmVersion(packageName: string): string | undefined {
-  // safeExecFile 은 argv 분리 (packageName 의 shell metachar 인젝션 차단).
-  // 네트워크 호출 — 레지스트리 장애/오프라인 시 hang 방지 위해 NETWORK_EXEC_TIMEOUT_MS 적용.
-  const result = safeExecFile('npm', ['view', packageName, 'version'], {
-    timeoutMs: NETWORK_EXEC_TIMEOUT_MS,
-  })
-  if (!result.ok) return undefined
-  const out = result.out
-  if (/^\d+\.\d+\.\d+/.test(out)) return out
-  return undefined
-}
-
-export function compareSemver(a: string, b: string): number {
-  const parse = (v: string) =>
-    v.replace(/^v/i, '').split('-')[0].split('.').map((n) => parseInt(n, 10) || 0)
-  const [a1 = 0, a2 = 0, a3 = 0] = parse(a)
-  const [b1 = 0, b2 = 0, b3 = 0] = parse(b)
-  if (a1 !== b1) return a1 - b1
-  if (a2 !== b2) return a2 - b2
-  return a3 - b3
-}
-
 export async function doctor(opts: { strict?: boolean } = {}) {
   console.log(chalk.bold(`\n${ko.doctor.title}\n`))
 
@@ -97,6 +79,7 @@ export async function doctor(opts: { strict?: boolean } = {}) {
 
   if (vhkVersion) {
     const latest = fetchLatestNpmVersion('@byh3071/vhk')
+    if (latest) recordLatest(latest) // 메뉴(getUpdateInfo)가 다음에 활용할 캐시 적재
     if (latest && compareSemver(latest, vhkVersion) > 0) {
       console.log(chalk.yellow(`  ${ko.doctor.updateAvailable(latest)}`))
     } else if (latest) {
