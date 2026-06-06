@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { loadForMutation, readMemory, writeMemory, type MemoryFileV2, type MemEntry, type FailEntry, type PatternEntry } from './memory.js'
 
 /**
@@ -293,6 +294,7 @@ export async function patternList(opts: { kind?: string; all?: boolean; json?: b
 }
 
 export async function patternDismiss(idStr: string): Promise<void> {
+  if (!ensureNotHardStopped('pattern dismiss')) return
   if (!idStr?.trim()) {
     console.log(chalk.red('❌ 패턴 id 를 입력해주세요. 예: vhk pattern dismiss p1'))
     process.exitCode = 1
