@@ -8,6 +8,7 @@
 ## 다음 할 일
 - 앞단(코어 CLI) 추가 액션 없음.
 - v2.4.0 발행됨 (npm latest): `vhk work`/`work handoff` + RULES.md 단일소스 + version-check SoT 포함.
+- 미발행: version-check 오프라인 hang 핫픽스(#135 머지 완료) → 다음 발행 시 2.4.1.
 - 뒷단 로드맵 = Goal 21~24 (launch·content·sell·ops) → docs/state/roadmap.md 참조
 - (cosmetic·선택) tag v2.4.0 가 핫픽스 전 커밋 76db882 가리킴 — npm 정상이라 둠. green 커밋 원하면 `git tag -f v2.4.0 dced724; git push -f`.
 

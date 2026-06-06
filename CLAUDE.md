@@ -88,9 +88,9 @@ tags: [process, constitution]
 
 **마지막 갱신:** 2026-06-06
 - **버전:** v2.4.0 (npm latest) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 888 pass · **MCP tools:** 29
-- **Phase:** 등록 goal 0~20 전부 DONE · v2.4.0 발행 완료 + version-check SoT 추출
+- **테스트:** 890 pass · **MCP tools:** 29
+- **Phase:** 등록 goal 0~20 전부 DONE · v2.4.0 발행 완료 + version-check SoT 추출 + 오프라인 hang 핫픽스(#135)
 - **블로커:** 없음
-- **진행 중(미발행):** 없음 (vhk work / work handoff = v2.4.0 으로 발행됨)
+- **진행 중(미발행):** version-check 오프라인 hang 픽스(#135 main 머지 완료) — 발행 시 2.4.1
 - **다음 할 일:** 뒷단 Goal 21~24 (launch·content·sell·ops). (참고: tag v2.4.0 는 핫픽스 전 커밋 76db882 가리킴 — npm 정상, cosmetic 이라 둠)
 - **주의:** publish는 main에서만(#119)
