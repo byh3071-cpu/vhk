@@ -14,6 +14,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk` 대화형 메뉴 개선** (`src/index.ts`) — 헤더에 현재 버전(`v2.4.0`) + 업데이트 알림(`🆕 업데이트 가능: vX → vhk update`) + 직접입력/자연어 안내(`💬`) 표시. 메뉴 항목에 `🚀 작업 시작/이어하기(work)`(최상단)·`🎯 다음 목표 보기(goal)`·`⏸️ 작업 중단 정리(handoff)` 추가. `pageSize`/`loop:false`로 Windows 콘솔 스크롤 잔상·잘림 수정.
 - **`src/lib/version-check.ts`** — 설치 버전 업데이트 체크 캐시(글로벌 `~/.vhk/version-check.json`). "가끔 자동 확인": 신선(24h) 캐시면 네트워크 0, 만료 시 1회 1.5s `npm view` + 1h 실패 쿨다운 → 메뉴는 거의 항상 즉시. `fetchLatestNpmVersion`/`compareSemver`를 doctor.ts에서 이 단일 소스로 이동(re-export로 호환), `vhk doctor`/`vhk update`가 캐시를 점진적으로 채움.
 
+## [2.4.1] - 2026-06-06
+
+_변경 내역 작성 필요._
+
 ## [2.4.0] - 2026-06-06
 
 _변경 내역 작성 필요._
