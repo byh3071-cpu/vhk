@@ -86,11 +86,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-05
+**마지막 갱신:** 2026-06-06
 - **버전:** v2.4.0 (npm latest) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 868 pass · **MCP tools:** 29
-- **Phase:** 등록 goal 0~20 전부 DONE · v2.3.2 발행 완료
+- **테스트:** 888 pass · **MCP tools:** 29
+- **Phase:** 등록 goal 0~20 전부 DONE · v2.4.0 발행 완료 + version-check SoT 추출
 - **블로커:** 없음
-- **진행 중(미발행):** `vhk work` / `vhk work handoff` (main 병합 완료 #122 · 버전 범프·발행 대기 = `vhk publish`)
-- **다음 할 일:** RULES.md 단일소스 부활 후 `vhk sync` 1회 실행 → 그다음 뒷단 Goal 21~24 (launch·content·sell·ops)
+- **진행 중(미발행):** 없음 (vhk work / work handoff = v2.4.0 으로 발행됨)
+- **다음 할 일:** 뒷단 Goal 21~24 (launch·content·sell·ops). (참고: tag v2.4.0 는 핫픽스 전 커밋 76db882 가리킴 — npm 정상, cosmetic 이라 둠)
 - **주의:** publish는 main에서만(#119)
