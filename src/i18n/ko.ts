@@ -224,6 +224,15 @@ export const ko = {
     nextBlocked: '치명(🔴) 항목을 수정한 뒤 다시 실행하세요.',
     nextPass: 'publish/PR 진행 가능',
   },
+  worktree: {
+    checkTitle: '🌳 Worktree env 점검',
+    addTitle: (b: string) => `🌳 Worktree 생성: ${b}`,
+    ready: '✅ ready',
+    needBranch: '브랜치명이 필요합니다 — 예: vhk worktree add feat/login',
+    abortedExists: (p: string) => `🛑 이미 존재 — 중단(덮어쓰기 안 함): ${p}`,
+    gitFailed: (d: string) => `❌ git worktree add 실패: ${d}`,
+    installSkipped: 'node_modules 없음 → pnpm install (또는 --install 로 자동)',
+  },
   nlp: {
     matched: '이게 맞나요?',
     notMatched: '무슨 뜻인지 모르겠어요. vhk를 입력하면 메뉴에서 선택할 수 있습니다.',
