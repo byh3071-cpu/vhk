@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { readConfig } from '../lib/config.js'
@@ -9,6 +9,7 @@ import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { ensureVhkIgnored } from '../lib/backup.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { localDate } from '../lib/date.js'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import { scanProjectForSecrets, filterSevereFindings } from '../lib/scan-secrets.js'
 import { renderReportHtml } from './verify-report.js'
 import { isInteractive } from '../lib/interactive.js'
@@ -265,7 +266,7 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
   const dir = join(cwd, REPORT_DIR_REL)
   mkdirSync(dir, { recursive: true })
   const path = join(cwd, REPORT_PATH_REL)
-  writeFileSync(path, JSON.stringify(report, null, 2) + '\n', 'utf-8')
+  atomicWriteFile(path, JSON.stringify(report, null, 2) + '\n')
   // reports/ 는 개인 환경 산물 → 로컬 전용(추적·클라우드 제외).
   try {
     ensureVhkIgnored(cwd, 'reports/')
@@ -307,7 +308,7 @@ async function renderVerifyReport(cwd: string, opts: { open?: boolean }): Promis
   const htmlPath = join(cwd, REPORT_HTML_PATH_REL)
   try {
     mkdirSync(join(cwd, REPORT_DIR_REL), { recursive: true })
-    writeFileSync(htmlPath, html, 'utf-8')
+    atomicWriteFile(htmlPath, html)
   } catch (e) {
     // 쓰기 권한 없음 등 → 크래시 대신 친절 안내 + 비-0 종료.
     console.error(
