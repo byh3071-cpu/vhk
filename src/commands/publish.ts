@@ -39,6 +39,16 @@ export function insertChangelogStub(content: string, version: string, date: stri
   return content.trimEnd() + '\n\n' + stub
 }
 
+/**
+ * CLAUDE.md 의 "**버전:** vX.Y.Z" 표기를 newVersion 으로 교체한다.
+ * version-sync.test.ts 가드(package.json ↔ CLAUDE.md 버전줄 정합)를 publish 가 깨지 않도록,
+ * package.json 범프와 반드시 짝으로 호출한다. 버전 번호만 바꾸고 뒤 설명 텍스트는 보존.
+ * "**버전:**" 줄이 없으면 원본 그대로 반환(graceful no-op).
+ */
+export function bumpClaudeMdVersion(content: string, newVersion: string): string {
+  return content.replace(/(\*\*버전:\*\*\s*v)\d+\.\d+\.\d+/, `$1${newVersion}`)
+}
+
 interface Pkg {
   version?: string
   [key: string]: unknown
@@ -197,14 +207,31 @@ export async function publish(): Promise<void> {
   writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
   console.log(chalk.green('✅ package.json 버전 업데이트'))
 
+  // version-sync 가드(package.json ↔ CLAUDE.md "**버전:**" 줄 정합)가 게이트에서 깨지지
+  // 않도록 CLAUDE.md 버전줄도 같이 올린다. 원본을 보관해 실패/취소 시 그대로 복구(eol churn 0).
+  const claudeMdOriginal = existsSync('CLAUDE.md') ? readFileSync('CLAUDE.md', 'utf-8') : null
+  if (claudeMdOriginal !== null) {
+    const bumped = bumpClaudeMdVersion(claudeMdOriginal, newVersion)
+    if (bumped !== claudeMdOriginal) {
+      writeFileSync('CLAUDE.md', bumped, 'utf-8')
+      console.log(chalk.green('✅ CLAUDE.md 버전줄 동기화'))
+    }
+  }
+
+  // 실패/취소 시 package.json + CLAUDE.md 를 원래 버전으로 되돌린다.
+  const rollbackVersion = () => {
+    pkg.version = currentVersion
+    writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+    if (claudeMdOriginal !== null) writeFileSync('CLAUDE.md', claudeMdOriginal, 'utf-8')
+  }
+
   // 빌드
   const buildSpinner = ora(t('publish.building')).start()
   const buildResult = safeExecFile('pnpm', ['build'])
   if (!buildResult.ok) {
     buildSpinner.fail(t('publish.buildFailed'))
     console.log(chalk.red(buildResult.err.slice(0, 500)))
-    pkg.version = currentVersion
-    writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+    rollbackVersion()
     return
   }
   buildSpinner.succeed(t('publish.buildSuccess'))
@@ -215,8 +242,7 @@ export async function publish(): Promise<void> {
   if (!testResult.ok) {
     testSpinner.fail(t('publish.testFailed'))
     console.log(chalk.red(testResult.err.slice(0, 500)))
-    pkg.version = currentVersion
-    writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+    rollbackVersion()
     return
   }
   testSpinner.succeed(t('publish.testSuccess'))
@@ -232,8 +258,7 @@ export async function publish(): Promise<void> {
   ])
 
   if (!confirm) {
-    pkg.version = currentVersion
-    writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+    rollbackVersion()
     console.log(chalk.gray('취소됨. 버전이 원래대로 복구됩니다.'))
     return
   }
@@ -246,9 +271,8 @@ export async function publish(): Promise<void> {
   if (!pubResult.ok) {
     console.log(chalk.red(`\n✖ ${t('publish.publishFailed')}`))
     console.log(chalk.red(pubResult.err.slice(0, 500)))
-    // 버전 롤백 (publish 실패 시 package.json 원래대로)
-    pkg.version = currentVersion
-    writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n', 'utf-8')
+    // 버전 롤백 (publish 실패 시 package.json + CLAUDE.md 원래대로)
+    rollbackVersion()
     console.log(chalk.gray(`📦 package.json 버전을 v${currentVersion}로 복구했습니다.`))
     return
   }

@@ -243,3 +243,30 @@ describe('publishPreflight — git 수집 + default 브랜치 추출', () => {
     expect(out).toContain('## [1.0.0] - 2026-06-05')
   })
 })
+
+// 회귀: publish 가 package.json 만 범프하고 CLAUDE.md "**버전:**" 줄은 안 올려서
+// version-sync.test.ts 게이트가 항상 깨지던 자기방해 버그(8dca545 가드 도입 후).
+describe('bumpClaudeMdVersion — CLAUDE.md "**버전:**" 줄 동기화 (publish ↔ version-sync 정합)', () => {
+  it('버전 번호만 교체하고 뒤 설명 텍스트는 보존', async () => {
+    const { bumpClaudeMdVersion } = await import('../src/commands/publish.js')
+    const md = '# h\n\n- **버전:** v2.3.2 (npm latest) — 사실 확인은 package.json\n\n본문\n'
+    const out = bumpClaudeMdVersion(md, '2.4.0')
+    expect(out).toContain('**버전:** v2.4.0 (npm latest) — 사실 확인은 package.json')
+    expect(out).not.toContain('v2.3.2')
+    expect(out).toContain('본문')
+  })
+
+  it('범프 후 version-sync 가드 정규식이 새 버전을 추출 (게이트 통과 보장)', async () => {
+    const { bumpClaudeMdVersion } = await import('../src/commands/publish.js')
+    const md = '- **버전:** v2.3.2 (npm latest)\n'
+    const out = bumpClaudeMdVersion(md, '2.4.0')
+    const m = out.match(/\*\*버전:\*\*\s*v(\d+\.\d+\.\d+)/)
+    expect(m![1]).toBe('2.4.0')
+  })
+
+  it('"**버전:**" 줄 없으면 원본 그대로(graceful no-op)', async () => {
+    const { bumpClaudeMdVersion } = await import('../src/commands/publish.js')
+    const md = '# 헌법\n버전 줄 없음\n'
+    expect(bumpClaudeMdVersion(md, '2.4.0')).toBe(md)
+  })
+})
