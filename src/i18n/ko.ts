@@ -225,6 +225,14 @@ export const ko = {
     nextBlocked: '치명(🔴) 항목을 수정한 뒤 다시 실행하세요.',
     nextPass: 'publish/PR 진행 가능',
   },
+  standup: {
+    title: (d: string) => `🌅 Standup — ${d}`,
+    yesterday: '📌 어제 한 일',
+    noHistory: '이전 기록 없음 — 첫 세션이거나 신규 repo',
+    todayRecommend: '🎯 오늘 추천',
+    unresolved: '⚠️ 미해결',
+    commitsLine: (n: number) => `커밋 ${n}개`,
+  },
   nlp: {
     matched: '이게 맞나요?',
     notMatched: '무슨 뜻인지 모르겠어요. vhk를 입력하면 메뉴에서 선택할 수 있습니다.',

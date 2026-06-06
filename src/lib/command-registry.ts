@@ -80,6 +80,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'mode', desc: 'Safety Mode 조회/변경 (lite|standard|strict)' },
   { name: 'verify', desc: '검증 게이트 실행 + 증거 기록' },
   { name: 'preflight', desc: '출고 전 안전점검 (2FA·shim·env·lint·타입·테스트·git, 치명 시 차단)' },
+  { name: 'standup', desc: '아침 브리핑 (어제 한 일 + 오늘 추천 goal + 미해결)' },
   { name: 'review', desc: '적대적 자기검증 (거짓완료 의심 탐지)' },
   { name: 'mission', desc: '미션 계약 — 작업 목표·허용/금지 범위 선언·검증' },
   { name: 'context-show', desc: '컨텍스트 파일 내용 출력' },
