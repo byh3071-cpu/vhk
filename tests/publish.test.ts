@@ -130,6 +130,20 @@ describe('publish — gitPostRelease (commit 실패 시 tag 미생성)', () => {
     expect(r.pushed).toBe(false)
     expect(r.warning).toBeUndefined()
   })
+
+  // 회귀: publish 가 CLAUDE.md 버전줄을 범프하는데 gitPostRelease 가 스테이징 안 하면
+  // 릴리즈 커밋에 package.json(신버전) ↔ CLAUDE.md(구버전) 불일치가 박혀 CI version-sync 가 깨진다.
+  it('CLAUDE.md 존재 시 git add 에 포함 (릴리즈 커밋 version-sync 정합)', async () => {
+    mockExistsSync.mockReturnValue(true)
+    mockGit()
+    const { gitPostRelease } = await import('../src/commands/publish.js')
+    gitPostRelease('2.4.0')
+    const addCall = exec.mock.calls.find((c) => (c[1] as string[])[0] === 'add')
+    expect(addCall, 'git add 호출이 있어야 함').toBeDefined()
+    expect(addCall![1]).toContain('package.json')
+    expect(addCall![1]).toContain('CHANGELOG.md')
+    expect(addCall![1]).toContain('CLAUDE.md')
+  })
 })
 
 describe('evaluatePublishPreflight — 발행 전 브랜치/clean 가드 (2.3.1 오발행 재발 방지)', () => {

@@ -73,8 +73,13 @@ export interface GitReleaseResult {
  * npm publish 는 이미 성공했으므로 어떤 실패에서도 package.json 롤백은 하지 않는다.
  */
 export function gitPostRelease(newVersion: string): GitReleaseResult {
-  // CHANGELOG.md 가 있으면 함께 스테이징 (자동화 D 스텁이 릴리즈 커밋에 포함되도록).
-  const filesToAdd = existsSync('CHANGELOG.md') ? ['package.json', 'CHANGELOG.md'] : ['package.json']
+  // 릴리즈 커밋에 함께 들어가야 하는 파일:
+  // - CHANGELOG.md: 자동화 D 스텁
+  // - CLAUDE.md: publish 가 범프한 "**버전:**" 줄 — 빠지면 package.json↔CLAUDE.md 불일치가
+  //   커밋에 박혀 CI version-sync 가 깨진다(v2.4.0 릴리즈서 실제 발생).
+  const filesToAdd = ['package.json']
+  if (existsSync('CHANGELOG.md')) filesToAdd.push('CHANGELOG.md')
+  if (existsSync('CLAUDE.md')) filesToAdd.push('CLAUDE.md')
   const add = safeExecFile('git', ['add', ...filesToAdd])
   if (!add.ok) {
     return {
