@@ -1,14 +1,14 @@
 ---
 vhk_format: 1
 type: goal
-id: 25
+id: 27
 title: silent fallback 안티패턴 린트 (check-no-silent-fallback) — P2
-status: TODO
+status: NOT_STARTED
 priority: P2
 created: 2026-06-06
 ---
 
-# Goal 25: silent fallback 안티패턴 린트
+# Goal 27: silent fallback 안티패턴 린트
 
 > 출처: 2026-06-06 바이브코딩 커뮤니티 스레드 2건(검증 루프 + fallback 최소화) +
 > 같은 날 VHK 자체 점검(레포 grep). Notion SUMMARY: "(2026-06-06) VHK — 바이브코딩 커뮤니티 합의 점검".

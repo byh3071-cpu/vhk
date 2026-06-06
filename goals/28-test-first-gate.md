@@ -1,14 +1,14 @@
 ---
 vhk_format: 1
 type: goal
-id: 26
+id: 28
 title: test-first 게이트 (신규 기능 ↔ 테스트 매핑 + red→green 증거) — P2
-status: TODO
+status: NOT_STARTED
 priority: P2
 created: 2026-06-06
 ---
 
-# Goal 26: test-first 게이트
+# Goal 28: test-first 게이트
 
 > 출처: 2026-06-06 커뮤니티 스레드(글타래1: TDD 루프 = 실패 테스트 → 통과 구현 → 리팩토링) +
 > VHK 자체 점검. Notion SUMMARY 동일.
