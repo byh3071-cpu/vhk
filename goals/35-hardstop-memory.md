@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 35
 title: HARD_STOP 가드 — memory 명령군 (add/remove/archive/resolve/unarchive) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-07
+completed: 2026-06-07
 leads_to: goal-36-hardstop-evolve-pattern-mission
 ---
 
