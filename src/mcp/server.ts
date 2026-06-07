@@ -362,21 +362,13 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── check ──────────────────────────────────────────────
-  server.registerTool('check', { description: '프로젝트 구조 점검 (필수 파일 + VHK 하네스 파일)' }, async () => {
-    const required = ['package.json', 'tsconfig.json', 'README.md', '.gitignore']
-    const recommended = ['CLAUDE.md', '.cursorrules', 'docs/PRD.md', 'docs/ARCHITECTURE.md']
-
-    const lines: string[] = ['🔍 프로젝트 점검', '', '필수:']
-    required.forEach((f) => {
-      lines.push(`  ${existsSync(f) ? '✅' : '❌'} ${f}`)
-    })
-    lines.push('', '권장 (VHK 하네스):')
-    recommended.forEach((f) => {
-      lines.push(`  ${existsSync(f) ? '✅' : '⚠️'} ${f}`)
-    })
-
-    return { content: [{ type: 'text', text: lines.join('\n') }] }
-  })
+  // #161: CLI `vhk check`(RULES.md 규칙 엔진)로 위임 — 옛 static 파일 체크리스트는 CLI 와
+  // 의미가 달라 에이전트에 거짓 신호를 줬다(harness/secure 와 동일하게 CLI 단일 출처로 통일).
+  server.registerTool(
+    'check',
+    { description: '프로젝트 규칙 점검 (vhk check — RULES.md 규칙 엔진, CLI 와 동일)' },
+    async () => runVhkCli(['check'], 'check')
+  )
 
   // ─── recap ──────────────────────────────────────────────
   server.registerTool(
