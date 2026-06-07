@@ -54,9 +54,19 @@ describe('addWorktree', () => {
     const r = addWorktree('feat/x', {}, deps)
     expect(r.status).toBe('git-failed')
     expect(copied).toBe(false)
+    // detail 은 순수 err — ko.worktree.gitFailed 가 접두사를 1회만 붙이도록(이중 접두사 방지)
+    expect(r.detail).toBe('fatal')
   })
 
-  it('--install 시 pnpm install (대상 디렉터리 지정)', () => {
+  it('--install 시 installRun(PM 주입) 우선 사용 — 대상 경로 전달', () => {
+    let installedTp = ''
+    const { deps } = mkDeps({ installRun: (tp) => { installedTp = tp; return { ok: true, out: '' } } })
+    const r = addWorktree('feat/x', { install: true }, deps)
+    expect(r.installed).toBe(true)
+    expect(installedTp).toBe('/repo-feat-x')
+  })
+
+  it('--install + installRun 미주입 → pnpm 폴백(하위호환)', () => {
     const { deps, calls } = mkDeps()
     const r = addWorktree('feat/x', { install: true }, deps)
     expect(r.installed).toBe(true)
