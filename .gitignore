@@ -18,6 +18,8 @@ dist/
 .vhk/refs.json
 # secret gist 포인터 (gistId) — 공개 repo 노출 방지 (VHK-022)
 .vhk/cloud.json
+# 로컬 미션 범위 계약(vhk mission set) — 프로젝트별 로컬 상태, 공유 대상 아님
+.vhk/mission.json
 
 # EnterWorktree 가 .claude/worktrees/ 에 isolated 복사본 생성 — 커밋 금지
 .claude/worktrees/
