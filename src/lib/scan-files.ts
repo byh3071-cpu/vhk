@@ -18,7 +18,8 @@ const IGNORE_DIRS = new Set([
   '.pnpm',
   '.idea',
   '.claude',
-  '.cursor',
+  // '.cursor' 는 제외하지 않음 (#170): tracked 에이전트 설정(mcp.json 등)에 자격증명이
+  // 들어갈 수 있어 스캔 대상. 캐시·생성물은 .gitignore(isPathIgnored)가 거른다.
 ])
 
 const SKIP_FILE_NAMES = new Set([
