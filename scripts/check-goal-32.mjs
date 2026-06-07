@@ -85,5 +85,26 @@ must(existsSync('src/daily/devlog.ts'), 'src/daily/devlog.ts 존재 (Phase 2 공
 must(/readDevLogs/.test(read('src/daily/standup.ts') ?? ''), 'standup 이 readDevLogs 로 DevLog 연동')
 must(existsSync('tests/daily/devlog.test.ts'), 'devlog 단위테스트 존재')
 
+// ─── goal 32 Phase 3 검증 (--if-stale 하루 1회 + 터미널 자동실행 앵커) ──────────
+must(existsSync('src/daily/shown-state.ts'), 'src/daily/shown-state.ts 존재 (하루 1회 상태)')
+must(existsSync('src/daily/anchor.ts'), 'src/daily/anchor.ts 존재 (앵커 줄 빌더)')
+must(existsSync('tests/daily/shown-state.test.ts'), 'shown-state 단위테스트 존재')
+must(existsSync('tests/daily/anchor.test.ts'), 'anchor 단위테스트 존재')
+const shownState = read('src/daily/shown-state.ts') ?? ''
+must(/export function shouldShow/.test(shownState), 'shouldShow 순수함수 존재')
+must(!/execSync/.test(shownState), 'shown-state execSync 없음')
+must(!/JSON\.parse/.test(shownState), 'shown-state raw JSON.parse 없음 (readJsonFile 사용)')
+must(/atomicWriteFile/.test(shownState), 'shown-state 원자적 쓰기 사용')
+const anchorSrc = read('src/daily/anchor.ts') ?? ''
+must(!/execSync/.test(anchorSrc), 'anchor execSync 없음')
+must(!/writeFileSync|appendFileSync|atomicWriteFile/.test(anchorSrc), 'anchor 파일 쓰기 0 (rc 자동수정 금지)')
+const standupCmd = read('src/commands/standup.ts') ?? ''
+must(/ifStale/.test(standupCmd), 'standup 이 --if-stale 처리')
+must(/installAnchor/.test(standupCmd), 'standup 이 --install-anchor 처리')
+must(/shouldShow/.test(standupCmd), 'standup 이 shouldShow 로 하루 1회 판정')
+const idx = read('src/index.ts') ?? ''
+must(/--if-stale/.test(idx), 'index.ts 에 --if-stale 옵션 등록')
+must(/--install-anchor/.test(idx), 'index.ts 에 --install-anchor 옵션 등록')
+
 if (pass) { console.log('✅ goal 32 gate passes'); process.exit(0) }
 console.log('❌ goal 32 gate failed'); process.exit(1)

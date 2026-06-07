@@ -505,7 +505,9 @@ program
   .command('standup')
   .alias('아침')
   .description('아침 브리핑 — 어제 한 일(마지막 활동일 커밋·완료 goal) + 오늘 추천 + 미해결 (읽기 전용)')
-  .action(async () => { await standup() })
+  .option('--if-stale', '오늘 아직 안 본 경우에만 브리핑 (터미널 자동실행 앵커용)')
+  .option('--install-anchor', '터미널 자동실행 앵커(셸 rc 에 붙여넣을 줄) 안내 출력')
+  .action(async (opts: { ifStale?: boolean; installAnchor?: boolean }) => { await standup(opts) })
 
 program
   .command('today')

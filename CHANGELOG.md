@@ -8,6 +8,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 - **`vhk worktree` 가드** (Goal 30, #139) — worktree 생성 시 `.env` 자동 복사 + 누락 점검.
 - **`vhk today`** (Goal 33, #162) — 저녁 자축·회고 브리핑(git + goal 기반).
+- **`vhk standup --if-stale` / `--install-anchor`** (Goal 32 Phase 3) — 하루 1회 자동 브리핑(KST 자정 기준, 상태 `~/.vhk/daily-shown.json`) + 터미널 자동실행 앵커 줄 안내(셸 rc 자동수정 X, 사람이 직접 붙여넣기).
 
 ## [2.4.2] - 2026-06-07
 
