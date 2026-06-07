@@ -43,6 +43,26 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
     expect(fs.existsSync(path.join(dir, 'CLAUDE.md'))).toBe(true)
   })
 
+  it('#132: -y 라도 기존 규칙 파일을 RULES.md 로 자동 adopt (thin 템플릿 함정 방지, 프롬프트 0)', async () => {
+    // 기존 .cursorrules(알맹이) + RULES.md 없음 → 비대화형이라도 adopt 해야 thin RULES.md 가
+    // SoT 가 돼 알맹이를 덮어쓰는 함정을 막는다. 프롬프트 호출 시 mock throw → 무프롬프트 보장.
+    fs.writeFileSync(path.join(dir, '.cursorrules'), '# 기존 프로젝트\n\n## 코딩 규칙\n- 채택될 규칙 ABC123\n', 'utf-8')
+    const { init } = await import('../src/commands/init.js')
+    await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+    const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
+    expect(rules).toContain('채택될 규칙 ABC123') // 자동 adopt
+    expect(rules).toContain('.cursorrules') // 출처 주석
+  })
+
+  it('#132: -y + 기존 RULES.md 있으면 보존 (adopt 가 덮어쓰지 않음)', async () => {
+    fs.writeFileSync(path.join(dir, '.cursorrules'), '# 기존\n## 코딩 규칙\n- X\n', 'utf-8')
+    fs.writeFileSync(path.join(dir, 'RULES.md'), '# 내 손글 RULES\n\n## 코딩 규칙\n- 보존되어야 함 KEEP999\n', 'utf-8')
+    const { init } = await import('../src/commands/init.js')
+    await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+    const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
+    expect(rules).toContain('보존되어야 함 KEEP999') // 기존 RULES.md 보존
+  })
+
   it('비-TTY + -y 없음: confirmStack/adopt 도 프롬프트 0개 (Codex #3 회귀)', async () => {
     const origIn = process.stdin.isTTY
     const origOut = process.stdout.isTTY
