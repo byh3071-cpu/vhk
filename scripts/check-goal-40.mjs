@@ -53,8 +53,13 @@ if (!skipDeep) {
 }
 
 // ─── goal 40 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// goal.ts 의 영속 쓰기 3곳(goalNext/goalInit/goalDone)이 atomicWriteFile 사용.
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const goalSrc = read('src/commands/goal.ts') ?? ''
+must(/import \{ atomicWriteFile \} from '\.\.\/lib\/atomic-write\.js'/.test(goalSrc), 'goal.ts atomicWriteFile import')
+const atomicCalls = (goalSrc.match(/atomicWriteFile\(/g) ?? []).length
+must(atomicCalls >= 3, `goal.ts atomicWriteFile 호출 ${atomicCalls}회(>=3: next-task/scaffold/frontmatter)`)
+must(existsSync('tests/goal-atomic.test.ts'), 'tests/goal-atomic.test.ts 존재')
 
 if (pass) { console.log('✅ goal 40 gate passes'); process.exit(0) }
 console.log('❌ goal 40 gate failed'); process.exit(1)
