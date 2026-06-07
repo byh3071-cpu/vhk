@@ -32,3 +32,25 @@ export async function getServerName(): Promise<string> {
   const server = (await loadServer()) as ServerInfoShape
   return server.server._serverInfo.name
 }
+
+interface McpToolResult {
+  content: Array<{ type: string; text: string }>
+}
+interface RegisteredTool {
+  handler: (...a: unknown[]) => unknown
+  inputSchema?: unknown
+}
+
+// 등록된 tool 핸들러를 직접 호출 (SDK executeToolHandler 시그니처 재현:
+// inputSchema 있으면 handler(args, extra), 없으면 handler(extra)).
+export async function callTool(
+  name: string,
+  args: Record<string, unknown> = {}
+): Promise<McpToolResult> {
+  const server = (await loadServer()) as { _registeredTools: Record<string, RegisteredTool> }
+  const tool = server._registeredTools[name]
+  if (!tool) throw new Error(`등록되지 않은 tool: ${name}`)
+  const extra = {}
+  const result = tool.inputSchema ? await tool.handler(args, extra) : await tool.handler(extra)
+  return result as McpToolResult
+}

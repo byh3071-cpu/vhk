@@ -8,6 +8,7 @@ import { detectPlatform } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
 import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/audit.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { isHardStopActive, readHardStopReason } from '../lib/state-files.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 import { getVhkVersion } from '../lib/version.js'
 import { resolveVhkCliInvocation, composeInvocation, type VhkCliInvocation } from './cli-path.js'
@@ -18,6 +19,21 @@ const SERVER_VERSION = getVhkVersion()
 
 function isGitRepo(): boolean {
   return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
+}
+
+// Goal 41: MCP surface HARD_STOP 가드. CLI 의 ensureNotHardStopped 는 console.error +
+// process.exitCode 를 쓰는데, MCP stdio 서버는 stdout/stderr 가 JSON-RPC 채널이라 부적합
+// (로그 출력이 프로토콜 오염) → 대신 content 응답을 반환한다. 상태변경 툴을 *재구현*해
+// CLI 의 guardCli chokepoint 를 우회하는 MCP 전용 핸들러(save/undo/env)에만 적용.
+// runVhkCli 위임 툴은 CLI 서브프로세스가 guardCli 를 그대로 거치므로 별도 가드 불필요.
+function hardStopBlocked(action: string): { content: [{ type: 'text'; text: string }] } | null {
+  if (!isHardStopActive()) return null
+  const reason = readHardStopReason()
+  const text =
+    `🛑 HARD STOP 활성 — '${action}' 을(를) 실행하지 않았습니다.` +
+    (reason ? `\n사유: ${reason.replace(/\s*\n\s*/g, ' ')}` : '') +
+    `\n해제: vhk resume --confirm (사람이 직접 실행)`
+  return { content: [{ type: 'text', text }] }
 }
 
 // ANSI escape sequence (color / cursor / formatting). MCP 클라이언트 일부가
@@ -67,6 +83,8 @@ export function createVhkMcpServer(): McpServer {
       },
     },
     async ({ message }) => {
+      const blocked = hardStopBlocked('save') // Goal 41: HARD_STOP 활성 시 commit/push 차단
+      if (blocked) return blocked
       if (!isGitRepo()) {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
@@ -147,6 +165,8 @@ export function createVhkMcpServer(): McpServer {
       },
     },
     async ({ confirm }) => {
+      const blocked = hardStopBlocked('undo') // Goal 41: HARD_STOP 활성 시 되돌리기(상태변경) 차단
+      if (blocked) return blocked
       if (!isGitRepo()) {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
@@ -390,6 +410,8 @@ export function createVhkMcpServer(): McpServer {
       description: '.env → .env.example 동기화 + .gitignore에 .env 자동 추가',
     },
     async () => {
+      const blocked = hardStopBlocked('env') // Goal 41: HARD_STOP 활성 시 .env.example/.gitignore 쓰기 차단
+      if (blocked) return blocked
       if (!existsSync('.env')) {
         return { content: [{ type: 'text', text: '⚠️  .env 파일이 없습니다. 먼저 .env를 만들어주세요.' }] }
       }
