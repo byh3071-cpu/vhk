@@ -86,11 +86,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-07
+**마지막 갱신:** 2026-06-08
 - **버전:** v2.4.2 (npm latest) — 사실 확인은 package.json·CHANGELOG
 - **테스트:** 1035 pass · **MCP tools:** 29
-- **Phase:** HARD_STOP 가드 완성(Goal 34~36·39·41) + 원자적 쓰기 완성(Goal 37~38·40) · v2.4.2 발행 완료
+- **Phase:** HARD_STOP 가드 완성(Goal 34~36·39·41) + 원자적 쓰기 완성(Goal 37~38·40) · v2.4.2 발행 완료 · 드리프트 교정(19/31/32 DONE) → self-gate 백로그(42~46) 착수
 - **블로커:** 없음
 - **진행 중(미발행):** Goal 30(#139)·Goal 33(#162/#179 DONE)·chore #168 — npm 2.4.2 미포함(발행 베이스 이후 머지) → 다음 2.4.3
-- **다음 할 일:** 2.4.3 발행 대기(더 모으는 중) — Goal 30·33·#168 묶음. (tag v2.4.2 → 131e3c3 = npm tarball 정확일치, main release 커밋은 09e4b88 — cosmetic 이라 둠)
+- **다음 할 일:** P0 Goal 42(릴리즈 준비 게이트)부터 P2 까지 순차 착수. 발행은 2.4.3 묶음(Goal 30·33·#168) 충분히 모이면 사용자 직접. (tag v2.4.2 → 131e3c3 = npm tarball 정확일치)
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유

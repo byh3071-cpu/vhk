@@ -19,6 +19,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   - goal 명령군(next/init/done) · memory 명령군(add/remove/archive/resolve/unarchive) · evolve(apply/reject/undo)·pattern(dismiss)·mission(set/clear) (Goal 34~36)
   - 나머지 상태쓰기 명령: `design`·`theme`·`env`·`ref add`·`cloud push` (Goal 39)
   - **MCP 서버 surface** (`save`·`undo`·`env`) — CLI `guardCli` chokepoint 를 우회해 git/파일 쓰기를 인라인 재구현하던 핸들러에 `hardStopBlocked` 가드 신설. MCP stdio(JSON-RPC) 오염 방지로 console 대신 안내 content 반환 (Goal 41).
+- **`vhk doctor` 진단 엔진 재작성** (Goal 31, #144) — Node·pnpm·git·OS·npm 진단을 `src/doctor/diagnostics/*` 모듈로 분리, `runner.ts` 가 `Promise.all` 동시 수집 + throw 격리(한 진단 실패가 전체를 멈추지 않음). 읽기전용(자동수정 0).
+- **`vhk standup` 아침 브리핑** (Goal 32, #146) — 어제 한 일(git log) + 오늘 추천 goal + 미해결을 한 화면에. 날짜 범위·소스 병합을 `src/daily/` 공유 모듈로 분리(Goal 33 `today` 와 코드 재사용).
 
 ### Changed
 

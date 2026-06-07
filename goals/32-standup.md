@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 32
 title: vhk standup — 아침 브리핑(어제 한 일 + 오늘 할 일) — P2
-status: IN_PROGRESS
+status: DONE
 priority: P2
 created: 2026-06-06
+completed: 2026-06-08
 leads_to: goal-33-today
 ---
 
@@ -29,13 +30,13 @@ leads_to: goal-33-today
 - `standup.ts`가 3개 소스 병합.
 
 ## Completion Check
-- [ ] `vhk standup`이 어제 요약 + 오늘 추천을 한 화면에 출력
-- [ ] '어제' = 마지막 활동일(주말·공백 skip) 정확 계산
-- [ ] git log·goal 상태·(Phase 2)Dev Log 병합, 빈 Dev Log는 git log로 보완
-- [ ] daily 모듈을 Goal 33과 공유 가능한 구조(범위 필터 주입식)
-- [ ] 날짜 필터/병합 로직 vitest mock
-- [ ] vhk goal sync → check-goal-32.mjs → vhk goal check --id 32 통과
-- [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
+- [x] `vhk standup`이 어제 요약 + 오늘 추천을 한 화면에 출력
+- [x] '어제' = 마지막 활동일(주말·공백 skip) 정확 계산
+- [x] git log·goal 상태·(Phase 2)Dev Log 병합, 빈 Dev Log는 git log로 보완
+- [x] daily 모듈을 Goal 33과 공유 가능한 구조(범위 필터 주입식)
+- [x] 날짜 필터/병합 로직 vitest mock
+- [x] vhk goal sync → check-goal-32.mjs → vhk goal check --id 32 통과
+- [x] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
 
 ## 제외 범위 (v0)
 - 우선순위 추천 고도화 / 텔레그램 아침 푸시 알림(Phase 3, 선택)

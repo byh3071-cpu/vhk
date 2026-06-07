@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 19
 title: 패턴 감지 — pattern detection v0 (반복 실패·성공 → avoid/reinforce 후보) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 version: v2.1.0
+completed: 2026-06-08
 ---
 
 # Goal 19: pattern detection v0 (Evolution Loop 도미노 3)
@@ -40,15 +41,15 @@ version: v2.1.0
 ① 읽기·제안만 — **RULES.md/적용 반영 0**(Goal 20 영역, 안전 1원칙 "자동 학습 OK·자동 적용 금지") ② active 만 입력 — 선순환 닫힘 존중(해결·보관된 실수는 다시 안 운다) ③ 보수적 임계 — 거짓 패턴보다 미탐 선호 ④ 결정적·멱등 — 재실행해도 중복·표류 0 ⑤ v0 구조/빈도 — 의미·ML 은 미래(v3 Hub), 의존성 0 유지 ⑥ Windows 1급·`safeExecFile`(구현 시).
 
 ## Completion Check
-- [ ] `PatternEntry` 구체 타입(kind/axis/signal/count/sources/summary/status/tags) — placeholder 대체
-- [ ] `detect`: active failures+successes 2축(태그군집·키워드빈도) 감지 → `avoid`/`reinforce` 후보
-- [ ] 보수적 임계 기본 3(`--min` 조정) · `resolved`/`archived` 입력 제외 검증
-- [ ] 멱등 — 재실행 시 시그니처 병합(중복 patterns 0), 결정적 정렬
-- [ ] `vhk pattern list`(--kind/--all) · `dismiss <n>`(→archived) · 별칭 `패턴` + NLP 라우팅
-- [ ] **반영 0 회귀 가드** — detect 가 RULES.md/memory 외 파일·다른 버킷 무변경
-- [ ] MCP `pattern detect`·`list` 노출(비대화형) · secret 누출 0(secure scan)
-- [ ] vhk goal sync → check-goal-19.mjs 생성 → vhk goal check --id 19 통과
-- [ ] 신규 테스트(감지·임계·멱등·반영0) + 공통 게이트(typecheck+test+build), 기존 회귀 0
+- [x] `PatternEntry` 구체 타입(kind/axis/signal/count/sources/summary/status/tags) — placeholder 대체
+- [x] `detect`: active failures+successes 2축(태그군집·키워드빈도) 감지 → `avoid`/`reinforce` 후보
+- [x] 보수적 임계 기본 3(`--min` 조정) · `resolved`/`archived` 입력 제외 검증
+- [x] 멱등 — 재실행 시 시그니처 병합(중복 patterns 0), 결정적 정렬
+- [x] `vhk pattern list`(--kind/--all) · `dismiss <n>`(→archived) · 별칭 `패턴` + NLP 라우팅
+- [x] **반영 0 회귀 가드** — detect 가 RULES.md/memory 외 파일·다른 버킷 무변경
+- [x] MCP `pattern detect`·`list` 노출(비대화형) · secret 누출 0(secure scan)
+- [x] vhk goal sync → check-goal-19.mjs 생성 → vhk goal check --id 19 통과
+- [x] 신규 테스트(감지·임계·멱등·반영0) + 공통 게이트(typecheck+test+build), 기존 회귀 0
 
 ## 제외 범위
 - 후보 → 적용/반영(RULES.md), `evolve`, 사람말 카드 [예/아니오/나중에], 기여 실패 `resolved` 닫기 → **Goal 20**.

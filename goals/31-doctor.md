@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 31
 title: vhk doctor — 개발 환경 정기검진(Node·pnpm·git·OS·VHK·MCP·audit) — P2
-status: IN_PROGRESS
+status: DONE
 priority: P2
 created: 2026-06-06
+completed: 2026-06-08
 ---
 
 # Goal 31: vhk doctor (환경 정기검진)
@@ -31,13 +32,13 @@ created: 2026-06-06
 - 모듈 = `diagnostics/*.ts`(node·pnpm·git·os·vhk·mcp·audit), 결과 `{ name, status, value, advice }[]`, 항목마다 권장 조치 제시.
 
 ## Completion Check
-- [ ] `vhk doctor`가 7개 항목 진단 후 사람이 읽을 리포트 출력
-- [ ] 문제 항목마다 구체적 권장 조치(advice) 제시
-- [ ] 자동 수정 경로 0건(진단만 — grep 확인)
-- [ ] MCP 29개 병렬 핑이 막힌 도구에서 전체 멈추지 않음(timeout 격리)
-- [ ] 각 diagnostic 모듈 vitest mock(버전/플랫폼 응답 시뮬레이션)
-- [ ] vhk goal sync → check-goal-31.mjs → vhk goal check --id 31 통과
-- [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
+- [x] `vhk doctor`가 7개 항목 진단 후 사람이 읽을 리포트 출력
+- [x] 문제 항목마다 구체적 권장 조치(advice) 제시
+- [x] 자동 수정 경로 0건(진단만 — grep 확인)
+- [x] MCP 29개 병렬 핑이 막힌 도구에서 전체 멈추지 않음(timeout 격리)
+- [x] 각 diagnostic 모듈 vitest mock(버전/플랫폼 응답 시뮬레이션)
+- [x] vhk goal sync → check-goal-31.mjs → vhk goal check --id 31 통과
+- [x] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
 
 ## 제외 범위 (v0)
 - 자동 수정(환경 손상 방지로 의도 배제) / `vhk doctor --json` 외부 소비(Phase 3)
