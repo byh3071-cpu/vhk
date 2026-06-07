@@ -31,7 +31,7 @@ function saveRefs(refs: RefEntry[]): void {
 }
 
 export async function refAdd(url: string, memo = ''): Promise<void> {
-  if (!ensureNotHardStopped('refAdd')) return
+  if (!ensureNotHardStopped('ref add')) return // HARD_STOP 활성 시 refs.json 쓰기 차단
   console.log(chalk.bold('\n🔗 ' + t('ref.addTitle')))
   console.log(chalk.gray('─'.repeat(40)))
 

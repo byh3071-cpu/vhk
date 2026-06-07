@@ -54,7 +54,7 @@ function ensureGitignore(): void {
 }
 
 export async function env(): Promise<void> {
-  if (!ensureNotHardStopped('env')) return
+  if (!ensureNotHardStopped('env')) return // HARD_STOP 활성 시 .env.example/.gitignore 쓰기 차단
   console.log(chalk.bold('\n🔐 ' + t('env.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
