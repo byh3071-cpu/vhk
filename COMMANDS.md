@@ -72,6 +72,16 @@ Cursor에게 한국어로 말해도 됩니다.
 
 > `preflight` 는 publish/PR 직전 **2FA·shim·worktree env·lint·타입·테스트·git·브랜치 8개**를 한 번에 점검합니다. 치명(🔴: env/lint/타입/테스트) 실패가 1개라도 있으면 `--force` 없이 차단(exit 1). 기본 테스트는 `vitest --changed`(통과분 캐시 스킵), `--full` 로 전체 실행. (읽기 전용 — 자동 수정은 후속)
 
+## worktree 가드 (worktree)
+
+| 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
+|-------------|-----------|------------------|
+| 새 worktree 생성 + env 복사 | `vhk worktree add feat/login` | "worktree 만들어줘" |
+| 생성 + pnpm install까지 | `vhk worktree add feat/login --install` | "worktree 만들고 설치까지" |
+| 현재 worktree env 점검 | `vhk worktree check` | "worktree env 점검해" |
+
+> `worktree add` 는 `git worktree add` 로 새 worktree를 만들고 필수 env/설정(`.env*` + `.vhk/config.json`의 `worktreeCopy`)을 **파일 복사**(심볼릭 링크 X — Windows 안정)로 채웁니다. 비밀값은 **절대 출력 안 함**(env는 키 개수만). 대상 경로가 이미 있으면 덮어쓰지 않고 중단. git 훅은 건드리지 않습니다. `worktree check` 는 현재 worktree의 필수 env 누락을 개수로 점검(Goal 29 `worktree-env` 모듈 재사용).
+
 ## 환경 점검
 
 ```bash
