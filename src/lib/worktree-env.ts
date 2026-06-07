@@ -15,10 +15,18 @@ export interface EnvCheckResult {
   severity: Severity
 }
 
-// `KEY=value` 줄에서 KEY 만 추출. 주석(#)·빈 줄·'=' 없는 줄은 무시.
+export interface EnvKeySpec {
+  key: string
+  /** #172: 트레일링 `# ... optional ...` 주석이 붙은 키 → 누락해도 preflight 차단 안 함. */
+  optional: boolean
+}
+
+// `KEY=value [# optional]` 줄을 파싱 — 키 + 선택 여부(#172). 주석(#)·빈 줄·'=' 없는 줄은 무시.
 // `export KEY=` 접두사 허용(.env.example 관례). nested/multiline 미지원(flat 만).
-export function parseEnvKeys(content: string): string[] {
-  const keys: string[] = []
+// 선택 판정: '=' 뒤(값 영역)에 시작하는 주석(#)에 'optional' 단어가 있으면 선택 키.
+// (값 중간의 # — 예: PASS=ab#cd — 도 주석으로 보지만 'optional' 없으면 필수 유지 → 오탐 0.)
+export function parseEnvSpec(content: string): EnvKeySpec[] {
+  const specs: EnvKeySpec[] = []
   for (const raw of content.split(/\r?\n/)) {
     let line = raw.trim()
     if (!line || line.startsWith('#')) continue
@@ -26,9 +34,18 @@ export function parseEnvKeys(content: string): string[] {
     const idx = line.indexOf('=')
     if (idx <= 0) continue
     const key = line.slice(0, idx).trim()
-    if (key) keys.push(key)
+    if (!key) continue
+    const afterEq = line.slice(idx + 1)
+    const hashIdx = afterEq.indexOf('#')
+    const comment = hashIdx >= 0 ? afterEq.slice(hashIdx) : ''
+    specs.push({ key, optional: /\boptional\b/i.test(comment) })
   }
-  return keys
+  return specs
+}
+
+// `KEY=value` 줄에서 KEY 만 추출(선택 여부 무시 — present 비교용). parseEnvSpec 의 키 투영.
+export function parseEnvKeys(content: string): string[] {
+  return parseEnvSpec(content).map((s) => s.key)
 }
 
 // required 중 present 에 없는 키만 반환(순서 보존).
@@ -48,14 +65,18 @@ export function checkWorktreeEnv(input: {
   if (input.exampleContent === null) {
     return { name, status: 'skip', detail: '.env.example 없음 — 필수 키 명세 없음', severity }
   }
-  const required = parseEnvKeys(input.exampleContent)
+  // #172: `# optional` 마커가 붙은 키는 필수에서 제외 — 문서화된 선택 설정이 출고를 막지 않게.
+  const spec = parseEnvSpec(input.exampleContent)
+  const required = spec.filter((s) => !s.optional).map((s) => s.key)
+  const optionalCount = spec.length - required.length
+  const optSuffix = optionalCount ? ` (+${optionalCount} optional)` : ''
   if (required.length === 0) {
-    return { name, status: 'skip', detail: '.env.example 에 필수 키 없음', severity }
+    return { name, status: 'skip', detail: '.env.example 에 필수 키 없음' + optSuffix, severity }
   }
   const present = input.envContent === null ? [] : parseEnvKeys(input.envContent)
   const missing = missingEnvKeys(required, present)
   if (missing.length === 0) {
-    return { name, status: 'pass', detail: `${required.length}/${required.length} keys present`, severity }
+    return { name, status: 'pass', detail: `${required.length}/${required.length} required keys present${optSuffix}`, severity }
   }
   return {
     name,

@@ -22,7 +22,14 @@ export interface PreflightDeps {
   nodeVersion: string // 예: process.version ('v20.18.0')
   hasLinter: boolean // eslint 설정/스크립트 존재 여부
   worktreeEnv: () => PreflightCheck // checkWorktreeEnvDir 래핑(주입)
+  // #173: 패키지 스크립트 우선 실행용. 없으면 기존 npx 폴백(하위호환).
+  pm?: string // 'pnpm' | 'yarn' | 'npm'
+  scripts?: Record<string, string> // package.json scripts
+  hasVitest?: boolean // vitest 설치/설정 여부 (없으면 테스트 하드코딩 강제 안 함)
 }
+
+/** 명령 실행 spec — 스크립트 우선 해석 결과. */
+export type CmdSpec = { bin: string; args: string[] }
 
 const check = (
   name: string,
@@ -30,6 +37,12 @@ const check = (
   detail: string,
   severity: Severity
 ): PreflightCheck => ({ name, status, detail, severity })
+
+// #173: 실패 명령의 캡처 출력을 증거로 한 줄 요약(요약만 — 비밀 누출 우려 적은 stderr/stdout 앞부분).
+function evidence(r: { out: string; err?: string }): string {
+  const s = (r.err || r.out || '').trim().replace(/\s+/g, ' ')
+  return s ? s.slice(0, 160) : '출력 확인'
+}
 
 // ── 순수: Node .cmd shim CVE-2024-27980 안전 버전 판정 (20.12+ / 21.7+) ──
 export function nodeMeetsShimSafe(version: string): boolean {
@@ -59,29 +72,48 @@ export function checkShim(nodeVersion: string): PreflightCheck {
   return check('shim', 'warn', `Node ${nodeVersion} — .cmd shim CVE 취약(20.12+/21.7+ 권장)`, 'high')
 }
 
-export function checkLint(run: Runner, hasLinter: boolean): PreflightCheck {
+// #173: lintCmd(패키지 스크립트) 있으면 그걸 실행, 없을 때만 npx eslint 폴백. 실패 시 출력 증거 포함.
+export function checkLint(run: Runner, hasLinter: boolean, lintCmd?: CmdSpec): PreflightCheck {
+  if (lintCmd) {
+    const r = run(lintCmd.bin, lintCmd.args)
+    return r.ok
+      ? check('lint', 'pass', '0 errors', 'critical')
+      : check('lint', 'fail', `lint 오류 — ${evidence(r)}`, 'critical')
+  }
   if (!hasLinter) {
     return check('lint', 'skip', 'eslint 미설정 — 린트 스킵', 'critical')
   }
   const r = run('npx', ['eslint', '.'])
   return r.ok
     ? check('lint', 'pass', '0 errors', 'critical')
-    : check('lint', 'fail', 'eslint 오류 — 출력 확인', 'critical')
+    : check('lint', 'fail', `eslint 오류 — ${evidence(r)}`, 'critical')
 }
 
 export function checkTypecheck(run: Runner): PreflightCheck {
   const r = run('npx', ['tsc', '--noEmit'])
   return r.ok
     ? check('typecheck', 'pass', 'tsc --noEmit pass', 'critical')
-    : check('typecheck', 'fail', 'tsc 타입 오류 — 출력 확인', 'critical')
+    : check('typecheck', 'fail', `tsc 타입 오류 — ${evidence(r)}`, 'critical')
 }
 
-export function checkTests(run: Runner, opts: { full?: boolean }): PreflightCheck {
-  const args = opts.full ? ['vitest', '--run'] : ['vitest', '--changed', '--run']
-  const r = run('npx', args)
+// #173: testCmd 우선 — {bin,args}=그 스크립트 실행, null=테스트 수단 없음→skip, undefined=npx vitest 폴백.
+export function checkTests(
+  run: Runner,
+  opts: { full?: boolean },
+  testCmd?: CmdSpec | null
+): PreflightCheck {
+  if (testCmd === null) {
+    return check('tests', 'skip', '테스트 스크립트/vitest 없음 — 스킵', 'critical')
+  }
+  const spec: CmdSpec = testCmd ?? {
+    bin: 'npx',
+    args: opts.full ? ['vitest', '--run'] : ['vitest', '--changed', '--run'],
+  }
+  const r = run(spec.bin, spec.args)
+  const passDetail = testCmd ? '통과' : opts.full ? '전체 통과' : '변경분 통과(캐시 스킵)'
   return r.ok
-    ? check('tests', 'pass', opts.full ? '전체 통과' : '변경분 통과(캐시 스킵)', 'critical')
-    : check('tests', 'fail', '테스트 실패 — 출력 확인', 'critical')
+    ? check('tests', 'pass', passDetail, 'critical')
+    : check('tests', 'fail', `테스트 실패 — ${evidence(r)}`, 'critical')
 }
 
 export function checkGitClean(run: Runner): PreflightCheck {
@@ -138,13 +170,32 @@ export function statusIcon(c: PreflightCheck): string {
 
 // ── 오케스트레이션: 8개 항목 점검(읽기 전용, Phase 1) ──
 export function runPreflight(opts: PreflightOptions, deps: PreflightDeps): PreflightCheck[] {
+  // #173: 패키지 스크립트 우선 해석. 모든 PM 이 `<pm> run <script>` 를 지원하므로 통일.
+  const pm = deps.pm ?? 'npm'
+  const scripts = deps.scripts ?? {}
+  const mkCmd = (name: string): CmdSpec => ({ bin: pm, args: ['run', name] })
+
+  const lintCmd = scripts.lint ? mkCmd('lint') : undefined
+
+  // 테스트: 일회성(run) 스크립트 우선 → vitest 폴백 → 비-vitest test 스크립트 → 없으면 skip.
+  // bare `test` 를 vitest 폴백보다 뒤에 두는 건 의도적 — `test:"vitest"`(watch) 가 preflight 를
+  // 멈추게 하는 회귀 방지. (test:run/test:ci 는 관례상 일회성.)
+  // harness(test:gate 우선)와 순서가 다른 것도 의도적 — preflight 는 읽기 전용 게이트라 deploy smoke
+  // 등 side-effect 가능성이 있는 test:gate 보다 순수 일회성 test:run 을 우선한다.
+  let testCmd: CmdSpec | null | undefined
+  const testScriptName = ['test:run', 'test:ci', 'test:gate'].find((n) => scripts[n])
+  if (testScriptName) testCmd = mkCmd(testScriptName)
+  else if (deps.hasVitest) testCmd = undefined // npx vitest --changed/--run 폴백
+  else if (scripts.test) testCmd = mkCmd('test') // 비-vitest test 스크립트(최후)
+  else testCmd = null // 테스트 수단 없음 → skip(하드코딩 강제 안 함)
+
   return [
     checkNpmAuth(deps.run),
     checkShim(deps.nodeVersion),
     deps.worktreeEnv(),
-    checkLint(deps.run, deps.hasLinter),
+    checkLint(deps.run, deps.hasLinter, lintCmd),
     checkTypecheck(deps.run),
-    checkTests(deps.run, { full: opts.full }),
+    checkTests(deps.run, { full: opts.full }, testCmd),
     checkGitClean(deps.run),
     checkBranch(deps.run),
   ]
