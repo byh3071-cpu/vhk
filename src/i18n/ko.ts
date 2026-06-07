@@ -456,6 +456,10 @@ export const ko = {
     skippedFiles: (n: number) =>
       `⚠ 스키마 불일치로 무시된 파일 ${n}개 (goal 로 안 잡힘 — silent skip):`,
     notFound: (id: number) => `goal id ${id} 없음 — vhk goal list 로 확인하세요.`,
+    driftTitle: '🔍 Goal 상태↔코드 드리프트 점검',
+    driftClean: 'goal 상태 드리프트 없음 (구현 흔적 있는데 NOT_STARTED 인 goal 0건)',
+    driftFound: (n: number) =>
+      `드리프트 의심 ${n}건 — check-goal 게이트에 goal 고유 검증이 있는데 status: NOT_STARTED:`,
   },
   agent: {
     blockerTitle: '🛑 Blocker 기록',
