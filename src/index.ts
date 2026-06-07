@@ -298,8 +298,10 @@ program
   .alias('환경')
   .alias('진단')
   .option('--strict', '규칙 드리프트 발견 시 실패 처리 (exit 1, CI 게이트용)')
-  .description('개발 환경 점검 — Node/Git/npm 상태 확인')
-  .action(async (opts: { strict?: boolean }) => { await doctor(opts) })
+  .option('--audit', '의존성 보안 audit 포함 (기본 생략 — pnpm/yarn/npm audit)')
+  .option('--json', '진단 결과를 JSON 으로 출력 (CI/MCP용 — 제목·드리프트 생략)')
+  .description('개발 환경 점검 — Node/npm/pnpm/git/OS + VHK/MCP/audit 진단')
+  .action(async (opts: { strict?: boolean; audit?: boolean; json?: boolean }) => { await doctor(opts) })
 
 program
   .command('save')

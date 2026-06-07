@@ -10,13 +10,16 @@ import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
 import os from 'node:os'
 import type { Runner } from '../lib/preflight.js'
 import { runDiagnostics } from '../doctor/runner.js'
-import { formatDiagnostics } from '../doctor/report.js'
+import { formatDiagnostics, formatDiagnosticsJson } from '../doctor/report.js'
 import { diagNode } from '../doctor/diagnostics/node.js'
 import { diagNpm } from '../doctor/diagnostics/npm.js'
 import { diagPnpm } from '../doctor/diagnostics/pnpm.js'
 import { diagGit } from '../doctor/diagnostics/git.js'
 import { diagOs } from '../doctor/diagnostics/os.js'
-import type { DiagDeps, DoctorOptions } from '../doctor/types.js'
+import { buildVhkDiag } from '../doctor/diagnostics/vhk.js'
+import { buildMcpDiag, mcpToolCount } from '../doctor/diagnostics/mcp.js'
+import { buildAuditDiag } from '../doctor/diagnostics/audit.js'
+import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
 // (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
 import { fetchLatestNpmVersion, compareSemver, recordLatest } from '../lib/version-check.js'
@@ -60,10 +63,9 @@ function getVhkVersion(): string | undefined {
 export async function doctor(opts: DoctorOptions = {}) {
   // 읽기전용 진단 — HARD_STOP 으로 막지 않는다(가드 docstring: '제외: 읽기전용(status 등)').
   // 오히려 HARD_STOP 켜진 순간이 환경 진단이 가장 필관리자 때.
-  console.log(chalk.bold(`\n${ko.doctor.title}\n`))
+  const cwd = process.cwd()
 
-  // 환경 진단(Phase 1: Node/pnpm/git/OS) — doctor 엔진(병렬 + throw 격리, 진단만).
-  // Node 판정은 Goal 29 nodeMeetsShimSafe 재사용.
+  // 환경 진단 — doctor 엔진(throw 격리, 진단만). Node 판정은 Goal 29 nodeMeetsShimSafe 재사용.
   const run: Runner = (cmd, args) => {
     const r = safeExecFile(cmd, args)
     return r.ok ? { ok: true, out: r.out } : { ok: false, out: r.out, err: r.err }
@@ -74,33 +76,38 @@ export async function doctor(opts: DoctorOptions = {}) {
     platform: process.platform,
     osRelease: os.release(),
   }
-  const diags = await runDiagnostics([diagNode, diagNpm, diagPnpm, diagGit, diagOs], opts, deps)
+  // Phase 2: VHK 설치/업데이트 · MCP 서버 무결성 · 의존성 audit(--audit 시) 추가.
+  const auditPm = fs.existsSync(path.join(cwd, 'pnpm-lock.yaml'))
+    ? 'pnpm'
+    : fs.existsSync(path.join(cwd, 'yarn.lock'))
+      ? 'yarn'
+      : 'npm'
+  const diagnostics: DiagFn[] = [
+    diagNode, diagNpm, diagPnpm, diagGit, diagOs,
+    () => {
+      const version = getVhkVersion()
+      const latest = version ? (fetchLatestNpmVersion('@byh3071/vhk') ?? null) : null
+      if (latest) recordLatest(latest) // 메뉴(getUpdateInfo) 캐시 적재
+      return buildVhkDiag({ version, latest })
+    },
+    async () => buildMcpDiag(await mcpToolCount()),
+    (o) => buildAuditDiag(o, () => run(auditPm, ['audit'])),
+  ]
+  const diags = await runDiagnostics(diagnostics, opts, deps)
+
+  // --json: 기계가독 출력만(제목·프로젝트파일·드리프트 생략) — Phase 2.
+  if (opts.json) {
+    console.log(formatDiagnosticsJson(diags))
+    return
+  }
+
+  console.log(chalk.bold(`\n${ko.doctor.title}\n`))
   for (const line of formatDiagnostics(diags)) console.log(line)
   const anyFail = diags.some((d) => d.status === 'fail')
   const warnCount = diags.filter((d) => d.status === 'warn').length
 
   console.log('')
-  const vhkVersion = getVhkVersion()
-  if (vhkVersion) {
-    console.log(chalk.green('  ✅ VHK') + chalk.dim(` — v${vhkVersion}`))
-  } else {
-    console.log(chalk.green('  ✅ VHK') + chalk.dim(' — 설치됨'))
-  }
-
-  if (vhkVersion) {
-    const latest = fetchLatestNpmVersion('@byh3071/vhk')
-    if (latest) recordLatest(latest) // 메뉴(getUpdateInfo)가 다음에 활용할 캐시 적재
-    if (latest && compareSemver(latest, vhkVersion) > 0) {
-      console.log(chalk.yellow(`  ${ko.doctor.updateAvailable(latest)}`))
-    } else if (latest) {
-      console.log(chalk.dim(`     ${ko.doctor.updateCurrent}`))
-    }
-  }
-
-  console.log('')
   console.log(chalk.bold(`  ${ko.doctor.projectFiles}`))
-
-  const cwd = process.cwd()
 
   const projectFiles = [
     { name: 'RULES.md', hint: 'vhk init으로 생성 가능' },

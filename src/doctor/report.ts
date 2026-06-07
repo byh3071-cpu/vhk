@@ -18,3 +18,8 @@ export function formatDiagnostics(diags: Diagnostic[]): string[] {
   }
   return lines
 }
+
+// 기계가독(CI·MCP) 출력 — --json (Phase 2).
+export function formatDiagnosticsJson(diags: Diagnostic[]): string {
+  return JSON.stringify(diags, null, 2)
+}
