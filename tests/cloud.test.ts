@@ -205,7 +205,11 @@ describe('cloud — cloudPush 기존 gist privacy purge (gh mock)', () => {
   beforeEach(() => {
     mockSafeExecFile.mockReset()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     repo = makeRepo()
+    // Goal 39: cloudPush 는 이제 HARD_STOP 가드를 가진다. 정상 push 경로를 테스트하므로
+    // makeRepo 가 남긴 트립와이어(.vhk/HARD_STOP, 원래 sync-제외 fixture)를 제거한다.
+    fs.rmSync(path.join(repo, '.vhk', 'HARD_STOP'), { force: true })
     fs.writeFileSync(path.join(repo, '.vhk', 'cloud.json'), JSON.stringify({ gistId: 'abc123' }) + '\n')
     origCwd = process.cwd()
     process.chdir(repo)
@@ -243,6 +247,14 @@ describe('cloud — cloudPush 기존 gist privacy purge (gh mock)', () => {
     const patchCalls = mockSafeExecFile.mock.calls
       .filter(c => c[0] === 'gh' && (c[1] as string[])[0] === 'api')
     expect(patchCalls).toEqual([])
+  })
+
+  it('HARD_STOP 활성 → cloudPush 가 gh 를 전혀 호출하지 않는다 (Goal 39)', async () => {
+    // 가드는 함수 첫 줄(ensureGhReady·collect 전) → safeExecFile 호출 0.
+    fs.writeFileSync(path.join(repo, '.vhk', 'HARD_STOP'), '2026-06-07T00:00:00Z\nauto: test\n')
+    const { cloudPush } = await import('../src/commands/cloud.js')
+    await cloudPush()
+    expect(mockSafeExecFile).not.toHaveBeenCalled()
   })
 })
 
