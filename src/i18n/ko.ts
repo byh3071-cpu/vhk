@@ -233,6 +233,15 @@ export const ko = {
     unresolved: '⚠️ 미해결',
     commitsLine: (n: number) => `커밋 ${n}개`,
   },
+  today: {
+    title: (d: string) => `🎉 Today — ${d}`,
+    done: '✅ 해낸 것',
+    commits: (n: number) => `커밋 ${n}개`,
+    doneGoals: (n: number) => `완료 goal ${n}개`,
+    devlogs: (n: number, m: number) => (m > 0 ? `Dev Log ${n}건 (교훈 ${m}개)` : `Dev Log ${n}건`),
+    restDay: '오늘은 기록이 없네 — 쉬어가는 것도 하루.',
+    restEncourage: '쉬는 것도 페이스의 일부. 내일 또.',
+  },
   nlp: {
     matched: '이게 맞나요?',
     notMatched: '무슨 뜻인지 모르겠어요. vhk를 입력하면 메뉴에서 선택할 수 있습니다.',

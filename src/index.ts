@@ -43,6 +43,7 @@ import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
 import { preflight } from './commands/preflight.js'
 import { standup } from './commands/standup.js'
+import { today } from './commands/today.js'
 import { review } from './commands/review.js'
 import { missionSet, missionShow, missionCheck, missionClear } from './commands/mission.js'
 import { runGuarded } from './lib/safety-guard.js'
@@ -147,6 +148,7 @@ const KO_ALIASES: Record<string, string> = {
   goal: '목표',
   preflight: '출고점검',
   standup: '아침',
+  today: '회고',
   review: '검토',
   mission: '미션',
   blocker: '블로커',
@@ -481,6 +483,12 @@ program
   .alias('아침')
   .description('아침 브리핑 — 어제 한 일(마지막 활동일 커밋·완료 goal) + 오늘 추천 + 미해결 (읽기 전용)')
   .action(async () => { await standup() })
+
+program
+  .command('today')
+  .alias('회고')
+  .description('저녁 자축·회고 — 오늘 커밋·완료 goal 카운트 + 격려 (읽기 전용)')
+  .action(async () => { await today() })
 
 program
   .command('review')
