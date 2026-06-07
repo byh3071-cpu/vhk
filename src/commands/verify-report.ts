@@ -121,7 +121,11 @@ ${rows}
 ${actions}
     </ul>
     <footer>
-      생성: ${escapeHtml(report.generatedAt)} · 날짜: ${escapeHtml(report.date)} · schema v${report.schemaVersion}
+      생성: ${escapeHtml(report.generatedAt)} · 날짜: ${escapeHtml(report.date)} · schema v${report.schemaVersion}${
+        report.commit
+          ? ` · 커밋 ${escapeHtml(report.commit.shortSha)}${report.commit.dirty ? ' (dirty)' : ''}`
+          : ''
+      }
     </footer>
   </div>
 </body>
