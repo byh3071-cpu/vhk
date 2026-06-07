@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 44
 title: 증거↔커밋 SHA 바인딩 — verify 리포트에 HEAD SHA·dirty 기록 — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-07
+completed: 2026-06-08
 leads_to: 증거 신선도 검증 (낡은 PASS 차단)
 ---
 
@@ -26,12 +27,12 @@ leads_to: 증거 신선도 검증 (낡은 PASS 차단)
 - 코드 바뀐 뒤 낡은 증거로 done 처리하면 게이트가 "증거 불일치"로 잡는다.
 
 ## Completion Check
-- [ ] VerifyReport에 HEAD SHA + dirty 기록
-- [ ] 게이트에서 SHA≠HEAD/dirty 시 경고·fail
-- [ ] SHA 수집은 기존 git-access 통로(새 execSync 없음)
-- [ ] 회귀 테스트
-- [ ] check-goal-44.mjs 통과
-- [ ] 공통 게이트(typecheck+test+build) 통과, 회귀 0
+- [x] VerifyReport에 HEAD SHA + dirty 기록
+- [x] 게이트에서 SHA≠HEAD/dirty 시 경고·fail
+- [x] SHA 수집은 기존 git-access 통로(새 execSync 없음)
+- [x] 회귀 테스트
+- [x] check-goal-44.mjs 통과
+- [x] 공통 게이트(typecheck+test+build) 통과, 회귀 0
 
 ## Mandatory Reading
 - src/commands/verify.ts · src/commands/verify-report.ts

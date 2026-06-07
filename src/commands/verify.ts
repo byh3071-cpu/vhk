@@ -14,6 +14,7 @@ import { scanProjectForSecrets, filterSevereFindings } from '../lib/scan-secrets
 import { renderReportHtml } from './verify-report.js'
 import { isInteractive } from '../lib/interactive.js'
 import { safeExecFile } from '../lib/exec.js'
+import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -33,7 +34,8 @@ export function verificationChecklist(): string[] {
   ]
 }
 
-export const REPORT_SCHEMA_VERSION = 1
+// v2: Goal 44 — commit(HEAD SHA + dirty) 바인딩 추가. v1 리포트(commit 없음)도 읽기 호환.
+export const REPORT_SCHEMA_VERSION = 2
 export const REPORT_DIR_REL = join('.vhk', 'reports')
 export const REPORT_PATH_REL = join(REPORT_DIR_REL, 'latest.json')
 /** Goal 14: 사람용 정적 HTML 리포트 경로(같은 증거 latest.json 을 렌더). */
@@ -65,6 +67,8 @@ export interface VerifyReport {
   summary: { total: number; pass: number; fail: number; skip: number }
   gates: GateResult[]
   nextActions: string[]
+  /** Goal 44: 이 증거가 어느 코드(커밋)에서 나왔는지. git 레포 아님/커밋 0개 → null. v1 리포트엔 없음(undefined). */
+  commit?: CommitInfo | null
 }
 
 const SHIM = new Set(['pnpm', 'npm', 'npx', 'yarn'])
@@ -236,7 +240,12 @@ export function buildNextActions(gates: GateResult[]): string[] {
 }
 
 /** 게이트 결과 → 리포트 객체(스키마). head(요약·기계용) + body(gates·사람용). */
-export function buildReport(gates: GateResult[], generatedAt: string, date: string): VerifyReport {
+export function buildReport(
+  gates: GateResult[],
+  generatedAt: string,
+  date: string,
+  commit: CommitInfo | null = null
+): VerifyReport {
   const summary = {
     total: gates.length,
     pass: gates.filter((g) => g.status === 'pass').length,
@@ -251,7 +260,40 @@ export function buildReport(gates: GateResult[], generatedAt: string, date: stri
     summary,
     gates,
     nextActions: buildNextActions(gates),
+    commit, // Goal 44: 증거↔커밋 바인딩
   }
+}
+
+export interface FreshnessResult {
+  /** 증거가 현재 코드와 어긋나는가(낡았는가). */
+  stale: boolean
+  /** 사람용 사유들 (없으면 신선). */
+  reasons: string[]
+}
+
+/**
+ * Goal 44: 증거(report) 가 현재 코드(current HEAD)와 일치하는지 검사 — 낡은 PASS 차단.
+ * 순수 함수(IO 없음). stale 사유:
+ *  - 리포트에 commit 없음(v1 구증거 — 신선도 증명 불가)
+ *  - 현재 커밋 미상(git 레포 아님/커밋 0개)
+ *  - 증거 SHA ≠ 현재 HEAD (코드가 바뀐 뒤의 낡은 증거)
+ *  - 증거 생성 시점 dirty / 현재 dirty (미커밋 변경 → 증거-코드 불일치)
+ */
+export function checkEvidenceFreshness(
+  report: VerifyReport,
+  current: CommitInfo | null
+): FreshnessResult {
+  const reasons: string[] = []
+  if (!report.commit) reasons.push('증거에 커밋 SHA 없음 (구버전 리포트 — vhk verify 로 재검증 필요)')
+  if (!current) reasons.push('현재 git 커밋을 알 수 없음 (git 레포 아님 또는 커밋 0개)')
+  if (report.commit && current && report.commit.sha !== current.sha) {
+    reasons.push(
+      `증거 SHA(${report.commit.shortSha}) ≠ 현재 HEAD(${current.shortSha}) — 코드가 바뀐 뒤의 낡은 증거`
+    )
+  }
+  if (report.commit?.dirty) reasons.push('증거 생성 시점에 working tree 가 dirty(미커밋 변경 포함)')
+  if (current?.dirty) reasons.push('현재 working tree 가 dirty — 증거와 코드가 어긋날 수 있음')
+  return { stale: reasons.length > 0, reasons }
 }
 
 /**
@@ -261,7 +303,9 @@ export function buildReport(gates: GateResult[], generatedAt: string, date: stri
  */
 export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyReport; path: string } {
   const gates = runGates(cwd)
-  const report = buildReport(gates, new Date().toISOString(), localDate())
+  // Goal 44: 증거를 지금 코드(커밋)에 묶는다. 기존 git-access 통로(getCommitInfo) 사용.
+  const commit = getCommitInfo(cwd)
+  const report = buildReport(gates, new Date().toISOString(), localDate(), commit)
 
   const dir = join(cwd, REPORT_DIR_REL)
   mkdirSync(dir, { recursive: true })
@@ -352,11 +396,63 @@ function openReportInBrowser(filePath: string): void {
   else console.log(chalk.yellow('  ⚠️  브라우저를 열 수 없습니다. 위 파일을 직접 여세요.'))
 }
 
-export async function verify(opts: { json?: boolean; report?: boolean; open?: boolean } = {}): Promise<void> {
+/**
+ * Goal 44: `--check-fresh` — 기존 증거(latest.json)가 현재 코드(HEAD)와 일치하는지 검사.
+ * 새 증거 안 만듦(읽기만). stale(SHA≠HEAD / dirty / commit 없음 / 증거 없음) → exit 1.
+ * "낡은 PASS 로 done 처리" 를 릴리즈/완료 게이트에서 잡는 진입점.
+ */
+async function checkFreshCommand(cwd: string): Promise<void> {
+  console.log(chalk.bold('\n🧪 증거 신선도 검사 (verify --check-fresh)'))
+  const jsonPath = join(cwd, REPORT_PATH_REL)
+  if (!existsSync(jsonPath)) {
+    console.log(chalk.red('  ❌ 증거 없음 — .vhk/reports/latest.json 이 없습니다. vhk verify 를 먼저 실행하세요.'))
+    process.exitCode = 1
+    return
+  }
+  let report: VerifyReport
+  try {
+    report = readJsonFile<VerifyReport>(jsonPath)
+  } catch {
+    console.log(chalk.red('  ❌ 증거 손상 — latest.json 파싱 실패. vhk verify 로 재생성하세요.'))
+    process.exitCode = 1
+    return
+  }
+  const current = getCommitInfo(cwd)
+  const fresh = checkEvidenceFreshness(report, current)
+  console.log(
+    chalk.dim(
+      `  증거 SHA: ${report.commit?.shortSha ?? '없음'}${report.commit?.dirty ? ' (dirty)' : ''} · ` +
+        `현재 HEAD: ${current?.shortSha ?? '미상'}${current?.dirty ? ' (dirty)' : ''}`
+    )
+  )
+  if (!fresh.stale) {
+    console.log(chalk.green('  ✅ 증거 신선 — 현재 코드와 일치 (SHA 동일·clean).'))
+    process.exitCode = 0
+    return
+  }
+  console.log(chalk.red('  ❌ 증거 불일치(낡음) — 아래 사유로 이 증거로 done/release 하면 안 됩니다:'))
+  for (const r of fresh.reasons) console.log(chalk.yellow(`     - ${r}`))
+  printNextStep({
+    message: '현재 코드 기준으로 재검증하세요:',
+    command: 'vhk verify',
+    cursorHint: '검증 다시 돌려줘',
+  })
+  process.exitCode = 1
+}
+
+export async function verify(
+  opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean } = {}
+): Promise<void> {
   // HARD_STOP 활성 → 게이트 실행 거부 + exit 1 (PRD §9).
   if (!ensureNotHardStopped('verify')) return
 
   const cwd = process.cwd()
+
+  // --check-fresh: 기존 증거 ↔ 현재 HEAD 신선도 검사(증거 안 만듦). 다른 모드보다 우선.
+  if (opts.checkFresh) {
+    await checkFreshCommand(cwd)
+    return
+  }
 
   // --report: latest.json → 사람용 HTML 렌더(증거는 만들지 않고 읽음; 없으면 선실행). json 보다 우선.
   if (opts.report) {
