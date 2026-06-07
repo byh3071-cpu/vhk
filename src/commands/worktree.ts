@@ -10,6 +10,7 @@ import { runWorktreeCheck } from '../worktree/check.js'
 import { collectCopyItems } from '../worktree/configList.js'
 import { copyAll, realCopyDeps } from '../worktree/copy.js'
 import { addWorktree, sanitizeBranchToDir } from '../worktree/add.js'
+import { detectPM, installCommandFor } from '../worktree/pm.js'
 import type { CopyResult, WorktreeOptions } from '../worktree/types.js'
 
 // safeExecFile → Runner 어댑터(외부 명령 단일 경로 — execSync 금지).
@@ -61,17 +62,23 @@ export async function worktreeAdd(branch: string | undefined, opts: WorktreeOpti
 
   const cwd = process.cwd()
   const copyDeps = realCopyDeps()
+  const run = realRunner()
+  const pm = detectPM(cwd) // 범용: pnpm 고정 X — lockfile 로 yarn/npm 자동 감지
   const result = addWorktree(
     branch,
     { install: opts.install },
     {
       sourceDir: cwd,
-      run: realRunner(),
+      run,
       exists: (p) => existsSync(p),
       // 형제 디렉터리: ../<repoName>-<branch>
       resolveTargetPath: (b) => join(dirname(cwd), sanitizeBranchToDir(basename(cwd), b)),
       collectItems: (s, t) => collectCopyItems(s, t),
       copyAll: (items) => copyAll(items, copyDeps),
+      installRun: (tp) => {
+        const { cmd, args } = installCommandFor(pm, tp)
+        return run(cmd, args)
+      },
     }
   )
 

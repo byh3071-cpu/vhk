@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 31
 title: vhk doctor — 개발 환경 정기검진(Node·pnpm·git·OS·VHK·MCP·audit) — P2
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P2
 created: 2026-06-06
 ---

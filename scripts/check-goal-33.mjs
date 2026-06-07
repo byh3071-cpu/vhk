@@ -74,7 +74,7 @@ must(!/ensureNotHardStopped/.test(read('src/commands/today.ts') ?? ''), 'today �
 // 공유 헬퍼: 요일 포맷 date.ts 로 추출(standup 인라인 중복 실제 축소)
 must(/formatYmdWeekday/.test(read('src/lib/date.ts') ?? ''), 'date.ts 에 formatYmdWeekday 공유 헬퍼')
 must(/formatYmdWeekday/.test(read('src/commands/standup.ts') ?? ''), 'standup 이 formatYmdWeekday 재사용(인라인 중복 제거)')
-must(!/function withWeekday/.test(read('src/commands/standup.ts') ?? ''), 'standup 인라인 withWeekday 제거됨')
+must(!/withWeekday/.test(read('src/commands/standup.ts') ?? ''), 'standup 인라인 요일 포맷(withWeekday 어떤 형태든) 제거됨 — 공유 헬퍼만')
 // CLI 단일소스 등록
 must(/today/.test(read('src/index.ts') ?? ''), 'index.ts 에 today 등록')
 must(/'today'/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry 등록')

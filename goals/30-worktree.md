@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 30
 title: vhk worktree 가드 — worktree 생성 시 env 누락 방지(자동복사/차단) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-06
+completed: 2026-06-07
 depends_on: goal-29-preflight
 ---
 

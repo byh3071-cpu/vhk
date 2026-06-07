@@ -9,6 +9,9 @@ export interface AddDeps {
   resolveTargetPath: (branch: string) => string
   collectItems: (sourceDir: string, targetDir: string) => CopyItem[]
   copyAll: (items: CopyItem[]) => CopyResult[]
+  // --install 시 설치 실행(주입). 호출자가 PM(pnpm/yarn/npm)을 감지해 적절한 명령으로 구성.
+  // 미주입 시 pnpm 폴백(하위호환).
+  installRun?: (targetPath: string) => { ok: boolean; out: string; err?: string }
 }
 
 export type AddStatus = 'created' | 'aborted-exists' | 'git-failed'
@@ -49,8 +52,10 @@ export function addWorktree(branch: string, opts: WorktreeOptions, deps: AddDeps
 
   let installed: boolean | undefined
   if (opts.install) {
-    // cwd 변경 없이 대상 디렉터리에서 설치(pnpm --dir <path> install).
-    const r = deps.run('pnpm', ['--dir', targetPath, 'install'])
+    // cwd 변경 없이 대상 디렉터리에서 설치. PM 감지는 호출자(installRun)가 담당 — 미주입 시 pnpm 폴백.
+    const r = deps.installRun
+      ? deps.installRun(targetPath)
+      : deps.run('pnpm', ['--dir', targetPath, 'install'])
     installed = r.ok
   }
 

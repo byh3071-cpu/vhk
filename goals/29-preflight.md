@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 29
 title: vhk preflight — 출고 전 안전점검 (publish/PR 직전 일괄 점검) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-06
+completed: 2026-06-07
 leads_to: goal-30-worktree
 ---
 
