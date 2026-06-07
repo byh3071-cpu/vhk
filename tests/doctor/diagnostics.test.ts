@@ -52,10 +52,20 @@ describe('diagPnpm', () => {
     expect(r.status).toBe('ok')
     expect(r.value).toContain('9.12.0')
   })
-  it('없음 → fail + 설치 안내', () => {
-    const r = diagPnpm({}, deps({}, { 'pnpm --version': { ok: false, out: '', err: 'not found' } }))
+  it('없음 + 프로젝트가 pnpm 사용 → fail + 설치 안내', () => {
+    const r = diagPnpm({}, deps({ selectedPM: 'pnpm' }, { 'pnpm --version': { ok: false, out: '', err: 'not found' } }))
     expect(r.status).toBe('fail')
     expect(r.advice).toBeTruthy()
+  })
+
+  it('#175: 없음 + pnpm 미사용(npm 프로젝트) → skip (fail 아님 → exit 1 유발 X)', () => {
+    const r = diagPnpm({}, deps({ selectedPM: 'npm' }, { 'pnpm --version': { ok: false, out: '', err: 'not found' } }))
+    expect(r.status).toBe('skip')
+  })
+
+  it('#175: 설치돼 있으면 PM 선택과 무관하게 ok', () => {
+    const r = diagPnpm({}, deps({ selectedPM: 'npm' }, { 'pnpm --version': { ok: true, out: '9.12.0' } }))
+    expect(r.status).toBe('ok')
   })
 })
 
