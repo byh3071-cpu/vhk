@@ -46,16 +46,32 @@ export async function preflight(opts: PreflightCliOptions = {}): Promise<void> {
     return r.ok ? { ok: true, out: r.out } : { ok: false, out: r.out, err: r.err }
   }
 
-  // lint 활성 여부 = lint 스크립트 또는 eslint 설정 존재.
-  let hasLintScript = false
+  // lint 활성 여부 = lint 스크립트 또는 eslint 설정 존재. + #173: scripts/PM/vitest 해석을 위해 pkg 전체 읽기.
+  let scripts: Record<string, string> = {}
+  let deps: Record<string, string> = {}
   try {
-    const pkg = readJsonFile<{ scripts?: Record<string, string> }>(join(cwd, 'package.json'))
-    hasLintScript = !!pkg.scripts?.lint
+    const pkg = readJsonFile<{
+      scripts?: Record<string, string>
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+    }>(join(cwd, 'package.json'))
+    scripts = pkg.scripts ?? {}
+    deps = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) }
   } catch {
-    // package.json 없거나 파싱 실패 → lint 스킵(아래 detectHasLinter 가 false 처리)
+    // package.json 없거나 파싱 실패 → lint/test 스킵(detectHasLinter false + testCmd null)
   }
   const hasEslintConfig = ESLINT_CONFIGS.some((f) => existsSync(join(cwd, f)))
-  const hasLinter = detectHasLinter({ hasLintScript, hasEslintConfig })
+  const hasLinter = detectHasLinter({ hasLintScript: !!scripts.lint, hasEslintConfig })
+
+  // #173: PM 감지(lockfile) + vitest 설정/설치 여부 → 하드코딩 toolchain 대신 프로젝트 실제 도구 사용.
+  const pm = existsSync(join(cwd, 'pnpm-lock.yaml'))
+    ? 'pnpm'
+    : existsSync(join(cwd, 'yarn.lock'))
+      ? 'yarn'
+      : 'npm'
+  // vitest 전용 시그널만 — vite.config 는 제외(Vite 프로젝트인데 vitest 미설치면 npx vitest 폴백 실패 오탐).
+  const VITEST_CONFIGS = ['vitest.config.ts', 'vitest.config.js', 'vitest.config.mjs', 'vitest.workspace.ts']
+  const hasVitest = !!deps.vitest || VITEST_CONFIGS.some((f) => existsSync(join(cwd, f)))
 
   const mode: PreflightOptions['mode'] = opts.publish ? 'publish' : opts.pr ? 'pr' : 'default'
   const checks = runPreflight(
@@ -65,6 +81,9 @@ export async function preflight(opts: PreflightCliOptions = {}): Promise<void> {
       nodeVersion: process.version,
       hasLinter,
       worktreeEnv: () => checkWorktreeEnvDir(cwd),
+      pm,
+      scripts,
+      hasVitest,
     }
   )
 
