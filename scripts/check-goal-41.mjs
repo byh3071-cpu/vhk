@@ -53,8 +53,14 @@ if (!skipDeep) {
 }
 
 // ─── goal 41 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// MCP 전용 상태변경 핸들러(save/undo/env)가 hardStopBlocked 가드를 가지는지 정적 확인.
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const mcpSrc = read('src/mcp/server.ts') ?? ''
+must(/import \{ isHardStopActive, readHardStopReason \} from '\.\.\/lib\/state-files\.js'/.test(mcpSrc), 'server.ts isHardStopActive import')
+must(/function hardStopBlocked\(/.test(mcpSrc), 'server.ts hardStopBlocked 헬퍼 정의')
+const guardCalls = (mcpSrc.match(/hardStopBlocked\('/g) ?? []).length
+must(guardCalls >= 3, `server.ts hardStopBlocked 호출 ${guardCalls}회(>=3: save/undo/env)`)
+must(existsSync('tests/mcp-hardstop.test.ts'), 'tests/mcp-hardstop.test.ts 존재')
 
 if (pass) { console.log('✅ goal 41 gate passes'); process.exit(0) }
 console.log('❌ goal 41 gate failed'); process.exit(1)

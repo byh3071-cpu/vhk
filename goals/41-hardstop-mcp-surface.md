@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 41
 title: HARD_STOP 가드 — MCP 서버 surface (직접쓰기 우회 차단) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-07
+completed: 2026-06-07
 ---
 
 # Goal 41: HARD_STOP 가드 — MCP 서버 surface
@@ -26,13 +27,22 @@ MCP 는 CLI 와 별개 surface. 현재 확인된 우회:
 - **B안**: 재구현된 핸들러(env 등)를 명령 함수 위임으로 교체 → 함수레벨 가드 자동 상속(중복 로직 제거 보너스).
 - 읽기전용 툴(status/diff/doctor/check/recap/log 등)은 제외.
 
+## 감사 결과 (전수)
+MCP 툴 = 3 부류:
+- **인라인 상태변경(가드 우회 → 가드함)**: `save`(git add/commit/push) · `undo`(git reset) · `env`(.env.example/.gitignore 쓰기). hardStopBlocked 가드 적용(채택 = A안: MCP 전용 content 반환 헬퍼).
+- **runVhkCli 위임(CLI 서브프로세스 → guardCli 상속 → 별도 가드 불필요)**: sync/secure/harness/context/brief/ref-list/memory-list/learn/context-show/mcp-init/pattern-detect/pattern-list/evolve-suggest/evolve-list. (learn=트립생성자라 CLI 측도 의도적 미가드.)
+- **MCP 모드 읽기전용(가드 불필요)**: status/diff/doctor/check/recap/env-check/audit/deploy/publish/migrate/update — deploy/publish/migrate/update/audit 는 "실제 미수행, 안내만".
+
+채택: A안. `ensureNotHardStopped`(console.error+exitCode)는 MCP stdio(JSON-RPC) 오염 → `hardStopBlocked(action)` 신설(content 반환, console 미사용).
+undo 가드는 top(save/env 일관) — preview 도 차단(되돌리기 목적 자체가 변경).
+
 ## Completion Check
-- [ ] MCP write 툴 전수 목록 + 각 가드 여부 표
-- [ ] env(및 기타 직접쓰기) 툴이 HARD_STOP 활성 시 파일 미변경
-- [ ] HARD_STOP 없으면 기존 동일(회귀 0)
-- [ ] 회귀 가드 테스트(MCP env 차단/정상)
-- [ ] vhk goal sync → check-goal-41.mjs → check --id 41 통과
-- [ ] 공통 게이트 통과
+- [x] MCP write 툴 전수 목록 + 각 가드 여부 표(위 감사 결과)
+- [x] save/undo/env 가 HARD_STOP 활성 시 파일/git 미변경 + 안내 반환
+- [x] HARD_STOP 없으면 기존 동일(env-ok 회귀 0)
+- [x] 회귀 가드 테스트(tests/mcp-hardstop.test.ts: env 차단/정상 + save/undo 차단)
+- [x] check-goal-41.mjs (import + 헬퍼 + 호출>=3 + 테스트존재) 통과
+- [x] 공통 게이트 통과
 
 ## Mandatory Reading
 - src/mcp/server.ts (registerTool 핸들러 — 특히 env ~387)
