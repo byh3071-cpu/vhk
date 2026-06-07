@@ -30,4 +30,18 @@ describe('scan-files', () => {
 
     fs.rmSync(tmp, { recursive: true })
   })
+
+  // #170: .cursor 는 tracked 에이전트 설정 디렉터리 → walk 대상 (캐시는 gitignore 가 거름)
+  it('.cursor/mcp.json 은 walk 대상에 포함', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-scan-cursor-'))
+    fs.mkdirSync(path.join(tmp, '.cursor'), { recursive: true })
+    fs.writeFileSync(path.join(tmp, '.cursor', 'mcp.json'), '{}\n')
+
+    const scanned: string[] = []
+    walkProjectFiles(tmp, (_abs, rel) => scanned.push(rel))
+
+    expect(scanned).toContain('.cursor/mcp.json')
+
+    fs.rmSync(tmp, { recursive: true })
+  })
 })
