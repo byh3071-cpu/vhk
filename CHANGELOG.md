@@ -7,6 +7,9 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 > main 에 머지됐으나 2.4.2 발행 시점 이후라 다음 릴리즈(2.4.3) 포함 예정.
 
 - **`vhk worktree` 가드** (Goal 30, #139) — worktree 생성 시 `.env` 자동 복사 + 누락 점검.
+- **`vhk worktree add --install` PM 자동감지** (#168) — lockfile 로 pnpm/yarn/npm 감지(기존 pnpm 하드코딩 → yarn/npm 프로젝트 설치 실패 위험 제거).
+- **`vhk doctor` Phase 2** (Goal 31, #177) — VHK·MCP·audit 진단 3종 + `--json`(CI·MCP용)·`--audit`(PM 자동감지 취약점 점검) 추가. 진단 전용(자동수정 0).
+- **`vhk standup`·`vhk today` DevLog 연동** (Goal 32·33, #178) — 로컬 dev log(`docs/log/`)를 파싱해 "어제 한 일"·"오늘 교훈"에 반영(공유 `daily/devlog.ts`, Notion 아님·인증 불요).
 - **`vhk today`** (Goal 33, #162) — 저녁 자축·회고 브리핑(git + goal 기반).
 
 ## [2.4.2] - 2026-06-07
