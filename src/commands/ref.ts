@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { readJsonFile } from '../lib/read-json.js'
 
 interface RefEntry {
@@ -30,6 +31,7 @@ function saveRefs(refs: RefEntry[]): void {
 }
 
 export async function refAdd(url: string, memo = ''): Promise<void> {
+  if (!ensureNotHardStopped('ref add')) return // HARD_STOP 활성 시 refs.json 쓰기 차단
   console.log(chalk.bold('\n🔗 ' + t('ref.addTitle')))
   console.log(chalk.gray('─'.repeat(40)))
 

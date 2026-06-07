@@ -42,6 +42,7 @@ import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
 import { preflight } from './commands/preflight.js'
+import { worktreeAdd, worktreeCheck } from './commands/worktree.js'
 import { standup } from './commands/standup.js'
 import { today } from './commands/today.js'
 import { review } from './commands/review.js'
@@ -147,6 +148,7 @@ const KO_ALIASES: Record<string, string> = {
   brief: '브리핑',
   goal: '목표',
   preflight: '출고점검',
+  worktree: '워크트리',
   standup: '아침',
   today: '자축',
   review: '검토',
@@ -477,6 +479,25 @@ program
   .option('--full', '테스트 전체 실행 (--changed 캐시 미사용)')
   .description('출고 전 안전점검 — 2FA·shim·env·lint·타입·테스트·git 8개 항목, 치명 실패 시 차단')
   .action(async (opts: { publish?: boolean; pr?: boolean; full?: boolean }) => { await preflight(opts) })
+
+const worktreeCmd = program
+  .command('worktree')
+  .alias('워크트리')
+  .description('worktree 가드 — 생성 시 필수 env/설정 자동 복사·누락 점검 (add / check)')
+  .action(async () => { await worktreeCheck() })
+
+worktreeCmd
+  .command('check')
+  .alias('점검')
+  .description('현재 worktree 의 필수 env 키 누락 점검 (개수만, 값 미노출)')
+  .action(async () => { await worktreeCheck() })
+
+worktreeCmd
+  .command('add <branch>')
+  .alias('추가')
+  .option('--install', 'worktree 생성 후 pnpm install 자동 실행')
+  .description('worktree 생성 + 필수 env/설정 자동 복사 (파일 복사·심볼릭 X, 비밀값 미노출)')
+  .action(async (branch: string, opts: { install?: boolean }) => { await worktreeAdd(branch, opts) })
 
 program
   .command('standup')

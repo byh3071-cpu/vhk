@@ -44,6 +44,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'mode', '모드',
   'verify', '사전점검',
   'preflight', '출고점검',
+  'worktree', '워크트리',
   'standup', '아침',
   'today', '자축',
   'review', '검토',

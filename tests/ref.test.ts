@@ -58,7 +58,9 @@ describe('ref', () => {
   })
 
   it('refAdd — 중복 URL이면 쓰지 않는다', async () => {
-    mockExistsSync.mockReturnValue(true)
+    // Goal 39: refAdd 는 HARD_STOP 가드를 가진다. blanket true 면 가드가 .vhk/HARD_STOP 을
+    // 활성으로 오인해 중복검사 전 단락 → path-aware 로 HARD_STOP 만 false(refs.json 은 true).
+    mockExistsSync.mockImplementation((p: unknown) => !String(p).includes('HARD_STOP'))
     mockReadFileSync.mockReturnValue(
       JSON.stringify([{ url: 'https://example.com', memo: '', addedAt: '2026-01-01' }])
     )

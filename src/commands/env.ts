@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 export function parseEnvKeys(content: string): string[] {
   return content
@@ -53,6 +54,7 @@ function ensureGitignore(): void {
 }
 
 export async function env(): Promise<void> {
+  if (!ensureNotHardStopped('env')) return // HARD_STOP 활성 시 .env.example/.gitignore 쓰기 차단
   console.log(chalk.bold('\n🔐 ' + t('env.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
