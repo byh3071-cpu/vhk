@@ -124,6 +124,58 @@ describe('checkTests', () => {
   })
 })
 
+describe('#173 — 스크립트 우선 + 출력 증거', () => {
+  it('lint 스크립트 있으면 npx eslint 대신 스크립트 실행', () => {
+    const { run, calls } = mockRunner({ 'pnpm run lint': { ok: true, out: '' } })
+    const r = checkLint(run, true, { bin: 'pnpm', args: ['run', 'lint'] })
+    expect(r.status).toBe('pass')
+    expect(calls).toContain('pnpm run lint')
+    expect(calls).not.toContain('npx eslint .')
+  })
+
+  it('lint 실패 시 출력 증거(detail)에 캡처', () => {
+    const { run } = mockRunner({ 'npx eslint .': { ok: false, out: '', err: '5 problems (5 errors)' } })
+    const r = checkLint(run, true)
+    expect(r.status).toBe('fail')
+    expect(r.detail).toContain('5 problems')
+  })
+
+  it('test:run 스크립트 있으면 vitest 대신 스크립트 실행', () => {
+    const { run, calls } = mockRunner({ 'pnpm run test:run': { ok: true, out: '' } })
+    const r = checkTests(run, {}, { bin: 'pnpm', args: ['run', 'test:run'] })
+    expect(r.status).toBe('pass')
+    expect(calls).toContain('pnpm run test:run')
+    expect(calls).not.toContain('npx vitest --changed --run')
+  })
+
+  it('테스트 도구/스크립트 없으면 skip (하드코딩 vitest 강제 안 함)', () => {
+    const { run, calls } = mockRunner({})
+    const r = checkTests(run, {}, null)
+    expect(r.status).toBe('skip')
+    expect(calls).toEqual([])
+  })
+
+  it('runPreflight 가 test:run/lint 스크립트를 우선 실행 (하드코딩 회피)', () => {
+    const { run, calls } = mockRunner({})
+    runPreflight(
+      {},
+      {
+        run,
+        nodeVersion: 'v20.18.0',
+        hasLinter: true,
+        worktreeEnv: (): PreflightCheck => ({ name: 'worktree env', status: 'pass', detail: '', severity: 'critical' }),
+        pm: 'pnpm',
+        scripts: { lint: 'eslint', 'test:run': 'vitest --run' },
+        hasVitest: true,
+      }
+    )
+    expect(calls).toContain('pnpm run lint')
+    expect(calls).toContain('pnpm run test:run')
+    expect(calls).not.toContain('npx eslint .')
+    expect(calls).not.toContain('npx vitest --changed --run')
+  })
+})
+
 describe('checkGitClean', () => {
   it('변경 없음 → pass', () => {
     const { run } = mockRunner({ 'git status --porcelain': { ok: true, out: '' } })

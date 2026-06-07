@@ -57,9 +57,11 @@ function detectChecks(): CheckSpec[] {
     checks.push({ name: 'type-check', bin: 'npx', args: ['tsc', '--noEmit'] })
   }
 
-  if (s.test) {
-    // vitest --run 등 사용자가 추가 옵션 없이 동작하도록 script 호출만.
-    checks.push({ name: 'test', bin: pm, args: pmRun(pm, 'test') })
+  // #156: 풍부한 게이트 우선 — test:gate(unit+smoke 등) → test:ci → test 순으로 첫 존재 스크립트 1개만.
+  // (vitest --run 등 추가 옵션 없이 동작하도록 script 호출만.)
+  const testScript = ['test:gate', 'test:ci', 'test'].find((name) => s[name])
+  if (testScript) {
+    checks.push({ name: testScript, bin: pm, args: pmRun(pm, testScript) })
   }
   if (s.build) {
     checks.push({ name: 'build', bin: pm, args: pmRun(pm, 'build') })
