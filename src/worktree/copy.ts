@@ -1,4 +1,5 @@
-import { copyFileSync, existsSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { parseEnvKeys } from '../lib/worktree-env.js'
 import type { CopyItem, CopyResult } from './types.js'
 
@@ -38,7 +39,11 @@ export function copyAll(items: CopyItem[], deps: CopyDeps): CopyResult[] {
 export function realCopyDeps(): CopyDeps {
   return {
     exists: (p) => existsSync(p),
-    copyFile: (src, dst) => copyFileSync(src, dst),
+    // 대상 부모 디렉터리 보장 — .vscode/settings.json 같은 중첩 경로도 복사되게(없으면 ENOENT).
+    copyFile: (src, dst) => {
+      mkdirSync(dirname(dst), { recursive: true })
+      copyFileSync(src, dst)
+    },
     readKeys: (p) => {
       try {
         return parseEnvKeys(readFileSync(p, 'utf-8')).length

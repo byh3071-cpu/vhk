@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { copyOne, copyAll, type CopyDeps } from '../../src/worktree/copy.js'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { mkdtempSync, writeFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { copyOne, copyAll, realCopyDeps, type CopyDeps } from '../../src/worktree/copy.js'
 import type { CopyItem } from '../../src/worktree/types.js'
 
 const envItem: CopyItem = { source: '/src/.env', target: '/tgt/.env', kind: 'env' }
@@ -49,6 +52,37 @@ describe('copyOne', () => {
     const r = copyOne(envItem, deps({ readKeys: (p) => { readArg = p; return 3 } }))
     expect(r.detail).toBe('3 keys')
     expect(readArg).toBe('/src/.env')
+  })
+})
+
+describe('realCopyDeps (실제 fs — 중첩 경로 mkdir)', () => {
+  let src: string
+  let tgt: string
+  beforeEach(() => {
+    src = mkdtempSync(join(tmpdir(), 'vhk-cp-src-'))
+    tgt = mkdtempSync(join(tmpdir(), 'vhk-cp-tgt-'))
+  })
+  afterEach(() => {
+    rmSync(src, { recursive: true, force: true })
+    rmSync(tgt, { recursive: true, force: true })
+  })
+
+  it('중첩 config(.vscode/settings.json) — 대상 부모 폴더 없어도 mkdir 후 복사 성공', () => {
+    writeFileSync(join(src, 'settings.json'), '{"a":1}')
+    const item: CopyItem = { source: join(src, 'settings.json'), target: join(tgt, '.vscode', 'settings.json'), kind: 'config' }
+    const r = copyOne(item, realCopyDeps()) // 대상 .vscode 폴더는 아직 없음
+    expect(r.status).toBe('copied')
+    expect(existsSync(join(tgt, '.vscode', 'settings.json'))).toBe(true)
+    expect(readFileSync(join(tgt, '.vscode', 'settings.json'), 'utf-8')).toBe('{"a":1}')
+  })
+
+  it('env 키 개수만 셈(값 미노출)', () => {
+    writeFileSync(join(src, '.env'), 'A=secret1\nB=secret2')
+    const item: CopyItem = { source: join(src, '.env'), target: join(tgt, '.env'), kind: 'env' }
+    const r = copyOne(item, realCopyDeps())
+    expect(r.status).toBe('copied')
+    expect(r.keyCount).toBe(2)
+    expect(r.detail).not.toContain('secret1')
   })
 })
 

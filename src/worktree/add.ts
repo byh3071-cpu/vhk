@@ -40,7 +40,8 @@ export function addWorktree(branch: string, opts: WorktreeOptions, deps: AddDeps
   const git = deps.run('git', ['worktree', 'add', '-b', branch, targetPath])
   if (!git.ok) {
     const err = ('err' in git && git.err ? git.err : '').slice(0, 200)
-    return { status: 'git-failed', targetPath, copies: [], detail: `git worktree add 실패: ${err}`.trim() }
+    // detail 은 순수 에러만 — 'git worktree add 실패:' 접두사는 ko.worktree.gitFailed 가 한 번 붙인다(이중 방지).
+    return { status: 'git-failed', targetPath, copies: [], detail: err.trim() || '원인 미상' }
   }
 
   const items = deps.collectItems(deps.sourceDir, targetPath)

@@ -88,10 +88,21 @@ export async function worktreeAdd(branch: string | undefined, opts: WorktreeOpti
 
   console.log(chalk.green(`  🟢 worktree created at ${result.targetPath}`))
   for (const c of result.copies) printCopy(c)
+  const installFailed = opts.install === true && result.installed === false
   if (opts.install) {
-    console.log(result.installed ? chalk.green('  🟢 pnpm install') : chalk.yellow('  🟡 pnpm install 실패 — 수동 실행 필요'))
+    console.log(result.installed ? chalk.green('  🟢 install 완료') : chalk.yellow('  🟡 install 실패 — 수동 설치 필요'))
   } else {
     console.log(chalk.dim(`  ⚪ ${ko.worktree.installSkipped}`))
+  }
+  if (installFailed) {
+    // 의존성 설치가 깨진 worktree — '준비 완료'로 묻지 않고 비-0 종료(즉시 작업 불가).
+    process.exitCode = 1
+    printNextStep({
+      message: 'worktree 생성됨 — 의존성 수동 설치 후 작업:',
+      command: `cd ${result.targetPath}`,
+      cursorHint: '설치 후 작업 시작',
+    })
+    return
   }
   console.log(chalk.green.bold(`\n  ${ko.worktree.ready}`))
   printNextStep({

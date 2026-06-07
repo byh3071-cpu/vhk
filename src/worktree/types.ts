@@ -12,7 +12,7 @@ export interface CopyItem {
   kind: CopyKind
 }
 
-export type CopyStatus = 'copied' | 'skipped' | 'missing-source' | 'error'
+export type CopyStatus = 'copied' | 'missing-source' | 'error'
 
 export interface CopyResult {
   item: CopyItem
