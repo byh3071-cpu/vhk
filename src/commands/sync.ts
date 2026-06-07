@@ -17,7 +17,15 @@ interface RulesSection {
 }
 
 const CURSORRULES_KEYS = ['코딩 규칙', '기술 스택', '아키텍처', '디자인', 'Anti-patterns', '커밋']
-const CLAUDE_MD_KEYS = ['기록', '로그', 'ADR', '트러블슈팅', 'TIL', '/done', '체크리스트']
+// #149: 'VHK 운영'(이슈 정책 등 운영 규약)을 매핑 — CLAUDE.md/AGENTS.md record 그룹으로 전파.
+// (코딩 타깃에는 안 들어감 — 운영 규약은 코딩 규칙이 아니므로 의도된 분리.)
+// 키를 'VHK 운영'으로 한정 — '운영'만 쓰면 '## 자동 운영 스크립트' 등 무관 섹션까지 substring 오탐.
+const CLAUDE_MD_KEYS = ['기록', '로그', 'ADR', '트러블슈팅', 'TIL', '/done', '체크리스트', 'VHK 운영']
+
+// #133: CLAUDE.md 자동생성 블록이 다른 타깃(AGENTS.md 등)과 동일하게 코딩+기록 섹션을 모두
+// 담도록 통합 키셋. toClaudeMd 출력과 마이그레이션(stripLegacyAutogen)의 옛 자동생성 판정이
+// 같은 집합을 써야 재생성 섹션이 사용자 섹션으로 오인돼 중복되지 않는다.
+const VHK_MANAGED_KEYS = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
 
 /**
  * RULES.md 섹션 중 어느 sync 타깃 키(CURSORRULES_KEYS ∪ CLAUDE_MD_KEYS)에도
@@ -183,10 +191,10 @@ const CLAUDE_AUTOGEN_BANNER = '> ⚡ 아래 규칙 섹션은 RULES.md에서 자�
 const VHK_BLOCK_START = '<!-- vhk:rules:start -->'
 const VHK_BLOCK_END = '<!-- vhk:rules:end -->'
 
-/** vhk 관리 블록(배너 + record 섹션)을 마커로 감싸 생성. toClaudeMd 가 매 sync 이 형태로 재생성한다. */
-function buildVhkBlock(recordSections: RulesSection[]): string {
+/** vhk 관리 블록(배너 + 관리 섹션=코딩+기록/운영)을 마커로 감싸 생성. toClaudeMd 가 매 sync 이 형태로 재생성. */
+function buildVhkBlock(managedSections: RulesSection[]): string {
   const lines = [VHK_BLOCK_START, CLAUDE_AUTOGEN_BANNER, '']
-  for (const section of recordSections) {
+  for (const section of managedSections) {
     lines.push(`## ${section.title}`)
     lines.push(section.content)
     lines.push('')
@@ -246,8 +254,8 @@ function stripLegacyAutogen(existing: string): { cleaned: string; removed: strin
   const preserved: string[] = []
   const keptBodies: string[] = []
   for (const b of blocks) {
-    if (CLAUDE_MD_KEYS.some(k => b.title.includes(k))) {
-      removed.push(b.title) // 옛 자동생성 → record 로 재생성
+    if (VHK_MANAGED_KEYS.some(k => b.title.includes(k))) {
+      removed.push(b.title) // 옛 자동생성(코딩+기록) → vhk 블록으로 재생성 (#133 중복 방지)
     } else {
       preserved.push(b.title) // 사용자 섹션 → 보존
       keptBodies.push(b.body.join('\n').trimEnd())
@@ -282,10 +290,18 @@ export function claudeMdMigration(existing: string): ClaudeMdMigration {
  * 멱등: 마이그레이션 출력에 마커가 박히므로 재호출 시 마커 경로로 동일 결과를 낸다.
  */
 export function toClaudeMd(sections: RulesSection[], existing: string): string {
-  const recordSections = sections.filter(s =>
-    CLAUDE_MD_KEYS.some(k => s.title.includes(k))
-  )
-  const vhkBlock = buildVhkBlock(recordSections)
+  // #133: CLAUDE.md 도 .cursorrules·AGENTS.md 수준으로 코딩 규칙/커밋/아키텍처까지 전파.
+  // 코딩 섹션 먼저, 그 다음 기록/운영 섹션 (AGENTS.md 순서와 동일). 한 섹션이 양쪽 키에
+  // 걸쳐도 1회만 — 중복 emit 방지(dedup).
+  const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
+  const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
+  const seen = new Set<string>()
+  const managedSections = [...codingSections, ...recordSections].filter(s => {
+    if (seen.has(s.title)) return false
+    seen.add(s.title)
+    return true
+  })
+  const vhkBlock = buildVhkBlock(managedSections)
 
   const split = splitVhkBlock(existing)
   if (split) {
