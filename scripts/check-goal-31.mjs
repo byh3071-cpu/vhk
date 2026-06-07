@@ -83,5 +83,15 @@ must(/runDiagnostics/.test(doc), 'doctor.ts 가 새 진단 엔진 흡수')
 // 읽기전용 진단 — HARD_STOP 가드 없어야 함(가드 docstring: 읽기전용 제외 — 리뷰 반영)
 must(!/ensureNotHardStopped/.test(doc), 'doctor.ts 는 HARD_STOP 가드 없음(읽기전용)')
 
+// ─── Phase 2 (vhk/mcp/audit 진단 + --json) ───────────────────────────────
+for (const d of ['vhk', 'mcp', 'audit']) {
+  must(existsSync(`src/doctor/diagnostics/${d}.ts`), `diagnostics/${d}.ts 존재 (Phase 2)`)
+  must(!/writeFileSync|copyFileSync|execSync/.test(read(`src/doctor/diagnostics/${d}.ts`) ?? ''), `diagnostics/${d}.ts 진단만(부작용 없음)`)
+}
+must(/buildVhkDiag/.test(doc) && /buildMcpDiag/.test(doc) && /buildAuditDiag/.test(doc), 'doctor.ts 가 Phase 2 진단(vhk/mcp/audit) 포함')
+must(/formatDiagnosticsJson/.test(doc) && /opts\.json/.test(doc), 'doctor.ts 가 --json 기계가독 출력 분기')
+must(/mcpToolCount/.test(read('src/doctor/diagnostics/mcp.ts') ?? ''), 'mcp 진단이 자체 MCP 서버 도구 수 점검')
+must(existsSync('tests/doctor/phase2.test.ts'), 'Phase 2 단위테스트 존재')
+
 if (pass) { console.log('✅ goal 31 gate passes'); process.exit(0) }
 console.log('❌ goal 31 gate failed'); process.exit(1)
