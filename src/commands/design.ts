@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
@@ -120,6 +121,7 @@ function generateTailwindExtend(palette: ColorPalette): string {
 }
 
 export async function design(): Promise<void> {
+  if (!ensureNotHardStopped('design')) return // HARD_STOP 활성 시 룰/디자인 산출물 쓰기 차단
   console.log(chalk.bold('\n🎨 ' + t('design.title')))
   console.log(chalk.gray('─'.repeat(40)))
 

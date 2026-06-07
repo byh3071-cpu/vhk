@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
@@ -62,6 +63,7 @@ export function initTheme(): void {
 }
 
 export async function theme(options?: { yes?: boolean }): Promise<void> {
+  if (!ensureNotHardStopped('theme')) return // HARD_STOP 활성 시 CSS/TS 생성 차단
   console.log(chalk.bold('\n🌙 ' + t('theme.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
