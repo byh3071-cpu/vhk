@@ -38,8 +38,15 @@ leads_to: goal-33-today
 - [ ] vhk goal sync → check-goal-32.mjs → vhk goal check --id 32 통과
 - [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
 
+## Phase 3 — 자동실행 앵커 (완료)
+- `vhk standup --if-stale` — 오늘 아직 안 봤을 때만 출력(KST 자정 기준). 상태 = `~/.vhk/daily-shown.json`(version-check 캐시와 동급 글로벌). 순수 `shouldShow(lastShown, today)` + IO 분리.
+- `vhk standup --install-anchor` — 셸 rc(`~/.bashrc`·`~/.zshrc`·PowerShell `$PROFILE`)에 붙여넣을 줄을 **출력만** 함. ⚠️ rc 자동수정 절대 X(사람이 직접 붙여넣기).
+- 상태 헬퍼는 generic(`standup`/`today` 키) → Goal 33 today 자동실행이 후속에서 재사용.
+- 게이트: check-goal-32 Phase 3 검증 추가 · shown-state/anchor 단위테스트 + standup-anchor e2e.
+
 ## 제외 범위 (v0)
-- 우선순위 추천 고도화 / 텔레그램 아침 푸시 알림(Phase 3, 선택)
+- 우선순위 추천 고도화 / 텔레그램 아침 푸시 알림(별도·선택 — 만들지 않음)
+- `today --if-stale` 자동실행(Goal 33 후속 PR로 분리)
 
 ## 공유 모듈 메모
 - 날짜 범위 필터·소스 병합 = `daily` 모듈로 분리 → **Goal 33(today)이 today 범위로 재사용**. 명령만 분리, 코드 공유.

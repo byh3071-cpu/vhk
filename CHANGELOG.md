@@ -11,6 +11,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk doctor` Phase 2** (Goal 31, #177) — VHK·MCP·audit 진단 3종 + `--json`(CI·MCP용)·`--audit`(PM 자동감지 취약점 점검) 추가. 진단 전용(자동수정 0).
 - **`vhk standup`·`vhk today` DevLog 연동** (Goal 32·33, #178) — 로컬 dev log(`docs/log/`)를 파싱해 "어제 한 일"·"오늘 교훈"에 반영(공유 `daily/devlog.ts`, Notion 아님·인증 불요).
 - **`vhk today`** (Goal 33, #162) — 저녁 자축·회고 브리핑(git + goal 기반).
+- **`vhk standup --if-stale` / `--install-anchor`** (Goal 32 Phase 3) — 하루 1회 자동 브리핑(KST 자정 기준, 상태 `~/.vhk/daily-shown.json`) + 터미널 자동실행 앵커 줄 안내(셸 rc 자동수정 X, 사람이 직접 붙여넣기).
 
 ## [2.4.2] - 2026-06-07
 
