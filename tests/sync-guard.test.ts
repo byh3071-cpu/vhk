@@ -8,6 +8,8 @@ import {
   parseRulesMd,
   deriveProjectName,
   toClaudeMd,
+  toAgentsMd,
+  findUnmappedSections,
   claudeMdMigration,
 } from '../src/commands/sync.js'
 import { listBackups } from '../src/lib/backup.js'
@@ -359,6 +361,54 @@ tags: [process, documentation]
     expect(r.claudeMigration?.preserved).toEqual(
       expect.arrayContaining(['프로젝트 정보', '코딩 컨벤션', 'MCP 모드 규칙', 'Safety — HARD_STOP', 'Stability Gates'])
     )
+  })
+})
+
+describe('#133 — CLAUDE.md 도 코딩 규칙/커밋/아키텍처 섹션 전파 (다른 타깃과 통일)', () => {
+  const sections = parseRulesMd(RULES) // [코딩 규칙(execSync 금지), 기록 규칙(세션 로그)]
+  const name = deriveProjectName(RULES)
+
+  it('자동생성 블록에 코딩 규칙 본문도 포함 (기록 규칙은 유지)', () => {
+    const out = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- P5\n`)
+    expect(out).toContain('execSync 금지') // 코딩 규칙 본문 (#133 누락분)
+    expect(out).toContain('## 기록 규칙') // 기록 섹션 회귀 방지
+    expect(out).toContain('## 현재 상태') // 사용자 영역 보존
+  })
+
+  it('코딩 규칙이 마커 안(자동생성 영역)에 들어가 멱등 (재호출 바이트 동일)', () => {
+    const a = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- P5\n`)
+    expect(toClaudeMd(sections, a)).toBe(a)
+    expect((a.match(/⚡ 아래 규칙 섹션은/g) || []).length).toBe(1)
+  })
+
+  it('마이그레이션 시 코딩 규칙 중복 안 됨 (옛 ## 코딩 규칙 → 재생성 1개만)', () => {
+    const existing = `# 기록 규칙 (${name})\n\n## 코딩 규칙\n- 옛 자동생성 코딩\n\n## 현재 상태\n- P5\n`
+    const out = toClaudeMd(sections, existing)
+    expect((out.match(/## 코딩 규칙/g) || []).length).toBe(1) // 중복 0
+    expect(out).toContain('execSync 금지') // RULES 유래 재생성본
+    expect(out).not.toContain('옛 자동생성 코딩') // 옛것 제거
+  })
+})
+
+describe('#149 — VHK 운영 섹션을 CLAUDE.md/AGENTS.md 로 매핑 (silent drop 제거)', () => {
+  const opsRules = '# P — Rules\n\n## VHK 운영\n- github 이슈 정책 xyz123\n\n## 코딩 규칙\n- a\n'
+
+  it('VHK 운영은 더 이상 unmapped 가 아님 (경고 사라짐)', () => {
+    expect(findUnmappedSections(parseRulesMd(opsRules))).not.toContain('VHK 운영')
+  })
+
+  it('VHK 운영 본문이 CLAUDE.md 에 전파', () => {
+    const out = toClaudeMd(parseRulesMd(opsRules), '# 기록 규칙 (P)\n\n## 현재 상태\n- P5\n')
+    expect(out).toContain('github 이슈 정책 xyz123')
+  })
+
+  it('VHK 운영 본문이 AGENTS.md 에 전파', () => {
+    expect(toAgentsMd(parseRulesMd(opsRules), 'P')).toContain('github 이슈 정책 xyz123')
+  })
+
+  it('프로젝트 정체성은 여전히 unmapped (기존 계약 유지 — 회귀 방지)', () => {
+    const s = parseRulesMd('# P\n\n## 프로젝트 정체성\n- x\n\n## 코딩 규칙\n- a\n')
+    expect(findUnmappedSections(s)).toContain('프로젝트 정체성')
   })
 })
 
