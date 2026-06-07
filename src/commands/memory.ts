@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile, stripBom } from '../lib/read-json.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 /**
  * Goal 18: memory schema v2 — 평면 배열 → 4버킷(decisions/failures/successes/patterns).
@@ -314,6 +315,7 @@ export async function memoryAdd(
   content: string,
   opts: { tags?: string[]; type?: string; why?: string; lesson?: string } = {}
 ): Promise<void> {
+  if (!ensureNotHardStopped('memory add')) return // HARD_STOP 활성 시 memory.json 변경 차단
   console.log(chalk.bold('\n🧠 ' + t('memory.addTitle')))
   console.log(chalk.gray('─'.repeat(40)))
   if (!content || !content.trim()) {
@@ -394,6 +396,7 @@ function resolveIndex(indexStr: string, len: number): number | null {
 }
 
 export async function memoryRemove(indexStr: string): Promise<void> {
+  if (!ensureNotHardStopped('memory remove')) return
   const cwd = process.cwd()
   const loaded = loadForMutation(cwd)
   if (!loaded.ok) {
@@ -446,6 +449,7 @@ function entryLabel(entry: MemEntry): string {
 }
 
 export async function memoryArchive(indexStr: string): Promise<void> {
+  if (!ensureNotHardStopped('memory archive')) return
   const r = resolveEntryForMutation(indexStr)
   if (!r) return
   r.entry.status = 'archived'
@@ -458,6 +462,7 @@ export async function memoryArchive(indexStr: string): Promise<void> {
 
 /** 항목 해결 표시 (active→resolved). 실패가 교훈으로 정리됨을 기록 — 패턴/진화에서 제외. */
 export async function memoryResolve(indexStr: string): Promise<void> {
+  if (!ensureNotHardStopped('memory resolve')) return
   const r = resolveEntryForMutation(indexStr)
   if (!r) return
   r.entry.status = 'resolved'
@@ -470,6 +475,7 @@ export async function memoryResolve(indexStr: string): Promise<void> {
 
 /** 보관/해결 항목을 다시 active 로 — 오조작 복구(archive/resolve 역전). */
 export async function memoryUnarchive(indexStr: string): Promise<void> {
+  if (!ensureNotHardStopped('memory unarchive')) return
   const r = resolveEntryForMutation(indexStr)
   if (!r) return
   if (isActive(r.entry)) {

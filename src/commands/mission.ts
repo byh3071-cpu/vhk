@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
@@ -105,7 +106,7 @@ export function readMission(cwd: string = process.cwd()): Mission | null {
 
 function writeMission(cwd: string, mission: Mission): void {
   mkdirSync(join(cwd, '.vhk'), { recursive: true })
-  writeFileSync(join(cwd, MISSION_PATH_REL), JSON.stringify(mission, null, 2) + '\n', 'utf-8')
+  atomicWriteFile(join(cwd, MISSION_PATH_REL), JSON.stringify(mission, null, 2) + '\n')
 }
 
 /** working tree + staged 변경 파일 경로 (simple-git status — 추가/수정/삭제/이름변경/미추적 포함). */
@@ -222,6 +223,7 @@ export async function missionCheck(): Promise<void> {
 }
 
 export async function missionClear(): Promise<void> {
+  if (!ensureNotHardStopped('mission clear')) return
   const cwd = process.cwd()
   const p = join(cwd, MISSION_PATH_REL)
   if (!existsSync(p)) {

@@ -5,6 +5,7 @@ import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureInteractive } from '../lib/interactive.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { readMemory, loadForMutation, writeMemory } from './memory.js'
 import { sync } from './sync.js'
 import type { PatternEntryV19 } from './pattern.js'
@@ -276,6 +277,7 @@ export async function evolveList(opts: { status?: string; json?: boolean } = {})
 }
 
 export async function evolveApply(idStr: string): Promise<void> {
+  if (!ensureNotHardStopped('evolve apply')) return // HARD_STOP 활성 시 RULES.md 변경 차단(TTY보다 우선)
   // 1. TTY 가드 — 비-TTY면 즉시 종료
   if (!ensureInteractive('apply는 TTY 확인이 필요합니다. 터미널에서 직접 실행하세요.')) return
 
@@ -411,6 +413,7 @@ export async function evolveApply(idStr: string): Promise<void> {
   })
 }
 export async function evolveReject(idStr: string): Promise<void> {
+  if (!ensureNotHardStopped('evolve reject')) return
   const cwd = process.cwd()
   const queue = readQueue(cwd)
   const item = queue.items.find(i => i.id === idStr?.trim())
@@ -446,6 +449,7 @@ export async function evolveReject(idStr: string): Promise<void> {
 }
 
 export async function evolveUndo(): Promise<void> {
+  if (!ensureNotHardStopped('evolve undo')) return
   // 1. TTY 가드
   if (!ensureInteractive('undo는 TTY 확인이 필요합니다. 터미널에서 직접 실행하세요.')) return
 

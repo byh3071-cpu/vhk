@@ -43,6 +43,7 @@ import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
 import { preflight } from './commands/preflight.js'
 import { worktreeAdd, worktreeCheck } from './commands/worktree.js'
+import { standup } from './commands/standup.js'
 import { review } from './commands/review.js'
 import { missionSet, missionShow, missionCheck, missionClear } from './commands/mission.js'
 import { runGuarded } from './lib/safety-guard.js'
@@ -147,6 +148,7 @@ const KO_ALIASES: Record<string, string> = {
   goal: '목표',
   preflight: '출고점검',
   worktree: '워크트리',
+  standup: '아침',
   review: '검토',
   mission: '미션',
   blocker: '블로커',
@@ -494,6 +496,12 @@ worktreeCmd
   .option('--install', 'worktree 생성 후 pnpm install 자동 실행')
   .description('worktree 생성 + 필수 env/설정 자동 복사 (파일 복사·심볼릭 X, 비밀값 미노출)')
   .action(async (branch: string, opts: { install?: boolean }) => { await worktreeAdd(branch, opts) })
+
+program
+  .command('standup')
+  .alias('아침')
+  .description('아침 브리핑 — 어제 한 일(마지막 활동일 커밋·완료 goal) + 오늘 추천 + 미해결 (읽기 전용)')
+  .action(async () => { await standup() })
 
 program
   .command('review')

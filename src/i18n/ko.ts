@@ -203,6 +203,7 @@ export const ko = {
     allOk: '🎉 개발 환경 준비 완료!',
     missing: '⚠️ 일부 도구가 없습니다.',
     missingHint: '위 안내를 따라 설치하세요.',
+    warnSummary: (n: number) => `⚠️ 경고 ${n}개 — 위 권장 조치를 확인하세요 (필수는 아님)`,
     projectFiles: '📁 프로젝트 파일 확인:',
     envNotIgnored: '⚠️ .env가 .gitignore에 없음! 추가하세요',
     nextOkMessage: '환경 점검 통과! 이제 프로젝트를 시작하세요.',
@@ -223,6 +224,14 @@ export const ko = {
     resultPass: (warn: number) => (warn > 0 ? `결과: 통과 (경고 ${warn})` : '결과: 통과'),
     nextBlocked: '치명(🔴) 항목을 수정한 뒤 다시 실행하세요.',
     nextPass: 'publish/PR 진행 가능',
+  },
+  standup: {
+    title: (d: string) => `🌅 Standup — ${d}`,
+    yesterday: '📌 어제 한 일',
+    noHistory: '이전 기록 없음 — 첫 세션이거나 신규 repo',
+    todayRecommend: '🎯 오늘 추천',
+    unresolved: '⚠️ 미해결',
+    commitsLine: (n: number) => `커밋 ${n}개`,
   },
   worktree: {
     checkTitle: '🌳 Worktree env 점검',

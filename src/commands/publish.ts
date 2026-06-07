@@ -6,6 +6,7 @@ import { safeExecFile, safeExecFileStream } from '../lib/exec.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { localDate } from '../lib/date.js'
 
 export type BumpType = 'patch' | 'minor' | 'major'
 
@@ -286,7 +287,8 @@ export async function publish(): Promise<void> {
   // CHANGELOG 스텁 (자동화 D) — 버전 누락 방지. 이미 항목 있으면 no-op. 본문은 사람이 보강.
   if (existsSync('CHANGELOG.md')) {
     const cl = readFileSync('CHANGELOG.md', 'utf-8')
-    const date = new Date().toISOString().slice(0, 10)
+    // VHK-019: toISOString().slice 는 UTC 기준 → KST 새벽 발행 시 하루 밀림. 로컬 날짜 사용.
+    const date = localDate()
     const updated = insertChangelogStub(cl, newVersion, date)
     if (updated !== cl) {
       writeFileSync('CHANGELOG.md', updated, 'utf-8')

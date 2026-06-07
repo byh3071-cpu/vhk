@@ -14,6 +14,15 @@ import {
 import type { GateResult, ReportStatus, VerifyReport } from '../src/commands/verify.js'
 import { routeNaturalLanguage } from '../src/lib/nlp-router.js'
 import { dispatchNlpRoute } from '../src/lib/nlp-run.js'
+
+// review.ts 는 latest.json 을 atomicWriteFile(temp→rename)로 쓴다. 단, 이 테스트는 chmod 0o444
+// (대상 파일 읽기전용)로 write 실패를 시뮬하는데 rename 은 파일 권한이 아니라 디렉터리 권한만 보므로
+// ubuntu 에서 읽기전용 파일도 덮어써져 시뮬이 무력화된다(OS 의존). 여기선 atomicWriteFile 을
+// "직접 writeFileSync" 로 mock 해 권한 시뮬이 OS 무관하게 작동하도록 한다(원자성 자체는 atomic-write.test 가 검증).
+vi.mock('../src/lib/atomic-write.js', async () => {
+  const { writeFileSync } = await import('node:fs')
+  return { atomicWriteFile: (p: string, data: string) => writeFileSync(p, data, 'utf-8') }
+})
 import { KNOWN_COMMAND_TOKENS } from '../src/lib/cli-args.js'
 
 const GEN_AT = '2026-06-02T00:00:00.000Z'
