@@ -107,7 +107,7 @@ async function guardCliDefer(
   )
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
-import { goalCheck, goalDone, goalInit, goalList, goalNext, goalSync } from './commands/goal.js'
+import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalSync } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo } from './commands/evolve.js'
@@ -638,7 +638,7 @@ workCmd
 const goalCmd = program
   .command('goal')
   .alias('목표')
-  .description('Goal 단계별 미션 관리 (init / list / next / check / done / sync)')
+  .description('Goal 단계별 미션 관리 (init / list / next / check / done / sync / drift)')
   .action(async () => { await goalList() })
 
 goalCmd
@@ -678,6 +678,12 @@ goalCmd
   .alias('동기화')
   .description('goals/*.md 스캔 → 누락된 check-goal-<id>.mjs 게이트 스크립트 백필 (idempotent)')
   .action(async () => { await goalSync() })
+
+goalCmd
+  .command('drift')
+  .alias('드리프트')
+  .description('goal 상태↔코드 드리프트 점검 — 구현됐는데 NOT_STARTED 인 goal 탐지 (read-only, 발견 시 exit 1)')
+  .action(async () => { await goalDrift() })
 
 program
   .command('blocker <description>')

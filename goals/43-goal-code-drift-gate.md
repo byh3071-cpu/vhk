@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 43
 title: goal 상태↔코드 현실 드리프트 게이트 — shipped인데 NOT_STARTED 차단 — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-07
+completed: 2026-06-08
 leads_to: goal 상태 신뢰성 (Goal 19 정정 포함)
 ---
 
@@ -27,12 +28,12 @@ leads_to: goal 상태 신뢰성 (Goal 19 정정 포함)
 - 코드 shipped인데 goal 상태 NOT_STARTED로 남으면 CI/preflight가 잡는다.
 
 ## Completion Check
-- [ ] Goal 19 status를 DONE(+version)으로 정정
-- [ ] goal status↔코드 드리프트 점검 게이트 구현
-- [ ] shipped인데 NOT_STARTED면 fail/경고
-- [ ] 회귀 테스트
-- [ ] check-goal-43.mjs 통과
-- [ ] 공통 게이트(typecheck+test+build) 통과, 회귀 0
+- [x] Goal 19 status를 DONE(+version)으로 정정
+- [x] goal status↔코드 드리프트 점검 게이트 구현
+- [x] shipped인데 NOT_STARTED면 fail/경고
+- [x] 회귀 테스트
+- [x] check-goal-43.mjs 통과
+- [x] 공통 게이트(typecheck+test+build) 통과, 회귀 0
 
 ## Mandatory Reading
 - src/commands/goal.ts
