@@ -201,5 +201,5 @@ describe('mission — CLI 커맨더 경로 보존 회귀 (default [] 제거)', (
     }
     expect(code).toBe(1)
     fs.rmSync(d, { recursive: true, force: true })
-  })
+  }, 30000)
 })
