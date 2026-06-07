@@ -3,7 +3,8 @@ vhk_format: 1
 type: goal
 id: 20
 title: vhk evolve — Evolution Loop 도미노 4 (패턴→룰 후보→사람 승인→반영)
-status: IN_PROGRESS
+status: DONE
+completed: 2026-06-07
 priority: P1
 version: v2.3.0
 depends_on:
@@ -82,12 +83,13 @@ patterns[](Goal 19) → rule/check/prompt "후보" 생성 → 사람 승인 → 
   (evolve.ts 구현 후 게이트가 해당 파일을 스캔하도록 check-goal-20.mjs 업데이트 필수)
 - HARD_STOP 체크 / apply·undo는 대화형(MCP·비대화형 차단)
 
-## 수용 기준 (구현 단계 기준, 지금은 문서화만)
-- suggest 결정적: 같은 patterns[] → 같은 후보(단위 테스트)
-- diff 없이/미승인 반영 시 에러로 차단(테스트)
-- undo가 .bak 정확 복원(테스트)
-- 자동 적용 경로 코드에 없음(grep 게이트)
-- build/test/check-meta + goal check --id 20 통과
+## 수용 기준 — ✅ 충족 (구현·발행 완료, v2.3.0)
+- [x] suggest 결정적: 같은 patterns[] → 같은 후보(단위 테스트)
+- [x] diff 없이/미승인 반영 시 에러로 차단(테스트)
+- [x] undo가 .bak 정확 복원(테스트)
+- [x] 자동 적용 경로 코드에 없음(grep 게이트)
+- [x] build/test/check-meta + check-goal-20 통과
+> 닫기 메모(2026-06-07): evolve 는 v2.3.0 에 발행됨(CHANGELOG). 설계 단계에 IN_PROGRESS 로 두었던 stale 카드를 DONE 으로 전이 — check-goal-20 게이트 재확인 통과.
 
 ## 테스트 계획
 - suggest 매핑(avoid→rule 후보) 결정성
