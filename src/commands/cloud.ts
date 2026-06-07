@@ -5,6 +5,7 @@ import chalk from 'chalk'
 import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import {
   VHK_DIR,
   collectVhkFiles,
@@ -42,6 +43,7 @@ export function parseGistId(output: string): string | null {
 
 /** vhk cloud push — .vhk/ 를 secret gist 로 백업 */
 export async function cloudPush(): Promise<void> {
+  if (!ensureNotHardStopped('cloudPush')) return
   console.log(chalk.bold(`\n${ko.cloud.pushTitle}\n`))
   const cwd = process.cwd()
 
