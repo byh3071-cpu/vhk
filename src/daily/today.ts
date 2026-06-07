@@ -2,6 +2,7 @@ import { commitsInRange, fetchRecentCommitSummaries } from './gitlog.js'
 import { doneGoalsOnDay } from './goals.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { localDate } from '../lib/date.js'
+import { readDevLogs } from './devlog.js'
 import type { DateRange, CommitSummary, GoalState, DevLogEntry, TodayReport } from './types.js'
 import type { ParsedGoal } from '../lib/goal-frontmatter.js'
 
@@ -46,7 +47,7 @@ export function buildTodayReport(input: {
 }
 
 // 실제 수집 + 병합(CLI 진입점). Phase 1: git + goal (DevLog Phase 2 → 빈 배열 폴백).
-export async function runToday(deps?: { today?: string; goalsDir?: string }): Promise<TodayReport> {
+export async function runToday(deps?: { today?: string; goalsDir?: string; logDir?: string }): Promise<TodayReport> {
   const today = deps?.today ?? localDate()
   let commits: CommitSummary[] = []
   try {
@@ -64,6 +65,7 @@ export async function runToday(deps?: { today?: string; goalsDir?: string }): Pr
     today,
     commits,
     doneGoals: doneGoalsOnDay(goals, today),
-    devlogs: [], // Phase 2: Dev Log 연동
+    // Phase 2: 오늘 docs/log dev log → devlogCount + lessons.
+    devlogs: readDevLogs(deps?.logDir ?? 'docs/log', { start: today, end: today }),
   })
 }

@@ -3,6 +3,7 @@ import { commitsInRange, activityDates, fetchRecentCommitSummaries } from './git
 import { toGoalStates, recommendGoals, doneGoalsOnDay, unresolvedGoals } from './goals.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { localDate } from '../lib/date.js'
+import { readDevLogs } from './devlog.js'
 import type { StandupReport, CommitSummary, GoalState, DevLogEntry } from './types.js'
 import type { ParsedGoal } from '../lib/goal-frontmatter.js'
 
@@ -34,6 +35,7 @@ export function buildStandupReport(input: {
 export async function runStandup(deps?: {
   asOf?: string
   goalsDir?: string
+  logDir?: string
 }): Promise<StandupReport> {
   const asOf = deps?.asOf ?? localDate()
   let commits: CommitSummary[] = []
@@ -54,6 +56,7 @@ export async function runStandup(deps?: {
     commits,
     goalStates,
     doneGoalsByDay: (day) => doneGoalsOnDay(goals, day),
-    devlogs: [], // Phase 2: Dev Log 노션 데이터소스 연동
+    // Phase 2: 로컬 docs/log dev log 연동. 모든 날짜를 넘겨 lastActiveDay 산출에 반영(buildStandupReport 가 마지막 활동일로 필터).
+    devlogs: readDevLogs(deps?.logDir ?? 'docs/log', { start: '2000-01-01', end: asOf }),
   })
 }
