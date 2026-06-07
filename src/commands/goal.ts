@@ -15,6 +15,7 @@ import {
   type GoalStatus,
   type ParsedGoal,
 } from '../lib/goal-frontmatter.js'
+import { findStatusDriftCandidates } from '../lib/goal-drift.js'
 
 const GOALS_DIR = 'goals'
 const STATE_DIR = 'docs/state'
@@ -291,6 +292,29 @@ export async function goalCheck(opts: { id?: string }): Promise<void> {
     if (gate.err && !gate.out) console.log(chalk.dim(gate.err.slice(0, 500)))
     process.exitCode = 1
   }
+}
+
+// Goal 43: goal 상태 ↔ 코드 현실 드리프트 점검 (read-only — HARD_STOP 가드 없음, check/list 와 동일).
+// "shipped 인데 status: NOT_STARTED" 인 goal 을 잡아 exit 1. 깨끗하면 exit 0.
+export async function goalDrift(): Promise<void> {
+  console.log(chalk.bold(`\n${ko.goal.driftTitle}\n`))
+  const candidates = findStatusDriftCandidates(GOALS_DIR, SCRIPTS_DIR)
+  if (candidates.length === 0) {
+    console.log(chalk.green(`  ✅ ${ko.goal.driftClean}`))
+    return
+  }
+  console.log(chalk.red(`  ❌ ${ko.goal.driftFound(candidates.length)}\n`))
+  for (const c of candidates) {
+    console.log(chalk.yellow(`  [${c.id}] ${c.title}`))
+    console.log(chalk.dim(`      ${c.reason}`))
+    console.log(chalk.dim(`      ${c.goalFile} · ${c.scriptFile}`))
+  }
+  console.log(
+    chalk.dim(
+      '\n  → 구현됐다면 `vhk goal done --id <n>` 로 DONE 전환, 아니라면 게이트의 goal 고유 검증을 제거하세요.'
+    )
+  )
+  process.exitCode = 1
 }
 
 export async function goalDone(opts: { id?: string }): Promise<void> {
