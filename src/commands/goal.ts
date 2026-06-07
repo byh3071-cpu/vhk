@@ -6,6 +6,7 @@ import { localDate } from '../lib/date.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import {
   listGoals,
   findDuplicateIds,
@@ -122,7 +123,7 @@ export async function goalNext(): Promise<void> {
     '',
   ].join('\n')
   mkdirSync(STATE_DIR, { recursive: true })
-  writeFileSync(join(STATE_DIR, 'next-task.md'), text, 'utf-8')
+  atomicWriteFile(join(STATE_DIR, 'next-task.md'), text) // Goal 40: 쓰기 중 kill 시 next-task.md 손상 방지
   console.log(
     chalk.green(
       `  ✅ next-task.md 갱신 — Goal ${activeId}: ${active.frontmatter.title ?? ''}`
@@ -205,7 +206,7 @@ export async function goalInit(): Promise<void> {
       console.log(chalk.gray(`  ⊘ skip (이미 존재): ${t.path}`))
       skipped++
     } else {
-      writeFileSync(t.path, t.content, 'utf-8')
+      atomicWriteFile(t.path, t.content) // Goal 40: scaffold 첫 생성 원자적 쓰기
       console.log(chalk.green(`  ✓ created: ${t.path}`))
       created++
     }
@@ -338,7 +339,7 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   const content = readFileSync(target.filePath, 'utf-8')
   const today = localDate() // VHK-019
   const updated = updateFrontmatterStatus(content, 'DONE', { completed: today })
-  writeFileSync(target.filePath, updated, 'utf-8')
+  atomicWriteFile(target.filePath, updated) // Goal 40: frontmatter 갱신 중 kill 시 goal 파일 손상 방지
   console.log(chalk.green(`\n  ✅ Goal ${id} → DONE (completed: ${today})`))
   printNextStep({
     message: `Goal ${id} 완료! 다음 goal 로:`,
