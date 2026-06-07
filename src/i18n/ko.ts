@@ -233,6 +233,15 @@ export const ko = {
     unresolved: '⚠️ 미해결',
     commitsLine: (n: number) => `커밋 ${n}개`,
   },
+  today: {
+    title: (d: string) => `🎉 Today — ${d}`,
+    done: '✅ 해낸 것',
+    commits: (n: number) => `커밋 ${n}개`,
+    doneGoals: (n: number) => `완료 goal ${n}개`,
+    devlogs: (n: number, m: number) => (m > 0 ? `Dev Log ${n}건 (교훈 ${m}개)` : `Dev Log ${n}건`),
+    restDay: '오늘은 기록이 없네 — 쉬어가는 것도 하루.',
+    restEncourage: '쉬는 것도 페이스의 일부. 내일 또.',
+  },
   worktree: {
     checkTitle: '🌳 Worktree env 점검',
     addTitle: (b: string) => `🌳 Worktree 생성: ${b}`,

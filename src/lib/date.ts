@@ -11,3 +11,13 @@
 export function localDate(d: Date = new Date()): string {
   return d.toLocaleDateString('sv-SE')
 }
+
+const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토']
+
+/** `YYYY-MM-DD` → `YYYY-MM-DD (요일)` (예: '2026-06-07 (일)'). 형식 안 맞으면 원본 반환. */
+export function formatYmdWeekday(ymd: string): string {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return ymd
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return `${ymd} (${WEEKDAYS_KO[d.getDay()]})`
+}
