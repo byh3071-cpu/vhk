@@ -98,6 +98,31 @@ describe('harness', () => {
     expect(process.exitCode).toBe(0)
   })
 
+  it('#156: test:gate 우선 (test:gate > test:ci > test)', async () => {
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({ scripts: { test: 'vitest', 'test:ci': 'ci', 'test:gate': 'run all gates' } })
+    )
+    mockExistsSync.mockReturnValue(false)
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
+    const { harness } = await import('../src/commands/harness.js')
+    await harness()
+    const scripts = mockSafeExecFile.mock.calls.map((c) => (c[1] as string[]).join(' '))
+    expect(scripts).toContain('run test:gate')
+    expect(scripts).not.toContain('run test') // bare test 안 돔
+    expect(scripts).not.toContain('run test:ci')
+  })
+
+  it('#156: test:gate 없으면 test:ci 우선', async () => {
+    mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { test: 'vitest', 'test:ci': 'ci' } }))
+    mockExistsSync.mockReturnValue(false)
+    mockSafeExecFile.mockReturnValue({ ok: true, out: '' })
+    const { harness } = await import('../src/commands/harness.js')
+    await harness()
+    const scripts = mockSafeExecFile.mock.calls.map((c) => (c[1] as string[]).join(' '))
+    expect(scripts).toContain('run test:ci')
+    expect(scripts).not.toContain('run test')
+  })
+
   it('pnpm-lock.yaml 감지 시 pnpm으로 실행', async () => {
     mockReadFileSync.mockReturnValue(JSON.stringify({ scripts: { build: 'tsup' } }))
     mockExistsSync.mockImplementation((p: unknown) => String(p) === 'pnpm-lock.yaml')
