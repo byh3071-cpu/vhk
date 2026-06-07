@@ -60,6 +60,14 @@ export const SECRET_PATTERNS: SecretPattern[] = [
     pattern: /(?:api[_-]?key|apikey|access[_-]?token)\s*[:=]\s*['"]?[A-Za-z0-9_\-]{16,}['"]?/i,
   },
   {
+    // #170: 리터럴 Authorization: Bearer 자격증명. 토큰 문자 클래스가 '$','{' 를 제외하므로
+    // ${env:AUTH_HEADER} 같은 환경변수 참조는 매칭되지 않는다(오탐 방지).
+    id: 'authorization-bearer',
+    name: 'Authorization Bearer Token',
+    severity: 'high',
+    pattern: /Authorization\s*:\s*Bearer\s+[A-Za-z0-9._\-~+/=]{8,}/i,
+  },
+  {
     id: 'password-inline',
     name: 'Inline Password',
     severity: 'high',
