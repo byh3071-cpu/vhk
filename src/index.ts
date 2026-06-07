@@ -148,7 +148,7 @@ const KO_ALIASES: Record<string, string> = {
   goal: '목표',
   preflight: '출고점검',
   standup: '아침',
-  today: '회고',
+  today: '자축',
   review: '검토',
   mission: '미션',
   blocker: '블로커',
@@ -486,7 +486,7 @@ program
 
 program
   .command('today')
-  .alias('회고')
+  .alias('자축')
   .description('저녁 자축·회고 — 오늘 커밋·완료 goal 카운트 + 격려 (읽기 전용)')
   .action(async () => { await today() })
 
