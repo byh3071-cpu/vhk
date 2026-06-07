@@ -43,7 +43,7 @@ export function parseGistId(output: string): string | null {
 
 /** vhk cloud push — .vhk/ 를 secret gist 로 백업 */
 export async function cloudPush(): Promise<void> {
-  if (!ensureNotHardStopped('cloudPush')) return
+  if (!ensureNotHardStopped('cloud push')) return // HARD_STOP 활성 시 .vhk 백업 업로드 차단
   console.log(chalk.bold(`\n${ko.cloud.pushTitle}\n`))
   const cwd = process.cwd()
 
