@@ -80,6 +80,10 @@ must(!/ensureNotHardStopped/.test(read('src/commands/standup.ts') ?? ''), 'stand
 must(/standup/.test(read('src/index.ts') ?? ''), 'index.ts 에 standup 등록')
 must(/standup/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry 등록')
 must(/standup/.test(read('src/lib/cli-args.ts') ?? ''), 'cli-args 등록')
+// Phase 2: 로컬 docs/log DevLog 연동(공유 devlog 모듈)
+must(existsSync('src/daily/devlog.ts'), 'src/daily/devlog.ts 존재 (Phase 2 공유)')
+must(/readDevLogs/.test(read('src/daily/standup.ts') ?? ''), 'standup 이 readDevLogs 로 DevLog 연동')
+must(existsSync('tests/daily/devlog.test.ts'), 'devlog 단위테스트 존재')
 
 if (pass) { console.log('✅ goal 32 gate passes'); process.exit(0) }
 console.log('❌ goal 32 gate failed'); process.exit(1)
