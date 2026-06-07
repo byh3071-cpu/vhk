@@ -79,6 +79,9 @@ must(!/withWeekday/.test(read('src/commands/standup.ts') ?? ''), 'standup 인라
 must(/today/.test(read('src/index.ts') ?? ''), 'index.ts 에 today 등록')
 must(/'today'/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry 등록')
 must(/'today'/.test(read('src/lib/cli-args.ts') ?? ''), 'cli-args 등록')
+// Phase 2: 오늘 docs/log DevLog 연동(Goal 32 공유 devlog 모듈 재사용)
+must(existsSync('src/daily/devlog.ts'), 'src/daily/devlog.ts 존재 (공유)')
+must(/readDevLogs/.test(read('src/daily/today.ts') ?? ''), 'today 가 readDevLogs 로 DevLog 연동')
 
 if (pass) { console.log('✅ goal 33 gate passes'); process.exit(0) }
 console.log('❌ goal 33 gate failed'); process.exit(1)

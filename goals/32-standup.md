@@ -3,8 +3,9 @@ vhk_format: 1
 type: goal
 id: 32
 title: vhk standup — 아침 브리핑(어제 한 일 + 오늘 할 일) — P2
-status: IN_PROGRESS
+status: DONE
 priority: P2
+completed: 2026-06-07
 created: 2026-06-06
 leads_to: goal-33-today
 ---

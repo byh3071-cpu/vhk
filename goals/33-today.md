@@ -3,8 +3,9 @@ vhk_format: 1
 type: goal
 id: 33
 title: vhk today — 저녁 자축·회고(오늘 해낸 것 담백 요약) — P2
-status: IN_PROGRESS
+status: DONE
 priority: P2
+completed: 2026-06-07
 created: 2026-06-06
 depends_on: goal-32-standup
 ---
