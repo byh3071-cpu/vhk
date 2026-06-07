@@ -129,6 +129,28 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     const titles = parseRulesMd(out).map((s) => s.title)
     expect(titles).toContain('Loop Protocol')
   })
+
+  it('#131: 양쪽 키에 걸리는 섹션은 1회만 출력 (기술 스택 (변경 시 ADR 필수) 중복 제거)', () => {
+    // '기술 스택'(CURSORRULES) + 'ADR'(CLAUDE_MD) 양쪽 매칭 → 기존엔 2회 출력되던 버그
+    const sections = parseRulesMd('# P — Rules\n\n## 기술 스택 (변경 시 ADR 필수)\n- Node\n\n## 코딩 규칙\n- a\n')
+    const out = toAgentsMd(sections, 'P')
+    expect((out.match(/## 기술 스택 \(변경 시 ADR 필수\)/g) || []).length).toBe(1)
+  })
+
+  it('#130: 커스텀 H2(작업 3원칙·DoD)는 「기타 규칙」 버킷으로 전파 (silent drop 방지)', () => {
+    const sections = parseRulesMd('# P — Rules\n\n## 0. 작업 3원칙\n- 스코프 고정\n\n## DoD\n- 테스트 통과\n\n## 코딩 규칙\n- a\n')
+    const out = toAgentsMd(sections, 'P')
+    expect(out).toContain('## 기타 규칙')
+    expect(out).toContain('작업 3원칙')
+    expect(out).toContain('스코프 고정')
+    expect(out).toContain('DoD')
+    expect(out).toContain('테스트 통과')
+  })
+
+  it('#130: 표준 섹션만이면 기타 규칙 버킷 없음 (노이즈 0)', () => {
+    const out = toAgentsMd(parseRulesMd('## 코딩 규칙\n- a\n\n## 기록 규칙\n- b\n'), 'P')
+    expect(out).not.toContain('기타 규칙')
+  })
 })
 
 describe('vhk sync — Gemini CLI + Cline (Goal 16, 5→7종)', () => {

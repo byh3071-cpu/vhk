@@ -162,23 +162,33 @@ export async function init(options: InitOptions = {}) {
 
   const cwd = process.cwd()
 
-  // adopt 모드(브라운필드) — 기존 도구별 규칙 파일을 RULES.md(SoT)로 가져오기 제안.
-  // 비대화형(yes/비-TTY/notion)은 건너뛰고 greenfield 템플릿 RULES.md 를 그대로 쓴다.
+  // adopt 모드(브라운필드) — 기존 도구별 규칙 파일을 RULES.md(SoT)로 가져온다.
   let adoptedRules: string | null = null
-  if (isInteractive(options) && !options.fromNotion) {
+  if (!options.fromNotion) {
     const existingRules = detectExistingRuleFiles(cwd)
     if (existingRules.length > 0) {
-      const { adopt } = await inquirer.prompt([{
-        type: 'confirm',
-        name: 'adopt',
-        message: ko.init.adoptPrompt(
-          existingRules.length,
-          existingRules.map(f => f.path).join(', ')
-        ),
-        default: true,
-      }])
-      if (adopt) {
+      if (isInteractive(options)) {
+        const { adopt } = await inquirer.prompt([{
+          type: 'confirm',
+          name: 'adopt',
+          message: ko.init.adoptPrompt(
+            existingRules.length,
+            existingRules.map(f => f.path).join(', ')
+          ),
+          default: true,
+        }])
+        if (adopt) {
+          adoptedRules = buildAdoptedRules(existingRules, answers.name)
+          console.log(chalk.dim(`  ${ko.init.adoptPreview(existingRules.length)}`))
+        }
+      } else if (!fileExists(path.join(cwd, 'RULES.md'))) {
+        // #132: 비대화형(-y)에서도 RULES.md 가 아직 없으면 기존 규칙을 자동 adopt.
+        // thin 템플릿이 SoT 가 돼 알맹이 .cursorrules/CLAUDE.md 를 빈약하게 덮어쓰는 함정 방지.
+        // (RULES.md 가 이미 있으면 건드리지 않음 — 아래 write 루프가 보존.)
         adoptedRules = buildAdoptedRules(existingRules, answers.name)
+        console.log(
+          chalk.cyan(`  기존 규칙 파일 ${existingRules.length}개 감지 → RULES.md 로 자동 병합(adopt)`)
+        )
         console.log(chalk.dim(`  ${ko.init.adoptPreview(existingRules.length)}`))
       }
     }

@@ -324,6 +324,21 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
 export function toAgentsMd(sections: RulesSection[], projectName: string): string {
   const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
   const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
+  // #131: 한 섹션이 양쪽 키에 걸리면(예: '기술 스택 (변경 시 ADR 필수)' = '기술 스택'+'ADR')
+  // 두 번 출력되던 버그 → 제목 기준 dedup(코딩 먼저).
+  const seenMapped = new Set<string>()
+  const orderedMapped = [...codingSections, ...recordSections].filter(s => {
+    if (seenMapped.has(s.title)) return false
+    seenMapped.add(s.title)
+    return true
+  })
+  // #130: 표준 키에 안 맞는 커스텀 H2(서문 제외 — 예: '작업 3원칙'·'DoD')를 「기타 규칙」 버킷으로
+  // 전파 → 사용자 핵심 가드가 조용히 누락되지 않게.
+  const extraSections = sections.filter(s =>
+    s.title !== PREAMBLE_TITLE &&
+    !CURSORRULES_KEYS.some(k => s.title.includes(k)) &&
+    !CLAUDE_MD_KEYS.some(k => s.title.includes(k))
+  )
 
   const lines = [
     `# ${projectName} — AGENTS.md (에이전트 작동 규약)`,
@@ -340,15 +355,22 @@ export function toAgentsMd(sections: RulesSection[], projectName: string): strin
     '',
   ]
 
-  for (const section of codingSections) {
+  for (const section of orderedMapped) {
     lines.push(`## ${section.title}`)
     lines.push(section.content)
     lines.push('')
   }
-  for (const section of recordSections) {
-    lines.push(`## ${section.title}`)
-    lines.push(section.content)
+
+  // #130: 비표준 커스텀 섹션을 하나의 「기타 규칙」 H2 아래 ### 로 모아 전파(H2 네임스페이스 비오염).
+  if (extraSections.length) {
+    lines.push('## 기타 규칙')
+    lines.push('> RULES.md 의 비표준 H2 섹션 — 표준 매핑 외이지만 보존 위해 전파(직접 수정은 RULES.md 에서).')
     lines.push('')
+    for (const section of extraSections) {
+      lines.push(`### ${section.title}`)
+      lines.push(section.content)
+      lines.push('')
+    }
   }
 
   return lines.join('\n')
