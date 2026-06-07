@@ -4,7 +4,32 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-_다음 릴리즈 예정 항목 없음._
+> main 에 머지됐으나 2.4.2 발행 시점 이후라 다음 릴리즈(2.4.3) 포함 예정.
+
+- **`vhk worktree` 가드** (Goal 30, #139) — worktree 생성 시 `.env` 자동 복사 + 누락 점검.
+- **`vhk today`** (Goal 33, #162) — 저녁 자축·회고 브리핑(git + goal 기반).
+
+## [2.4.2] - 2026-06-07
+
+> **Safety 강화 — HARD_STOP 가드 완성 + 원자적 쓰기 완성.** 자동화 트립와이어(`.vhk/HARD_STOP`)가 모든 상태변경 경로를 막고, 영속 쓰기가 쓰기 도중 kill 에도 손상되지 않도록 마무리(Goal 34~41).
+
+### Added
+
+- **HARD_STOP 가드 전면 확대** — 활성 시 상태변경 작업을 즉시 차단(파일/git 미변경 + 안내 출력, `vhk resume --confirm` 으로만 사람이 해제).
+  - goal 명령군(next/init/done) · memory 명령군(add/remove/archive/resolve/unarchive) · evolve(apply/reject/undo)·pattern(dismiss)·mission(set/clear) (Goal 34~36)
+  - 나머지 상태쓰기 명령: `design`·`theme`·`env`·`ref add`·`cloud push` (Goal 39)
+  - **MCP 서버 surface** (`save`·`undo`·`env`) — CLI `guardCli` chokepoint 를 우회해 git/파일 쓰기를 인라인 재구현하던 핸들러에 `hardStopBlocked` 가드 신설. MCP stdio(JSON-RPC) 오염 방지로 console 대신 안내 content 반환 (Goal 41).
+
+### Changed
+
+- **원자적 쓰기(`atomicWriteFile`) 완성** — temp 파일에 먼저 쓰고 `rename`(원자 교체)으로 옮겨, 쓰기 도중 kill 되어도 대상 파일이 부분기록(손상)되지 않도록.
+  - 헬퍼 신설 + 영속 상태 적용 · `ref`/`review`/`verify`/`sync`/`mission`/`state-files` 확대 (Goal 37~38)
+  - `goal.ts`: `next-task.md`·scaffold 첫 생성·goal frontmatter 갱신 (Goal 40)
+- **`.gitignore`** — `.vhk/mission.json`(로컬 미션 범위 상태) 추가, 다른 `.vhk` 로컬 파일과 일관.
+
+### 내부
+
+- 도그푸드 샌드박스 디렉터리·orphan goal 게이트 스크립트 정리 + 회귀 가드 테스트 다수 추가(998 pass).
 
 ## [2.4.1] - 2026-06-06
 
