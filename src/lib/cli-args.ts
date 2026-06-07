@@ -60,6 +60,13 @@ function isOptionToken(token: string): boolean {
 }
 
 /**
+ * 자유형식 본문을 인자로 받는 명령(#147). 본문에 'sync'·'상태' 등 NLP 키워드가 섞이면
+ * 라우터가 문장 전체를 가로채 엉뚱한 명령(sync 등)이 실행되므로, 이 명령들은 NL 가로채기를
+ * 건너뛰고 항상 commander 가 인자 그대로 처리한다. (영문 + 한글 별칭 모두 포함)
+ */
+const FREEFORM_ARG_COMMANDS = new Set(['learn', '교훈', 'blocker', '블로커'])
+
+/**
  * 서브커맨드를 갖는 컨테이너 명령 → 실제 서브커맨드 이름 목록.
  * `goal check` · `ref add` · `memory list` 처럼 rest[1] 이 실제 서브커맨드면
  * commander 가 직접 처리한다(자연어 라우터가 가로채지 못하게 — R1: 명령어 매칭 우선).
@@ -102,6 +109,9 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
   if (!input) return null
 
   const firstIsKnown = KNOWN_COMMAND_TOKENS.has(first)
+
+  // #147: 자유형식 본문 명령(learn/blocker)은 본문에 NLP 키워드가 있어도 가로채지 않는다.
+  if (firstIsKnown && FREEFORM_ARG_COMMANDS.has(first)) return null
 
   // vhk save / vhk 검증
   if (firstIsKnown && rest.length === 1) return null

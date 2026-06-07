@@ -153,6 +153,29 @@ describe('detectNaturalLanguageInput — pattern/evolve 라우팅 (회귀: Goal 
   })
 })
 
+describe('detectNaturalLanguageInput — freeform 인자 명령 NLP 가로채기 금지 (#147)', () => {
+  // 실결함: learn/blocker 는 자유형식 본문을 받는데, 본문에 'sync' 같은 NLP 키워드가
+  // 들어가면 라우터가 가로채 vhk sync 가 실행되고 learn()/blocker() 가 안 돔.
+  it('vhk learn <다단어, sync 포함> → null (commander learn 처리)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'learn', 'dogfood', 'lesson', 'without', 'sync', 'keyword'])
+    ).toBeNull()
+  })
+  it('vhk 교훈 <다단어, sync 포함> → null (한글 별칭)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '교훈', 'sync', '없이', '배운', '교훈'])).toBeNull()
+  })
+  it('vhk blocker <다단어, sync 포함> → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'blocker', 'sync', '중단', '반복', '증상'])).toBeNull()
+  })
+  it('vhk 블로커 <다단어, sync 포함> → null', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '블로커', 'sync', '중단', '반복', '증상'])).toBeNull()
+  })
+  // 회귀: freeform 아닌 명령은 기존대로 자연어 라우팅 유지
+  it('회귀: vhk 보안 확인 은 여전히 자연어', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '보안', '확인'])).toBe('보안 확인')
+  })
+})
+
 describe('cli NL e2e', () => {
   const bin = path.join(process.cwd(), 'dist', 'index.js')
 
@@ -165,6 +188,20 @@ describe('cli NL e2e', () => {
     })
     expect(String(r.stderr ?? '')).not.toMatch(/too many arguments/i)
     expect(String(r.stdout ?? '')).toMatch(/보안|secure|스캔/i)
+  })
+
+  it('vhk learn <다단어 unquoted> — too many arguments 없이 교훈 기록, sync 안 탐 (#147)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-learn-'))
+    const r = spawnSync(
+      process.execPath,
+      [bin, 'learn', 'dogfood', 'lesson', 'without', 'sync', 'keyword'],
+      { encoding: 'utf-8', cwd: tmp, env: { ...process.env, CI: '1' } }
+    )
+    const out = String(r.stdout ?? '')
+    expect(String(r.stderr ?? '')).not.toMatch(/too many arguments/i)
+    expect(out).toMatch(/교훈 기록/) // learn 실행됨
+    expect(out).not.toMatch(/규칙 파일 동기화|규칙 동기화 완료/) // sync 로 새지 않음
+    fs.rmSync(tmp, { recursive: true, force: true })
   })
 
   it('vhk --version', () => {
