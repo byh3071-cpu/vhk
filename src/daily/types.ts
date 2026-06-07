@@ -36,3 +36,13 @@ export interface StandupReport {
   todayRecommend: GoalState[] // 다음 NOT_STARTED + 진행 중 (단순 나열, 우선순위 알고리즘 X)
   unresolved: string[] // 막힌 것 / 미해결 메모
 }
+
+// Goal 33 today — 저녁 자축/회고. 단순 카운트(streak·게임요소·AI요약 v0 제외).
+export interface TodayReport {
+  date: string // 오늘 YYYY-MM-DD (KST)
+  commitCount: number
+  doneGoalCount: number
+  devlogCount: number
+  doneGoals: GoalState[]
+  lessons: string[] // Dev Log 교훈 (Phase 2 연동, v0 는 빈 배열)
+}
