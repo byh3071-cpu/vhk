@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 33
 title: vhk today — 저녁 자축·회고(오늘 해낸 것 담백 요약) — P2
-status: IN_PROGRESS
+status: DONE
 priority: P2
 created: 2026-06-06
+completed: 2026-06-07
 depends_on: goal-32-standup
 ---
 
@@ -27,12 +28,12 @@ depends_on: goal-32-standup
 - 출력 = 🎉 해낸 것(카운트 + 항목) + 💬 격려 문구(간단 템플릿 풀에서 랜덤, 톤 절제).
 
 ## Completion Check
-- [ ] `vhk today`가 오늘 성과 요약(커밋·완료 goal·Dev Log 카운트) + 격려 출력
-- [ ] daily 모듈을 Goal 32와 공유(today 범위 필터만 차이, 중복 구현 0)
-- [ ] 단순 카운트 — LLM 호출 0(오프라인 동작)
-- [ ] today 범위 필터(KST 00:00~now) vitest mock
-- [ ] vhk goal sync → check-goal-33.mjs → vhk goal check --id 33 통과
-- [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
+- [x] `vhk today`가 오늘 성과 요약(커밋·완료 goal·Dev Log 카운트) + 격려 출력 (runToday + buildTodayReport + pickMessage)
+- [x] daily 모듈을 Goal 32와 공유(today 범위 필터만 차이, 중복 구현 0) — gitlog/goals 재사용
+- [x] 단순 카운트 — LLM 호출 0(오프라인 동작) — buildTodayReport 순수함수, execSync/fetch 0
+- [x] today 범위 필터(KST 00:00~now) vitest mock — dayRange + buildTodayReport "어제 제외" 테스트
+- [x] vhk goal sync → check-goal-33.mjs → vhk goal check --id 33 통과
+- [x] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
 
 ## 제외 범위 (v0)
 - streak/게임 요소(담백함 우선) / AI 의미요약(`--smart` 후속) / 마감 시각 자동 알림(Phase 3)
