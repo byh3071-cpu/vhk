@@ -678,16 +678,18 @@ goalCmd
   .action(async () => { await goalSync() })
 
 program
-  .command('blocker <description>')
+  // #147: variadic — 따옴표 없는 다단어 본문도 받는다 (vhk blocker sync 중단 증상). join 으로 원문 복원.
+  .command('blocker <description...>')
   .alias('블로커')
   .description('블로커 기록 → docs/state/blockers.md append (3건 누적 시 HARD_STOP 자동 생성)')
-  .action(async (description: string) => { await blocker(description) })
+  .action(async (description: string[]) => { await blocker(description.join(' ')) })
 
 program
-  .command('learn <lesson>')
+  // #147: variadic — 따옴표 없는 다단어 교훈도 받는다 (vhk learn dogfood lesson without sync keyword).
+  .command('learn <lesson...>')
   .alias('교훈')
   .description('교훈 기록 → memory v2 failures.lesson 단일 SoT (v2.0 통합 — vhk memory list 로 확인)')
-  .action(async (lesson: string) => { await learn(lesson) })
+  .action(async (lesson: string[]) => { await learn(lesson.join(' ')) })
 
 program
   .command('resume')
