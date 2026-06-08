@@ -88,9 +88,11 @@ describe('review — crossCheck (순수)', () => {
     expect(r.suspicions.some((s) => /DONE/.test(s.check))).toBe(true)
   })
 
-  it('체크된 테스트 항목인데 test 게이트 skip → 의심', () => {
+  it('체크된 테스트 항목인데 test 게이트 skip → 미검증(gap, 강한 의심 아님) (#157)', () => {
     const r = crossCheck([checked('테스트 추가')], 'IN_PROGRESS', report('WARN', [gate('test', 'skip', null)]), FRESH)
-    expect(r.suspicions.some((s) => /skip/.test(s.reason))).toBe(true)
+    // #157: skip 은 거짓완료 '강한 의심'이 아니라 '미검증'(수동 확인) — gaps 로 분류.
+    expect(r.suspicions).toHaveLength(0)
+    expect(r.gaps.some((g) => /skip/.test(g.note))).toBe(true)
   })
 
   it('전 게이트 pass + 매핑 충분 + 신선 → confidence high + disclaimer', () => {
@@ -246,12 +248,12 @@ ${checks.map((c) => `- [x] ${c}`).join('\n')}
     fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('증거 불충분(미검증 다수 → coverage 낮음, 의심 0) → exit 1 (통과 취급 안 함)', async () => {
+  it('증거 불충분(미검증 다수, 의심 0) → --strict 면 exit 1 (#157)', async () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
     seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과', '문서 업데이트', 'UX 개선'])
     seedReport(d, report('PASS', [gate('typecheck', 'pass')], new Date().toISOString()))
     process.chdir(d)
-    await review({ id: '9' })
+    await review({ id: '9', strict: true })
     expect(process.exitCode).toBe(1)
     const merged = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'reports', 'latest.json'), 'utf-8'))
     expect(merged.review.suspicions).toHaveLength(0)
@@ -260,16 +262,51 @@ ${checks.map((c) => `- [x] ${c}`).join('\n')}
     fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('stale 증거(의심 0, 커버리지 충분이라도) → exit 1', async () => {
+  it('#157 advisory(기본): 강한 모순 없으면 미검증 있어도 exit 0', async () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
-    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과'])
-    // generatedAt 옛날 → stale → high 금지 → exit 1.
-    seedReport(d, report('PASS', [gate('typecheck', 'pass')], '2020-01-01T00:00:00.000Z'))
+    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과', '문서 업데이트', 'UX 개선'])
+    seedReport(d, report('PASS', [gate('typecheck', 'pass')], new Date().toISOString()))
     process.chdir(d)
-    await review({ id: '9' })
+    await review({ id: '9' }) // 기본 = advisory
+    expect(process.exitCode).toBe(0)
+    const merged = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'reports', 'latest.json'), 'utf-8'))
+    expect(merged.review.suspicions).toHaveLength(0)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('강한 모순(게이트 FAIL) → advisory 라도 exit 1 (#157)', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    seedGoal(d, 9, 'DONE', ['tsc 통과'])
+    seedReport(d, report('FAIL', [gate('typecheck', 'fail', 1)], new Date().toISOString()))
+    process.chdir(d)
+    await review({ id: '9' }) // advisory 여도 강한 모순은 실패
     expect(process.exitCode).toBe(1)
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('stale 증거(의심 0) → --strict 면 exit 1, advisory 면 exit 0 (#157)', async () => {
+    const mk = () => {
+      const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+      seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과'])
+      seedReport(d, report('PASS', [gate('typecheck', 'pass')], '2020-01-01T00:00:00.000Z'))
+      return d
+    }
+    const d1 = mk()
+    process.chdir(d1)
+    await review({ id: '9', strict: true })
+    expect(process.exitCode).toBe(1)
+    process.chdir(origCwd)
+    fs.rmSync(d1, { recursive: true, force: true })
+
+    const d2 = mk()
+    process.chdir(d2)
+    process.exitCode = 0
+    await review({ id: '9' })
+    expect(process.exitCode).toBe(0)
+    process.chdir(origCwd)
+    fs.rmSync(d2, { recursive: true, force: true })
   })
 
   it('vacuous(체크 0) → exit 0', async () => {

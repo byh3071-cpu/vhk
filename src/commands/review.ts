@@ -171,7 +171,10 @@ export function crossCheck(
       } else if (g.status === 'fail') {
         suspicions.push({ check: c.text, reason: `${gid} 게이트 FAIL(종료코드 ${g.exitCode ?? '?'}) — 체크됨과 모순.` })
       } else if (g.status === 'skip') {
-        suspicions.push({ check: c.text, reason: `${gid} 게이트 skip — 검증이 변경을 안 건드렸을 수 있음(거짓완료 의심).` })
+        // #157: skip 은 '강한 모순'이 아니라 '미검증 신호'(soft) — 게이트가 이번 변경을 안 건드렸을 수 있음.
+        //        suspicions(거짓완료 강한 의심)가 아니라 gaps(수동 확인)로 분류 → verify 통과 후
+        //        skip 만으로 review 가 거짓 실패(exit 1) 내던 혼란(#157) 제거.
+        gaps.push({ check: c.text, note: `${gid} 게이트 skip — 검증이 이번 변경을 안 건드렸을 수 있음(수동 확인 권장).` })
       }
     }
   }
@@ -238,8 +241,9 @@ const CONFIDENCE_LABEL: Record<ReviewAnalysis['confidence'], string> = {
   high: chalk.green.bold('높음 (의심 0 + 커버리지·신선도 충분 — 단 보장 아님)'),
 }
 
-export async function review(opts: { id?: string } = {}): Promise<void> {
+export async function review(opts: { id?: string; strict?: boolean } = {}): Promise<void> {
   if (!ensureNotHardStopped('review')) return
+  const strict = opts.strict === true
 
   const cwd = process.cwd()
   const goals = listGoals(GOALS_DIR)
@@ -305,6 +309,11 @@ export async function review(opts: { id?: string } = {}): Promise<void> {
     )
   )
   console.log(chalk.dim(`  증거 신선도: ${result.freshness.note}`))
+  // #157: 게이트 증거 키 매핑 — 어떤 게이트가 pass/skip/fail/부재인지 한눈에(미검증 위치 명확화).
+  const gateLine = report.gates.length
+    ? report.gates.map((g) => `${g.id}:${g.status}`).join(' · ')
+    : '(게이트 없음)'
+  console.log(chalk.dim(`  게이트 증거: ${gateLine}  ·  모드: ${strict ? 'strict(엄격)' : 'advisory(권고·기본)'}`))
 
   if (result.checkedCount === 0) {
     console.log(chalk.yellow('\n  ⚪ 완료 주장 없음(체크된 완료조건 0개) — 심문할 대상이 없습니다(vacuous).'))
@@ -347,13 +356,16 @@ export async function review(opts: { id?: string } = {}): Promise<void> {
     return
   }
 
-  // exit code 정책 (테스트로 고정):
-  //  - exit 0 = 통과로 봐도 되는 경우만 → ① vacuous(완료 주장 없음) ② cleanHigh(의심 0 + 미검증 0 + high)
-  //  - exit 1 = 그 외 전부 → 강한 거짓완료 의심 / 증거 불충분(medium·low: stale·미검증·커버리지 부족) / 병합 실패
-  //  stale·unmapped·coverage 부족은 절대 "통과"로 취급하지 않는다(거짓 안심 금지).
+  // exit code 정책 (#157, 테스트로 고정):
+  //  - 기본(advisory): exit 0 = vacuous(완료 주장 없음) 또는 강한 모순(suspicions) 0. → verify 통과 후
+  //    skip/미검증/커버리지 부족만으로는 거짓 실패(exit 1) 내지 않는다(혼란 제거). 미검증은 경고로만.
+  //  - --strict: exit 0 = vacuous 또는 cleanHigh(의심 0 + 미검증 0 + high)만. 그 외 exit 1(엄격 게이트).
+  //  어느 모드든 강한 모순(suspicions: FAIL·증거부재·DONE↔FAIL)은 exit 1.
   const vacuous = result.checkedCount === 0
-  const cleanHigh = result.suspicions.length === 0 && result.gaps.length === 0 && result.confidence === 'high'
-  process.exitCode = vacuous || cleanHigh ? 0 : 1
+  const cleanHigh =
+    result.suspicions.length === 0 && result.gaps.length === 0 && result.confidence === 'high'
+  const softOnlyPass = result.suspicions.length === 0 // 강한 모순 없음(gaps 는 있을 수 있음)
+  process.exitCode = strict ? (vacuous || cleanHigh ? 0 : 1) : (vacuous || softOnlyPass ? 0 : 1)
 
   if (vacuous) {
     // 완료 주장 자체가 없음 → 실패 아님(0), 단 goal done 안내도 안 함.
@@ -377,12 +389,23 @@ export async function review(opts: { id?: string } = {}): Promise<void> {
       command: `vhk goal done --id ${goalId}`,
       cursorHint: 'goal 완료 처리해줘',
     })
+  } else if (!strict) {
+    // advisory: 강한 모순 없음 + (skip/미검증/커버리지 부족) → 통과(exit 0)지만 수동 확인 권장.
+    if (result.gaps.length > 0) {
+      console.log(chalk.dim('\n  ℹ️  강한 모순 없음 — advisory 통과(exit 0). 아래 미검증은 수동 확인 권장:'))
+      console.log(chalk.cyan(result.reprompt.split('\n').map((l) => `    ${l}`).join('\n')))
+    }
+    printNextStep({
+      message: `심문 통과(advisory·신뢰도 ${result.confidence}, 보장 아님). 엄격 검증은 vhk review --strict. 완료 처리:`,
+      command: `vhk goal done --id ${goalId}`,
+      cursorHint: 'goal 완료 처리해줘',
+    })
   } else {
-    // medium/low (의심은 없지만 stale·미검증·커버리지 부족) → "통과" 아님(exit 1). goal done 안내 금지.
+    // --strict: medium/low (의심은 없지만 stale·미검증·커버리지 부족) → "통과" 아님(exit 1). goal done 금지.
     console.log(chalk.dim('\n  AI 재질문 프롬프트:'))
     console.log(chalk.cyan(result.reprompt.split('\n').map((l) => `    ${l}`).join('\n')))
     printNextStep({
-      message: `증거 불충분(신뢰도 ${result.confidence}) — goal done 금지. 커버리지/신선도 보강 후 재검증:`,
+      message: `증거 불충분(strict·신뢰도 ${result.confidence}) — goal done 금지. 커버리지/신선도 보강 후 재검증:`,
       command: 'vhk verify',
       cursorHint: '증거 보강 후 다시 검증해줘',
     })
