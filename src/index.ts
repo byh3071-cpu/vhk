@@ -529,8 +529,9 @@ program
   .command('review')
   .alias('검토')
   .option('--id <id>', '대상 goal id (없으면 active goal)')
+  .option('--strict', '엄격 모드 — 미검증/커버리지 부족도 실패 (기본 advisory: 강한 모순만 실패) (#157)')
   .description('적대적 자기검증 — latest.json ↔ goal 완료조건 교차검증 (거짓완료 의심 탐지, 보장 아님)')
-  .action(async (opts: { id?: string }) => { await review(opts) })
+  .action(async (opts: { id?: string; strict?: boolean }) => { await review(opts) })
 
 // prev 기본 [] — default 미지정이라 옵션 미제공 시 opts 에 키 자체가 없음(undefined = 보존 신호).
 const collectGlob = (v: string, prev: string[] = []): string[] => prev.concat([v])
