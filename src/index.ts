@@ -49,7 +49,7 @@ import { review } from './commands/review.js'
 import { missionSet, missionShow, missionCheck, missionClear } from './commands/mission.js'
 import { runGuarded } from './lib/safety-guard.js'
 import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
-import { isPromptAbortError } from './lib/interactive.js'
+import { isPromptAbortError, TTY_REQUIRED_EXIT_CODE } from './lib/interactive.js'
 
 /**
  * CLI high-risk 작업 가드 — 단일 chokepoint(runGuarded) 경유.
@@ -307,8 +307,9 @@ program
   .command('save')
   .alias('저장')
   .option('--yes', '확인 없이 실행 (strict 모드 가드 명시 승인)')
+  .option('-m, --message <msg>', '커밋 메시지 직접 지정 (비-TTY/에이전트용 — 프롬프트 생략)')
   .description('변경사항 저장 (git add → commit → push)')
-  .action(async (opts: { yes?: boolean }) => { await guardCli('save', opts?.yes === true, () => save()) })
+  .action(async (opts: { yes?: boolean; message?: string }) => { await guardCli('save', opts?.yes === true, () => save({ message: opts?.message })) })
 
 program
   .command('undo')
@@ -885,11 +886,13 @@ if (isMainModule) {
     }
   } catch (err) {
     if (isPromptAbortError(err)) {
-      console.error(chalk.yellow('\n  ⚠️  대화형 입력이 취소/종료됐습니다. (비대화형 환경에서는 해당 명령을 쓸 수 없어요)'))
+      // #153: 비-TTY 프롬프트 중단도 TTY_REQUIRED 전용 코드(2)로 — generic 실패와 구분.
+      console.error(chalk.yellow('\n  ⚠️  TTY_REQUIRED — 대화형 입력이 취소/종료됐습니다 (비대화형 환경 불가).'))
+      process.exitCode = TTY_REQUIRED_EXIT_CODE
     } else {
       console.error(chalk.red(`\n❌ ${err instanceof Error ? err.message : String(err)}`))
+      process.exitCode = 1
     }
-    process.exitCode = 1
   }
 }
 

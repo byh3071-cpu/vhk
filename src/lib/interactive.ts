@@ -22,11 +22,19 @@ export async function promptOrDefault<T>(ask: () => Promise<T>, fallback: T, opt
  * `ERR_USE_AFTER_CLOSE` 로 크래시하므로, 진입부에서 friendly 안내 + 비-0 종료 신호 후 중단한다.
  * 반환 true = 대화형 진행 가능. (VHK-014)
  */
+/**
+ * 비-TTY 대화형 명령 거부 시 종료 코드 — generic 실패(1)와 구분(#153, CI/에이전트 감지용).
+ * 값 2 = "자동으로 진행 불가, 사람 개입 필요" 라는 공통 의미로, blocker 의 HARD_STOP 트립
+ * (agent.ts)도 같은 2를 쓴다. 구체 사유는 stderr 마커(TTY_REQUIRED / 🛑 HARD_STOP)로 구분.
+ */
+export const TTY_REQUIRED_EXIT_CODE = 2
+
 export function ensureInteractive(hint = ''): boolean {
   if (isInteractive()) return true
-  console.error(chalk.yellow('  ⚠️  이 명령은 대화형 입력이 필요합니다 — 비-TTY/파이프 환경에서는 실행할 수 없어요.'))
+  // 'TTY_REQUIRED' 마커 — 에이전트/CI 가 stderr 로 사유를 기계 감지(#153).
+  console.error(chalk.yellow('  ⚠️  TTY_REQUIRED — 이 명령은 대화형 입력이 필요합니다 (비-TTY/파이프 환경 불가).'))
   if (hint) console.error(chalk.dim(`     ${hint}`))
-  process.exitCode = 1
+  process.exitCode = TTY_REQUIRED_EXIT_CODE
   return false
 }
 

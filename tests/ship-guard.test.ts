@@ -22,11 +22,11 @@ describe('ship 가드 — 비-TTY refuse-essential', () => {
     process.exitCode = 0
   })
 
-  it('비-TTY → inquirer 미호출 + exitCode 1 (크래시/멈춤 없음)', async () => {
+  it('비-TTY → inquirer 미호출 + exitCode 2 (TTY_REQUIRED, 크래시/멈춤 없음)', async () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
     const { ship } = await import('../src/commands/ship.js')
     await expect(ship()).resolves.not.toThrow()
     expect(mockPrompt).not.toHaveBeenCalled()
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBe(2) // #153: TTY_REQUIRED 전용 코드
   })
 })

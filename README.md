@@ -154,7 +154,7 @@ vhk 기획 끝났고 바로 시작
 | `vhk worktree` | `워크트리` | worktree 가드 (`add <branch>` / `check`) — 생성 시 필수 env/설정 자동 복사(파일 복사·심볼릭 X, 비밀값 미노출), 누락 점검. `--install` 로 pnpm install. Goal 29 `worktree-env` 모듈 재사용 |
 | `vhk cloud push` | `클라우드`, `올리기` | `.vhk/` 를 GitHub secret gist 로 백업 (gh CLI 인증 사용) |
 | `vhk cloud pull` | `내리기` | gist 에서 `.vhk/` 복원 (`vhk cloud pull <gistId>` 또는 cloud.json) |
-| `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에 |
+| `vhk save` | `저장`, `커밋` | git add · commit · push 한 번에. 비-TTY/에이전트에선 프롬프트 없이 기본 메시지 사용(또는 `vhk save -m "<메시지>"`로 지정) — MCP `save` 도구와 동일하게 동작 |
 | `vhk undo` | `되돌리기`, `취소` | 최근 커밋 soft reset (변경은 staged 유지) |
 | `vhk diff` | `변경`, `차이` | staged / unstaged / 새 파일 요약 (줄 수 합계는 tracked·HEAD 기준) |
 | `vhk status` | `상태`, `현황` | 브랜치·변경·커밋·원격·버전 대시보드 |
