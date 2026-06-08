@@ -20,6 +20,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   evolve: ['suggest', 'list', 'apply', 'reject', 'undo'],
   work: ['handoff'],
   worktree: ['add', 'check'],
+  seo: ['init'],
 }
 
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
@@ -98,4 +99,5 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'resume', desc: '.vhk/HARD_STOP 해제 (--confirm 필요)' },
   { name: 'pattern', desc: '반복 패턴 감지·목록 (avoid/reinforce)' },
   { name: 'evolve', desc: '패턴 → 룰 후보 제안·반영·undo' },
+  { name: 'seo', desc: 'SEO·수익 대시보드 (init: 사이트 등록 + 자격증명 보관)' },
 ]

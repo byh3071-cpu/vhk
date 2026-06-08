@@ -20,6 +20,9 @@ dist/
 .vhk/cloud.json
 # 로컬 미션 범위 계약(vhk mission set) — 프로젝트별 로컬 상태, 공유 대상 아님
 .vhk/mission.json
+# SEO 대시보드 로컬 설정(vhk seo init) — 관리 사이트 목록은 프로젝트별 로컬 상태, 공유 대상 아님.
+# (값 없이 환경변수 참조만 담지만, 로컬 상태이므로 mission.json 과 동일하게 커밋 제외.)
+.vhk/seo/
 
 # EnterWorktree 가 .claude/worktrees/ 에 isolated 복사본 생성 — 커밋 금지
 .claude/worktrees/
