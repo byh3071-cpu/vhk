@@ -24,8 +24,10 @@ describe('git-repo (Goal 46 — safeExecFile 단일 통로)', () => {
   it('getGitRoot: 레포 → 루트 경로, cwd 존중', () => {
     const d = makeRepo()
     const root = getGitRoot(d)
-    // realpath 로 비교(macOS /var→/private/var 등 symlink 정규화). Windows 는 동일.
-    expect(fs.realpathSync(root)).toBe(fs.realpathSync(d))
+    // realpathSync.native 로 비교 — macOS symlink(/var→/private/var) + Windows 8.3 단축명 정규화.
+    // (GitHub windows runner: os.tmpdir()=<HOME>\... 단축명, git 은 long path
+    //  <HOME>\... 반환 → 일반 realpathSync 는 단축명을 안 펴서 불일치. #goal-47 실측.)
+    expect(fs.realpathSync.native(root)).toBe(fs.realpathSync.native(d))
     fs.rmSync(d, { recursive: true, force: true })
   })
 
