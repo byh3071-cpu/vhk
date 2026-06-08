@@ -9,6 +9,7 @@ import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import {
   VHK_DIR,
   collectVhkFiles,
+  collectVhkSubdirs,
   loadVhkignore,
   partitionGistFiles,
   readCloudConfig,
@@ -67,6 +68,12 @@ export async function cloudPush(): Promise<void> {
 
   const filePaths = files.map(f => path.join(cwd, VHK_DIR, f))
   console.log(chalk.dim(`  📦 백업 대상 ${files.length}개: ${files.join(', ')}\n`))
+
+  // #160: 평면 파일만 백업 — 하위 폴더(.vhk/evolve/ 등)는 제외되므로 명시적으로 경고.
+  const subdirs = collectVhkSubdirs(cwd)
+  if (subdirs.length > 0) {
+    console.log(chalk.yellow(`  ${ko.cloud.flatOnlyWarn(subdirs.join(', '))}\n`))
+  }
 
   const existing = readCloudConfig(cwd)
   const desc = `vhk .vhk backup — ${path.basename(cwd)}`

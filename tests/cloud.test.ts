@@ -5,6 +5,7 @@ import path from 'node:path'
 import {
   DEFAULT_CLOUD_EXCLUDES,
   collectVhkFiles,
+  collectVhkSubdirs,
   loadVhkignore,
   partitionGistFiles,
   readCloudConfig,
@@ -67,6 +68,25 @@ describe('vhk-cloud — collectVhkFiles', () => {
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-empty-'))
     expect(collectVhkFiles(empty)).toEqual([])
     fs.rmSync(empty, { recursive: true, force: true })
+  })
+})
+
+describe('vhk-cloud — collectVhkSubdirs (하위 폴더 감지, #160)', () => {
+  it('.vhk/ 안의 하위 디렉터리 이름만 반환 (파일 제외)', () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-sub-'))
+    fs.mkdirSync(path.join(repo, '.vhk', 'evolve'), { recursive: true })
+    fs.writeFileSync(path.join(repo, '.vhk', 'evolve', 'queue.json'), '[]\n')
+    fs.writeFileSync(path.join(repo, '.vhk', 'context.md'), '# ctx\n')
+    expect(collectVhkSubdirs(repo)).toEqual(['evolve'])
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('하위 폴더 없으면 빈 배열', () => {
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-nosub-'))
+    fs.mkdirSync(path.join(repo, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(repo, '.vhk', 'context.md'), '# ctx\n')
+    expect(collectVhkSubdirs(repo)).toEqual([])
+    fs.rmSync(repo, { recursive: true, force: true })
   })
 })
 

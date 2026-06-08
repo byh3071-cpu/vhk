@@ -63,6 +63,22 @@ export function collectVhkFiles(
 }
 
 /**
+ * `.vhk/` 안의 하위 디렉터리 이름 목록 (#160). collectVhkFiles 는 평면 파일만 백업하므로
+ * 하위 폴더(예: evolve/queue.json)는 제외된다 — cloudPush 가 이 목록으로 사용자에게 경고한다.
+ */
+export function collectVhkSubdirs(rootDir: string): string[] {
+  const vhkDir = path.join(rootDir, VHK_DIR)
+  try {
+    return fs.readdirSync(vhkDir, { withFileTypes: true })
+      .filter(e => e.isDirectory())
+      .map(e => e.name)
+      .sort()
+  } catch {
+    return []
+  }
+}
+
+/**
  * gist 에 존재하는 파일명을 현재 제외 규칙(ig) 기준으로 분리한다.
  * - keep: 백업/복원 대상 (제외 규칙에 안 걸림)
  * - excluded: 제외 대상 (privacy purge / 복원 스킵 대상)

@@ -680,8 +680,9 @@ goalCmd
   .command('check')
   .alias('검증')
   .option('--id <id>', 'goal id 지정 (생략 시 active goal)')
+  .option('--force', 'DONE goal 도 게이트 재실행 (#155 — 기본은 DONE 스킵)')
   .description('scripts/check-goal-<id>.{mjs,sh} 실행 + exit code 전달 (.mjs 우선)')
-  .action(async (opts: { id?: string }) => { await goalCheck(opts) })
+  .action(async (opts: { id?: string; force?: boolean }) => { await goalCheck(opts) })
 
 goalCmd
   .command('done')
@@ -706,8 +707,9 @@ program
   // #147: variadic — 따옴표 없는 다단어 본문도 받는다 (vhk blocker sync 중단 증상). join 으로 원문 복원.
   .command('blocker <description...>')
   .alias('블로커')
-  .description('블로커 기록 → docs/state/blockers.md append (3건 누적 시 HARD_STOP 자동 생성)')
-  .action(async (description: string[]) => { await blocker(description.join(' ')) })
+  .option('--dry-run', '미리보기만 — blockers.md/HARD_STOP 변경 없음 (#159)')
+  .description('블로커 기록 → docs/state/blockers.md append (3건 누적 시 HARD_STOP 자동 생성). [dogfood] 태그는 임계값 제외.')
+  .action(async (description: string[], opts: { dryRun?: boolean }) => { await blocker(description.join(' '), { dryRun: opts?.dryRun }) })
 
 program
   // #147: variadic — 따옴표 없는 다단어 교훈도 받는다 (vhk learn dogfood lesson without sync keyword).

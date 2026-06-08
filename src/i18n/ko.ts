@@ -325,6 +325,8 @@ export const ko = {
     pullDone: '✅ 클라우드 복원 완료',
     pushFail: '❌ 백업 실패',
     pullFail: '❌ 복원 실패',
+    flatOnlyWarn: (dirs: string) =>
+      `⚠️  평면 파일만 백업됩니다 — 하위 폴더(${dirs})는 제외 (spec v1). 그 안의 파일(예: evolve/queue.json)은 로컬에만 남습니다.`,
   },
   ship: {
     title: '🚀 배포 체크리스트',
