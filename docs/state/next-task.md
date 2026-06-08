@@ -9,6 +9,9 @@
 - **미완 goal** (goals/ 동적 계산 — `vhk goal next`): silent-fallback 린트(Goal 25/27 영역·#128) · SEO 묶음(Goal 21~26) 등.
 - **열린 이슈 10개 트리아지** — 불확실 해결분 4개(#157 verify UX·#155 goal check mission drift·#171 nested pkg audit·#148 memory add `--`) 재현/해결확인 후 close. 백로그: #160·#159·#158·#151·#38.
 
+## 백로그 (예약 — 선행조건 충족 후)
+- **CLI 콜드스타트 지연 로딩** → [docs/rfc/0047](../rfc/0047-cli-coldstart-lazy-load.md). 실측 콜드스타트 489ms 중 94%가 index.ts eager import(런타임 무관). dynamic import + tsup splitting 으로 해결. **선행조건: index.ts 닿는 작업(SEO goal-21 등록·명령 추가 이슈) 전부 머지 후 → 단독 PR 마지막에** (index.ts 중앙성 → 동시 진행 시 충돌). Bun/Rust 전환은 RFC §4에서 기각.
+
 ## 블로커
 - 없음
 
