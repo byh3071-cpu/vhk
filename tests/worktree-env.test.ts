@@ -41,6 +41,16 @@ describe('parseEnvSpec — 필수/선택 구분 (#172)', () => {
     // PASS=ab#cd 의 #cd 는 optional 아님
     expect(parseEnvSpec('PASS=ab#cd')).toEqual([{ key: 'PASS', optional: false }])
   })
+
+  it('#220: 값에 붙은 #...optional(공백 없음)은 데이터 → required 유지', () => {
+    expect(parseEnvSpec('SECRET=key#optional-do-not-omit')).toEqual([
+      { key: 'SECRET', optional: false },
+    ])
+  })
+
+  it('#220: 공백 다음 # 주석의 optional 은 그대로 인식 (회귀)', () => {
+    expect(parseEnvSpec('OPT= # optional')).toEqual([{ key: 'OPT', optional: true }])
+  })
 })
 
 describe('checkWorktreeEnv — 선택 키 (#172)', () => {

@@ -60,7 +60,17 @@ export function isCloudflarePages(
   tomlContent: string | null,
   scripts: Record<string, string> = {}
 ): boolean {
-  if (tomlContent && /pages_build_output_dir|\[\[?pages/i.test(tomlContent)) return true
+  // #219: unanchored substring 은 주석·값의 'pages' 도 잡아 Workers 를 오분류했다.
+  //        줄 단위로 보고 (a) 주석(#) 무시, (b) 섹션 헤더 [pages]/[[pages]] 또는
+  //        (c) 줄 시작 키 pages_build_output_dir = ... 만 Pages 신호로 인정.
+  if (tomlContent) {
+    for (const raw of tomlContent.split(/\r?\n/)) {
+      const line = raw.trim()
+      if (!line || line.startsWith('#')) continue
+      if (/^\[\[?\s*pages\b/i.test(line)) return true
+      if (/^pages_build_output_dir\s*=/i.test(line)) return true
+    }
+  }
   return Object.values(scripts).some((s) => /wrangler\s+pages\s+deploy/.test(s))
 }
 
