@@ -1,11 +1,15 @@
 import chalk from 'chalk'
+import { existsSync, readFileSync } from 'node:fs'
 import { ko } from '../i18n/ko.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import {
   appendBlocker,
   clearHardStop,
+  countActiveBlockers,
   isHardStopActive,
   readHardStopReason,
+  BLOCKERS_PATH,
+  HARD_STOP_BLOCKER_THRESHOLD,
 } from '../lib/state-files.js'
 import { recordLesson } from './memory.js'
 import { selectActiveId } from './goal.js'
@@ -16,12 +20,24 @@ function activeGoalId(): number | undefined {
   return id ?? undefined
 }
 
-export async function blocker(description: string): Promise<void> {
+export async function blocker(description: string, opts: { dryRun?: boolean } = {}): Promise<void> {
   console.log(chalk.bold(`\n${ko.agent.blockerTitle}\n`))
   if (!description || !description.trim()) {
     console.log(chalk.red('  ❌ 블로커 설명을 입력해 주세요.'))
     console.log(chalk.dim('  예: vhk blocker "tsc 에러 — simple-git 타입 호환"'))
     process.exitCode = 1
+    return
+  }
+  // #159: --dry-run — blockers.md/HARD_STOP 변경 없이 기록 시 결과만 미리보기.
+  if (opts.dryRun) {
+    const current = existsSync(BLOCKERS_PATH) ? readFileSync(BLOCKERS_PATH, 'utf-8') : ''
+    const active = countActiveBlockers(current)
+    const isDogfood = /\[(dogfood|skip-hardstop)\]/i.test(description)
+    const projected = active + (isDogfood ? 0 : 1)
+    console.log(chalk.cyan(`  🔎 --dry-run — 기록하지 않음. 현재 활성 ${active}건 → 기록 시 ${projected}건${isDogfood ? ' ([dogfood] 태그: 임계값 제외)' : ''}.`))
+    if (!isDogfood && projected >= HARD_STOP_BLOCKER_THRESHOLD) {
+      console.log(chalk.yellow(`     ⚠️  기록하면 임계값(${HARD_STOP_BLOCKER_THRESHOLD}) 도달 → HARD_STOP 트립. ([dogfood] 태그로 회피 가능)`))
+    }
     return
   }
   const goalId = activeGoalId()

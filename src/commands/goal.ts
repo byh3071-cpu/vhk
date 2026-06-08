@@ -256,7 +256,7 @@ function warnIfBashOnWindows(scriptPath: string): void {
   }
 }
 
-export async function goalCheck(opts: { id?: string }): Promise<void> {
+export async function goalCheck(opts: { id?: string; force?: boolean }): Promise<void> {
   console.log(chalk.bold(`\n${ko.goal.checkTitle}\n`))
   const goals = listGoals(GOALS_DIR)
   const id = resolveGoalId(opts.id, goals)
@@ -268,9 +268,17 @@ export async function goalCheck(opts: { id?: string }): Promise<void> {
     return
   }
   // ② 없는 goal id 는 게이트 검사 전에 통일된 메시지로 거부 (done 과 동일).
-  if (!goals.some((g) => g.frontmatter.id === id)) {
+  const target = goals.find((g) => g.frontmatter.id === id)
+  if (!target) {
     console.log(chalk.red(`  ❌ ${ko.goal.notFound(id)}`))
     process.exitCode = 1
+    return
+  }
+  // #155: DONE goal 은 게이트 재실행을 스킵한다 — mission.json 등 외부 상태 드리프트로 이미
+  //       완료된 goal 이 재실패하지 않게. 재검증이 필요하면 --force.
+  if (target.frontmatter.status === 'DONE' && !opts.force) {
+    console.log(chalk.green(`  ✅ Goal ${id} 는 DONE — 게이트 재검증 스킵.`))
+    console.log(chalk.dim(`     (재실행하려면: vhk goal check --id ${id} --force)`))
     return
   }
   const scriptPath = findGateScript(id)
