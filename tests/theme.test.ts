@@ -4,6 +4,7 @@ const mockExistsSync = vi.fn()
 const mockMkdirSync = vi.fn()
 const mockWriteFileSync = vi.fn()
 const mockPrompt = vi.fn()
+const mockDetectStack = vi.fn()
 
 vi.mock('node:fs', () => ({
   existsSync: (...a: unknown[]) => mockExistsSync(...a),
@@ -15,6 +16,11 @@ vi.mock('inquirer', () => ({
   default: { prompt: (...a: unknown[]) => mockPrompt(...a) },
 }))
 
+// #158: theme 가 스택 감지로 경로를 정한다 → detectProjectStack 모킹으로 src/ vs 루트 분기 검증.
+vi.mock('../src/lib/stack-detect.js', () => ({
+  detectProjectStack: (...a: unknown[]) => mockDetectStack(...a),
+}))
+
 // Goal 12: theme 의 덮어쓰기 확인이 promptOrDefault(stdin SoT)로 마이그됨 →
 // 대화형 확인 테스트는 TTY 모사 필요(design.test.ts 선례). 비-TTY 동작은 아래 별도 describe.
 let origTTY: boolean | undefined
@@ -23,6 +29,7 @@ describe('theme (대화형 — TTY)', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockDetectStack.mockReturnValue(['React', 'TypeScript']) // 기본: src/ 관례 스택
     origTTY = process.stdin.isTTY
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
   })
@@ -101,6 +108,7 @@ describe('theme (비대화형 — 비-TTY)', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockDetectStack.mockReturnValue(['React', 'TypeScript']) // 기본: src/ 관례 스택
     origTTY = process.stdin.isTTY
     Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
   })
@@ -132,5 +140,43 @@ describe('theme (비대화형 — 비-TTY)', () => {
     await theme({ yes: true })
     expect(mockPrompt).not.toHaveBeenCalled()
     expect(mockWriteFileSync).toHaveBeenCalledTimes(2)
+  })
+})
+
+// #158: 바닐라/정적 PWA(스택 감지 null) → src/ 오염 금지. 루트 경로 + .js 토글.
+describe('theme — 바닐라/정적 프로젝트 (스택 null) 경로 (#158)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    mockExistsSync.mockReturnValue(false)
+    mockDetectStack.mockReturnValue(null) // 바닐라/정적 = 감지 스택 없음
+  })
+
+  it('src/ 가 아니라 루트(styles/·lib/)에 생성한다', async () => {
+    const { theme } = await import('../src/commands/theme.js')
+    await theme({ yes: true })
+    // src/ 디렉터리 오염 금지
+    expect(mockMkdirSync).not.toHaveBeenCalledWith('src/styles', { recursive: true })
+    expect(mockMkdirSync).not.toHaveBeenCalledWith('src/lib', { recursive: true })
+    // 루트 경로 사용
+    expect(mockMkdirSync).toHaveBeenCalledWith('styles', { recursive: true })
+    expect(mockMkdirSync).toHaveBeenCalledWith('lib', { recursive: true })
+    const writes = mockWriteFileSync.mock.calls.map((c) => String(c[0]))
+    expect(writes).toContain('styles/theme.css')
+    expect(writes).toContain('lib/theme-toggle.js')
+    expect(writes.some((p) => p.includes('src/'))).toBe(false)
+  })
+
+  it('토글은 .js (타입 주석 없음)', async () => {
+    const { theme } = await import('../src/commands/theme.js')
+    await theme({ yes: true })
+    const toggleCall = mockWriteFileSync.mock.calls.find((c) => String(c[0]).endsWith('theme-toggle.js'))
+    expect(toggleCall).toBeDefined()
+    const js = String(toggleCall![1])
+    // 핵심 export 는 유지하되 TS 타입 주석은 제거됨
+    expect(js).toContain('export function toggleTheme')
+    expect(js).not.toContain(": 'light' | 'dark'")
+    expect(js).not.toContain(': void')
+    expect(js).not.toMatch(/\bas 'light'/)
   })
 })
