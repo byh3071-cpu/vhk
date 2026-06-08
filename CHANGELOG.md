@@ -4,7 +4,11 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-> 2.4.2 발행 이후 main 에 머지된 항목 — 다음 릴리즈 포함 예정.
+_다음 릴리즈 예정 항목 없음._
+
+## [2.5.0] - 2026-06-08
+
+> **생산성 5종 마무리 + 증거 체인 + self-gate 자동화.** preflight·worktree·doctor·standup·today(생산성 5종) Phase 2~3 완성 + goal↔코드 드리프트·증거↔커밋 SHA·증거 원장·test-first 매핑 게이트 + git-access 단일 통로화.
 
 ### Added
 
@@ -34,10 +38,6 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **git-access 단일 통로화** (Goal 46, #198) — git-repo 접근을 `safeExecFile` 경유로 통일 + 중복 통합.
 - **CI** — CodeQL action v3 → v4 (#120).
 - **드리프트 교정** — Goal 19(pattern) status `NOT_STARTED` → `DONE` 반영 (#190).
-
-## [2.5.0] - 2026-06-08
-
-_변경 내역 작성 필요._
 
 ## [2.4.2] - 2026-06-07
 
