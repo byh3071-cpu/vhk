@@ -4,14 +4,36 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-> main 에 머지됐으나 2.4.2 발행 시점 이후라 다음 릴리즈(2.4.3) 포함 예정.
+> 2.4.2 발행 이후 main 에 머지된 항목 — 다음 릴리즈 포함 예정.
+
+### Added
 
 - **`vhk worktree` 가드** (Goal 30, #139) — worktree 생성 시 `.env` 자동 복사 + 누락 점검.
+- **`vhk doctor` Phase 2** (Goal 31, #177) — VHK·MCP·audit 진단 3종 + `--json`(CI·MCP용)·`--audit`(PM 자동감지 취약점 점검). 진단 전용(자동수정 0).
+- **`vhk standup` / `vhk today` + DevLog 연동** (Goal 32·33, #178·#162) — 아침/저녁 브리핑 + 로컬 dev log(`docs/log/`)를 파싱해 "어제 한 일"·"오늘 교훈"에 반영(공유 `daily/devlog.ts`, Notion 아님·인증 불요).
+- **`vhk standup --if-stale` / `--install-anchor`** (Goal 32 Phase 3, #188) — 하루 1회 자동 브리핑(KST 자정, 상태 `~/.vhk/daily-shown.json`) + 터미널 자동실행 앵커 줄 안내(셸 rc 자동수정 X, 사람이 직접 붙여넣기).
+- **`vhk goal check` 드리프트 게이트** (Goal 43, #192) — shipped 됐는데 status `NOT_STARTED` 인 goal 차단(코드↔상태 드리프트 방지).
+- **증거↔커밋 SHA 바인딩** (Goal 44, #194) — `vhk verify` 리포트에 HEAD SHA·dirty 여부 기록 + 증거 신선도 검사.
+- **증거 원장 `ledger.jsonl`** (Goal 45, #196) — verify 통과 요약을 git 추적 원장에 append.
+- **`vhk testmap`** (Goal 28, #200) — 변경된 기능 ↔ 테스트 누락을 경고(test-first 매핑 게이트).
+- **`vhk deploy` Cloudflare Pages/Workers 구분** (#199, #152) — Pages vs Workers 자동 구분 + `npx wrangler` + MCP 통일.
+
+### Fixed
+
 - **`vhk worktree add --install` PM 자동감지** (#168) — lockfile 로 pnpm/yarn/npm 감지(기존 pnpm 하드코딩 → yarn/npm 프로젝트 설치 실패 위험 제거).
-- **`vhk doctor` Phase 2** (Goal 31, #177) — VHK·MCP·audit 진단 3종 + `--json`(CI·MCP용)·`--audit`(PM 자동감지 취약점 점검) 추가. 진단 전용(자동수정 0).
-- **`vhk standup`·`vhk today` DevLog 연동** (Goal 32·33, #178) — 로컬 dev log(`docs/log/`)를 파싱해 "어제 한 일"·"오늘 교훈"에 반영(공유 `daily/devlog.ts`, Notion 아님·인증 불요).
-- **`vhk today`** (Goal 33, #162) — 저녁 자축·회고 브리핑(git + goal 기반).
-- **`vhk standup --if-stale` / `--install-anchor`** (Goal 32 Phase 3) — 하루 1회 자동 브리핑(KST 자정 기준, 상태 `~/.vhk/daily-shown.json`) + 터미널 자동실행 앵커 줄 안내(셸 rc 자동수정 X, 사람이 직접 붙여넣기).
+- **`vhk secure scan`** (#182, #170) — `.cursor` 스캔 누락 + `Authorization: Bearer` 자격증명 탐지 추가.
+- **`vhk learn` / `vhk blocker` 다단어 인자** (#185, #147) — NLP 라우터가 본문을 가로채 `sync` 가 실행되던 문제 수정(따옴표 없는 다단어 허용).
+- **비-TTY 대화형 명령** (#197, #153·#154) — 파이프/CI 에서 `TTY_REQUIRED` 전용 종료 + `vhk save --message`.
+- **`vhk preflight`** (#189, #156·#172·#173) — package 스크립트 우선 + `test:gate` 인식 + `.env.example` 선택키를 필수로 오판하지 않음.
+- **`vhk sync` / `vhk init`** (#184·#193, #133·#149·#130·#131·#132) — CLAUDE.md 에 코딩/커밋/아키텍처·VHK 운영 섹션 전파 + AGENTS 중복 제거 + 커스텀 H2 전파 + `init -y` 기존 규칙 adopt.
+- **`vhk doctor`** (#191, #175) — npm 프로젝트에서 pnpm 부재를 fail 로 오처리하지 않음.
+- **`vhk` MCP 서버** (#195, #150·#161) — Windows spawn ENOENT 수정 + check 를 CLI 로 위임.
+
+### 내부
+
+- **git-access 단일 통로화** (Goal 46, #198) — git-repo 접근을 `safeExecFile` 경유로 통일 + 중복 통합.
+- **CI** — CodeQL action v3 → v4 (#120).
+- **드리프트 교정** — Goal 19(pattern) status `NOT_STARTED` → `DONE` 반영 (#190).
 
 ## [2.4.2] - 2026-06-07
 
