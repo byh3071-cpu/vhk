@@ -11,6 +11,8 @@
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
     "test": "vitest",
     "test:run": "vitest --run",
     "prepublishOnly": "pnpm build && pnpm test:run",
@@ -75,11 +77,13 @@
   "devDependencies": {
     "@types/inquirer": "^9.0.9",
     "@types/node": "^25.9.1",
+    "eslint": "^10.4.1",
     "fast-check": "^4.8.0",
     "ignore": "^7.0.5",
     "tsup": "^8.5.1",
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
+    "typescript-eslint": "^8.60.1",
     "vitest": "^4.1.7"
   }
 }
