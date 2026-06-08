@@ -35,6 +35,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **CI** — CodeQL action v3 → v4 (#120).
 - **드리프트 교정** — Goal 19(pattern) status `NOT_STARTED` → `DONE` 반영 (#190).
 
+## [2.5.0] - 2026-06-08
+
+_변경 내역 작성 필요._
+
 ## [2.4.2] - 2026-06-07
 
 > **Safety 강화 — HARD_STOP 가드 완성 + 원자적 쓰기 완성.** 자동화 트립와이어(`.vhk/HARD_STOP`)가 모든 상태변경 경로를 막고, 영속 쓰기가 쓰기 도중 kill 에도 손상되지 않도록 마무리(Goal 34~41).
