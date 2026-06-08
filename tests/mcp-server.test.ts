@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { getRegisteredToolNames, getServerVersion } from './helpers/mcp-introspect.js'
+import { getRegisteredToolNames, getServerVersion, callTool } from './helpers/mcp-introspect.js'
 
 vi.mock('node:child_process')
 vi.mock('node:fs')
@@ -49,6 +49,19 @@ describe('MCP Server', () => {
   it('v2.0 — learn 쓰기 tool 등록 (memory v2 SoT, Evolution Loop)', async () => {
     const names = await getRegisteredToolNames()
     expect(names).toContain('learn')
+  })
+
+  it('#161: check tool 이 vhk check CLI(RULES 엔진)로 위임 — static 파일 체크리스트 아님', async () => {
+    const cp = await import('node:child_process')
+    const execFileSync = vi.mocked(cp.execFileSync)
+    execFileSync.mockReturnValue(Buffer.from('✅ RULES 5/5 통과'))
+    const res = await callTool('check')
+    // 위임됐으면 CLI 를 'check' 인자로 spawn (resolveVhkCliInvocation 의 --version + check 위임)
+    const calls = execFileSync.mock.calls.map((c) => ((c[1] as string[]) ?? []).join(' '))
+    expect(calls.some((a) => a.includes('check'))).toBe(true)
+    // CLI 출력을 표면화, 옛 static 체크리스트('필수:') 아님
+    expect(res.content[0].text).toContain('RULES 5/5 통과')
+    expect(res.content[0].text).not.toContain('필수:')
   })
 
   it('SERVER_VERSION 이 package.json 과 정합 (lib/version SoT)', async () => {
