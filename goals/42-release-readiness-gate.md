@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 42
 title: 릴리즈 준비 게이트 자동화 — CHANGELOG 본문/Unreleased 모순 차단 — P0
-status: NOT_STARTED
+status: DONE
 priority: P0
 created: 2026-06-07
+completed: 2026-06-08
 leads_to: 빈 본문 릴리즈 차단 (자기게이트 자동화)
 ---
 
@@ -31,12 +32,12 @@ leads_to: 빈 본문 릴리즈 차단 (자기게이트 자동화)
 - 본문 빈 버전 케이스가 게이트에서 fail하는 회귀 테스트 포함.
 
 ## Completion Check
-- [ ] release-readiness 게이트 구현(publish 흐름 또는 ci.yml 스텝)
-- [ ] CHANGELOG 본문 빈/플레이스홀더 fail
-- [ ] Unreleased↔새 버전 본문 모순 fail
-- [ ] 본문 빈 버전 케이스 회귀 테스트
-- [ ] check-goal-42.mjs 통과
-- [ ] 공통 게이트(typecheck+test+build) 통과, 회귀 0
+- [x] release-readiness 게이트 구현(publish 흐름 또는 ci.yml 스텝)
+- [x] CHANGELOG 본문 빈/플레이스홀더 fail
+- [x] Unreleased↔새 버전 본문 모순 fail
+- [x] 본문 빈 버전 케이스 회귀 테스트
+- [x] check-goal-42.mjs 통과
+- [x] 공통 게이트(typecheck+test+build) 통과, 회귀 0
 
 ## Mandatory Reading
 - src/commands/publish.ts
