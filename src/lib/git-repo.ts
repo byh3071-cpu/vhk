@@ -1,23 +1,27 @@
-import { execFileSync } from 'node:child_process'
+import { safeExecFile } from './exec.js'
 
-export function getGitRoot(cwd = process.cwd()): string {
-  return execFileSync('git', ['rev-parse', '--show-toplevel'], {
-    encoding: 'utf-8',
-    cwd,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  }).trim()
+// Goal 46: git 접근 단일 통로화 — 직접 execFileSync 대신 safeExecFile 경유.
+// 얻는 것: timeout 백스톱 + 일관된 에러(실제 git stderr) + cwd 지원. 기존 throw 계약은 보존.
+
+/** safeExecFile('git') 래퍼. 실패 시 실제 git stderr 로 throw(기존 execFileSync throw 계약 유지). */
+function gitExec(args: string[], cwd: string, trimOutput = true): string {
+  const r = safeExecFile('git', args, { cwd, trimOutput })
+  if (!r.ok) throw new Error(r.stderr || r.err || `git ${args.join(' ')} 실패`)
+  return r.out
 }
 
+export function getGitRoot(cwd = process.cwd()): string {
+  return gitExec(['rev-parse', '--show-toplevel'], cwd)
+}
+
+// gitOut 은 raw 출력 보존(trimOutput:false) — `git status --porcelain` 선행 공백(" M file") 등
+// 의미있는 공백을 깎으면 파싱이 깨진다. 호출부가 필요 시 .trim()/normalize 한다.
 export function gitOut(args: string[], cwd: string): string {
-  return execFileSync('git', args, {
-    encoding: 'utf-8',
-    cwd,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  })
+  return gitExec(args, cwd, false)
 }
 
 export function gitRun(args: string[], cwd: string): void {
-  execFileSync('git', args, { stdio: 'pipe', cwd })
+  gitExec(args, cwd)
 }
 
 export function getExecErrorMessage(err: unknown): string {
@@ -44,6 +48,25 @@ export function countLocalCommits(cwd: string): number {
   } catch {
     return 0
   }
+}
+
+/**
+ * Goal 46: 레포 감지 단일 SoT(sync). getGitRoot 성공 = git 레포.
+ * git.ts 의 async isGitRepo 가 이 함수로 위임(같은 질문 = 함수 하나).
+ */
+export function isGitRepo(cwd: string = process.cwd()): boolean {
+  try {
+    return getGitRoot(cwd).length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Goal 46: 커밋 존재 단일 SoT(sync). git.ts 의 async hasAnyCommits 가 이 함수로 위임.
+ */
+export function hasCommits(cwd: string = process.cwd()): boolean {
+  return countLocalCommits(cwd) > 0
 }
 
 /** Goal 44: 증거↔커밋 바인딩용 커밋 식별자. */
