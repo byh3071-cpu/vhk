@@ -1,26 +1,38 @@
 import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import chalk from 'chalk'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
-import { readJsonFile } from '../lib/read-json.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { discoverProjects, type DiscoveredProject } from '../lib/workspaces.js'
 
-type CheckSpec = { name: string; bin: string; args: string[] }
+type CheckSpec = { name: string; bin: string; args: string[]; cwd: string; project: string }
 
 interface CheckResult {
   name: string
+  project: string
   command: string
   passed: boolean
   duration: number
   error?: string
 }
 
-function detectPM(): 'pnpm' | 'yarn' | 'npm' {
+type PM = 'pnpm' | 'yarn' | 'npm'
+
+function rootPM(): PM {
   if (existsSync('pnpm-lock.yaml')) return 'pnpm'
   if (existsSync('yarn.lock')) return 'yarn'
   return 'npm'
+}
+
+// #171: 프로젝트 디렉터리별 PM 감지. 중첩 패키지에 락파일이 없으면 루트 PM 으로 폴백(워크스페이스 관례).
+function detectPMIn(dir: string, fallback: PM): PM {
+  if (existsSync(join(dir, 'pnpm-lock.yaml'))) return 'pnpm'
+  if (existsSync(join(dir, 'yarn.lock'))) return 'yarn'
+  if (existsSync(join(dir, 'package-lock.json'))) return 'npm'
+  return fallback
 }
 
 function pmRun(pm: string, script: string): string[] {
@@ -28,43 +40,38 @@ function pmRun(pm: string, script: string): string[] {
   return pm === 'npm' ? ['run', script] : [script]
 }
 
-function detectChecks(): CheckSpec[] {
+// #171: 한 프로젝트(루트 또는 중첩)의 점검 목록 — 해당 디렉터리 기준으로 cwd 부여.
+function detectChecksForProject(root: string, project: DiscoveredProject, fallbackPM: PM): CheckSpec[] {
   const checks: CheckSpec[] = []
-  let pkg: { scripts?: Record<string, string> } = {}
-  try {
-    pkg = readJsonFile<{ scripts?: Record<string, string> }>('package.json')
-  } catch {
-    return checks
+  const dir = join(root, project.path)
+  const s = project.scripts
+  const pm = detectPMIn(dir, fallbackPM)
+  const has = (f: string): boolean => existsSync(join(dir, f))
+  const push = (name: string, bin: string, args: string[]): void => {
+    checks.push({ name, bin, args, cwd: dir, project: project.path })
   }
-  const s = pkg.scripts ?? {}
-  const pm = detectPM()
 
   if (s.lint) {
-    checks.push({ name: 'lint', bin: pm, args: pmRun(pm, 'lint') })
-  } else if (
-    existsSync('.eslintrc.js') ||
-    existsSync('.eslintrc.json') ||
-    existsSync('eslint.config.js')
-  ) {
-    checks.push({ name: 'lint', bin: 'npx', args: ['eslint', '.', '--ext', '.ts,.tsx'] })
+    push('lint', pm, pmRun(pm, 'lint'))
+  } else if (has('.eslintrc.js') || has('.eslintrc.json') || has('eslint.config.js')) {
+    push('lint', 'npx', ['eslint', '.', '--ext', '.ts,.tsx'])
   }
 
   if (s['type-check']) {
-    checks.push({ name: 'type-check', bin: pm, args: pmRun(pm, 'type-check') })
+    push('type-check', pm, pmRun(pm, 'type-check'))
   } else if (s.typecheck) {
-    checks.push({ name: 'type-check', bin: pm, args: pmRun(pm, 'typecheck') })
-  } else if (existsSync('tsconfig.json')) {
-    checks.push({ name: 'type-check', bin: 'npx', args: ['tsc', '--noEmit'] })
+    push('type-check', pm, pmRun(pm, 'typecheck'))
+  } else if (has('tsconfig.json')) {
+    push('type-check', 'npx', ['tsc', '--noEmit'])
   }
 
-  // #156: 풍부한 게이트 우선 — test:gate(unit+smoke 등) → test:ci → test 순으로 첫 존재 스크립트 1개만.
-  // (vitest --run 등 추가 옵션 없이 동작하도록 script 호출만.)
+  // #156: 풍부한 게이트 우선 — test:gate → test:ci → test 순으로 첫 존재 스크립트 1개만.
   const testScript = ['test:gate', 'test:ci', 'test'].find((name) => s[name])
   if (testScript) {
-    checks.push({ name: testScript, bin: pm, args: pmRun(pm, testScript) })
+    push(testScript, pm, pmRun(pm, testScript))
   }
   if (s.build) {
-    checks.push({ name: 'build', bin: pm, args: pmRun(pm, 'build') })
+    push('build', pm, pmRun(pm, 'build'))
   }
 
   return checks
@@ -75,32 +82,44 @@ export async function harness(): Promise<void> {
   console.log(chalk.bold('\n🔧 ' + t('harness.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const checks = detectChecks()
+  // #171: 루트 + 중첩 패키지를 모두 점검 대상으로 (이전엔 루트 package.json 만 봄).
+  const projects = discoverProjects('.')
+  const fallbackPM = rootPM()
+  const checks = projects.flatMap((p) => detectChecksForProject('.', p, fallbackPM))
+  const multi = projects.length > 1
 
   if (checks.length === 0) {
     console.log(chalk.yellow('\n⚠️  실행할 수 있는 스크립트가 없습니다.'))
     console.log(chalk.gray('   package.json에 lint, test, build 스크립트를 추가해주세요.'))
+    if (multi) {
+      console.log(chalk.gray(`   (점검 대상 ${projects.length}개: ${projects.map((p) => p.path).join(', ')})`))
+    }
     return
   }
 
+  if (multi) {
+    console.log(chalk.cyan(`\n📦 프로젝트 ${projects.length}개: ${projects.map((p) => p.path).join(', ')}`))
+  }
   console.log(chalk.cyan(`\n🏃 ${checks.length}개 점검 시작:\n`))
 
   const results: CheckResult[] = []
 
   for (const check of checks) {
+    const label = multi ? `${check.project} › ${check.name}` : check.name
     const display = `${check.bin} ${check.args.join(' ')}`
-    const spinner = ora(`${check.name} 실행 중...`).start()
+    const spinner = ora(`${label} 실행 중...`).start()
     const start = Date.now()
-    const result = safeExecFile(check.bin, check.args)
+    const result = safeExecFile(check.bin, check.args, { cwd: check.cwd })
     const duration = Date.now() - start
     const sec = (duration / 1000).toFixed(1)
     if (result.ok) {
-      spinner.succeed(`${check.name} ${chalk.gray(`(${sec}s)`)}`)
-      results.push({ name: check.name, command: display, passed: true, duration })
+      spinner.succeed(`${label} ${chalk.gray(`(${sec}s)`)}`)
+      results.push({ name: check.name, project: check.project, command: display, passed: true, duration })
     } else {
-      spinner.fail(`${check.name} ${chalk.gray(`(${sec}s)`)}`)
+      spinner.fail(`${label} ${chalk.gray(`(${sec}s)`)}`)
       results.push({
         name: check.name,
+        project: check.project,
         command: display,
         passed: false,
         duration,
@@ -111,10 +130,16 @@ export async function harness(): Promise<void> {
 
   console.log(chalk.bold('\n📊 통합 리포트:'))
   console.log(chalk.gray('─'.repeat(40)))
+  let lastProject = ''
   for (const r of results) {
+    if (multi && r.project !== lastProject) {
+      console.log(chalk.bold(`  📦 ${r.project}`))
+      lastProject = r.project
+    }
     const icon = r.passed ? chalk.green('✅') : chalk.red('❌')
     const sec = (r.duration / 1000).toFixed(1)
-    console.log(`  ${icon} ${r.name.padEnd(15)} ${chalk.gray(`${sec}s`)}`)
+    const indent = multi ? '    ' : '  '
+    console.log(`${indent}${icon} ${r.name.padEnd(15)} ${chalk.gray(`${sec}s`)}`)
   }
 
   const passed = results.filter((r) => r.passed).length
