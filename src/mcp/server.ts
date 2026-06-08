@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
 import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import { parseEnvKeys } from '../commands/env.js'
-import { detectPlatform } from '../commands/deploy.js'
+import { resolveDeployTarget } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
 import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/audit.js'
 import { readJsonFile } from '../lib/read-json.js'
@@ -559,8 +559,10 @@ export function createVhkMcpServer(): McpServer {
         '배포 플랫폼 자동 감지 + CLI 설치 확인 (MCP 모드: 실제 배포 미수행 — `vhk deploy` 안내)',
     },
     async () => {
-      const platform = detectPlatform()
-      if (!platform) {
+      // #152: resolveDeployTarget 로 CLI 와 동일 감지(Cloudflare Pages/Workers 구분). 과거엔
+      // platform 키('cloudflare')를 CLI 명령으로 오용해 `cloudflare --version`(존재X)로 항상 실패했음.
+      const target = resolveDeployTarget()
+      if (!target) {
         return {
           content: [
             {
@@ -570,15 +572,17 @@ export function createVhkMcpServer(): McpServer {
           ],
         }
       }
-      const cliCheck = safeExecFile(platform, ['--version'])
+      const { config } = target
+      const cliCheck = safeExecFile(config.command, config.checkArgs)
+      const cmdLabel = `${config.command} ${config.commandArgs.join(' ')}`
       const cliStatus = cliCheck.ok
-        ? `✓ ${platform} CLI 설치됨 (${cliCheck.out})`
-        : `✗ ${platform} CLI 미설치 — npm i -g ${platform}`
+        ? `✓ CLI 사용 가능 (${cliCheck.out.split('\n')[0]})`
+        : `✗ CLI 미설치 — ${config.installHint}`
       return {
         content: [
           {
             type: 'text',
-            text: `🚀 감지된 플랫폼: ${platform}\n${cliStatus}\n\n실제 배포는 터미널에서: vhk deploy`,
+            text: `🚀 감지된 플랫폼: ${config.name}\n배포 명령: ${cmdLabel}\n${cliStatus}\n\n실제 배포는 터미널에서: vhk deploy`,
           },
         ],
       }

@@ -56,3 +56,37 @@ describe('deploy', () => {
     expect(detectPlatform()).toBeNull()
   })
 })
+
+describe('#152 — Cloudflare Pages vs Workers 감지', () => {
+  it('wrangler.toml 에 pages_build_output_dir → Pages', async () => {
+    const { isCloudflarePages } = await import('../src/commands/deploy.js')
+    expect(isCloudflarePages('name = "x"\npages_build_output_dir = "dist"\n', {})).toBe(true)
+  })
+  it('wrangler.toml 에 [pages] 섹션 → Pages', async () => {
+    const { isCloudflarePages } = await import('../src/commands/deploy.js')
+    expect(isCloudflarePages('[pages]\n', {})).toBe(true)
+  })
+  it('deploy 스크립트가 wrangler pages deploy → Pages', async () => {
+    const { isCloudflarePages } = await import('../src/commands/deploy.js')
+    expect(isCloudflarePages(null, { 'deploy:cf': 'npx wrangler pages deploy dist' })).toBe(true)
+  })
+  it('일반 wrangler.toml(Workers) → Pages 아님', async () => {
+    const { isCloudflarePages } = await import('../src/commands/deploy.js')
+    expect(isCloudflarePages('name = "worker"\nmain = "src/index.ts"\n', {})).toBe(false)
+  })
+
+  it('cloudflareDeployConfig: Pages → npx wrangler pages deploy', async () => {
+    const { cloudflareDeployConfig } = await import('../src/commands/deploy.js')
+    const c = cloudflareDeployConfig('pages_build_output_dir = "dist"', {})
+    expect(c.name).toContain('Pages')
+    expect(c.command).toBe('npx')
+    expect(c.commandArgs).toEqual(['wrangler', 'pages', 'deploy'])
+  })
+  it('cloudflareDeployConfig: Workers → npx wrangler deploy', async () => {
+    const { cloudflareDeployConfig } = await import('../src/commands/deploy.js')
+    const c = cloudflareDeployConfig('main = "src/index.ts"', {})
+    expect(c.name).toContain('Workers')
+    expect(c.command).toBe('npx')
+    expect(c.commandArgs).toEqual(['wrangler', 'deploy'])
+  })
+})
