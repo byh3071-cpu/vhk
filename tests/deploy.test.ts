@@ -75,6 +75,14 @@ describe('#152 — Cloudflare Pages vs Workers 감지', () => {
     expect(isCloudflarePages('name = "worker"\nmain = "src/index.ts"\n', {})).toBe(false)
   })
 
+  it('#219: 주석/값의 pages 부분문자열은 Pages 아님 (Workers 오분류 방지)', async () => {
+    const { isCloudflarePages } = await import('../src/commands/deploy.js')
+    // 주석에 pages_build_output_dir → Workers
+    expect(isCloudflarePages('name = "worker"\nmain = "src/index.ts"\n# pages_build_output_dir: deprecated\n', {})).toBe(false)
+    // 값에 [pages] 문자열 → Workers (섹션 헤더 아님)
+    expect(isCloudflarePages('name = "worker"\nkey = "[pages]"\n', {})).toBe(false)
+  })
+
   it('cloudflareDeployConfig: Pages → npx wrangler pages deploy', async () => {
     const { cloudflareDeployConfig } = await import('../src/commands/deploy.js')
     const c = cloudflareDeployConfig('pages_build_output_dir = "dist"', {})

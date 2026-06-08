@@ -36,8 +36,10 @@ export function parseEnvSpec(content: string): EnvKeySpec[] {
     const key = line.slice(0, idx).trim()
     if (!key) continue
     const afterEq = line.slice(idx + 1)
-    const hashIdx = afterEq.indexOf('#')
-    const comment = hashIdx >= 0 ? afterEq.slice(hashIdx) : ''
+    // #220: .env 관례상 값 뒤 주석은 '공백 다음의 #'. 값에 붙은 #(예: key#optional)은 데이터 →
+    //        주석으로 보지 않는다(필수 키를 optional 로 오탐하지 않게).
+    const commentMatch = afterEq.match(/\s#(.*)$/)
+    const comment = commentMatch ? commentMatch[1] : ''
     specs.push({ key, optional: /\boptional\b/i.test(comment) })
   }
   return specs
