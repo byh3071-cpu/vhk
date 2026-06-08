@@ -10,7 +10,10 @@ export function platformCmd(cmd: string): string {
   return cmd
 }
 
-export type ExecResult = { ok: true; out: string } | { ok: false; err: string; out: string }
+// 실패 시 stderr 도 노출(Goal 46): git-repo 등이 throw 메시지에 실제 git 에러를 담을 수 있게.
+export type ExecResult =
+  | { ok: true; out: string }
+  | { ok: false; err: string; out: string; stderr?: string }
 
 // Windows .cmd shim 호출은 Node 20.12+ / 21.7+ CVE-2024-27980 보안 강화로 execFileSync 직접 호출 시
 // spawnSync EINVAL. cmd.exe /d /s /c <shim>.cmd <args>로 래핑 — shell:false 유지하면서 동작.
@@ -37,6 +40,11 @@ export interface SafeExecOptions {
   // 외부 명령 hang 방지용 timeout(ms). 미지정 시 DEFAULT_EXEC_TIMEOUT_MS.
   // 0 이하면 timeout 비활성 (무한 대기 — 대화형 입력 대기 등 특수 경우).
   timeoutMs?: number
+  // 작업 디렉터리(Goal 46). 미지정 시 process.cwd(). git-repo 등 cwd 의존 호출의 단일 통로화.
+  cwd?: string
+  // out.trim() 적용 여부(기본 true). false 면 raw 출력 보존 —
+  // `git status --porcelain` 의 선행 공백(" M file") 등 의미있는 공백을 깎으면 안 되는 경우.
+  trimOutput?: boolean
 }
 
 // 적용할 timeout(ms) 계산. undefined 반환 = timeout 미적용.
@@ -67,9 +75,11 @@ export function safeExecFile(
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
       env,
+      ...(opts.cwd ? { cwd: opts.cwd } : {}),
       ...(timeout ? { timeout, killSignal: 'SIGTERM' as const } : {}),
     }).toString()
-    return { ok: true, out: out.trim() }
+    // trimOutput !== false → trim(기본). false 면 raw 보존(porcelain 선행 공백 등).
+    return { ok: true, out: opts.trimOutput === false ? out : out.trim() }
   } catch (err) {
     // non-zero exit: stdout/stderr는 err.stdout/err.stderr에 담겨 있다.
     // 예: `npm audit`은 취약점 있으면 exit !=0이지만 stdout에 JSON 출력.
@@ -82,11 +92,12 @@ export function safeExecFile(
       code?: string
     }
     const stdout = e.stdout ? e.stdout.toString() : ''
+    const stderr = e.stderr ? e.stderr.toString().trim() : ''
     let msg = e.message ?? String(err)
     if (isTimeoutError(e, timeout)) {
       msg = `명령 시간 초과 (timeout ${timeout}ms): ${cmd} ${args.join(' ')}`.trim()
     }
-    return { ok: false, err: msg, out: stdout.trim() }
+    return { ok: false, err: msg, out: stdout.trim(), stderr: stderr || undefined }
   }
 }
 
