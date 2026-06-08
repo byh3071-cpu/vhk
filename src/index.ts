@@ -410,9 +410,10 @@ const refCmd = program
 refCmd
   .command('add <url>')
   .option('--memo <memo>', '메모 추가')
+  .option('--title <title>', '메모 별칭 (--memo 와 동일) — #151')
   .description('레퍼런스 URL 추가')
-  .action(async (url: string, opts: { memo?: string }) => {
-    await refAdd(url, opts.memo)
+  .action(async (url: string, opts: { memo?: string; title?: string }) => {
+    await refAdd(url, opts.memo ?? opts.title)
   })
 
 refCmd
@@ -574,16 +575,21 @@ const memoryCmd = program
   .action(async () => { await memoryList() })
 
 memoryCmd
-  .command('add <content>')
+  .command('add [content]')
+  // #148: 대시(--)로 시작하는 본문은 positional 로 못 넘긴다(commander 가 옵션으로 파싱) →
+  //       `--content=<본문>` 폴백 제공. 예: vhk memory add --content=--on-accent ... --type decision
+  .option('--content <text>', '본문 (대시 시작 등 positional 불가 시) — 예: --content=--on-accent ...')
   .option('--type <type>', '버킷: decision|failure|success (기본 decision)')
   .option('--tags <tags>', '태그 (쉼표 구분)')
   .option('--why <why>', '원인 (failure/success)')
   .option('--lesson <lesson>', '교훈 (failure)')
   .description('기억 저장 (--type 으로 결정/실패/성공 구분)')
-  .action(async (content: string, opts: { type?: string; tags?: string; why?: string; lesson?: string }) => {
+  .action(async (content: string | undefined, opts: { content?: string; type?: string; tags?: string; why?: string; lesson?: string }) => {
+    const body = content ?? opts.content ?? ''
     const tags = opts.tags ? opts.tags.split(',').map((s) => s.trim()) : undefined
     // 잘못된 --type 은 강등하지 않고 그대로 넘긴다 — memoryAdd 가 검증·거부(입력 유실 방지).
-    await memoryAdd(content, { type: opts.type, tags, why: opts.why, lesson: opts.lesson })
+    // 빈 본문(positional·--content 둘 다 없음)도 memoryAdd 가 안내+exit 1 처리.
+    await memoryAdd(body, { type: opts.type, tags, why: opts.why, lesson: opts.lesson })
   })
 
 memoryCmd
