@@ -15,6 +15,7 @@ import { renderReportHtml } from './verify-report.js'
 import { isInteractive } from '../lib/interactive.js'
 import { safeExecFile } from '../lib/exec.js'
 import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
+import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evidence-ledger.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -318,7 +319,26 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
     /* gitignore 갱신 실패는 치명적 아님 — 리포트는 이미 기록됨 */
   }
 
+  // Goal 45: 증거 원장 — 레포 추적되는 요약 한 줄(version/date/status/sha)을 .vhk/ledger.jsonl 에 append.
+  // 비치명: 원장 실패해도 증거(latest.json)는 이미 기록됨.
+  try {
+    appendLedgerEntry(cwd, buildLedgerEntry(report, readPackageVersion(cwd)))
+  } catch {
+    /* 원장 기록 실패는 치명적 아님 */
+  }
+
   return { report, path: REPORT_PATH_REL }
+}
+
+/** package.json version 안전 읽기(BOM-safe). 없음/손상 → '0.0.0'(원장은 죽지 않음). */
+function readPackageVersion(cwd: string): string {
+  const pkgPath = join(cwd, 'package.json')
+  if (!existsSync(pkgPath)) return '0.0.0'
+  try {
+    return readJsonFile<{ version?: string }>(pkgPath).version ?? '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
 }
 
 const STATUS_BADGE: Record<ReportStatus, string> = {
@@ -488,6 +508,7 @@ export async function verify(
       chalk.dim(`(pass ${s.pass} / fail ${s.fail} / skip ${s.skip}, 총 ${s.total})`)
   )
   console.log(chalk.dim(`  📄 증거: ${path}`))
+  console.log(chalk.dim(`  📒 원장: ${LEDGER_PATH_REL} (git 추적 — 릴리즈 증거 영속)`))
 
   process.exitCode = report.status === 'FAIL' ? 1 : 0
 

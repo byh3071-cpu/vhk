@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 45
 title: 증거 원장 커밋 — reports 요약(ledger.jsonl) git 추적 — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-07
+completed: 2026-06-08
 leads_to: 릴리즈 증거 영속화 (레포만 보고 확인)
 ---
 
@@ -25,11 +26,11 @@ leads_to: 릴리즈 증거 영속화 (레포만 보고 확인)
 - 릴리즈 증거 통과 상태가 레포에 영속으로 남는다.
 
 ## Completion Check
-- [ ] reports/ledger.jsonl(요약 한 줄) git 추적 또는 release 아티팩트 첨부
-- [ ] 각 항목에 version·date·gates·sha 기록
-- [ ] 회귀 테스트
-- [ ] check-goal-45.mjs 통과
-- [ ] 공통 게이트(typecheck+test+build) 통과, 회귀 0
+- [x] reports/ledger.jsonl(요약 한 줄) git 추적 또는 release 아티팩트 첨부
+- [x] 각 항목에 version·date·gates·sha 기록
+- [x] 회귀 테스트
+- [x] check-goal-45.mjs 통과
+- [x] 공통 게이트(typecheck+test+build) 통과, 회귀 0
 
 ## Mandatory Reading
 - .vhk/.gitignore
