@@ -12,11 +12,13 @@ describe('interactive — 대화형 가드 (VHK-014)', () => {
     process.exitCode = 0
   })
 
-  it('비-TTY 면 false 반환 + exitCode 1 (크래시 대신 friendly 중단)', () => {
+  it('#153: 비-TTY 면 false + exitCode 2(TTY_REQUIRED 전용 코드) + 마커 출력', () => {
     const orig = setTTY(false)
-    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const errs: string[] = []
+    vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { errs.push(a.join(' ')) })
     expect(ensureInteractive('hint')).toBe(false)
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBe(2) // generic 실패(1)와 구분되는 전용 코드
+    expect(errs.join('\n')).toContain('TTY_REQUIRED') // 기계 감지용 마커
     vi.restoreAllMocks()
     setTTY(orig)
   })

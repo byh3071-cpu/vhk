@@ -37,7 +37,7 @@ describe('design / design-palette 가드 — 비-TTY refuse-essential', () => {
     await expect(design()).resolves.not.toThrow()
     expect(mockPrompt).not.toHaveBeenCalled()
     expect(mockWriteFileSync).not.toHaveBeenCalled()
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBe(2) // #153: TTY_REQUIRED 전용 코드
   })
 
   it('design-palette 비-TTY → 동일하게 거부 (design 위임)', async () => {
@@ -45,6 +45,6 @@ describe('design / design-palette 가드 — 비-TTY refuse-essential', () => {
     await expect(designPalette()).resolves.not.toThrow()
     expect(mockPrompt).not.toHaveBeenCalled()
     expect(mockWriteFileSync).not.toHaveBeenCalled()
-    expect(process.exitCode).toBe(1)
+    expect(process.exitCode).toBe(2) // #153: TTY_REQUIRED 전용 코드
   })
 })

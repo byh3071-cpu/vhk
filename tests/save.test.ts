@@ -108,6 +108,19 @@ describe('save', () => {
     }
   })
 
+  it('#154: --message 제공 시 프롬프트 없이 그 메시지로 커밋 (MCP save 파리티)', async () => {
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
+      return ''
+    })
+    mockGitOut.mockImplementation((args: string[]) => (args[0] === 'status' ? ' M file.ts' : ''))
+    mockHasGitRemote.mockReturnValue(false)
+    const { save } = await import('../src/commands/save.js')
+    await save({ message: 'feat: custom MSG123' })
+    expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled()
+    expect(mockGitRun).toHaveBeenCalledWith(['commit', '-m', 'feat: custom MSG123'], '/repo')
+  })
+
   it('commit 실패 시 staged 안내', async () => {
     vi.mocked(execFileSync).mockImplementation((_file, args) => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
