@@ -496,6 +496,22 @@ export const ko = {
     newCandidates: (n: number) => `신규 후보: ${n}개 추가됨`,
     suggestHint: 'vhk evolve suggest 로 생성하세요.',
   },
+  seo: {
+    init: {
+      title: '🔍 vhk seo init — SEO·수익 대시보드 초기화',
+      registered: (domain: string) => `사이트 등록 완료: ${domain}`,
+      domainRequired: '도메인이 필요합니다. --domain <도메인> 으로 지정하세요 (비대화형).',
+      domainHint: '예: vhk seo init --domain example.com --yes',
+      domainPrompt: '관리할 사이트 도메인 (예: example.com):',
+      invalidDomain: '유효한 도메인이 아닙니다. 예: example.com',
+      cancelled: '취소되었습니다.',
+      secretGuideHeader: '자격증명 보관 — 값은 .env 에, config 엔 참조 이름($NAME)만:',
+      secretPresent: (name: string) => `${name} — 설정됨 ✓`,
+      secretMissing: (name: string) => `${name} — 미설정 (필요 시 .env 에 추가)`,
+      secretWarn: '⚠️  실제 키 값은 절대 config.json·커밋·로그에 넣지 마세요 (.env + .gitignore).',
+      nextStep: '다음: vhk seo submit 으로 사이트맵·IndexNow 제출 (후속 goal)',
+    },
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)

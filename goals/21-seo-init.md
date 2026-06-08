@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 21
 title: vhk seo init (스캐폴드 + 사이트등록 + 키보관) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 version: v2.4.0
 ---
@@ -29,13 +29,25 @@ version: v2.4.0
 - 크로스플랫폼: 경로 path.join, 디렉터리 없으면 생성.
 
 ## Completion Check
-- [ ] commands/seo/ 골격 + seo 라우터 + i18n/ko.ts 키
-- [ ] `vhk seo init` → 사이트 등록 .vhk/seo/config.json 생성
-- [ ] 5개 서비스 자격증명 vhk secure 보관, 평문 커밋/로그 0
-- [ ] 비대화형/MCP/CI에서 프롬프트 없이 동작 (TTY 가드)
-- [ ] secret 누출 0 (vhk secure scan)
-- [ ] vhk goal sync → check-goal-21.mjs → vhk goal check --id 21 통과
-- [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
+- [x] commands/seo/ 골격 + seo 라우터 + i18n/ko.ts 키
+- [x] `vhk seo init` → 사이트 등록 .vhk/seo/config.json 생성
+- [x] 5개 서비스 자격증명 보관(Env 참조 방식), 평문 커밋/로그 0
+- [x] 비대화형/MCP/CI에서 프롬프트 없이 동작 (TTY 가드, --domain 필수 → 없으면 exit 2)
+- [x] secret 누출 0 (vhk secure scan)
+- [x] vhk goal sync → check-goal-21.mjs → vhk goal check --id 21 통과
+- [x] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
+
+## ✅ Completion (2026-06-08)
+
+- **키 저장소 결정 변경**: 카드의 "vhk secure 보관"은 전제였으나 실제 `vhk secure`는 **스캐너일 뿐 키 저장소가
+  없었다.** → 사용자 승인하에 **Env 참조 방식** 채택: `.vhk/seo/config.json`엔 환경변수 **참조 이름**($VHK_SEO_*)만,
+  실제 값은 `.gitignore`된 `.env`에. 새 crypto/네이티브 의존성 0. 기존 `vhk secure` 스캐너가 평문 유출 감시.
+- **산출물**: `src/lib/seo-config.ts`(타입·read/write·`resolveSecretPresence` boolean·`isSecretReference` 가드),
+  `src/commands/seo/{index,init}.ts`(라우터 + `vhk seo init`), 등록 3곳(index.ts·command-registry·cli-args) + i18n `ko.seo`.
+- **보안 불변**: config는 secret **값** 0 — 참조($)만. `resolveSecretPresence`는 boolean만 반환(값 미노출).
+  `normalizeSeoConfig`가 평문이 섞이면 기본 참조로 되돌림.
+- **게이트**: build ✓ · test:run 1221 pass(신규 21) ✓ · check-goal-21(VHK_GATES_SKIP_DEEP=1) ✓ · secure scan 0건 ✓ · 도그푸딩 1회 ✓.
+- **범위 밖(후속)**: submit/IndexNow(22) · GSC·GA4·AdSense·Bing 수집(23·24) · HTML 리포트(25) · Notion·스케줄러(26).
 
 ## 제외 범위
 - 실제 데이터 수집(Goal 23+) / HTML 리포트(Goal 25)
