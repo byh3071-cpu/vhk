@@ -7,6 +7,7 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { localDate } from '../lib/date.js'
+import { checkReleaseReadiness } from '../lib/release-readiness.js'
 
 export type BumpType = 'patch' | 'minor' | 'major'
 
@@ -192,6 +193,17 @@ export async function publish(): Promise<void> {
 
   const currentVersion = pkg.version || '0.0.0'
   console.log(chalk.cyan(`\n📌 현재 버전: v${currentVersion}`))
+
+  // Goal 42: 릴리즈 준비 게이트 — 이전 릴리즈 섹션이 빈/플레이스홀더면 발행 차단.
+  // (v2.4.0 사고: 본문 빈칸인 채 버전만 올라감. publish 스텁이 안 채워진 채 다음 릴리즈 방지.)
+  if (existsSync('CHANGELOG.md')) {
+    const readiness = checkReleaseReadiness(readFileSync('CHANGELOG.md', 'utf-8'))
+    if (!readiness.ok) {
+      console.log(chalk.red('\n❌ 릴리즈 준비 미완 — CHANGELOG 본문을 먼저 채운 뒤 발행하세요:'))
+      for (const p of readiness.problems) console.log(chalk.yellow(`   - ${p}`))
+      return
+    }
+  }
 
   const { bumpType } = await inquirer.prompt<{ bumpType: BumpType }>([
     {
