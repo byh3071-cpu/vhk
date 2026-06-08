@@ -87,10 +87,10 @@ tags: [process, constitution]
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
 **마지막 갱신:** 2026-06-08
-- **버전:** v2.5.1 (npm publish 대기) — 사실 확인은 package.json·CHANGELOG
+- **버전:** v2.5.1 (발행 완료) — 사실 확인은 package.json·CHANGELOG
 - **테스트:** 1162 pass · **MCP tools:** 29
-- **Phase:** v2.5.0 발행 완료 + README/npm 설명 갱신 patch 릴리즈 준비
+- **Phase:** v2.5.1 발행 완료 (npm latest=2.5.1) — 생산성 5종(Phase 2~3) + 증거 체인(goal 44 SHA·45 ledger) + self-gate(goal 28 testmap·43 drift·46 git-access 단일화) + README/npm 갱신.
 - **블로커:** 없음
-- **진행 중(미발행):** v2.5.1 npm publish 대기 — README/package 설명 최신화 반영용 patch
-- **다음 할 일:** `pnpm.cmd run prepublishOnly` 통과 확인 후 사용자 2FA로 `npm.cmd publish --access public`
+- **진행 중(미발행):** 없음
+- **다음 할 일:** 미완 goal(silent-fallback 린트 Goal 25/27·#128, SEO 묶음 21~26) + 열린 이슈 10개 트리아지(불확실 4: #157·#155·#171·#148 해결확인 후 close).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유

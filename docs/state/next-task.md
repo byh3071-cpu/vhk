@@ -2,12 +2,12 @@
 
 > "지금 무엇부터"의 상태 SoT. 버전·테스트 등 사실값은 package.json·CHANGELOG가 SoT.
 
-**갱신:** 2026-06-07
-**Phase:** v2.4.2 발행 완료 + Goal 33(`vhk today`) v0 완료(#179). HARD_STOP 가드 완성(34~36·39·41) + 원자적 쓰기 완성(37~38·40) + today 회고. 테스트 1035+ pass.
+**갱신:** 2026-06-08
+**Phase:** v2.5.1 발행 완료 (npm latest=2.5.1). 생산성 5종(preflight·worktree·doctor·standup·today Phase 2~3) + 증거 체인(goal 44 SHA·45 ledger) + self-gate(goal 28 testmap·43 drift·46 git-access 단일화) 완료. 테스트 1162 pass.
 
 ## 다음 할 일
-- **2.4.3 발행 (대기 — 더 모으는 중)** — Goal 30(#139)·Goal 33(#162/#179)·chore #168 이 npm 2.4.2 미포함(발행 베이스 이후 머지) → CHANGELOG [Unreleased] 적재됨. goal 몇 개 더 모아 묶어 발행 예정.
-- 나머지 미완 goal (goals/ 동적 계산 — `vhk goal next`).
+- **미완 goal** (goals/ 동적 계산 — `vhk goal next`): silent-fallback 린트(Goal 25/27 영역·#128) · SEO 묶음(Goal 21~26) 등.
+- **열린 이슈 10개 트리아지** — 불확실 해결분 4개(#157 verify UX·#155 goal check mission drift·#171 nested pkg audit·#148 memory add `--`) 재현/해결확인 후 close. 백로그: #160·#159·#158·#151·#38.
 
 ## 블로커
 - 없음
