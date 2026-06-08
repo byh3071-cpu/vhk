@@ -1,7 +1,8 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { safeExecFile, safeExecFileStream } from '../lib/exec.js'
+import { readJsonFile } from '../lib/read-json.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 
@@ -52,6 +53,60 @@ export function detectPlatform(): Platform | null {
   return null
 }
 
+// #152: Cloudflare 는 Workers/Pages 둘 다 wrangler.toml 을 쓴다 — 무조건 Workers 로 보면
+// Pages 프로젝트에 `wrangler deploy`(틀린 명령)를 제시. toml 의 pages 표식 또는 deploy
+// 스크립트의 `wrangler pages deploy` 로 Pages 를 식별. (순수 함수 — 내용만 받아 fs 무관)
+export function isCloudflarePages(
+  tomlContent: string | null,
+  scripts: Record<string, string> = {}
+): boolean {
+  if (tomlContent && /pages_build_output_dir|\[\[?pages/i.test(tomlContent)) return true
+  return Object.values(scripts).some((s) => /wrangler\s+pages\s+deploy/.test(s))
+}
+
+// #152: Cloudflare 배포 설정 해석 — Pages/Workers 구분 + `npx wrangler`(전역 미설치 대응).
+export function cloudflareDeployConfig(
+  tomlContent: string | null,
+  scripts: Record<string, string> = {}
+): PlatformConfig {
+  const pages = isCloudflarePages(tomlContent, scripts)
+  return {
+    name: pages ? 'Cloudflare Pages' : 'Cloudflare Workers',
+    detectFiles: ['wrangler.toml'],
+    command: 'npx',
+    commandArgs: pages ? ['wrangler', 'pages', 'deploy'] : ['wrangler', 'deploy'],
+    checkArgs: ['wrangler', '--version'],
+    installHint: 'npx 가 wrangler 를 자동 설치합니다 (또는 npm i -D wrangler)',
+  }
+}
+
+// wrangler.toml 내용 읽기 — 가드(존재+읽기 try/catch) 단일화. 부재/읽기실패 → null(TOCTOU 안전).
+function readWranglerToml(): string | null {
+  try {
+    return existsSync('wrangler.toml') ? readFileSync('wrangler.toml', 'utf-8') : null
+  } catch {
+    return null
+  }
+}
+
+function readPkgScripts(): Record<string, string> {
+  try {
+    return readJsonFile<{ scripts?: Record<string, string> }>('package.json').scripts ?? {}
+  } catch {
+    return {}
+  }
+}
+
+// #152: CLI/MCP 공용 배포 타깃 해석 — 감지 + Cloudflare Pages/Workers 세분(통일된 단일 출처).
+export function resolveDeployTarget(): { platform: Platform; config: PlatformConfig } | null {
+  const platform = detectPlatform()
+  if (!platform) return null
+  if (platform === 'cloudflare') {
+    return { platform, config: cloudflareDeployConfig(readWranglerToml(), readPkgScripts()) }
+  }
+  return { platform, config: PLATFORMS[platform] }
+}
+
 function isCLIAvailable(cmd: string, checkArgs: string[]): boolean {
   return safeExecFile(cmd, checkArgs).ok
 }
@@ -60,10 +115,12 @@ export async function deploy(): Promise<void> {
   console.log(chalk.bold('\n🚀 ' + t('deploy.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  let platform: Platform | null = detectPlatform()
+  const target = resolveDeployTarget()
+  let config: PlatformConfig
 
-  if (platform) {
-    console.log(chalk.cyan(`\n🔍 감지된 플랫폼: ${PLATFORMS[platform].name}`))
+  if (target) {
+    config = target.config
+    console.log(chalk.cyan(`\n🔍 감지된 플랫폼: ${config.name}`))
   } else {
     const { selected } = await inquirer.prompt<{ selected: Platform }>([
       {
@@ -73,14 +130,16 @@ export async function deploy(): Promise<void> {
         choices: [
           { name: '▲ Vercel', value: 'vercel' as Platform },
           { name: '◆ Netlify', value: 'netlify' as Platform },
-          { name: '☁ Cloudflare Workers', value: 'cloudflare' as Platform },
+          { name: '☁ Cloudflare (Workers/Pages 자동 구분)', value: 'cloudflare' as Platform },
         ],
       },
     ])
-    platform = selected
+    // #152: Cloudflare 수동 선택 시에도 Pages/Workers 세분 + npx.
+    config =
+      selected === 'cloudflare'
+        ? cloudflareDeployConfig(readWranglerToml(), readPkgScripts())
+        : PLATFORMS[selected]
   }
-
-  const config = PLATFORMS[platform]
 
   if (!isCLIAvailable(config.command, config.checkArgs)) {
     console.log(chalk.red(`\n❌ ${config.name} CLI가 설치되어 있지 않습니다.`))
