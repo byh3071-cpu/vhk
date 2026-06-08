@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 47
 title: 멀티 OS/Node CI 매트릭스 — win32(주 환경)+Node20(하한) 검증 — P0
-status: IN_PROGRESS
+status: DONE
 priority: P0
 created: 2026-06-08
 leads_to: 툴링 3→4 · 주 사용환경 회귀 봉쇄
@@ -30,12 +30,11 @@ leads_to: 툴링 3→4 · 주 사용환경 회귀 봉쇄
 ## Completion Check
 - [x] ci.yml test 잡 matrix(os 2 × node 2) 추가
 - [x] dogfood 잡 windows-latest 포함 (+ shell: bash 로 win32 ::group:: 호환)
-- [ ] win32에서 빌드·테스트 green 확인(Actions 로그) — PR CI 매트릭스 통과 후 체크
+- [x] win32에서 빌드·테스트 green 확인 — PR #227 CI 매트릭스 6조합(ubuntu·windows × node 22·24 + dogfood 2) 전부 green
 - [x] 공통 게이트(typecheck+test+build) 통과, 회귀 0
 - [x] check-goal-47.mjs 통과 (구조 검증 — ci.yml 매트릭스/win/node20 확인)
 
-> ⏳ 상태 IN_PROGRESS — 코드/구조 게이트는 통과. 매트릭스 4조합(ubuntu·windows × node 22·24) +
-> dogfood 2조합이 PR CI 에서 전부 green 확인되면 status: DONE + 위 박스 체크.
+> ✅ DONE — PR #227 매트릭스 6조합(test ubuntu·windows × node 22·24 + dogfood ubuntu·windows) 전부 green.
 >
 > **🔎 goal 47 실측 발견**: node 하한을 20 으로 잡았더니 `test (ubuntu, 20)` 즉시 실패 —
 > `packageManager: pnpm@11.2.2` 가 `node:sqlite` 의존으로 **Node ≥22.13 요구**(Node 20 에선
