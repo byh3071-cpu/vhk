@@ -112,6 +112,7 @@ import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalSync 
 import { blocker, learn, resume } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo } from './commands/evolve.js'
+import { runSeo, seoInit } from './commands/seo/index.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -784,6 +785,18 @@ evolveCmd
   .alias('되돌리기')
   .description('최근 apply 1건 되돌리기(.bak 복원 + sync — 대화형 필수)')
   .action(async () => { await evolveUndo() })
+
+const seoCmd = program
+  .command('seo')
+  .description('SEO·수익 대시보드 — init: 사이트 등록 + 자격증명 보관 (submit/check/report 후속 goal)')
+  .action(async () => { runSeo() })
+
+seoCmd
+  .command('init')
+  .option('--domain <domain>', '관리할 사이트 도메인 (비대화형 필수)')
+  .option('--yes', '비대화형 — 프롬프트 없이 진행 (MCP/CI 안전)')
+  .description('사이트 등록(.vhk/seo/config.json) + 5개 서비스 자격증명 참조 보관 (값은 .env)')
+  .action(async (opts: { domain?: string; yes?: boolean }) => { await seoInit(opts) })
 
 program.on('command:*', async (operands: string[]) => {
   const unknown = operands[0] ?? ''

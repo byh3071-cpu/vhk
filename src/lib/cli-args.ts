@@ -53,6 +53,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'pattern', '패턴',
   'evolve', '진화',
   'work', '작업',
+  'seo',
   'help',
 ])
 
