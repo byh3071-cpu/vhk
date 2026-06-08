@@ -164,7 +164,7 @@ const KO_ALIASES: Record<string, string> = {
 
 program
   .name('vhk')
-  .description('VHK — 바이브코딩 프로젝트 코치 (한국어로 안내합니다)')
+  .description('VHK — AI 코딩 세션을 목표·증거·기억·규칙으로 묶는 한국어 CLI')
   .version(getVhkVersion())
 
 program.configureHelp({
@@ -342,7 +342,7 @@ program
 
 program
   .command('mcp')
-  .description('MCP 서버 시작 (24 tool stdio — Cursor·Claude Desktop 등)')
+  .description('MCP 서버 시작 (29 tool stdio — Cursor·Claude Desktop 등)')
   .action(async () => {
     await startMcpServer()
   })
