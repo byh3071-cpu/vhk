@@ -32,7 +32,12 @@ function statusIcon(code: string): string {
   return '📄'
 }
 
-export async function save(): Promise<void> {
+export interface SaveOptions {
+  /** #154: 커밋 메시지 직접 지정 — 비-TTY/에이전트에서 MCP save 처럼 의미있는 메시지 사용. */
+  message?: string
+}
+
+export async function save(opts: SaveOptions = {}): Promise<void> {
   console.log(chalk.bold(`\n💾 ${t('save.title')}`))
   console.log(chalk.gray('─'.repeat(40)))
 
@@ -85,15 +90,19 @@ export async function save(): Promise<void> {
     console.log(`   ${statusIcon(code)} ${name}`)
   })
 
-  const message = await promptOrDefault(
-    async () => (await inquirer.prompt<{ message: string }>([{
-      type: 'input',
-      name: 'message',
-      message: t('save.commitMessage'),
-      default: formatDefaultCommitMessage(),
-    }])).message,
-    'chore: vhk save',
-  )
+  // #154: --message 제공 시 프롬프트 건너뛰고 그대로 사용(MCP save 파리티). 없으면 기존 흐름
+  // (TTY → 프롬프트 / 비-TTY → 기본 메시지).
+  const message = opts.message?.trim()
+    ? opts.message.trim()
+    : await promptOrDefault(
+        async () => (await inquirer.prompt<{ message: string }>([{
+          type: 'input',
+          name: 'message',
+          message: t('save.commitMessage'),
+          default: formatDefaultCommitMessage(),
+        }])).message,
+        'chore: vhk save',
+      )
 
   const spinner = ora(t('save.saving')).start()
   let didAdd = false
