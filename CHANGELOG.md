@@ -4,7 +4,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-_다음 릴리즈 예정 항목 없음._
+### Changed
+
+- README와 npm package 설명을 v2.5.0 구현 기준으로 갱신: goal/trust/memory/rules 루프, MCP 29 tools, 최신 명령 표면을 전면 재정리.
+- `vhk mcp` 도움말의 MCP 도구 수 표기를 실제 등록 수(29 tools)와 맞춤.
 
 ## [2.5.0] - 2026-06-08
 
