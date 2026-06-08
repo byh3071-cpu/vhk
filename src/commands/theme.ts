@@ -5,6 +5,7 @@ import inquirer from 'inquirer'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { promptOrDefault } from '../lib/interactive.js'
+import { detectProjectStack } from '../lib/stack-detect.js'
 
 function generateDarkCSS(): string {
   return `/* vhk theme — 다크/라이트 모드 CSS 변수 */
@@ -34,29 +35,34 @@ function generateDarkCSS(): string {
 `
 }
 
-function generateToggleUtil(): string {
+// #158: 스택 프로젝트는 TS(.ts), 바닐라/정적 PWA 는 JS(.js) 토글을 생성한다.
+function generateToggleUtil(ts: boolean): string {
+  const ret = ts ? ": 'light' | 'dark'" : ''
+  const param = ts ? ": 'light' | 'dark'" : ''
+  const cast = ts ? " as 'light' | 'dark' | null" : ''
+  const voidT = ts ? ': void' : ''
   return `// vhk theme — 다크/라이트 모드 토글 유틸리티
 
-export function getTheme(): 'light' | 'dark' {
+export function getTheme()${ret} {
   if (typeof window === 'undefined') return 'light'
-  const stored = localStorage.getItem('vhk-theme') as 'light' | 'dark' | null
+  const stored = localStorage.getItem('vhk-theme')${cast}
   if (stored === 'light' || stored === 'dark') return stored
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-export function setTheme(theme: 'light' | 'dark'): void {
+export function setTheme(theme${param})${voidT} {
   if (typeof document === 'undefined') return
   document.documentElement.setAttribute('data-theme', theme)
   localStorage.setItem('vhk-theme', theme)
 }
 
-export function toggleTheme(): 'light' | 'dark' {
+export function toggleTheme()${ret} {
   const next = getTheme() === 'light' ? 'dark' : 'light'
   setTheme(next)
   return next
 }
 
-export function initTheme(): void {
+export function initTheme()${voidT} {
   setTheme(getTheme())
 }
 `
@@ -67,8 +73,14 @@ export async function theme(options?: { yes?: boolean }): Promise<void> {
   console.log(chalk.bold('\n🌙 ' + t('theme.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const cssPath = 'src/styles/theme.css'
-  const togglePath = 'src/lib/theme-toggle.ts'
+  // #158: 스택 감지로 경로 결정 — null(바닐라/정적 PWA)이면 src/ 오염 대신 루트 + .js.
+  const stack = detectProjectStack('.')
+  const usesSrc = stack !== null
+  const styleDir = usesSrc ? 'src/styles' : 'styles'
+  const libDir = usesSrc ? 'src/lib' : 'lib'
+  const useTs = usesSrc
+  const cssPath = `${styleDir}/theme.css`
+  const togglePath = `${libDir}/theme-toggle.${useTs ? 'ts' : 'js'}`
   const conflicts = [cssPath, togglePath].filter((p) => existsSync(p))
 
   if (conflicts.length > 0) {
@@ -91,18 +103,18 @@ export async function theme(options?: { yes?: boolean }): Promise<void> {
     }
   }
 
-  mkdirSync('src/styles', { recursive: true })
-  mkdirSync('src/lib', { recursive: true })
+  mkdirSync(styleDir, { recursive: true })
+  mkdirSync(libDir, { recursive: true })
 
   writeFileSync(cssPath, generateDarkCSS(), 'utf-8')
-  console.log(chalk.green('\n✅ src/styles/theme.css 생성 (다크/라이트 모드)'))
+  console.log(chalk.green(`\n✅ ${cssPath} 생성 (다크/라이트 모드)`))
 
-  writeFileSync(togglePath, generateToggleUtil(), 'utf-8')
-  console.log(chalk.green('✅ src/lib/theme-toggle.ts 생성 (토글 유틸리티)'))
+  writeFileSync(togglePath, generateToggleUtil(useTs), 'utf-8')
+  console.log(chalk.green(`✅ ${togglePath} 생성 (토글 유틸리티)`))
 
   console.log(chalk.bold('\n📖 사용법:'))
-  console.log(chalk.gray('   1. theme.css를 글로벌 스타일에 추가'))
-  console.log(chalk.gray('   2. import { initTheme, toggleTheme } from "./lib/theme-toggle"'))
+  console.log(chalk.gray(`   1. ${cssPath} 를 글로벌 스타일에 추가`))
+  console.log(chalk.gray(`   2. import { initTheme, toggleTheme } from "./${libDir}/theme-toggle"`))
   console.log(chalk.gray('   3. 앱 진입점에서 initTheme() 호출'))
   console.log(chalk.gray('   4. 토글 버튼에서 toggleTheme() 호출'))
 
