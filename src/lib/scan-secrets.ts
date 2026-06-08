@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import { SECRET_PATTERNS, maskSecret, type SecretFinding } from './secret-patterns.js'
-import { walkProjectFiles, MAX_SCAN_FILE_BYTES } from './scan-files.js'
+import { walkProjectFiles } from './scan-files.js'
 
 export const MAX_SECRET_FINDINGS = 200
 const MAX_LINE_CHARS = 4_000

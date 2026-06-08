@@ -34,6 +34,10 @@ jobs:
       - name: 타입체크 (tsc --noEmit)
         run: pnpm exec tsc --noEmit
 
+      # 린트 — type-aware async 안전성(잊은 await·Promise 오용)만 검사. 결정적·블로킹.
+      - name: 린트 (eslint — async 안전성)
+        run: pnpm lint
+
       # 좀도둑 파일 가드 — 정적 검사(빌드/테스트 불필요).
       - name: 좀도둑 파일 가드
         run: node scripts/check-no-stray.mjs
