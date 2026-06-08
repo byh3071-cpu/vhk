@@ -2,6 +2,7 @@ import path from 'node:path'
 import { simpleGit, type SimpleGit } from 'simple-git'
 import { filterTrackedPaths } from './check-secure.js'
 import { localDate } from './date.js'
+import { isGitRepo as isGitRepoSync, hasCommits as hasCommitsSync } from './git-repo.js'
 
 const git: SimpleGit = simpleGit()
 
@@ -136,26 +137,16 @@ export async function getRecentCommits(
   }
 }
 
-/**
- * Git 레포인지 확인
- */
+// Goal 46: 레포/커밋 감지 로직 SoT 는 git-repo.ts(sync, safeExecFile 통로). simple-git revparse
+// 중복 제거 — 아래 async 래퍼는 호출부 호환(recap 등 await)만 유지하고 git-repo 로 위임한다.
+// (simple-git 자체는 diff/log 파싱 편의로 유지.)
+
+/** Git 레포인지 확인 (git-repo.isGitRepo 위임). */
 export async function isGitRepo(): Promise<boolean> {
-  try {
-    await git.revparse(['--is-inside-work-tree'])
-    return true
-  } catch {
-    return false
-  }
+  return isGitRepoSync()
 }
 
-/**
- * HEAD 커밋 존재 여부. `git init` 직후 커밋 0개면 false.
- */
+/** HEAD 커밋 존재 여부. `git init` 직후 커밋 0개면 false (git-repo.hasCommits 위임). */
 export async function hasAnyCommits(): Promise<boolean> {
-  try {
-    await git.revparse(['HEAD'])
-    return true
-  } catch {
-    return false
-  }
+  return hasCommitsSync()
 }
