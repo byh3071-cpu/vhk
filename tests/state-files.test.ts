@@ -42,6 +42,15 @@ describe('countActiveBlockers', () => {
   it('빈 문서면 0', () => {
     expect(countActiveBlockers('# Blockers\n')).toBe(0)
   })
+
+  it('[dogfood]/[skip-hardstop] 태그 항목은 카운트 제외 (#159)', () => {
+    const md = [
+      '- [2026-05-01 goal-0] 진짜 블로커',
+      '- [2026-05-02 goal-0] [dogfood] 테스트용 블로커',
+      '- [2026-05-03 goal-1] [skip-hardstop] 도그푸딩',
+    ].join('\n')
+    expect(countActiveBlockers(md)).toBe(1)
+  })
 })
 
 describe('appendBlocker — Forbidden append-only 보장', () => {
@@ -84,6 +93,15 @@ describe('appendBlocker — Forbidden append-only 보장', () => {
     expect(r.count).toBe(HARD_STOP_BLOCKER_THRESHOLD)
     expect(r.hardStopTripped).toBe(true)
     expect(existsSync(HARD_STOP_PATH)).toBe(true)
+  })
+
+  it('[dogfood] 3건은 임계값 산입 제외 → HARD_STOP 미트립 (#159)', () => {
+    appendBlocker('[dogfood] b1', 2)
+    appendBlocker('[dogfood] b2', 2)
+    const r = appendBlocker('[dogfood] b3', 2)
+    expect(r.count).toBe(0)
+    expect(r.hardStopTripped).toBe(false)
+    expect(existsSync(HARD_STOP_PATH)).toBe(false)
   })
 
   it('이미 HARD_STOP 있으면 재작성 안 함 (덮어쓰기 X)', () => {

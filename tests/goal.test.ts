@@ -301,6 +301,56 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
   })
 })
 
+describe('goalCheck — DONE goal 게이트 스킵 (#155)', () => {
+  let origCwd: string
+  let origExitCode: number | string | undefined
+  beforeEach(() => {
+    origCwd = process.cwd()
+    origExitCode = process.exitCode
+    process.exitCode = 0
+    mockSafeExecFile.mockReset()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    process.exitCode = origExitCode
+    vi.restoreAllMocks()
+  })
+
+  it('DONE goal 은 게이트 실행 없이 스킵 (exit 0)', async () => {
+    const dir = tmpProject('check-done-skip')
+    makeGoalFile(dir, 5, 'DONE')
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    process.chdir(dir)
+    try {
+      const { goalCheck } = await import('../src/commands/goal.js')
+      await goalCheck({ id: '5' })
+      expect(process.exitCode).not.toBe(1)
+      expect(mockSafeExecFile).not.toHaveBeenCalled() // 게이트 미실행
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).toContain('스킵')
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('--force 면 DONE goal 도 게이트 실행 (스크립트 없으면 실패 exit 1)', async () => {
+    const dir = tmpProject('check-done-force')
+    makeGoalFile(dir, 5, 'DONE')
+    process.chdir(dir)
+    try {
+      const { goalCheck } = await import('../src/commands/goal.js')
+      await goalCheck({ id: '5', force: true })
+      // DONE 스킵 무시 → findGateScript 진입, 스크립트 없음 → exit 1
+      expect(process.exitCode).toBe(1)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('goalSync — 누락 게이트 스크립트 백필 (goal 7)', () => {
   let origCwd: string
   beforeEach(() => {

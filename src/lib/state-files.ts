@@ -32,10 +32,14 @@ function isoDate(): string {
 // resolved 로 간주 → 카운트 제외.
 const ACTIVE_BLOCKER_RE = /^- (?!~~)\[/
 
+// #159: 도그푸딩/테스트용 blocker([dogfood] 또는 [skip-hardstop] 태그)는 HARD_STOP 임계값
+//       카운트에서 제외 — 명령 흐름 점검이 3건 누적되어 자동화를 멈추는 자기방해 방지.
+const SKIP_HARDSTOP_RE = /\[(dogfood|skip-hardstop)\]/i
+
 export function countActiveBlockers(content: string): number {
   let count = 0
   for (const line of content.split(/\r?\n/)) {
-    if (ACTIVE_BLOCKER_RE.test(line)) count++
+    if (ACTIVE_BLOCKER_RE.test(line) && !SKIP_HARDSTOP_RE.test(line)) count++
   }
   return count
 }
