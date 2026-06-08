@@ -42,6 +42,7 @@ import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
 import { preflight } from './commands/preflight.js'
+import { testmap } from './commands/testmap.js'
 import { worktreeAdd, worktreeCheck } from './commands/worktree.js'
 import { standup } from './commands/standup.js'
 import { today } from './commands/today.js'
@@ -482,6 +483,12 @@ program
   .option('--full', '테스트 전체 실행 (--changed 캐시 미사용)')
   .description('출고 전 안전점검 — 2FA·shim·env·lint·타입·테스트·git 8개 항목, 치명 실패 시 차단')
   .action(async (opts: { publish?: boolean; pr?: boolean; full?: boolean }) => { await preflight(opts) })
+
+program
+  .command('testmap')
+  .alias('테스트매핑')
+  .description('test-first 매핑 점검 — 변경 기능 소스에 대응 테스트 누락 경고 (VHK_TEST_FIRST=1 시 exit 1)')
+  .action(async () => { await testmap() })
 
 const worktreeCmd = program
   .command('worktree')
