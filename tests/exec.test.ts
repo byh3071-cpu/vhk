@@ -18,6 +18,17 @@ describe('lib/exec', () => {
     }
   })
 
+  it('#150: platformCmd Windows 에서 vhk → vhk.cmd (MCP spawn ENOENT 수정)', async () => {
+    const { platformCmd } = await import('../src/lib/exec.js')
+    const original = process.platform
+    try {
+      Object.defineProperty(process, 'platform', { value: 'win32' })
+      expect(platformCmd('vhk')).toBe('vhk.cmd')
+    } finally {
+      Object.defineProperty(process, 'platform', { value: original })
+    }
+  })
+
   it('platformCmd: 비 Windows에서는 그대로 반환', async () => {
     const { platformCmd } = await import('../src/lib/exec.js')
     const original = process.platform

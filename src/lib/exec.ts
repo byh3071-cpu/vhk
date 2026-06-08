@@ -1,7 +1,8 @@
 import { execFileSync } from 'node:child_process'
 
-// Windows에서 pnpm/npm/npx/yarn은 .cmd shim. execFileSync는 native 바이너리만 찾으므로 .cmd 확장자 부여.
-const SHIM_BINARIES = new Set(['pnpm', 'npm', 'npx', 'yarn'])
+// Windows에서 pnpm/npm/npx/yarn/vhk는 .cmd shim. execFileSync는 native 바이너리만 찾으므로 .cmd 확장자 부여.
+// #150: 'vhk' 추가 — 전역 설치 시 vhk.cmd 만 노출돼 MCP 가 bare 'vhk' spawn 시 ENOENT 였음.
+const SHIM_BINARIES = new Set(['pnpm', 'npm', 'npx', 'yarn', 'vhk'])
 
 export function platformCmd(cmd: string): string {
   if (process.platform === 'win32' && SHIM_BINARIES.has(cmd)) {
