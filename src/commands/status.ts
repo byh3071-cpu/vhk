@@ -4,6 +4,8 @@ import path from 'node:path'
 import chalk from 'chalk'
 import { normalizePorcelain } from '../lib/git-porcelain.js'
 import { getGitRoot, gitOut } from '../lib/git-repo.js'
+// Goal 48: branch/status/log 의 git 질문은 git-session 공유 SoT(MCP 와 동일 함수). sync(rev-list)는 status 전용이라 gitOut 유지.
+import { okOut, currentBranch, statusPorcelain, recentCommits } from '../lib/git-session.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { printNextStep, printContextResumeHint } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
@@ -138,23 +140,17 @@ export async function status(): Promise<void> {
     return
   }
 
-  let branch: string
-  try {
-    branch = gitOut(['branch', '--show-current'], gitRoot).trim() || t('status.detached')
-  } catch {
-    branch = t('status.unknownBranch')
-  }
+  const branchRes = currentBranch(gitRoot)
+  const branch = branchRes.ok
+    ? branchRes.out.trim() || t('status.detached')
+    : t('status.unknownBranch')
 
-  const porcelain = normalizePorcelain(gitOut(['status', '--porcelain'], gitRoot))
+  const porcelain = normalizePorcelain(okOut(statusPorcelain(gitRoot)))
   const counts = countFileChanges(porcelain)
   const sync = getSyncCounts(gitRoot)
 
-  let commits: string[] = []
-  try {
-    commits = parseRecentCommitLines(gitOut(['log', '--oneline', '-3'], gitRoot).trim())
-  } catch {
-    commits = []
-  }
+  const logRes = recentCommits(3, gitRoot)
+  const commits = logRes.ok ? parseRecentCommitLines(logRes.out.trim()) : []
 
   const pkg = readProjectPackage()
 

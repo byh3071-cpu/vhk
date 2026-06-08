@@ -19,23 +19,44 @@ vi.mock('../src/lib/scan-secrets.js', () => ({
   filterSevereFindings: vi.fn(() => []),
 }))
 const mockGetGitRoot = vi.fn(() => '/repo')
-const mockGitOut = vi.fn()
-const mockGitRun = vi.fn()
 const mockHasGitRemote = vi.fn()
 
 vi.mock('../src/lib/git-repo.js', () => ({
   getGitRoot: (...args: unknown[]) => mockGetGitRoot(...args),
-  gitOut: (...args: unknown[]) => mockGitOut(...args),
-  gitRun: (...args: unknown[]) => mockGitRun(...args),
   hasGitRemote: (...args: unknown[]) => mockHasGitRemote(...args),
   getExecErrorMessage: (e: unknown) => (e instanceof Error ? e.message : String(e)),
 }))
+
+// Goal 48: save 는 git-session 공유 함수로 git 질문을 한다(MCP 와 동일 SoT) → 그 seam 을 mock.
+// rev-parse 게이트는 여전히 execFileSync 직접 호출(위 node:child_process mock).
+const mockStatusPorcelain = vi.fn()
+const mockStageAll = vi.fn()
+const mockCommit = vi.fn()
+const mockPush = vi.fn()
+const mockStagedStat = vi.fn()
+
+vi.mock('../src/lib/git-session.js', () => ({
+  statusPorcelain: (...a: unknown[]) => mockStatusPorcelain(...a),
+  stageAll: (...a: unknown[]) => mockStageAll(...a),
+  commit: (...a: unknown[]) => mockCommit(...a),
+  push: (...a: unknown[]) => mockPush(...a),
+  stagedStat: (...a: unknown[]) => mockStagedStat(...a),
+  okOut: (r: { ok: boolean; out: string }) => (r && r.ok ? r.out : ''),
+}))
+
+const OK = (out = '') => ({ ok: true as const, out })
 
 describe('save', () => {
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
     mockGetGitRoot.mockReturnValue('/repo')
+    // 기본: 모든 git-session 호출 성공 (변경사항 1건 있는 상태)
+    mockStatusPorcelain.mockReturnValue(OK(' M file.ts'))
+    mockStageAll.mockReturnValue(OK())
+    mockCommit.mockReturnValue(OK())
+    mockPush.mockReturnValue(OK())
+    mockStagedStat.mockReturnValue(OK())
   })
 
   it('git 저장소가 아니면 에러 메시지 출력', async () => {
@@ -54,15 +75,11 @@ describe('save', () => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
       return ''
     })
-    mockGitOut.mockImplementation((args: string[]) => {
-      if (args[0] === 'status') return ' M file.ts'
-      return ''
-    })
     mockHasGitRemote.mockReturnValue(false)
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test' })
     const { save } = await import('../src/commands/save.js')
     await save()
-    expect(mockGitRun).not.toHaveBeenCalledWith(['push'], '/repo')
+    expect(mockPush).not.toHaveBeenCalled()
   })
 
   it('push 실패 시 exitCode 1', async () => {
@@ -70,11 +87,8 @@ describe('save', () => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
       return ''
     })
-    mockGitOut.mockReturnValue(' M file.ts')
     mockHasGitRemote.mockReturnValue(true)
-    mockGitRun.mockImplementation((args: string[]) => {
-      if (args[0] === 'push') throw new Error('rejected')
-    })
+    mockPush.mockReturnValue({ ok: false, err: 'rejected', out: '' })
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test' })
     const exitBefore = process.exitCode
     const { save } = await import('../src/commands/save.js')
@@ -92,17 +106,13 @@ describe('save', () => {
         if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
         return ''
       })
-      mockGitOut.mockImplementation((args: string[]) => {
-        if (args[0] === 'status') return ' M file.ts'
-        return ''
-      })
       mockHasGitRemote.mockReturnValue(false)
       const { save } = await import('../src/commands/save.js')
       await expect(save()).resolves.not.toThrow()
       // inquirer 프롬프트 미호출 (비대화형 = stdin 미접근, MCP 안전)
       expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled()
-      // 커밋은 fallback 메시지로 수행
-      expect(mockGitRun).toHaveBeenCalledWith(['commit', '-m', 'chore: vhk save'], '/repo')
+      // 커밋은 fallback 메시지로 수행 (commit(message, cwd) 시그니처)
+      expect(mockCommit).toHaveBeenCalledWith('chore: vhk save', '/repo')
     } finally {
       Object.defineProperty(process.stdin, 'isTTY', { value: ttyBefore, configurable: true })
     }
@@ -113,12 +123,11 @@ describe('save', () => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
       return ''
     })
-    mockGitOut.mockImplementation((args: string[]) => (args[0] === 'status' ? ' M file.ts' : ''))
     mockHasGitRemote.mockReturnValue(false)
     const { save } = await import('../src/commands/save.js')
     await save({ message: 'feat: custom MSG123' })
     expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled()
-    expect(mockGitRun).toHaveBeenCalledWith(['commit', '-m', 'feat: custom MSG123'], '/repo')
+    expect(mockCommit).toHaveBeenCalledWith('feat: custom MSG123', '/repo')
   })
 
   it('commit 실패 시 staged 안내', async () => {
@@ -126,14 +135,8 @@ describe('save', () => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
       return ''
     })
-    mockGitOut.mockImplementation((args: string[]) => {
-      if (args[0] === 'status') return ' M file.ts'
-      if (args[0] === 'diff') return ' file.ts | 1 +'
-      return ''
-    })
-    mockGitRun.mockImplementation((args: string[]) => {
-      if (args[0] === 'commit') throw new Error('commit failed')
-    })
+    mockStagedStat.mockReturnValue(OK(' file.ts | 1 +'))
+    mockCommit.mockReturnValue({ ok: false, err: 'commit failed', out: '' })
     vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test' })
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const { save } = await import('../src/commands/save.js')

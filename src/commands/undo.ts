@@ -5,9 +5,10 @@ import {
   countLocalCommits,
   getGitRoot,
   gitOut,
-  gitRun,
   hasGitRemote,
 } from '../lib/git-repo.js'
+// Goal 48: undo 의 git 질문(log/reset)은 git-session 공유 SoT(MCP 와 동일 함수). unpushed(rev-list)는 undo 전용이라 gitOut 유지.
+import { recentCommits, softReset } from '../lib/git-session.js'
 import { printNextStep } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 
@@ -55,13 +56,12 @@ export async function undo(): Promise<void> {
     return
   }
 
-  let logOutput: string
-  try {
-    logOutput = gitOut(['log', '--oneline', '-5'], gitRoot).trim()
-  } catch {
+  const logRes = recentCommits(5, gitRoot)
+  if (!logRes.ok) {
     console.log(chalk.yellow(`📭 ${t('undo.noCommits')}`))
     return
   }
+  const logOutput = logRes.out.trim()
 
   const commits = parseRecentCommits(logOutput)
   if (commits.length === 0) {
@@ -116,22 +116,21 @@ export async function undo(): Promise<void> {
     return
   }
 
-  try {
-    gitRun(['reset', '--soft', `HEAD~${undoCount}`], gitRoot)
-    console.log(chalk.green(`\n✅ ${t('undo.success')}`))
-    console.log(chalk.gray(`   💡 ${t('undo.stagedHint')}`))
-    if (risky) {
-      console.log(chalk.yellow(`\n💡 ${t('undo.forcePushHint')}`))
-    }
-    printNextStep({
-      message: t('undo.nextMessage'),
-      command: 'vhk save',
-      cursorHint: t('undo.nextCursor'),
-    })
-  } catch (err) {
+  const resetRes = softReset(undoCount, gitRoot)
+  if (!resetRes.ok) {
     console.log(chalk.red(`❌ ${t('undo.failed')}`))
-    const msg = err instanceof Error ? err.message : String(err)
-    console.log(chalk.red(msg))
+    console.log(chalk.red(resetRes.stderr || resetRes.err))
     process.exitCode = 1
+    return
   }
+  console.log(chalk.green(`\n✅ ${t('undo.success')}`))
+  console.log(chalk.gray(`   💡 ${t('undo.stagedHint')}`))
+  if (risky) {
+    console.log(chalk.yellow(`\n💡 ${t('undo.forcePushHint')}`))
+  }
+  printNextStep({
+    message: t('undo.nextMessage'),
+    command: 'vhk save',
+    cursorHint: t('undo.nextCursor'),
+  })
 }

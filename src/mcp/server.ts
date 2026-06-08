@@ -3,6 +3,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
 import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
+import * as gitSession from '../lib/git-session.js'
+import { isGitRepo } from '../lib/git-repo.js'
 import { parseEnvKeys } from '../commands/env.js'
 import { resolveDeployTarget } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
@@ -17,9 +19,8 @@ import { resolveVhkCliInvocation, composeInvocation, type VhkCliInvocation } fro
 // dist/index.js 와 dist/mcp/index.js 둘 다 lib/version 의 candidate 경로로 해석됨.
 const SERVER_VERSION = getVhkVersion()
 
-function isGitRepo(): boolean {
-  return safeExecFile('git', ['rev-parse', '--is-inside-work-tree']).ok
-}
+// Goal 48: 세션 git 동작은 src/lib/git-session 의 함수를 공유한다(인라인 재구현 금지).
+// 레포 감지는 git-repo.isGitRepo(Goal 46 sync SoT)로 위임 — MCP 전용 재정의 제거.
 
 // Goal 41: MCP surface HARD_STOP 가드. CLI 의 ensureNotHardStopped 는 console.error +
 // process.exitCode 를 쓰는데, MCP stdio 서버는 stdout/stderr 가 JSON-RPC 채널이라 부적합
@@ -89,7 +90,7 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
 
-      const status = safeExecFile('git', ['status', '--porcelain'])
+      const status = gitSession.statusPorcelain()
       if (!status.ok) {
         return { content: [{ type: 'text', text: `❌ git status 실패: ${status.err}` }] }
       }
@@ -97,7 +98,8 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '📭 저장할 변경사항이 없습니다.' }] }
       }
 
-      const files = status.out.split('\n')
+      // statusPorcelain 은 raw(후행 개행 포함) → 빈 줄 제거 후 파일 카운트.
+      const files = status.out.split('\n').filter(Boolean)
 
       // MCP 모드는 inquirer 프롬프트가 동작하지 않으므로 CLI 의 확인 단계 없이
       // severe(critical/high) 시크릿이 발견되면 commit 자체를 거부한다.
@@ -127,17 +129,17 @@ export function createVhkMcpServer(): McpServer {
       const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
 
-      const add = safeExecFile('git', ['add', '.'])
+      const add = gitSession.stageAll()
       if (!add.ok) {
         return { content: [{ type: 'text', text: `❌ git add 실패: ${add.err}` }] }
       }
-      const commit = safeExecFile('git', ['commit', '-m', commitMsg])
-      if (!commit.ok) {
-        return { content: [{ type: 'text', text: `❌ commit 실패: ${commit.err}` }] }
+      const commitRes = gitSession.commit(commitMsg)
+      if (!commitRes.ok) {
+        return { content: [{ type: 'text', text: `❌ commit 실패: ${commitRes.err}` }] }
       }
 
-      const push = safeExecFile('git', ['push'])
-      const pushResult = push.ok ? '+ 원격 업로드 완료' : '(원격 저장소 없거나 push 실패 → 스킵)'
+      const pushRes = gitSession.push()
+      const pushResult = pushRes.ok ? '+ 원격 업로드 완료' : '(원격 저장소 없거나 push 실패 → 스킵)'
 
       return {
         content: [
@@ -171,7 +173,7 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
 
-      const last = safeExecFile('git', ['log', '--oneline', '-1'])
+      const last = gitSession.recentCommits(1)
       if (!last.ok || !last.out) {
         return { content: [{ type: 'text', text: '📭 되돌릴 커밋이 없습니다.' }] }
       }
@@ -192,7 +194,7 @@ export function createVhkMcpServer(): McpServer {
         }
       }
 
-      const reset = safeExecFile('git', ['reset', '--soft', 'HEAD~1'])
+      const reset = gitSession.softReset(1)
       if (!reset.ok) {
         return { content: [{ type: 'text', text: `❌ reset 실패: ${reset.err}` }] }
       }
@@ -226,15 +228,16 @@ export function createVhkMcpServer(): McpServer {
       return { content: [{ type: 'text', text: lines.join('\n') }] }
     }
 
-    const branch = safeExecFile('git', ['branch', '--show-current'])
+    const branch = gitSession.currentBranch()
     if (branch.ok) lines.push(`🌿 브랜치: ${branch.out || '(detached)'}`)
 
-    const status = safeExecFile('git', ['status', '--porcelain'])
+    const status = gitSession.statusPorcelain()
     if (status.ok) {
       if (!status.out) {
         lines.push('📝 변경사항: ✅ 깨끗함')
       } else {
-        const fileLines = status.out.split('\n')
+        // statusPorcelain 은 raw(후행 개행 포함) → 빈 줄 제거 후 코드 파싱.
+        const fileLines = status.out.split('\n').filter(Boolean)
         const staged = fileLines.filter((l) => l[0] !== ' ' && l[0] !== '?').length
         const unstaged = fileLines.filter((l) => l[1] === 'M' || l[1] === 'D').length
         const untracked = fileLines.filter((l) => l.startsWith('??')).length
@@ -246,7 +249,7 @@ export function createVhkMcpServer(): McpServer {
       }
     }
 
-    const log = safeExecFile('git', ['log', '--oneline', '-3'])
+    const log = gitSession.recentCommits(3)
     if (log.ok && log.out) {
       lines.push('📜 최근 커밋:')
       log.out.split('\n').forEach((l) => lines.push(`   ${l}`))
@@ -261,9 +264,9 @@ export function createVhkMcpServer(): McpServer {
       return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
     }
 
-    const unstaged = safeExecFile('git', ['diff', '--stat'])
-    const staged = safeExecFile('git', ['diff', '--cached', '--stat'])
-    const untracked = safeExecFile('git', ['ls-files', '--others', '--exclude-standard'])
+    const unstaged = gitSession.unstagedStat()
+    const staged = gitSession.stagedStat()
+    const untracked = gitSession.untrackedFiles()
 
     const unstagedOut = unstaged.ok ? unstaged.out : ''
     const stagedOut = staged.ok ? staged.out : ''
@@ -288,7 +291,7 @@ export function createVhkMcpServer(): McpServer {
       files.forEach((f) => lines.push(`   + ${f}`))
     }
 
-    const numstat = safeExecFile('git', ['diff', '--numstat', 'HEAD'])
+    const numstat = gitSession.numstatHead()
     if (numstat.ok && numstat.out) {
       let totalAdd = 0
       let totalDel = 0
@@ -326,10 +329,10 @@ export function createVhkMcpServer(): McpServer {
     }
 
     if (isGitRepo()) {
-      const status = safeExecFile('git', ['status', '--porcelain'])
+      const status = gitSession.statusPorcelain()
       if (status.ok) {
         if (status.out) {
-          checks.push(`⚠️ 커밋되지 않은 변경사항 ${status.out.split('\n').length}개`)
+          checks.push(`⚠️ 커밋되지 않은 변경사항 ${status.out.split('\n').filter(Boolean).length}개`)
         } else {
           checks.push('✅ 워킹 디렉토리 깨끗함')
         }
@@ -346,7 +349,7 @@ export function createVhkMcpServer(): McpServer {
     const node = safeExecFile('node', ['--version'])
     checks.push(node.ok ? `✅ Node.js: ${node.out}` : '❌ Node.js: 설치 안 됨')
 
-    const git = safeExecFile('git', ['--version'])
+    const git = gitSession.gitVersion()
     checks.push(git.ok ? `✅ Git: ${git.out}` : '❌ Git: 설치 안 됨')
 
     const pnpm = safeExecFile('pnpm', ['--version'])
@@ -384,7 +387,7 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '❌ git 저장소가 아닙니다.' }] }
       }
       const n = count && count > 0 ? Math.floor(count) : 10
-      const log = safeExecFile('git', ['log', '--format=%h %ad %s', '--date=short', `-${n}`])
+      const log = gitSession.recapLog(n)
       if (!log.ok) {
         return { content: [{ type: 'text', text: `❌ git log 실패: ${log.err}` }] }
       }

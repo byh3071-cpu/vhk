@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 48
 title: MCP↔CLI 단일 진실원 — git 인라인 재구현 제거, lib 순수함수 공유 — P0
-status: NOT_STARTED
+status: DONE
 priority: P0
 created: 2026-06-08
 leads_to: 아키텍처 3→4 · 드리프트 버그(#150/#152/#161) 원천 제거
@@ -29,12 +29,19 @@ leads_to: 아키텍처 3→4 · 드리프트 버그(#150/#152/#161) 원천 제�
 - 같은 git 질문에 구현 1개. MCP가 CLI 로직을 재구현하지 않는다. 계약 테스트 green, 회귀 0.
 
 ## Completion Check
-- [ ] 세션 git 동작 lib 순수함수 추출 (또는 runVhkCli 위임으로 단일화)
-- [ ] CLI·MCP가 동일 함수/경로 공유 (인라인 재구현 제거)
-- [ ] tests/mcp-cli-contract.test.ts green (#150/#152/#161 앵커 유지)
-- [ ] git-session 행동 테스트 추가
-- [ ] 공통 게이트 통과, 회귀 0
-- [ ] check-goal-48.mjs 통과
+- [x] 세션 git 동작 lib 순수함수 추출 — `src/lib/git-session.ts` (safeExecFile 위, ExecResult 반환, cwd/raw 인지)
+- [x] CLI·MCP가 동일 함수/경로 공유 — MCP server.ts 인라인 git 0건, CLI save/undo/status/diff 가 git-session 공유 (같은 질문=함수 하나)
+- [x] tests/mcp-cli-contract.test.ts green (#150/#152/#161 앵커 유지, 도구 정확히 29개)
+- [x] git-session 행동 테스트 추가 — tests/git-session.test.ts (17 케이스: argv·cwd·trim·okOut)
+- [x] 공통 게이트 통과, 회귀 0 (typecheck/build/test green, 1295 pass)
+- [x] check-goal-48.mjs 통과 (goal 고유 검증 22항)
+
+## 구현 메모
+
+- 설계 선택: **option 1(lib 순수함수 추출)** 채택 — option 2(runVhkCli 위임)는 save/undo/status/diff MCP 출력 포맷이 바뀌어 회귀↑.
+- MCP server.ts: save/undo/status/diff + ship/recap/doctor 의 git 호출 전부 `gitSession.*` 경유. 로컬 `isGitRepo()` 재정의 제거 → `git-repo.isGitRepo`(Goal 46 sync SoT) import.
+- 부수 개선: MCP status/save/ship 가 statusPorcelain raw(선행 공백 보존)를 `.filter(Boolean)` 로 파싱 → 첫 줄 오집계(잠재 버그) 제거, CLI 와 파싱 통일.
+- git-session 은 throw 안 함(ExecResult) → MCP(.ok 검사)·CLI(save 의 `must()` throw 승격) 양쪽 자연 소비.
 
 ## Mandatory Reading
 - src/mcp/server.ts · src/lib/scan-secrets.ts(공유 패턴) · src/lib/git-repo.ts · src/lib/exec.ts · tests/mcp-cli-contract.test.ts
