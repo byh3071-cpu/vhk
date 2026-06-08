@@ -8,7 +8,17 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Goal 47: 주 사용·배포 환경(win32)과 툴체인 하한 Node 를 매트릭스로 실검증.
+    #   ubuntu/windows × node 22/24 = 4조합. fail-fast:false 로 한 조합 실패가 나머지를 안 끊음.
+    #   하한이 22 인 이유: packageManager pnpm@11.2.2 가 node:sqlite 의존으로 Node >=22.13 요구
+    #   (Node 20 에선 pnpm 자체가 ERR_UNKNOWN_BUILTIN_MODULE 로 실패 — goal 47 이 실측). 런타임
+    #   engines(>=20)는 별개 — vhk 실행은 node 20 호환이나 CI 툴체인(pnpm) 하한은 22.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
@@ -17,10 +27,10 @@ jobs:
       - name: pnpm 설치
         uses: pnpm/action-setup@v6
 
-      - name: Node 24 + pnpm 캐시
+      - name: Node ${{ matrix.node }} + pnpm 캐시
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: ${{ matrix.node }}
           cache: pnpm
 
       - name: 의존성 설치
@@ -66,8 +76,13 @@ jobs:
   #       유닛테스트(test 잡)가 못 잡는 "실제 실행" 결함을 막는 안전망.
   # 범위: 비대화형·읽기/조회 명령만. apply/undo/suggest 등 TTY·쓰기 명령 제외
   #       — 안전 1원칙 "자동 학습 OK · 자동 적용 금지". RULES.md 미사용 레포라 evolve suggest 제외.
+  # Goal 47: win32 서브커맨드 라우팅·경로·.cmd shim 실검증 위해 windows-latest 도 포함.
   dogfood:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
 
@@ -93,8 +108,9 @@ jobs:
       - name: 보안 스캔 (시크릿·키 유출 가드)
         run: node dist/index.js secure scan
 
-      # 각 명령 비0 종료 시 스텝 실패(GHA bash -eo pipefail). 어떤 명령이 깨졌는지 group 로그로 표시.
+      # 각 명령 비0 종료 시 스텝 실패. shell:bash 로 win32 에서도 동일 스크립트(::group::) 동작.
       - name: vhk 가 vhk 를 검사 (CLI 자가 동작 — 비대화형·읽기전용)
+        shell: bash
         run: |
           echo "::group::doctor — 개발 환경 점검"
           node dist/index.js doctor
@@ -115,10 +131,29 @@ jobs:
           node dist/index.js evolve list
           echo "::endgroup::"
 
-          # 규칙 드리프트 관찰 — 비차단(continue-on-error). 안정되면 차단형으로 승격.
+      # 규칙 드리프트 관찰 — 비차단(continue-on-error). 안정되면 차단형으로 승격.
       - name: doctor --strict (규칙 드리프트 관찰 — 비차단)
         continue-on-error: true
+        shell: bash
         run: |
           echo "::group::doctor --strict — 규칙 드리프트 관찰"
           node dist/index.js doctor --strict
           echo "::endgroup::"
+
+  # Goal 47: 매트릭스화로 잡 컨텍스트가 'test (os, node)'·'dogfood (os)'로 바뀌어 브랜치 보호의
+  #   고정 필수체크 이름이 깨진다. 집계 잡 'gate' 하나를 두고 보호 규칙은 이것만 require —
+  #   매트릭스 조합이 바뀌어도 필수체크 이름(gate)은 불변(미래안전).
+  gate:
+    name: gate
+    needs: [test, dogfood]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 매트릭스 전조합 성공 확인
+        run: |
+          echo "test=${{ needs.test.result }} · dogfood=${{ needs.dogfood.result }}"
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.dogfood.result }}" != "success" ]; then
+            echo "::error::매트릭스 일부 조합 실패 — gate fail (머지 차단)"
+            exit 1
+          fi
+          echo "✅ 매트릭스 전조합 성공"

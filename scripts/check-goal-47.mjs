@@ -52,9 +52,15 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 47 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 47 고유 검증 (멀티 OS/Node CI 매트릭스) ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const ci = read('.github/workflows/ci.yml') ?? ''
+must(ci !== '', '.github/workflows/ci.yml 존재')
+must(/strategy:[\s\S]*?matrix:/.test(ci), 'ci.yml 에 strategy.matrix')
+must(/runs-on:\s*\$\{\{\s*matrix\.os\s*\}\}/.test(ci), 'runs-on 이 matrix.os 로 매트릭스화')
+must(/\[\s*22\s*,\s*24\s*\]/.test(ci), 'node 하한 22 + 24 매트릭스 (pnpm@11 툴체인 하한)')
+must((ci.match(/windows-latest/g) ?? []).length >= 2, 'test + dogfood 둘 다 windows-latest 포함')
+must((ci.match(/ubuntu-latest/g) ?? []).length >= 2, 'test + dogfood 둘 다 ubuntu-latest 포함')
 
 if (pass) { console.log('✅ goal 47 gate passes'); process.exit(0) }
 console.log('❌ goal 47 gate failed'); process.exit(1)
