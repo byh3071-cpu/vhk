@@ -24,6 +24,8 @@ export interface DiagDeps {
   nodeVersion: string // process.version
   platform: string // process.platform
   osRelease: string // os.release()
+  // #175 — 프로젝트가 선택한 PM. 미사용 PM 부재를 fail 로 올리지 않기 위함(옵션, 미지정 시 pnpm 미사용 간주).
+  selectedPM?: 'pnpm' | 'yarn' | 'npm'
 }
 
 export type DiagFn = (opts: DoctorOptions, deps: DiagDeps) => Diagnostic | Promise<Diagnostic>

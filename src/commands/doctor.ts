@@ -19,6 +19,7 @@ import { diagOs } from '../doctor/diagnostics/os.js'
 import { buildVhkDiag } from '../doctor/diagnostics/vhk.js'
 import { buildMcpDiag, mcpToolCount } from '../doctor/diagnostics/mcp.js'
 import { buildAuditDiag } from '../doctor/diagnostics/audit.js'
+import { readSelectedPM } from '../doctor/pm.js'
 import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
 // (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
@@ -75,6 +76,7 @@ export async function doctor(opts: DoctorOptions = {}) {
     nodeVersion: process.version,
     platform: process.platform,
     osRelease: os.release(),
+    selectedPM: readSelectedPM(process.cwd()), // #175 — 미사용 PM 부재를 fail 로 올리지 않게
   }
   // Phase 2: VHK 설치/업데이트 · MCP 서버 무결성 · 의존성 audit(--audit 시) 추가.
   const auditPm = fs.existsSync(path.join(cwd, 'pnpm-lock.yaml'))
