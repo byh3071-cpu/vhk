@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 27
 title: silent fallback 안티패턴 린트 (check-no-silent-fallback) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-06
+completed: 2026-06-08
 ---
 
 # Goal 27: silent fallback 안티패턴 린트
@@ -29,11 +30,19 @@ VHK 설계철학(거짓완료 금지 · 항상 증거)과 같은 방향.
 - check-meta / 머지 게이트에 연결 (check-no-raw-json-parse 와 동일 레벨).
 
 ## Completion Check
-- [ ] silent catch-default 샘플 → FAIL + 파일:라인 출력
-- [ ] `// vhk-allow-fallback:` 주석 → PASS (의도 폴백 허용)
-- [ ] 기존 src 전수 스캔 → 현황 리포트(기존 위반 건수 baseline)
-- [ ] 오탐 0 목표: 정상 try-catch(로그/throw 동반)는 통과
-- [ ] 공통 게이트 통과 (typecheck + test + build)
+- [x] silent catch-default 샘플 → (--strict) FAIL + 파일:라인 출력
+- [x] `// vhk-allow-fallback:` 주석 → PASS (의도 폴백 허용)
+- [x] 기존 src 전수 스캔 → 현황 리포트(baseline **28건**)
+- [x] 오탐 0 목표: 정상 try-catch(로그/throw 동반)는 통과
+- [x] 공통 게이트 통과 (typecheck + test + build)
+
+## 결정 (실행 기록 2026-06-08)
+- **리포트 전용 v0**: baseline 스캔 = **28건**(git-repo·goal-frontmatter·version-check 등 대부분 의도적
+  폴백 "레포 아님→false" / "파싱실패→null"). 28건은 화이트리스트 retrofit·HARD 차단 비용이 크므로
+  카드 지침대로 **기본 exit 0(리포트)** + `--strict` opt-in. check-meta/머지게이트 **연결 안 함**(baseline 정리 후 승격).
+- **탐지 = 보수적**: catch 본문이 **오직** 기본값 return(null/[]/{}/''/false/0)일 때만. 로그·throw·다른 문장
+  있으면 통과(오탐 0). `// vhk-allow-fallback: <이유>` 인접 시 통과.
+- 테스트는 fixture 기반(real-src-clean 단언 안 함 — baseline 28 존재).
 
 ## 범위
 - IN: grep 기반 정적 린트 v0 + 화이트리스트 주석.
