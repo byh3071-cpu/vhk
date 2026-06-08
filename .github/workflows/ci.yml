@@ -139,3 +139,21 @@ jobs:
           echo "::group::doctor --strict — 규칙 드리프트 관찰"
           node dist/index.js doctor --strict
           echo "::endgroup::"
+
+  # Goal 47: 매트릭스화로 잡 컨텍스트가 'test (os, node)'·'dogfood (os)'로 바뀌어 브랜치 보호의
+  #   고정 필수체크 이름이 깨진다. 집계 잡 'gate' 하나를 두고 보호 규칙은 이것만 require —
+  #   매트릭스 조합이 바뀌어도 필수체크 이름(gate)은 불변(미래안전).
+  gate:
+    name: gate
+    needs: [test, dogfood]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 매트릭스 전조합 성공 확인
+        run: |
+          echo "test=${{ needs.test.result }} · dogfood=${{ needs.dogfood.result }}"
+          if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.dogfood.result }}" != "success" ]; then
+            echo "::error::매트릭스 일부 조합 실패 — gate fail (머지 차단)"
+            exit 1
+          fi
+          echo "✅ 매트릭스 전조합 성공"
