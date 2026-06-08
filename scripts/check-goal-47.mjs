@@ -58,7 +58,7 @@ const ci = read('.github/workflows/ci.yml') ?? ''
 must(ci !== '', '.github/workflows/ci.yml 존재')
 must(/strategy:[\s\S]*?matrix:/.test(ci), 'ci.yml 에 strategy.matrix')
 must(/runs-on:\s*\$\{\{\s*matrix\.os\s*\}\}/.test(ci), 'runs-on 이 matrix.os 로 매트릭스화')
-must(/\[\s*20\s*,\s*24\s*\]/.test(ci), 'node 하한 20 + 24 매트릭스')
+must(/\[\s*22\s*,\s*24\s*\]/.test(ci), 'node 하한 22 + 24 매트릭스 (pnpm@11 툴체인 하한)')
 must((ci.match(/windows-latest/g) ?? []).length >= 2, 'test + dogfood 둘 다 windows-latest 포함')
 must((ci.match(/ubuntu-latest/g) ?? []).length >= 2, 'test + dogfood 둘 다 ubuntu-latest 포함')
 

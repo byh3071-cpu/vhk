@@ -8,13 +8,16 @@ on:
 
 jobs:
   test:
-    # Goal 47: 주 사용·배포 환경(win32)과 engines 하한(Node 20)을 매트릭스로 실검증.
-    #   ubuntu/windows × node 20/24 = 4조합. fail-fast:false 로 한 조합 실패가 나머지를 안 끊음.
+    # Goal 47: 주 사용·배포 환경(win32)과 툴체인 하한 Node 를 매트릭스로 실검증.
+    #   ubuntu/windows × node 22/24 = 4조합. fail-fast:false 로 한 조합 실패가 나머지를 안 끊음.
+    #   하한이 22 인 이유: packageManager pnpm@11.2.2 가 node:sqlite 의존으로 Node >=22.13 요구
+    #   (Node 20 에선 pnpm 자체가 ERR_UNKNOWN_BUILTIN_MODULE 로 실패 — goal 47 이 실측). 런타임
+    #   engines(>=20)는 별개 — vhk 실행은 node 20 호환이나 CI 툴체인(pnpm) 하한은 22.
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        node: [20, 24]
+        node: [22, 24]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v6
