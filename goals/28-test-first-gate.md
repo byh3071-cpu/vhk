@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 28
 title: test-first 게이트 (신규 기능 ↔ 테스트 매핑 + red→green 증거) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-06
+completed: 2026-06-08
 ---
 
 # Goal 28: test-first 게이트
@@ -26,11 +27,18 @@ created: 2026-06-06
 - HARD 게이트(테스트 우선 미충족 시 done 차단)는 **opt-in 플래그**(`VHK_TEST_FIRST=1`)로만.
 
 ## Completion Check
-- [ ] 신규 기능 파일에 테스트 매핑 없음 → 경고 출력
-- [ ] verify 리포트에 red→green 증거 필드(옵션) 기록
-- [ ] opt-in 플래그 ON 시에만 HARD 차단, 기본은 경고
-- [ ] 기존 868 테스트 회귀 0
-- [ ] 공통 게이트 통과
+- [x] 신규 기능 파일에 테스트 매핑 없음 → 경고 출력 (`vhk testmap`)
+- [ ] verify 리포트에 red→green 증거 필드(옵션) 기록 — **deferred** (아래 결정 참조)
+- [x] opt-in 플래그 ON 시에만 HARD 차단, 기본은 경고 (`VHK_TEST_FIRST=1`)
+- [x] 기존 테스트 회귀 0
+- [x] 공통 게이트 통과
+
+## 결정 (실행 기록 2026-06-08)
+- **v0 = 매핑 + opt-in**: `src/lib/test-mapping.ts`(순수) + `vhk testmap`(read-only). git 변경(porcelain)
+  중 기능 소스(src/commands·src/lib)에 대응 `*.test.ts` 가 없으면 경고. `VHK_TEST_FIRST=1` 시 exit 1.
+- **red→green 증거 필드(item 2) deferred**: 카드에서 "(옵션)·[추론]" 으로 표기된 항목. 진짜 red→green
+  은 테스트 러너를 변경 전후 2회 계측해야 해 v0 대비 과투자(과안정화 경계). 매핑+opt-in 으로 핵심
+  수용기준("테스트 없는 신규 기능 잡힘")은 충족. 실사용에서 test-after 버그 신호 관측 시 승격.
 
 ## 범위
 - IN: 매핑 검사 + 증거 기록 + opt-in HARD 게이트.

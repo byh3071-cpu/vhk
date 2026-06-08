@@ -82,6 +82,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'mode', desc: 'Safety Mode 조회/변경 (lite|standard|strict)' },
   { name: 'verify', desc: '검증 게이트 실행 + 증거 기록' },
   { name: 'preflight', desc: '출고 전 안전점검 (2FA·shim·env·lint·타입·테스트·git, 치명 시 차단)' },
+  { name: 'testmap', desc: 'test-first 매핑 점검 (변경 기능 ↔ 테스트 누락 경고)' },
   { name: 'worktree', desc: 'worktree 가드 — 생성 시 env/설정 자동 복사·누락 점검 (add/check)' },
   { name: 'standup', desc: '아침 브리핑 (어제 한 일 + 오늘 추천 goal + 미해결)' },
   { name: 'today', desc: '저녁 자축·회고 (오늘 커밋·완료 goal 카운트 + 격려)' },

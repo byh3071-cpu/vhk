@@ -34,6 +34,8 @@ version: v1.1
 3. **tsup build** 가 성공한다 (`pnpm build`). `dist/index.js` 와
    `dist/mcp/index.js` 가 생성된다.
 4. **새 기능에 대한 테스트가 최소 1개 이상** 추가됨 (PR 단위).
+   — Goal 28: `vhk testmap` 으로 변경 기능 소스(src/commands·src/lib) ↔ 테스트 매핑을 점검한다.
+   기본은 경고만, `VHK_TEST_FIRST=1` 일 때만 HARD 차단(과안정화 경계 — 실사용 신호 전 강제 안 함).
 5. **README.md / COMMANDS.md** 명령어 표에 신규 명령어가 반영됨.
 
 각 condition 은 source-of-truth 로부터 enumerate 된다:
