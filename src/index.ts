@@ -6,7 +6,6 @@ import inquirer from 'inquirer'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
 import { getVhkVersion } from './lib/version.js'
-import { ko } from './i18n/ko.js'
 import { gate } from './commands/gate.js'
 import { init } from './commands/init.js'
 import { recap } from './commands/recap.js'
@@ -798,11 +797,15 @@ seoCmd
   .description('사이트 등록(.vhk/seo/config.json) + 5개 서비스 자격증명 참조 보관 (값은 .env)')
   .action(async (opts: { domain?: string; yes?: boolean }) => { await seoInit(opts) })
 
-program.on('command:*', async (operands: string[]) => {
+program.on('command:*', (operands: string[]) => {
   const unknown = operands[0] ?? ''
   const rest = operands.slice(1)
   const input = [unknown, ...rest].join(' ').trim()
-  await runNaturalLanguageRoute(input)
+  // EventEmitter 핸들러는 반환 Promise 를 무시 → reject 시 unhandled. void+catch 로 명시 처리.
+  void runNaturalLanguageRoute(input).catch((err) => {
+    console.error(chalk.red(`\n  ❌ ${err instanceof Error ? err.message : String(err)}\n`))
+    process.exitCode = 1
+  })
 })
 
 program.action(async () => {

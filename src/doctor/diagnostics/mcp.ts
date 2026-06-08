@@ -16,7 +16,7 @@ export function buildMcpDiag(toolCount: number, expected = 20): Diagnostic {
 export async function mcpToolCount(): Promise<number> {
   try {
     const { createVhkMcpServer } = await import('../../mcp/server.js')
-    const server = (await createVhkMcpServer()) as unknown as { _registeredTools?: Record<string, unknown> }
+    const server = createVhkMcpServer() as unknown as { _registeredTools?: Record<string, unknown> }
     return Object.keys(server._registeredTools ?? {}).length
   } catch {
     return 0
