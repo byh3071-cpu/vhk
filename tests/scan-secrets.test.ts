@@ -21,6 +21,17 @@ describe('scan-secrets', () => {
     expect(findings).toHaveLength(0)
   })
 
+  it('#218: 주석에 example 단어가 있어도 값이 진짜 시크릿이면 검출(false-negative 방지)', () => {
+    const realAws = 'AKIA' + '1234567890ABCDEF' // 'example' 미포함 = placeholder 아님
+    const findings = findSecretsInLine(`// real key (see example.com): ${realAws}`, 'a.ts', 1)
+    expect(findings.filter((f) => f.patternId === 'aws-access-key')).toHaveLength(1)
+  })
+
+  it('#218: 매칭 값 자체가 placeholder(…EXAMPLE)면 주석에서 스킵(오탐 방지 유지)', () => {
+    const findings = findSecretsInLine(`# see ${FAKE_AWS_KEY}`, 'a.ts', 1)
+    expect(findings).toHaveLength(0)
+  })
+
   // #170: Authorization Bearer 리터럴 자격증명 탐지.
   // "Bearer" 경계서 concat 분리 → 자기 레포 secure 스캔 자기탐지 방지 (런타임엔 합쳐짐).
   it('Authorization Bearer 리터럴 자격증명 탐지', () => {

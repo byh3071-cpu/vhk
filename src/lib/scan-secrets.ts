@@ -18,13 +18,15 @@ export function findSecretsInLine(
 ): SecretFinding[] {
   const found: SecretFinding[] = []
   const trimmed = line.trim()
-  if (trimmed.startsWith('//') && trimmed.includes('example')) return found
-  if (trimmed.startsWith('#') && trimmed.includes('example')) return found
   if (line.length > MAX_LINE_CHARS) return found
+  // #218: 주석줄이라고 줄 전체를 스킵하면('example' 포함 시) 주석에 섞인 진짜 시크릿을 놓친다
+  //       (보안 false-negative). 매칭된 '값' 자체가 placeholder(…EXAMPLE 등)일 때만 그 매치를 무시한다.
+  const isComment = trimmed.startsWith('//') || trimmed.startsWith('#')
 
   for (const pattern of SECRET_PATTERNS) {
     const regex = globalPattern(pattern.pattern)
     for (const match of line.matchAll(regex)) {
+      if (isComment && /example/i.test(match[0])) continue // placeholder 시크릿만 무시
       found.push({
         patternId: pattern.id,
         patternName: pattern.name,
