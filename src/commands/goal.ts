@@ -62,7 +62,7 @@ export async function goalList(): Promise<void> {
   }
   for (const g of goals) {
     const fm = g.frontmatter
-    const status = (fm.status ?? 'NOT_STARTED') as GoalStatus
+    const status = (fm.status ?? 'NOT_STARTED')
     const icon = STATUS_ICON[status] ?? '?'
     const id = String(fm.id).padStart(2)
     const pri = String(fm.priority ?? '--').padEnd(3)

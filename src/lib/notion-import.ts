@@ -27,11 +27,11 @@ export function extractPageId(url: string): string {
   const uuidMatch = trimmed.match(
     /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
   )
-  if (uuidMatch) return uuidMatch[1]!
+  if (uuidMatch) return uuidMatch[1]
 
   const hex32 = trimmed.replace(/-/g, '').match(/([0-9a-f]{32})$/i)
   if (hex32) {
-    const id = hex32[1]!
+    const id = hex32[1]
     return `${id.slice(0, 8)}-${id.slice(8, 12)}-${id.slice(12, 16)}-${id.slice(16, 20)}-${id.slice(20)}`
   }
 
@@ -60,7 +60,7 @@ async function fetchAllBlocks(client: Client, blockId: string): Promise<NotionBl
 
     for (const block of response.results) {
       if (!('type' in block)) continue
-      const b = block as NotionBlock
+      const b = block
       blocks.push(b)
 
       if (b.has_children && b.type !== 'child_page' && b.type !== 'child_database') {

@@ -48,7 +48,7 @@ export interface DriftCandidate {
 export function findStatusDriftCandidates(goalsDir: string, scriptsDir: string): DriftCandidate[] {
   const out: DriftCandidate[] = []
   for (const g of listGoals(goalsDir)) {
-    const status = (g.frontmatter.status ?? 'NOT_STARTED') as GoalStatus
+    const status = (g.frontmatter.status ?? 'NOT_STARTED')
     if (status !== 'NOT_STARTED') continue
     const id = g.frontmatter.id
     if (typeof id !== 'number') continue
