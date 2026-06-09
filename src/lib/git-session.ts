@@ -66,6 +66,11 @@ export function numstatHead(cwd: string = process.cwd()): ExecResult {
   return safeExecFile('git', ['diff', '--numstat', 'HEAD'], { cwd })
 }
 
+/** git diff --unified=0 HEAD — 헌트 헤더(@@ -a,b +c,d @@)로 추가 라인번호 추출용. raw 보존. */
+export function diffUnified0(cwd: string = process.cwd()): ExecResult {
+  return safeExecFile('git', ['diff', '--unified=0', 'HEAD'], { cwd, trimOutput: false })
+}
+
 /** git log --format=%h %ad %s --date=short -n — recap 용 날짜 포함 히스토리. */
 export function recapLog(n: number, cwd: string = process.cwd()): ExecResult {
   return safeExecFile('git', ['log', '--format=%h %ad %s', '--date=short', `-${n}`], { cwd })

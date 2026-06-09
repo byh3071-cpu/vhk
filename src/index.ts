@@ -18,6 +18,7 @@ import { save } from './commands/save.js'
 import { undo } from './commands/undo.js'
 import { restore } from './commands/restore.js'
 import { diff } from './commands/diff.js'
+import { diffCover } from './commands/diff-cover.js'
 import { status } from './commands/status.js'
 import { startMcpServer } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
@@ -133,6 +134,7 @@ const KO_ALIASES: Record<string, string> = {
   restore: '복원',
   status: '상태',
   diff: '변경',
+  'diff-cover': '커버리지',
   deploy: '배포',
   env: '환경변수',
   'env-check': '환경변수점검',
@@ -341,6 +343,12 @@ program
   .alias('차이')
   .description('Git 변경사항 한국어 요약 (staged / unstaged / 새 파일)')
   .action(diff)
+
+program
+  .command('diff-cover')
+  .alias('커버리지')
+  .description('이번 변경(HEAD 대비)이 테스트로 커버됐는지 측정 (자문형·차단 없음)')
+  .action(async () => { await diffCover() })
 
 program
   .command('mcp')
