@@ -3,7 +3,7 @@ import chalk from 'chalk'
 import { safeExecFile } from '../lib/exec.js'
 import { diffUnified0 } from '../lib/git-session.js'
 import { addedLinesByFile } from '../lib/diff-hunks.js'
-import { coveredLinesByFile } from '../lib/coverage-parse.js'
+import { fileCoverageByFile } from '../lib/coverage-parse.js'
 import { diffCoverage, type DiffCoverageResult } from '../lib/diff-coverage.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
@@ -51,7 +51,7 @@ export async function diffCover(): Promise<void> {
   }
 
   const covPath = join(cwd, COVERAGE_JSON_REL)
-  const covered = coveredLinesByFile(covPath, cwd)
+  const covered = fileCoverageByFile(covPath, cwd)
   if (covered === null) {
     console.error(chalk.yellow(`\n  ⚠️  커버리지 리포트 없음(${COVERAGE_JSON_REL}). 먼저 생성하세요:`))
     console.error(chalk.cyan('     pnpm test:run --coverage'))
