@@ -5,6 +5,7 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile, stripBom } from '../lib/read-json.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { logRecall } from '../lib/recall-log.js'
 
 /**
  * Goal 18: memory schema v2 — 평면 배열 → 4버킷(decisions/failures/successes/patterns).
@@ -692,9 +693,13 @@ export async function memoryRecall(query: string): Promise<void> {
     process.exitCode = 1
     return
   }
-  const hits = recallMemories(readMemory(process.cwd()), query.trim())
+  const cwd = process.cwd()
+  const q = query.trim()
+  const hits = recallMemories(readMemory(cwd), q)
+  // RFC 0049 ④: 실쿼리 축적(검증·미래 데이터). best-effort — 실패해도 recall 안 막음.
+  logRecall(cwd, { source: 'recall', query: q, hitIds: hits.map((h) => h.entry.id), topScore: hits[0]?.score ?? 0 })
   if (hits.length === 0) {
-    console.log(chalk.yellow(`\n📭 "${query.trim()}" 관련 기억이 없습니다.`))
+    console.log(chalk.yellow(`\n📭 "${q}" 관련 기억이 없습니다.`))
     return
   }
   console.log(chalk.cyan(`\n${hits.length}개 관련 기억:\n`))

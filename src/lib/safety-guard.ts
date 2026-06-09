@@ -2,6 +2,7 @@ import { readConfig } from './config.js'
 import { resolveGuard, type Channel, type Guard } from './risk-policy.js'
 import type { SafetyMode } from './safety-mode.js'
 import { readMemory, recallForAction } from '../commands/memory.js'
+import { logRecall } from './recall-log.js'
 
 /**
  * 위험 작업 가드의 **단일 chokepoint**.
@@ -47,9 +48,15 @@ export async function runGuarded<T>(
   // precision 우선(약매칭 침묵) · 회상 실패는 가드 동작을 절대 막지 않는다.
   if (guard !== 'allow') {
     try {
-      for (const h of recallForAction(readMemory(deps.cwd ?? process.cwd()), action)) {
-        const e = h.entry as { lesson?: string; content?: string; id: string }
-        log(`🧠 과거 교훈(${action}): ${e.lesson || e.content || e.id}`)
+      const jitCwd = deps.cwd ?? process.cwd()
+      const hits = recallForAction(readMemory(jitCwd), action)
+      if (hits.length > 0) {
+        for (const h of hits) {
+          const e = h.entry as { lesson?: string; content?: string; id: string }
+          log(`🧠 과거 교훈(${action}): ${e.lesson || e.content || e.id}`)
+        }
+        // RFC 0049 ④: just-in-time 발화도 실쿼리로 축적(best-effort).
+        logRecall(jitCwd, { source: 'jit', query: action, hitIds: hits.map((h) => h.entry.id), topScore: hits[0].score })
       }
     } catch {
       /* 회상 실패는 무시 — 가드 본 기능 보호 */
