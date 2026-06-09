@@ -32,7 +32,7 @@ import { audit } from './commands/audit.js'
 import { migrate } from './commands/migrate.js'
 import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
-import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate } from './commands/memory.js'
+import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, memoryRecall } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
@@ -633,6 +633,12 @@ memoryCmd
   .alias('마이그레이션')
   .description('memory.json v1 → v2 마이그레이션 (기존 v1 있으면 .v1.bak 원본 백업, 멱등)')
   .action(async () => { await memoryMigrate() })
+
+program
+  .command('recall [query...]')
+  .alias('회상')
+  .description('기억 회상 — 자연어로 관련 결정·실패·교훈 검색 (키워드, RFC 0049)')
+  .action(async (query: string[]) => { await memoryRecall((query ?? []).join(' ')) })
 
 program
   .command('brief')
