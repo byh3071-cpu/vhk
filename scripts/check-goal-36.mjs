@@ -52,9 +52,15 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 36 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 36 고유 검증 (HARD_STOP 가드 — evolve/pattern/mission mutate) ─────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const evolve36 = read('src/commands/evolve.ts') ?? ''
+for (const label of ['evolve apply', 'evolve reject', 'evolve undo']) {
+  must(new RegExp("ensureNotHardStopped\\(['\"]" + label + "['\"]\\)").test(evolve36), `evolve.ts 가드 호출: ${label}`)
+}
+must(new RegExp("ensureNotHardStopped\\(['\"]pattern dismiss['\"]\\)").test(read('src/commands/pattern.ts') ?? ''), 'pattern.ts 가드 호출: pattern dismiss')
+must(new RegExp("ensureNotHardStopped\\(['\"]mission clear['\"]\\)").test(read('src/commands/mission.ts') ?? ''), 'mission.ts 가드 호출: mission clear')
+must(existsSync('tests/evolve-pattern-mission-hardstop.test.ts'), 'tests/evolve-pattern-mission-hardstop.test.ts 회귀 봉쇄')
 
 if (pass) { console.log('✅ goal 36 gate passes'); process.exit(0) }
 console.log('❌ goal 36 gate failed'); process.exit(1)

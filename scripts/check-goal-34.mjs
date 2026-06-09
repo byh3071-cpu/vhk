@@ -52,9 +52,14 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 34 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 34 고유 검증 (HARD_STOP 가드 — goal next/init/done) ───────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const goal34 = read('src/commands/goal.ts') ?? ''
+must(/import \{ ensureNotHardStopped \} from '\.\.\/lib\/hard-stop-guard\.js'/.test(goal34), 'goal.ts 가 ensureNotHardStopped import')
+for (const label of ['goal next', 'goal init', 'goal done']) {
+  must(new RegExp("ensureNotHardStopped\\(['\"]" + label + "['\"]\\)").test(goal34), `goal.ts 가드 호출: ${label}`)
+}
+must(existsSync('tests/goal-hardstop.test.ts'), 'tests/goal-hardstop.test.ts 회귀 봉쇄')
 
 if (pass) { console.log('✅ goal 34 gate passes'); process.exit(0) }
 console.log('❌ goal 34 gate failed'); process.exit(1)

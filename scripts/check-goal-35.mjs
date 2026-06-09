@@ -52,9 +52,14 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 35 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 35 고유 검증 (HARD_STOP 가드 — memory mutate 5종) ───────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const mem35 = read('src/commands/memory.ts') ?? ''
+must(/import \{ ensureNotHardStopped \} from '\.\.\/lib\/hard-stop-guard\.js'/.test(mem35), 'memory.ts 가 ensureNotHardStopped import')
+for (const label of ['memory add', 'memory remove', 'memory archive', 'memory resolve', 'memory unarchive']) {
+  must(new RegExp("ensureNotHardStopped\\(['\"]" + label + "['\"]\\)").test(mem35), `memory.ts 가드 호출: ${label}`)
+}
+must(existsSync('tests/memory-hardstop.test.ts'), 'tests/memory-hardstop.test.ts 회귀 봉쇄')
 
 if (pass) { console.log('✅ goal 35 gate passes'); process.exit(0) }
 console.log('❌ goal 35 gate failed'); process.exit(1)

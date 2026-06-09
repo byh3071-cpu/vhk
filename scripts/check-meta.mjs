@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 // scripts/check-meta.mjs — cross-platform _meta gate (Windows/macOS/Linux).
-// Mirrors goals/_meta.md M.1 / M.2 / M.3.
+// Mirrors goals/_meta.md M.1 / M.2 / M.3 / M.4.
 //
 // Env:
 //   VHK_GATES_SKIP_DEEP=1   skip M.2 (tests) + M.3 (build) for fast iter
 //   VHK_GATES_SKIP_META=1   skip the entire suite (CI runs steps explicitly)
 
 import { existsSync } from 'node:fs'
-import { safeExec, ensureNoHardStop } from './_lib.mjs'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
+import { safeExec, ensureNoHardStop, findCompletedStubGates } from './_lib.mjs'
+
+// repo root 고정 — M.4 가 goals/·scripts/ 를 상대경로로 읽으므로 cwd 비의존(check-goal-1.mjs 패턴).
+process.chdir(resolve(dirname(fileURLToPath(import.meta.url)), '..'))
 
 if (process.env.VHK_GATES_SKIP_META === '1') {
   console.log('[meta] skipped (VHK_GATES_SKIP_META=1)')
@@ -61,6 +66,18 @@ if (skipDeep) {
   } else {
     console.log('    ✓ pass')
   }
+}
+
+// ─── M.4 완료-스텁 게이트(Goal 60) ──────────────────────────────────────────
+// status=DONE/IN_PROGRESS 인데 게이트가 미싱 or 빈 스캐폴드 = 헛통과 위험. 정적분석이라 항상 실행.
+console.log('[M.4] 완료 goal 게이트 비스텁 검증')
+const stubs = findCompletedStubGates('goals', 'scripts')
+if (stubs.length === 0) {
+  console.log('    ✓ pass')
+} else {
+  console.log(`    ✗ fail — 완료 표시인데 게이트 미싱/스텁인 goal ${stubs.length}건:`)
+  for (const s of stubs) console.log(`        - goal ${s.id} (${s.status}): ${s.reason}`)
+  pass = false
 }
 
 if (pass) {
