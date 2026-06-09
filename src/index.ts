@@ -41,6 +41,7 @@ import { QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
 import { verify } from './commands/verify.js'
+import { cost } from './commands/cost.js'
 import { preflight } from './commands/preflight.js'
 import { testmap } from './commands/testmap.js'
 import { worktreeAdd, worktreeCheck } from './commands/worktree.js'
@@ -467,6 +468,32 @@ program
   .alias('모드')
   .description('Safety Mode 조회/변경 (lite|standard|strict) — 위험 작업 가드 강도')
   .action(async (target?: string) => { await mode(target) })
+
+// Goal 56: 비용·예산 가드(자문형). vhk 는 API 비용을 자동 추적 못 하므로 사용량은 외부 입력.
+program
+  .command('cost [action] [value]')
+  .alias('비용')
+  .option('--usd <n>', '비용($) 직접 입력 (add)', parseFloat)
+  .option('--in <n>', '입력 토큰 수 (add — config pricing 으로 환산)', (v) => parseInt(v, 10))
+  .option('--out <n>', '출력 토큰 수 (add)', (v) => parseInt(v, 10))
+  .option('--model <name>', '모델명 (add — config pricing 키)')
+  .option('--yes', '비대화형/예산 초과 시 명시 승인 (check)')
+  .description('비용·예산 가드 — add(사용량 기록)/check(임계 집행)/budget(예산 설정) · 자문형')
+  .action(
+    async (
+      action?: string,
+      value?: string,
+      opts?: { usd?: number; in?: number; out?: number; model?: string; yes?: boolean }
+    ) => {
+      await cost(action, value, {
+        usd: opts?.usd,
+        in: opts?.in,
+        out: opts?.out,
+        model: opts?.model,
+        yes: opts?.yes,
+      })
+    }
+  )
 
 program
   .command('verify')

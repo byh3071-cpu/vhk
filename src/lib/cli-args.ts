@@ -44,6 +44,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'resume', '재개',
   'mode', '모드',
   'verify', '사전점검',
+  'cost', '비용',
   'preflight', '출고점검',
   'testmap', '테스트매핑',
   'worktree', '워크트리',
