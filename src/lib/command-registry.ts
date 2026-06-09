@@ -67,6 +67,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'restore', desc: 'sync 백업 복원' },
   { name: 'status', desc: '프로젝트 상태 대시보드' },
   { name: 'diff', desc: 'Git 변경사항 한국어 요약' },
+  { name: 'diff-cover', desc: '이번 변경이 테스트로 커버됐는지 측정 (자문형)' },
   { name: 'mcp', desc: 'MCP 서버 시작 (stdio)' },
   { name: 'mcp-init', desc: 'Cursor·Claude Desktop MCP 설정 생성' },
   { name: 'deploy', desc: '프로덕션 배포 (자동 감지)' },
