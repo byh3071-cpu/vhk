@@ -107,7 +107,7 @@ export function renderReportHtml(report: VerifyReport): string {
       <span class="badge">${c.label}</span>
     </header>
     <p class="summary">
-      게이트 <strong>${s.total}</strong>개 — 통과 ${s.pass} / 실패 ${s.fail} / 건너뜀 ${s.skip}
+      게이트 <strong>${s.total}</strong>개 — 통과 ${s.pass} / 실패 ${s.fail} / 건너뜀 ${s.skip} / 불완전 ${s.warn}
     </p>
     <table>
       <thead>

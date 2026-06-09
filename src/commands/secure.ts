@@ -29,11 +29,23 @@ export async function secure() {
 
   console.log(chalk.dim(`  ${ko.secure.scanning}\n`))
 
-  const { findings, scannedFiles, truncated } = scanProjectForSecrets(cwd)
+  const { findings, scannedFiles, truncated, truncationReasons } = scanProjectForSecrets(cwd)
 
   console.log(chalk.dim(`  📂 ${scannedFiles}개 파일 스캔 완료 (lock·node_modules·>${MAX_SCAN_FILE_BYTES / 1024}KB 제외)`))
   if (truncated) {
-    console.log(chalk.yellow(`  ⚠️  결과 ${MAX_SECRET_FINDINGS}건에서 출력을 제한했습니다. lock 파일 등은 자동 제외됩니다.`))
+    // Goal 59: truncated 는 이제 findings-cap 뿐 아니라 file-size·line-length 도 포함 → 실제 사유를 정직하게 표기.
+    const reasonText = truncationReasons
+      .map((r) =>
+        r === 'findings-cap'
+          ? `발견 ${MAX_SECRET_FINDINGS}건 한도 도달`
+          : r === 'file-size'
+            ? `${MAX_SCAN_FILE_BYTES / 1024}KB 초과 파일 스킵`
+            : r === 'line-length'
+              ? '초장문(4000자 초과) 라인 스킵'
+              : r
+      )
+      .join(', ')
+    console.log(chalk.yellow(`  ⚠️  스캔 불완전 — 일부 미검사(${reasonText}). 결과가 완전하지 않을 수 있습니다.`))
   }
   console.log('')
 

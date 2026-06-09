@@ -63,7 +63,7 @@ for (const field of ['ts', 'action', 'channel', 'guard', 'ran', 'reason']) {
 for (const fn of ['readActionLedger', 'appendActionEntry']) {
   must(new RegExp('export function ' + fn + '\\b').test(ledger), `action-ledger export: ${fn}`)
 }
-must(/atomicWriteFile/.test(ledger), 'action-ledger: atomicWriteFile(원자적 append, 과거 줄 변경 0)')
+must(/appendFileSync/.test(ledger), 'action-ledger: appendFileSync(O(1) append, 동시 lost-update·O(n²) 회피)')
 must(/stripBom/.test(ledger), 'action-ledger: stripBom(BOM-safe 읽기)')
 
 // 2) safety-guard: runGuarded 얇은 래핑 + appendActionEntry hook(chokepoint 일원 기록).

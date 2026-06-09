@@ -61,7 +61,8 @@ export function isHighRisk(action: string): action is HighRiskAction {
  */
 export const RISKY_TARGET_PATTERNS: ReadonlyArray<{ re: RegExp; reason: string }> = [
   { re: /(^|[\\/])(RULES\.md|AGENTS\.md|\.cursorrules|\.windsurfrules)$/i, reason: '생성-SoT 자동수정(vhk sync 산출 원본)' },
-  { re: /(^|[\\/])\.env($|\.)/i, reason: '시크릿 파일(.env*) 변경' },
+  // .env / .env.<X> 는 risky. 단 .env.example|.sample|.template 은 시크릿 값 없는 커밋용 템플릿이라 제외(오탐 방지).
+  { re: /(^|[\\/])\.env(\.(?!example|sample|template)[^\\/]*)?$/i, reason: '시크릿 파일(.env*) 변경' },
   { re: /\brm\s+-rf\b/i, reason: '경로 통째 삭제(rm -rf)' },
 ]
 

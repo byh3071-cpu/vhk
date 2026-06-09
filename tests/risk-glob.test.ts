@@ -29,6 +29,14 @@ describe('risk-policy — 위험 대상 글롭 (isRiskyTarget)', () => {
     }
   })
 
+  it('.env.example/.sample/.template 템플릿은 risky 아님(커밋 권장 — 오탐 제외)', () => {
+    for (const t of ['.env.example', '.env.sample', 'config/.env.template', 'path/.env.example']) {
+      expect(isRiskyTarget(t).risky, t).toBe(false)
+    }
+    // 실제 시크릿 파일은 여전히 risky
+    expect(isRiskyTarget('.env.production').risky).toBe(true)
+  })
+
   it('risky 면 reason 노출', () => {
     expect(isRiskyTarget('AGENTS.md').reason).toBeTruthy()
   })

@@ -43,6 +43,7 @@ function report(status: ReportStatus, gates: GateResult[], generatedAt: string =
       pass: gates.filter((g) => g.status === 'pass').length,
       fail: gates.filter((g) => g.status === 'fail').length,
       skip: gates.filter((g) => g.status === 'skip').length,
+      warn: gates.filter((g) => g.status === 'warn').length,
     },
     gates,
     nextActions: [],

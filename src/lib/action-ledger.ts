@@ -1,6 +1,5 @@
-import { existsSync, readFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { atomicWriteFile } from './atomic-write.js'
 import { stripBom } from './read-json.js'
 
 // Goal 55: AI 행동 원장.
@@ -50,12 +49,15 @@ export function readActionLedger(cwd: string): AiActionEntry[] {
 
 /**
  * 행동 한 줄 append(append-only · dedup 없음 — 모든 행동이 보존돼야 감사가 정직하다).
- * 원자적 쓰기(temp→rename) — 쓰기 도중 kill 에도 원장 손상 방지(evidence-ledger 패턴 답습).
+ * O(1) append(O_APPEND) — evidence-ledger 의 read-modify-write(전체 재기록)와 달리 행동 원장은
+ * dedup 이 없어 통째 다시 쓸 이유가 없다. appendFileSync 면:
+ *  - 동시성: 병렬 세션·CLI+MCP 가 같은 레포에 동시 기록해도 각자 한 줄을 원자적으로 덧붙여
+ *    lost-update 가 없다(read→결합→rename 의 통째 덮어쓰기 경합 제거 — 적대리뷰 high).
+ *  - 성능: 호출당 O(1)(누적 O(n²) → O(n)). 쓰기 도중 kill 로 마지막 줄이 잘려도
+ *    readActionLedger 가 손상 라인을 skip 하므로 안전.
  */
 export function appendActionEntry(cwd: string, entry: AiActionEntry): void {
   const p = join(cwd, ACTION_LEDGER_PATH_REL)
   mkdirSync(join(cwd, '.vhk', 'events'), { recursive: true })
-  const existing = existsSync(p) ? stripBom(readFileSync(p, 'utf-8')).replace(/\n*$/, '') : ''
-  const body = (existing ? existing + '\n' : '') + JSON.stringify(entry) + '\n'
-  atomicWriteFile(p, body)
+  appendFileSync(p, JSON.stringify(entry) + '\n', 'utf-8')
 }

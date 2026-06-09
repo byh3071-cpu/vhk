@@ -45,7 +45,7 @@ describe('verify — 리포트 빌드 (buildReport)', () => {
     expect(r.generatedAt).toBe('2026-06-02T00:00:00.000Z')
     expect(r.date).toBe('2026-06-02')
     expect(r.status).toBe('FAIL')
-    expect(r.summary).toEqual({ total: 4, pass: 2, fail: 1, skip: 1 })
+    expect(r.summary).toEqual({ total: 4, pass: 2, fail: 1, skip: 1, warn: 0 })
     expect(r.gates).toHaveLength(4)
     expect(Array.isArray(r.nextActions)).toBe(true)
     expect(r.nextActions.length).toBeGreaterThan(0)
@@ -231,6 +231,17 @@ describe('verify — Goal 59: 스캔 불완전 → secure WARN (거짓 PASS 차�
     const warn: GateResult = { id: 'secure', label: 'secure', status: 'warn', exitCode: 0, skipped: false }
     expect(aggregateStatus([gate('typecheck', 'pass'), warn])).toBe('WARN')
     expect(aggregateStatus([gate('test', 'fail', 1), warn])).toBe('FAIL')
+  })
+
+  it('buildReport summary — warn 게이트를 warn 버킷에 집계(pass+fail+skip+warn=total, 게이트 안 사라짐)', () => {
+    const warn: GateResult = { id: 'secure', label: 'secure', status: 'warn', exitCode: 0, skipped: false }
+    const r = buildReport(
+      [gate('typecheck', 'pass'), gate('test', 'pass'), gate('build', 'pass'), warn],
+      '2026-06-10T00:00:00.000Z',
+      '2026-06-10'
+    )
+    expect(r.summary).toEqual({ total: 4, pass: 3, fail: 0, skip: 0, warn: 1 })
+    expect(r.summary.pass + r.summary.fail + r.summary.skip + r.summary.warn).toBe(r.summary.total)
   })
 
   it('buildReport + buildLedgerEntry — secure warn → report.status WARN → 원장 status WARN 전파', () => {

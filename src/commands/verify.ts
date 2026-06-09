@@ -67,7 +67,8 @@ export interface VerifyReport {
   /** 사람용 날짜 (localDate, 로컬 타임존) */
   date: string
   status: ReportStatus
-  summary: { total: number; pass: number; fail: number; skip: number }
+  // Goal 59: warn(스캔 불완전 등) 추가 — pass+fail+skip+warn=total 로 분해가 total 과 일치(게이트 비가시화 방지).
+  summary: { total: number; pass: number; fail: number; skip: number; warn: number }
   gates: GateResult[]
   nextActions: string[]
   /** Goal 44: 이 증거가 어느 코드(커밋)에서 나왔는지. git 레포 아님/커밋 0개 → null. v1 리포트엔 없음(undefined). */
@@ -276,6 +277,7 @@ export function buildReport(
     pass: gates.filter((g) => g.status === 'pass').length,
     fail: gates.filter((g) => g.status === 'fail').length,
     skip: gates.filter((g) => g.status === 'skip').length,
+    warn: gates.filter((g) => g.status === 'warn').length, // Goal 59: warn 게이트도 집계(합=total).
   }
   return {
     schemaVersion: REPORT_SCHEMA_VERSION,
@@ -530,7 +532,7 @@ export async function verify(
   const s = report.summary
   console.log(
     `\n  결과: ${STATUS_BADGE[report.status]}  ` +
-      chalk.dim(`(pass ${s.pass} / fail ${s.fail} / skip ${s.skip}, 총 ${s.total})`)
+      chalk.dim(`(pass ${s.pass} / fail ${s.fail} / skip ${s.skip} / warn ${s.warn}, 총 ${s.total})`)
   )
   console.log(chalk.dim(`  📄 증거: ${path}`))
   console.log(chalk.dim(`  📒 원장: ${LEDGER_PATH_REL} (git 추적 — 릴리즈 증거 영속)`))
@@ -546,7 +548,12 @@ export async function verify(
     })
   } else {
     printNextStep({
-      message: report.status === 'WARN' ? '검증 통과(일부 게이트 skip). 저장하려면:' : '검증 통과! 저장하려면:',
+      message:
+        report.status === 'WARN'
+          ? s.warn > 0
+            ? 'WARN — 일부 게이트가 불완전합니다(스캔 한도 등, 위 사유 확인). 그래도 저장하려면:'
+            : '검증 통과(일부 게이트 skip). 저장하려면:'
+          : '검증 통과! 저장하려면:',
       command: 'vhk save',
       cursorHint: '저장해줘',
     })
