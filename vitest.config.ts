@@ -11,5 +11,13 @@ export default defineConfig({
       '**/dist/**',
       '**/.claude/**',
     ],
+    // Goal 50 / RFC 0050: coverage 측정(차단 아님 — 리포트 + vhk diff-cover 입력용).
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'json'],
+      reportsDirectory: 'coverage',
+      include: ['src/**/*.ts'],
+      exclude: ['dist/**', '.claude/**', 'tests/**', '**/*.config.*', 'src/**/*.d.ts', 'src/index.ts'],
+    },
   },
 })
