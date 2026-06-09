@@ -9,7 +9,7 @@
 export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   goal: ['list', 'next', 'check', 'init', 'done', 'sync', 'drift'],
   ref: ['add', 'list', 'open'],
-  memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate'],
+  memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate', 'eval'],
   cloud: ['push', 'pull'],
   secure: ['scan'],
   design: ['palette'],
