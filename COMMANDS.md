@@ -47,6 +47,17 @@ Cursor에게 한국어로 말해도 됩니다.
 
 > `mission` 은 작업의 목표·허용/금지 범위를 `.vhk/mission.json` 계약으로 선언하고, 변경 파일이 계약(scope/forbidden glob) 안인지 검증합니다. **경로 glob 기준**이며 objective 의미 부합은 검증하지 않습니다(보장 아님). forbidden 위반 시 exit 1.
 
+## 비용·예산 가드 (cost — Goal 56)
+
+| 하고 싶은 것 | 터미널 명령 | 설명 |
+|-------------|-----------|------|
+| 월 예산 설정 | `vhk cost budget 100` | `.vhk/config.json` 에 예산($) 저장 |
+| 사용량 기록 | `vhk cost add --usd 5` (또는 `--in N --out N --model M`) | `.vhk/cost.jsonl` append. 환경변수 `VHK_COST_*` 주입도 가능 |
+| 상태 조회 | `vhk cost` | 예산·누적 사용량·임계(%) |
+| 임계 집행 | `vhk cost check` | 80% 경고 · 100% 차단(비대화형+미승인 exit 1, `--yes` 로 승인) |
+
+> ⚠️ vhk 는 Claude API 를 직접 호출하지 않아 비용을 **자동 추적하지 못합니다**. 사용량은 외부 입력(수동 `cost add` / 환경변수)으로 먹이는 **자문형** 가드입니다 — `check` 는 신호(exit code)로 CI/agent 가 멈추게 합니다. 요율(pricing)은 `.vhk/config.json` 에 주입(코드 하드코딩 0).
+
 ## 기억 v2 (memory — 4버킷)
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
