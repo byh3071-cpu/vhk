@@ -1,6 +1,7 @@
 import { readConfig } from './config.js'
 import { resolveGuard, type Channel, type Guard } from './risk-policy.js'
 import type { SafetyMode } from './safety-mode.js'
+import { readMemory, recallForAction } from '../commands/memory.js'
 
 /**
  * 위험 작업 가드의 **단일 chokepoint**.
@@ -23,6 +24,8 @@ export interface GuardDeps {
   approved?: boolean
   /** 사용자 안내 출력 */
   log?: (msg: string) => void
+  /** just-in-time 회상 기준 디렉터리 (기본 process.cwd()) — RFC 0049 */
+  cwd?: string
 }
 
 export interface GuardedOutcome {
@@ -39,6 +42,19 @@ export async function runGuarded<T>(
   const mode: SafetyMode = deps.mode ?? readConfig().safetyMode
   const log = deps.log ?? (() => {})
   const guard = resolveGuard(action, mode, deps.channel)
+
+  // RFC 0049 ②: 위험 작업 직전, 관련 과거 실패를 회상해 경고로 표출(just-in-time).
+  // precision 우선(약매칭 침묵) · 회상 실패는 가드 동작을 절대 막지 않는다.
+  if (guard !== 'allow') {
+    try {
+      for (const h of recallForAction(readMemory(deps.cwd ?? process.cwd()), action)) {
+        const e = h.entry as { lesson?: string; content?: string; id: string }
+        log(`🧠 과거 교훈(${action}): ${e.lesson || e.content || e.id}`)
+      }
+    } catch {
+      /* 회상 실패는 무시 — 가드 본 기능 보호 */
+    }
+  }
 
   if (guard === 'allow') {
     return { outcome: { ran: true, guard, reason: 'low-risk' }, result: await run() }
