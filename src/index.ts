@@ -33,6 +33,7 @@ import { migrate } from './commands/migrate.js'
 import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, memoryRecall } from './commands/memory.js'
+import { memoryEval } from './commands/memory-eval.js'
 import { brief } from './commands/brief.js'
 import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
@@ -660,6 +661,13 @@ memoryCmd
   .alias('마이그레이션')
   .description('memory.json v1 → v2 마이그레이션 (기존 v1 있으면 .v1.bak 원본 백업, 멱등)')
   .action(async () => { await memoryMigrate() })
+
+memoryCmd
+  .command('eval')
+  .alias('검증')
+  .option('--init', '사용 로그의 실쿼리로 대화형 라벨링 → 평가셋 생성')
+  .description('recall 회상 품질 측정 (Recall@5/MRR + Kill-gate 판정, RFC 0049)')
+  .action(async (opts: { init?: boolean }) => { await memoryEval({ init: opts.init }) })
 
 program
   .command('recall [query...]')

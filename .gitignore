@@ -13,6 +13,9 @@ dist/
 
 # VHK 개인 메모/참고링크 — 로컬 전용 (docs/spec.md 트래킹 정책)
 .vhk/memory.json
+# recall 사용 로그·평가셋 (RFC 0049) — 개인 쿼리/기억 참조, 로컬 전용
+.vhk/recall-log.jsonl
+.vhk/eval/
 # 백업·원자적 쓰기 임시 파일 (.bak / .v1.bak / .tmp) 도 로컬 전용 — 절대 커밋 금지
 .vhk/memory.json.*
 .vhk/refs.json
