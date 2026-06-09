@@ -91,6 +91,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'mission', desc: '미션 계약 — 작업 목표·허용/금지 범위 선언·검증' },
   { name: 'context-show', desc: '컨텍스트 파일 내용 출력' },
   { name: 'memory', desc: '기억 관리 v2 (decisions/failures/successes)' },
+  { name: 'recall', desc: '기억 회상 (자연어 키워드 검색 — RFC 0049)' },
   { name: 'brief', desc: '프로젝트 요약 보고서 생성' },
   { name: 'work', desc: 'AI 작업 시작/이어하기 (+ handoff)' },
   { name: 'goal', desc: 'Goal 단계별 미션 관리' },

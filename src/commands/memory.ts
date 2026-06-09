@@ -578,3 +578,135 @@ export function recordLesson(cwd: string, lesson: string, goalId?: number): Fail
   writeMemory(cwd, mem)
   return entry
 }
+
+// ── 키워드 회상 (RFC 0049 ① · 순수 JS · 의존성 0) ──
+// N≤수백 full-scan. 임베딩·벡터DB 없음(RFC 0049 Kill-gate: eval Recall@5<0.7 측정 전 ML 금지).
+
+/** 회상 1건 — 4신호를 한 숫자로 안 땋고 분리 노출(왜 떠올랐는지 설명 가능 · Hickey). */
+export interface RecallHit {
+  bucket: MemBucket
+  entry: MemEntry
+  score: number
+  signals: { keyword: number; tagMatch: number; recency: number; status: number }
+}
+
+const JOSA = /(은|는|이|가|을|를|에|의|도|로|으로|에서|까지|부터|와|과|만)$/
+const STOP = new Set(['그', '저', '것', '수', '등', '및', '때'])
+
+/** 결정적 한국어/영어 토크나이저 — 소문자·기호분리·긴 단어의 짧은 조사 제거. 라이브러리 0. */
+export function tokenize(text: string): string[] {
+  return (text.toLowerCase().match(/[a-z0-9]+|[가-힣]+/g) ?? [])
+    .map((w) => (w.length > 2 ? w.replace(JOSA, '') : w))
+    .filter((w) => w.length >= 2 && !STOP.has(w))
+}
+
+function entryText(e: MemEntry): string {
+  const f = e as FailEntry
+  return [e.content, f.lesson, f.why].filter(Boolean).join(' ')
+}
+
+/** corpus IDF — N 작아 매 호출 계산해도 <1ms. df↑(흔한 단어)일수록 가중↓. tags 제외(본문만). */
+function buildIdf(entries: MemEntry[]): Map<string, number> {
+  const df = new Map<string, number>()
+  for (const e of entries) {
+    for (const tok of new Set(tokenize(entryText(e)))) df.set(tok, (df.get(tok) ?? 0) + 1)
+  }
+  const N = entries.length || 1
+  const idf = new Map<string, number>()
+  for (const [tok, d] of df) idf.set(tok, Math.log(1 + N / d))
+  return idf
+}
+
+/** 생성시점 기반 약한 최근성 보너스(주신호 아님) — 90일 반감기. 파싱 실패 시 0. */
+function recencyScore(createdAt: string, nowMs: number): number {
+  const ts = Date.parse(createdAt)
+  if (Number.isNaN(ts)) return 0
+  const days = (nowMs - ts) / 86_400_000
+  return Math.exp(-days / 90)
+}
+
+/**
+ * 키워드 회상. 토큰 IDF overlap + 태그 정확매치 가중 + 약한 최근성, status 강등.
+ * 정렬 결정적: score DESC → createdAt DESC → id ASC.
+ */
+export function recallMemories(
+  mem: MemoryFileV2,
+  query: string,
+  k = 5,
+  nowMs: number = Date.now()
+): RecallHit[] {
+  const all = orderedAll(mem)
+  const qTokens = new Set(tokenize(query))
+  if (qTokens.size === 0) return []
+  const idf = buildIdf(all.map((x) => x.entry))
+
+  const hits: RecallHit[] = all.map(({ bucket, entry }) => {
+    const bodyTokens = new Set(tokenize(entryText(entry)))
+    let keyword = 0
+    for (const tok of qTokens) if (bodyTokens.has(tok)) keyword += idf.get(tok) ?? 0
+    const tagMatch = entry.tags.filter((tg) => qTokens.has(tg.toLowerCase())).length
+    const recency = recencyScore(entry.createdAt, nowMs)
+    const status = isActive(entry) ? 1 : 0.3 // D19: archived/resolved 강등
+    // 관련성(keyword+tag)이 0이면 매칭 아님 — 최근성은 '이미 매칭된 것'만 가산(유령 매칭 방지).
+    const relevance = keyword + tagMatch * 2.0
+    const score = relevance > 0 ? (relevance + recency * 0.3) * status : 0
+    return { bucket, entry, score, signals: { keyword, tagMatch, recency, status } }
+  })
+
+  return hits
+    .filter((h) => h.score > 0)
+    .sort(
+      (a, b) =>
+        b.score - a.score ||
+        Date.parse(b.entry.createdAt) - Date.parse(a.entry.createdAt) ||
+        a.entry.id.localeCompare(b.entry.id)
+    )
+    .slice(0, k)
+}
+
+// ── just-in-time 회상 (RFC 0049 ② · 진통제 · precision ≫ recall) ──
+/** 약매칭은 침묵(오경보 = 신뢰 즉사 · Norman). RFC default — 추후 eval 로 보정. */
+const JIT_MIN_SCORE = 1.5
+
+/**
+ * 위험행동 직전 회상. resolveGuard() 가 confirm/preview/warn 낼 때 직전 호출.
+ * 강한 매칭 + 활성 항목만 반환(없으면 빈 배열 = 침묵).
+ */
+export function recallForAction(
+  mem: MemoryFileV2,
+  action: string,
+  context = '',
+  nowMs: number = Date.now()
+): RecallHit[] {
+  return recallMemories(mem, `${action} ${context}`, 3, nowMs).filter(
+    (h) => h.score >= JIT_MIN_SCORE && isActive(h.entry)
+  )
+}
+
+/** vhk recall <자연어> — 키워드 회상 결과 출력(왜 떠올랐는지 신호 동반). I/O 글루(로직=recallMemories). */
+export async function memoryRecall(query: string): Promise<void> {
+  console.log(chalk.bold('\n🔎 기억 회상'))
+  console.log(chalk.gray('─'.repeat(40)))
+  if (!query || !query.trim()) {
+    console.log(chalk.red('❌ 찾을 내용을 입력해주세요. 예: vhk recall "배포 막힘"'))
+    process.exitCode = 1
+    return
+  }
+  const hits = recallMemories(readMemory(process.cwd()), query.trim())
+  if (hits.length === 0) {
+    console.log(chalk.yellow(`\n📭 "${query.trim()}" 관련 기억이 없습니다.`))
+    return
+  }
+  console.log(chalk.cyan(`\n${hits.length}개 관련 기억:\n`))
+  for (const h of hits) {
+    const f = h.entry as FailEntry
+    const text = h.entry.content || f.lesson || h.entry.id
+    console.log(`  ${STATUS_ICON[h.entry.status] ?? '🟢'} (${BUCKET_LABEL[h.bucket]}) ${text}`)
+    if (h.entry.content && f.lesson) console.log(chalk.dim(`      💡 ${f.lesson}`))
+    if (h.entry.tags.length) console.log(chalk.blue(`      🏷️  ${h.entry.tags.join(', ')}`))
+    const s = h.signals
+    console.log(
+      chalk.gray(`      ↳ 점수 ${h.score.toFixed(2)} (키워드 ${s.keyword.toFixed(2)}·태그 ${s.tagMatch}·최근 ${s.recency.toFixed(2)}·상태 ${s.status})`)
+    )
+  }
+}

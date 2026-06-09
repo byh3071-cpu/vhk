@@ -35,6 +35,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'context', '맥락',
   'context-show', '맥락보기',
   'memory', '기억',
+  'recall', '회상',
   'brief', '브리핑',
   'cloud', '클라우드',
   'goal', '목표',
