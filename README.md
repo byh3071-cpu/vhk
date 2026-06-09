@@ -24,6 +24,7 @@ VHK는 코딩 에이전트가 아닙니다. 에이전트가 빠르게 만든 결
 | 목표가 많아지면 무엇부터 할지 흐려진다 | `goals/*.md`와 `docs/state/next-task.md`로 다음 목표 고정 | `vhk goal next` |
 | 같은 실수가 반복된다 | memory/pattern/evolve로 교훈과 룰 후보 축적 | `vhk learn` |
 | 위험한 상태에서 계속 진행한다 | blocker 3건 누적 시 `.vhk/HARD_STOP` 생성 | `vhk blocker` |
+| AI 비용이 새는지 모른다 | cost 가드로 예산·사용량 추적 + 임계(80% 경고·100% 차단) | `vhk cost` |
 
 ## 설치
 

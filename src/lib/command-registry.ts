@@ -8,6 +8,7 @@
  */
 export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   goal: ['list', 'next', 'check', 'init', 'done', 'sync', 'drift'],
+  cost: ['add', 'check', 'budget'],
   ref: ['add', 'list', 'open'],
   memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate', 'eval'],
   cloud: ['push', 'pull'],
@@ -26,6 +27,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
 export const CONTAINER_ALIASES: Record<string, string> = {
   목표: 'goal',
+  비용: 'cost',
   레퍼런스: 'ref',
   기억: 'memory',
   클라우드: 'cloud',
@@ -82,6 +84,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'context', desc: '프로젝트 맥락 파일 생성 (.vhk/context.md)' },
   { name: 'mode', desc: 'Safety Mode 조회/변경 (lite|standard|strict)' },
   { name: 'verify', desc: '검증 게이트 실행 + 증거 기록' },
+  { name: 'cost', desc: '비용·예산 가드 — add/check/budget (자문형)' },
   { name: 'preflight', desc: '출고 전 안전점검 (2FA·shim·env·lint·타입·테스트·git, 치명 시 차단)' },
   { name: 'testmap', desc: 'test-first 매핑 점검 (변경 기능 ↔ 테스트 누락 경고)' },
   { name: 'worktree', desc: 'worktree 가드 — 생성 시 env/설정 자동 복사·누락 점검 (add/check)' },
