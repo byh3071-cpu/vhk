@@ -1,10 +1,24 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { runGuarded } from '../src/lib/safety-guard.js'
 import { resolveGuard } from '../src/lib/risk-policy.js'
+
+// Goal 55: runGuarded 가 이제 .vhk/events/ai-actions.jsonl 에 행동을 기록한다(deps.cwd ?? process.cwd()).
+// cwd 미지정 in-process 호출이 레포 루트를 오염시키지 않게 각 테스트를 임시 디렉터리로 격리한다.
+let _origCwd: string
+let _cwdSandbox: string
+beforeEach(() => {
+  _origCwd = process.cwd()
+  _cwdSandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-guard-cwd-'))
+  process.chdir(_cwdSandbox)
+})
+afterEach(() => {
+  process.chdir(_origCwd)
+  fs.rmSync(_cwdSandbox, { recursive: true, force: true })
+})
 
 function tracker() {
   let ran = false

@@ -3,6 +3,7 @@ import { resolveGuard, type Channel, type Guard } from './risk-policy.js'
 import type { SafetyMode } from './safety-mode.js'
 import { readMemory, recallForAction } from '../commands/memory.js'
 import { logRecall } from './recall-log.js'
+import { appendActionEntry } from './action-ledger.js'
 
 /**
  * 위험 작업 가드의 **단일 chokepoint**.
@@ -36,6 +37,29 @@ export interface GuardedOutcome {
 }
 
 export async function runGuarded<T>(
+  action: string,
+  deps: GuardDeps,
+  run: () => Promise<T> | T
+): Promise<{ outcome: GuardedOutcome; result?: T }> {
+  const res = await runGuardedInner(action, deps, run)
+  // Goal 55: 가드 chokepoint 를 지난 모든 행동을 레포 영속 원장(.vhk/events/ai-actions.jsonl)에 1줄 기록.
+  // best-effort — 기록 실패가 가드 본 기능을 막지 않는다. run() 이 throw 하면 위 await 에서 전파 → 미기록(v1).
+  try {
+    appendActionEntry(deps.cwd ?? process.cwd(), {
+      ts: new Date().toISOString(),
+      action,
+      channel: deps.channel,
+      guard: res.outcome.guard,
+      ran: res.outcome.ran,
+      reason: res.outcome.reason,
+    })
+  } catch {
+    /* 원장 기록 실패는 무시 — 가드 본 기능 보호 */
+  }
+  return res
+}
+
+async function runGuardedInner<T>(
   action: string,
   deps: GuardDeps,
   run: () => Promise<T> | T

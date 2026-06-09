@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 55
 title: AI 행동 원장(agent-action-ledger) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-09
+completed: 2026-06-10
 leads_to: 61 (stats 집계 소스)
 ---
 
