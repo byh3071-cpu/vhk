@@ -34,14 +34,14 @@
 ```text
 git diff -U0 HEAD ─▶ git-session.diffUnified0 ─▶ diff-hunks.addedLinesByFile() ──┐
                                                                                   ├─▶ diffCoverage() (순수) ─▶ 파일별 미검증 변경분
-coverage-final.json ─▶ coverage-parse.coveredLinesByFile() ───────────────────────┘
+coverage-final.json ─▶ coverage-parse.fileCoverageByFile() ───────────────────────┘
                                                             └─▶ vhk diff-cover (자문 출력)
 ```
 
 - **`src/lib/git-session.ts` 확장** (단일 SoT): `diffUnified0(cwd)` = `git diff --unified=0 HEAD` (ExecResult). 라인번호 보존 위해 `trimOutput:false`.
 - **`src/lib/diff-hunks.ts`** (신규·순수): `addedLinesByFile(diffText)` = unified-diff 텍스트 → `Map<파일(rel posix), Set<추가라인번호>>`. `@@ -a,b +c,d @@` 헌트 파싱, `+`(컨텍스트 아닌 추가)만. `isFeatureSource`(test-mapping.ts 재사용)로 src/commands·src/lib만 대상.
-- **`src/lib/coverage-parse.ts`** (신규·IO+파싱): `coveredLinesByFile(jsonPath, cwd)` = v8 coverage-final.json → `Map<파일(rel posix), Set<커버된라인번호>>`. statement `s[k]>0`인 statementMap 라인 펼침. abs경로 → cwd 상대 posix 정규화.
-- **`src/lib/diff-coverage.ts`** (신규·**순수**): (추가라인 맵, 커버라인 맵) → 파일별 `{ added, covered, uncoveredNew[], ratio }` + 총계. fs/실시간 부수효과 0 → TDD 쉬움(crossCheck 선례).
+- **`src/lib/coverage-parse.ts`** (신규·IO+파싱): `fileCoverageByFile(jsonPath, cwd)` = v8 coverage-final.json → `Map<파일(rel posix), {covered, executable}>`. `executable` = statementMap 모든 라인(실행가능 코드), `covered` = 그중 `s[k]>0`. abs경로 → cwd 상대 posix 정규화. **executable 분리 이유: 미검증 변경분은 *실행가능* 추가라인만 세야 함**(아래 §7 — 도그푸딩이 잡은 결함).
+- **`src/lib/diff-coverage.ts`** (신규·**순수**): (추가라인 맵, 커버리지 맵) → 파일별 `{ added, covered, uncoveredNew[], ratio, inCoverage }` + 총계. 분모 = 추가라인 ∩ executable(비실행 라인 제외). fs/실시간 부수효과 0 → TDD 쉬움(crossCheck 선례).
 - **`src/commands/diff-cover.ts`** (신규): 위를 조립. coverage-final.json 없으면 안내(`pnpm test:run --coverage` 먼저) 후 종료 — **새 coverage 실행 강제 안 함**(명령은 빠르고 결정적, 무거운 coverage run은 명시적).
 
 **경계 질문(각 단위)**: diff-hunks=텍스트→라인집합(git 모름). coverage-parse=json→라인집합(diff 모름). diff-coverage=두 집합 교차(IO 모름·순수). command=조립+출력. 서로 내부 안 봐도 됨.
@@ -82,7 +82,8 @@ coverage-final.json ─▶ coverage-parse.coveredLinesByFile() ─────�
 
 - **추적 안 된 새 파일**: `git diff HEAD`에 안 잡힘 → "추적 안 됨(git add 후 재측정)"으로 별도 경고. PR1은 fully-new 라인 계산 안 함(정직).
 - **diff-hunks 파서 엣지**: `@@ -a,b +c,d @@`에서 추가라인 = c..c+d-1. **count 생략형 `@@ +c @@` = 1줄**, **순수삭제 헌트(d=0) = 추가 0**, **한 파일 멀티헌트 = Set 누적**, **rename(R)/binary diff = 추가라인 무의미 → 스킵**. 단위테스트로 각 형태 고정.
-- **coverage에 부재한 파일**: 테스트가 한 번도 import 안 한 변경 파일은 coverage-final.json에 **부재** → 빈 커버집합 → 전 추가라인 미검증(정확한 측정). 단 "리포트 파일 자체 부재"(먼저 `--coverage`)와 **구분**해 메시지.
+- **coverage에 부재한 파일**: 테스트가 한 번도 import 안 한 변경 파일은 coverage-final.json에 **부재** → executable 판별 불가 → 전 추가라인을 coarse 미검증 + `inCoverage:false` 플래그(메시지 구분). "리포트 파일 자체 부재"(먼저 `--coverage`)와도 구분.
+- **비실행 라인 노이즈(구현서 도그푸딩이 잡음·2026-06-10)**: 미검증 변경분을 "모든 추가라인 중 미커버"로 세면 import·주석·타입·중괄호까지 잡혀 신호가 묻힌다(실측 118 거짓 미검증). **분모는 실행가능(statementMap) 추가라인만** — 그래야 false-completion 신호가 진짜 미테스트 로직만 가리킴. (수정 후 PR1 자체 = 100% diff-coverage.)
 - **sourcemap 좌표**: v8 provider는 coverage-final.json에 **소스(TS) 좌표**로 기록(vitest 기본 sourcemap) — 빌드 산출물 좌표 아님. 구현 시 실측 1회 확인(샘플 파일 라인 대조).
 - **경로 정규화**: git(rel posix) ↔ coverage(abs) 불일치가 매칭 실패의 1순위 버그원 → `path.relative(cwd, abs)` + `toPosix` 단일화. 윈도우 함정(drive 문자 대소문자·8.3 단축명)은 `realpathSync.native`로 정규화 후 비교(CI matrix 교훈). 매칭 0건이면 명시 경고(조용한 거짓 100% 금지).
 - **성능**: coverage run은 plain test보다 느림 → 명령은 기존 리포트 *읽기만*. 리포트 신선도(파일 mtime) 노출, 오래되면 재생성 권장.
