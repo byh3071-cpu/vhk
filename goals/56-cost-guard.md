@@ -40,8 +40,10 @@ leads_to: 61 (stats 집계 소스)
 
 - **자문형 + 양방향 입력**(사용자 확정): vhk 는 Claude API 직접 호출 안 함 → 비용 자동추적 불가. 사용량은 수동 `vhk cost add`(--usd | --in/--out/--model) + 환경변수 `VHK_COST_*` 둘 다로 먹임. `check` 는 신호(exit code)로 CI/agent 가 멈추게 함.
 - **결정/집행 분리**: `cost-policy.ts`(evaluateBudget·costToGuard·usdOf, 순수) / `cost.ts`(집행). `runGuarded` 는 action 기반 resolveGuard 로 guard 를 자체 계산 → 임계 기반 비용 level 을 못 먹이므로 **직접 호출 대신 동형 의미**(비-TTY+미승인 block·TTY confirm·--yes 승인)를 cost level 로 구동(risk-policy 중복 아님 = 별도 정책 차원, 단일 chokepoint 원칙 위배 아님).
-- 신규: cost-policy.ts·cost-ledger.ts(.vhk/cost.jsonl, evidence-ledger append 패턴)·src/commands/cost.ts·check-goal-56.mjs + 테스트 3종(cost-policy 8·cost-ledger 7·cost 7). config.ts 에 budget/pricing 주입 필드. 명령 3지점 등록(index/registry/cli-args).
+- 신규: cost-policy.ts·cost-ledger.ts(.vhk/cost.jsonl, evidence-ledger append 패턴)·src/commands/cost.ts·check-goal-56.mjs + 테스트 3파일(cost-policy 13·cost-ledger 7·cost 9 = 29). config.ts 에 budget/pricing 주입 필드. 명령 4지점 등록(index·TOP_LEVEL·CONTAINER_SUBCOMMANDS+ALIASES·cli-args).
 - **preflight 편입은 보류**(카드 "[선택]" — release-gate 핫파일 리스크 회피). 후속 가벼운 advisory 로 가능.
+- **적대 리뷰 #234 반영**: ① NaN 입력 페일-오픈 차단(Number.isFinite 검증 — `--usd abc`/env NaN 이 usd:null 로 새던 결함) · ② 한글 별칭 `비용` CONTAINER_ALIASES 누락 → `비용 check` 가 NL 라우터에 가로채여 가드 우회되던 결함 수정(+회귀 테스트·게이트 단언) · ③ costToGuard 집행 연결(데드코드 해소) · ④ 타입 중복(PricingRate)·이중 read·stdin/stdout TTY 정리.
+- **goal 57 정합(후속)**: 비용은 새 정책축에 자체 판정/집행. goal 57(분산 결정점 일원화·신규 레이어 금지) 착수 시 '비용 차원을 risk-policy/runGuarded 로 흡수' 검토 — 평행 가드 영구화 방지(현재 cost 단일 입구라 무해).
 
 ## Mandatory Reading
 - `src/lib/config.ts` · `src/lib/risk-policy.ts` · `src/lib/safety-guard.ts` · `src/commands/mode.ts` · `src/lib/evidence-ledger.ts`

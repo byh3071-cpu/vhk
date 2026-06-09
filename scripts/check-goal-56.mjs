@@ -85,6 +85,8 @@ must(/name: 'cost'/.test(reg), "command-registry: TOP_LEVEL { name: 'cost' }")
 must(/cost: \['add', 'check', 'budget'\]/.test(reg), 'command-registry: CONTAINER cost 서브명령')
 const cargs = read('src/lib/cli-args.ts') ?? ''
 must(/'cost'/.test(cargs), "cli-args: 'cost' 토큰(KNOWN_COMMAND_TOKENS)")
+// 한글 별칭 비용 도 CONTAINER_ALIASES 에 있어야 `비용 check` 가 NL 라우터에 안 가로채임(적대 리뷰 #234).
+must(/비용: 'cost'/.test(reg), 'command-registry: CONTAINER_ALIASES 비용→cost (한글 별칭 가드 우회 방지)')
 
 // 5) 회귀 테스트 + 문서 반영(_meta)
 for (const t of ['cost-policy', 'cost-ledger', 'cost']) {

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { detectNaturalLanguageInput } from '../src/lib/cli-args.js'
 
 // Goal 56: vhk cost — 자문형 비용 가드. vitest 는 비-TTY → check 의 비대화형 차단 경로 검증.
 vi.mock('inquirer')
@@ -84,5 +85,22 @@ describe('vhk cost', () => {
     const { cost } = await import('../src/commands/cost.js')
     await cost('budget', 'abc')
     expect(process.exitCode).toBe(1)
+  })
+
+  it('add: 깨진 숫자(--usd NaN + 토큰) → 거부(exitCode 1, NaN 기록 안 함)', async () => {
+    // 적대 리뷰 #234: NaN 이 usd:null 로 새서 사용분 소실·가드 페일-오픈하는 것 방지.
+    const { cost } = await import('../src/commands/cost.js')
+    await cost('add', undefined, { usd: NaN, out: 100 })
+    expect(process.exitCode).toBe(1)
+    expect(existsSync(join(dir, '.vhk', 'cost.jsonl'))).toBe(false)
+  })
+})
+
+describe('vhk cost — 한글 별칭 라우팅 (가드 우회 방지)', () => {
+  it('`비용 check` 가 NLP 라우터에 안 가로채임(실명령 경로 → null)', () => {
+    // 적대 리뷰 #234: CONTAINER_ALIASES 에 비용→cost 누락 시 `비용 check`가 NL 라우터로 새서
+    // cost 가드가 침묵 우회됐다. 별칭 등록 후 실명령으로 인식돼야 함(detectNaturalLanguageInput=null).
+    expect(detectNaturalLanguageInput(['node', 'vhk', '비용', 'check'])).toBeNull()
+    expect(detectNaturalLanguageInput(['node', 'vhk', '비용', 'budget', '100'])).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import chalk from 'chalk'
 import inquirer from 'inquirer'
 import { readConfig, writeConfig } from '../lib/config.js'
 import { readCostEntries, appendCostEntry, sumUsd, type CostEntry } from '../lib/cost-ledger.js'
-import { evaluateBudget, usdOf, type BudgetEval } from '../lib/cost-policy.js'
+import { evaluateBudget, costToGuard, usdOf, type BudgetEval } from '../lib/cost-policy.js'
 
 // Goal 56: vhk cost — 자문형 비용·예산 가드.
 // vhk 는 Claude API 를 직접 호출하지 않아 비용을 자동 추적 못 함 → 사용량은 외부 입력
@@ -98,6 +98,14 @@ export async function cost(action?: string, value?: string, opts: CostOptions = 
       outputTokens: opts.out,
     }
     const usd = usdOf(src, pricing)
+    // NaN/음수/무한 입력 차단 — 깨진 숫자(`--usd abc`·env NaN)가 usd:null 로 새서 사용분 소실·
+    // 가드 페일-오픈하는 것 방지(적대 리뷰 #234). budget 분기처럼 명시 검증.
+    const tokensFinite = [src.inputTokens, src.outputTokens].every((t) => t === undefined || Number.isFinite(t))
+    if (!Number.isFinite(usd) || usd < 0 || !tokensFinite) {
+      console.error(chalk.red('❌ 숫자 입력 오류 — --usd/--in/--out(또는 VHK_COST_*) 는 0 이상의 유효한 숫자여야 합니다.'))
+      process.exitCode = 1
+      return
+    }
     const hasTokens = !!(src.inputTokens || src.outputTokens)
     if (!(usd > 0) && !hasTokens) {
       console.error(
@@ -116,7 +124,8 @@ export async function cost(action?: string, value?: string, opts: CostOptions = 
     }
     appendCostEntry(cwd, entry)
     console.log(chalk.green(`✅ 비용 +$${usd.toFixed(4)} 기록 (${entry.source})`))
-    printStatus(sumUsd(readCostEntries(cwd)), limit, evaluateBudget(sumUsd(readCostEntries(cwd)), limit, warnPct))
+    const total = sumUsd(readCostEntries(cwd))
+    printStatus(total, limit, evaluateBudget(total, limit, warnPct))
     return
   }
 
@@ -132,18 +141,20 @@ export async function cost(action?: string, value?: string, opts: CostOptions = 
     return
   }
 
-  // ── check: 임계 집행(runGuarded 동형 의미 — cost level 구동) ──
-  if (ev.level === 'allow') return
-  if (ev.level === 'warn') {
+  // ── check: 임계 집행 — cost level 을 Guard 어휘로 환원(costToGuard) 후 runGuarded 동형 의미로 집행 ──
+  const guard = costToGuard(ev.level)
+  if (guard === 'allow') return
+  if (guard === 'warn') {
     console.log(chalk.yellow('⚠️ 예산 80% 도달 — 경고(차단 아님).'))
     return
   }
-  // block (≥100%)
+  // guard === 'confirm' (예산 100% 이상)
   if (opts.yes) {
     console.log(chalk.yellow('⚠️ 예산 초과지만 --yes 승인 → 진행.'))
     return
   }
-  const isTTY = !!process.stdout.isTTY
+  // runGuarded 와 동일 기준(stdin TTY)으로 대화형 가능 여부 판단 — stdout/stdin 비대칭 제거.
+  const isTTY = !!process.stdin.isTTY
   if (isTTY) {
     const { ok } = await inquirer.prompt<{ ok: boolean }>([
       { type: 'confirm', name: 'ok', message: '예산을 초과했습니다. 그래도 계속할까요?', default: false },

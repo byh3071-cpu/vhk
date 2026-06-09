@@ -27,6 +27,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
 export const CONTAINER_ALIASES: Record<string, string> = {
   목표: 'goal',
+  비용: 'cost',
   레퍼런스: 'ref',
   기억: 'memory',
   클라우드: 'cloud',

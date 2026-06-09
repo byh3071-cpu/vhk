@@ -1,4 +1,5 @@
 import type { Guard } from './risk-policy.js'
+import type { PricingRate } from './config.js'
 
 // Goal 56: 비용/예산 판정의 순수 SoT(결정만, 부작용 0). risk-policy 동형(결정/집행 분리).
 // 집행은 cost.ts 가 runGuarded 와 *동형 의미*(비-TTY+미승인 block · TTY confirm · --yes 승인)로 수행.
@@ -13,13 +14,8 @@ export interface BudgetEval {
   level: CostLevel
 }
 
-export interface Pricing {
-  inputPer1k: number
-  outputPer1k: number
-}
-
-/** 모델별 요율 — .vhk/config.json 주입(코드 하드코딩 금지). */
-export type PricingTable = Record<string, Pricing>
+/** 모델별 요율 — .vhk/config.json 주입(코드 하드코딩 금지). 타입 SoT = config.PricingRate 재사용(중복 제거). */
+export type PricingTable = Record<string, PricingRate>
 
 /**
  * 누적 사용량 vs 예산 판정. ≥100% block · ≥warnPct(기본 0.8) warn · 그 외 allow.
