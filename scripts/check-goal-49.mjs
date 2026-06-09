@@ -65,7 +65,10 @@ for (const rule of [
   'switch-exhaustiveness-check', 'no-base-to-string', 'prefer-promise-reject-errors',
   'no-unnecessary-type-assertion',
 ]) {
-  must(eslintCfg.includes(rule), `eslint 결함룰 활성: ${rule}`)
+  // 룰명 문자열만 보면 주석 오탐·'off'/'warn' 다운그레이드를 통과시킴(적대적 리뷰 #230 지적).
+  // 룰 키 + 'error' 바인딩까지 매칭 → 주석 오탐·off·warn 셋 다 봉쇄(수용기준 '활성=error'와 일치).
+  const ruleRe = new RegExp(`['"]@typescript-eslint/${rule}['"]\\s*:\\s*['"]error['"]`)
+  must(ruleRe.test(eslintCfg), `eslint 결함룰 error 레벨 활성: ${rule}`)
 }
 // CI 블로킹 lint 스텝(위반 시 머지 차단) + 게이트가 호출하는 lint 스크립트.
 const ci = read('.github/workflows/ci.yml') ?? ''
