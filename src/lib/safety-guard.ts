@@ -28,6 +28,8 @@ export interface GuardDeps {
   log?: (msg: string) => void
   /** just-in-time 회상 기준 디렉터리 (기본 process.cwd()) — RFC 0049 */
   cwd?: string
+  /** Goal 57: 위험 대상(파일/경로). 주어지면 isRiskyTarget 글롭 차원으로 가드 발동(액션 저위험이어도). */
+  target?: string
 }
 
 export interface GuardedOutcome {
@@ -66,7 +68,8 @@ async function runGuardedInner<T>(
 ): Promise<{ outcome: GuardedOutcome; result?: T }> {
   const mode: SafetyMode = deps.mode ?? readConfig().safetyMode
   const log = deps.log ?? (() => {})
-  const guard = resolveGuard(action, mode, deps.channel)
+  // Goal 57: deps.target 이 있으면 글롭 위험 차원도 함께 평가(하위호환 — 미지정 시 기존 동작).
+  const guard = resolveGuard(action, mode, deps.channel, deps.target)
 
   // RFC 0049 ②: 위험 작업 직전, 관련 과거 실패를 회상해 경고로 표출(just-in-time).
   // precision 우선(약매칭 침묵) · 회상 실패는 가드 동작을 절대 막지 않는다.

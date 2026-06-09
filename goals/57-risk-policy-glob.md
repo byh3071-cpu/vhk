@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 57
 title: 위험 정책 글롭 확장·통합(risk-policy-glob) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-09
+completed: 2026-06-10
 leads_to: 60
 ---
 
