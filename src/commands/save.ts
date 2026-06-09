@@ -6,15 +6,23 @@ import { printSecurityWarnings } from '../lib/check-secure.js'
 import { parsePorcelainLines } from '../lib/git-porcelain.js'
 import {
   getGitRoot,
-  gitOut,
-  gitRun,
   hasGitRemote,
   getExecErrorMessage,
 } from '../lib/git-repo.js'
+// Goal 48: save 의 git 질문(status/add/commit/push/staged-stat)은 git-session 공유 SoT(MCP 와 동일 함수).
+import { okOut, statusPorcelain, stageAll, commit, push, stagedStat } from '../lib/git-session.js'
+import type { ExecResult } from '../lib/exec.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
 import { printNextStep } from '../lib/next-step.js'
 import { promptOrDefault } from '../lib/interactive.js'
 import { t } from '../i18n/ko.js'
+
+// git-session 함수는 ExecResult 를 반환(throw 안 함). save 의 기존 try/catch throw 흐름을
+// 유지하기 위해 실패를 예외로 승격한다(git stderr 보존 → getExecErrorMessage 표시).
+function must(r: ExecResult): string {
+  if (!r.ok) throw new Error(r.stderr || r.err)
+  return r.out
+}
 
 export function formatDefaultCommitMessage(date = new Date()): string {
   const y = date.getFullYear()
@@ -77,7 +85,7 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
     }
   }
 
-  const lines = parsePorcelainLines(gitOut(['status', '--porcelain'], gitRoot))
+  const lines = parsePorcelainLines(must(statusPorcelain(gitRoot)))
   if (lines.length === 0) {
     console.log(chalk.yellow(`📭 ${t('save.noChanges')}`))
     return
@@ -107,9 +115,9 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
   const spinner = ora(t('save.saving')).start()
   let didAdd = false
   try {
-    gitRun(['add', '.'], gitRoot)
+    must(stageAll(gitRoot))
     didAdd = true
-    gitRun(['commit', '-m', message], gitRoot)
+    must(commit(message, gitRoot))
     spinner.text = t('save.pushing')
 
     if (!hasGitRemote(gitRoot)) {
@@ -117,7 +125,7 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
       console.log(chalk.yellow(`   💡 ${t('save.noRemote')}`))
     } else {
       try {
-        gitRun(['push'], gitRoot)
+        must(push(gitRoot))
         spinner.succeed(t('save.successWithPush'))
       } catch (pushErr) {
         spinner.fail(t('save.pushFailed'))
@@ -147,7 +155,7 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
     console.log(chalk.red(getExecErrorMessage(err)))
     if (didAdd) {
       try {
-        const staged = gitOut(['diff', '--cached', '--stat'], gitRoot).trim()
+        const staged = okOut(stagedStat(gitRoot)).trim()
         if (staged) {
           console.log(chalk.yellow(`\n💡 ${t('save.stagedAfterFail')}`))
         }
