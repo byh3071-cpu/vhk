@@ -39,9 +39,8 @@ leads_to: 툴링 3→4 · 주 사용환경 회귀 봉쇄
 > **🔎 goal 47 실측 발견**: node 하한을 20 으로 잡았더니 `test (ubuntu, 20)` 즉시 실패 —
 > `packageManager: pnpm@11.2.2` 가 `node:sqlite` 의존으로 **Node ≥22.13 요구**(Node 20 에선
 > pnpm 자체가 `ERR_UNKNOWN_BUILTIN_MODULE`). → 매트릭스 하한을 **22** 로 조정(툴체인 현실).
-> 런타임 `engines.node(>=20)`는 별개로 유지(vhk 실행은 node 20 호환). 후속 선택지:
-> ① engines 를 >=22 로 정직화 ② node-20 런타임 smoke 잡을 npm 으로 별도 추가 ③ pnpm 다운그레이드.
-> (이 결정은 사용자 판단 — 본 goal 은 매트릭스 인프라 구축 + win32 검증에 집중.)
+> 런타임 `engines.node` 후속 — **✅ ① engines 를 >=22 로 정직화 채택**(2026-06-09, 사용자 판단).
+> 근거: CI 매트릭스가 node 22·24 만 돌고 Node 20 은 2026-04 EOL → `>=22` 가 정직(README·check-goal-47 동기화). 별도 PR 처리.
 
 ## Mandatory Reading
 - .github/workflows/ci.yml · src/lib/exec.ts (시프 분기) · CLAUDE.md(win32 규칙)

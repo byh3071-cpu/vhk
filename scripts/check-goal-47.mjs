@@ -61,6 +61,8 @@ must(/runs-on:\s*\$\{\{\s*matrix\.os\s*\}\}/.test(ci), 'runs-on 이 matrix.os �
 must(/\[\s*22\s*,\s*24\s*\]/.test(ci), 'node 하한 22 + 24 매트릭스 (pnpm@11 툴체인 하한)')
 must((ci.match(/windows-latest/g) ?? []).length >= 2, 'test + dogfood 둘 다 windows-latest 포함')
 must((ci.match(/ubuntu-latest/g) ?? []).length >= 2, 'test + dogfood 둘 다 ubuntu-latest 포함')
+// 후속 ① 채택: engines.node 를 매트릭스 하한(22)과 일치시켜 정직화 (Node 20 은 2026-04 EOL).
+must((pkg.engines?.node ?? '').includes('>=22'), 'engines.node >=22 (매트릭스 하한과 일치 · Node 20 EOL)')
 
 if (pass) { console.log('✅ goal 47 gate passes'); process.exit(0) }
 console.log('❌ goal 47 gate failed'); process.exit(1)
