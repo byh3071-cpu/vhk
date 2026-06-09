@@ -2,8 +2,8 @@
 vhk_format: 1
 type: goal
 id: 49
-title: 정적 린트 게이트 — Biome 도입 + CI 블로킹 — P1
-status: NOT_STARTED
+title: 정적 린트 게이트 — eslint type-aware 결함룰 확대 + CI 블로킹 — P1
+status: DONE
 priority: P1
 created: 2026-06-08
 leads_to: 툴링 4→5 · 린트 고유 결함 자동 차단
@@ -13,26 +13,30 @@ leads_to: 툴링 4→5 · 린트 고유 결함 자동 차단
 
 > 출처: RFC 0048 §2 원리1 · 13-에이전트 감사(2026-06-08) 툴링 차원 high.
 
-## 근거 (실측)
-- 정적 린트 툴 전무 — 루트에 `eslint`/`prettier`/`biome` 설정 0개(node_modules 전이 설정만), `ci.yml`에 lint 스텝 없음.
-- strict TS + 커스텀 가드(raw-json-parse·stray·secure)가 일부 메우나 `no-floating-promises`·exhaustive switch·미사용 변수 같은 린트 고유 룰은 빈다.
-- 131파일 규모에서 이 계층을 사람 리뷰에만 의존 = 시니어 기준 미달.
+## 근거 (실측 · 재스코프 2026-06-09)
+- 카드 원안은 'Biome 신규 도입'이나 #216(tsc/eslint async 안전성 게이트) 머지로 **eslint(type-aware) + CI lint 블로킹 스텝이 이미 존재**. roadmap 도 'Goal 49 = 도입→확대'로 재조정됨.
+- 기존 eslint 는 async 3룰(no-floating-promises·no-misused-promises·await-thenable)만 → switch 누락 케이스 등 일부 결함룰이 빔.
+- Biome 병존은 noFloatingPromises(타입정보 필요, Biome 미흡)와 중복 → 채택 안 함. **eslint 확대**로 결정(사용자 확인).
 
-## 동작
-- Biome 1개 도입(eslint+prettier 통합, 설정 1파일, 빠름) — `biome.json`에 `recommended` + `noFloatingPromises` 등 진짜 결함 룰 우선(스타일 통일은 부차).
-- `ci.yml`에 `pnpm exec biome ci .` 블로킹 스텝 추가.
-- 기존 위반은 1회 베이스라인 커밋(또는 자동 포맷)으로 정리.
-- 핵심: floating promise·switch 누락 같은 **결함**을 자동 차단하는 것이 목표.
+## 동작 (실제)
+- `eslint.config.js` 에 tsc(strict)가 못 잡는 type-aware **결함룰** 추가(스타일 아님): `switch-exhaustiveness-check`(union 누락 케이스) · `no-base-to-string` · `prefer-promise-reject-errors` · `no-unnecessary-type-assertion`.
+- 미사용 변수·암묵 return·switch fallthrough 는 tsconfig(noUnusedLocals/Parameters·noImplicitReturns·noFallthroughCasesInSwitch)가 이미 담당 → eslint 중복 제외(노이즈 최소).
+- 기존 위반 베이스라인 1회 정리: 불필요 `as` 8건 `--fix` 제거 + 고아 타입 import 2건 정리.
+- CI 블로킹 lint 스텝은 #216에 이미 존재(`pnpm lint`, gate 필수체크 포함) → ci.yml 변경 불필요.
 
 ## 수용 기준
-- biome 설정 1파일 존재, CI lint 위반 0으로 green, 위반 시 머지 차단 동작.
+- eslint 결함룰 확대(7룰 활성), CI lint 위반 0 으로 green, 위반 시 머지 차단(기존 gate).
 
 ## Completion Check
-- [ ] biome.json (recommended + noFloatingPromises) 추가
-- [ ] 기존 위반 1회 베이스라인 정리
-- [ ] ci.yml에 biome ci 블로킹 스텝
-- [ ] 공통 게이트 통과, 회귀 0
-- [ ] check-goal-49.mjs 통과
+- [x] eslint type-aware 결함룰 확대 (switch-exhaustiveness·no-base-to-string·prefer-promise-reject-errors·no-unnecessary-type-assertion)
+- [x] 기존 위반 1회 베이스라인 정리 (불필요 `as` 8건 --fix + 고아 import 2건)
+- [x] CI lint 블로킹 스텝 (#216에 이미 존재 — gate 필수체크)
+- [x] 공통 게이트 통과, 회귀 0
+- [x] check-goal-49.mjs 통과
+
+## 구현 메모
+- Biome→eslint 재스코프(2026-06-09, 사용자 확인). 툴 1개 유지, 노이즈 최소(솔로 유지비).
+- 확대 4룰 중 3룰(switch/base-to-string/reject-errors)은 0 위반 = 미래 가드레일, 1룰(no-unnecessary-type-assertion)만 8건 베이스라인 정리.
 
 ## Mandatory Reading
 - .github/workflows/ci.yml · package.json(devDeps) · src/mcp/server.ts(eslint-disable 1곳)

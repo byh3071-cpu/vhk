@@ -52,9 +52,28 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 49 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 49 고유 검증 (정적 린트 게이트 — eslint type-aware 결함룰 확대) ─────────────
+// 재스코프: 카드 원안은 'Biome 도입'이나 #216(tsc/eslint async 게이트)으로 eslint+CI lint 가
+// 이미 존재 → 신규 도입이 아닌 '결함룰 확대'(roadmap '도입→확대'). Biome 병존은 noFloatingPromises
+// (타입정보 필요, Biome 미흡)와 중복이라 채택 안 함.
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const eslintCfg = read('eslint.config.js') ?? ''
+must(eslintCfg.length > 0, 'eslint.config.js 존재(flat config)')
+// tsc(strict)가 못 잡는 type-aware 결함룰 — 스타일 아님.
+for (const rule of [
+  'no-floating-promises', 'no-misused-promises', 'await-thenable',
+  'switch-exhaustiveness-check', 'no-base-to-string', 'prefer-promise-reject-errors',
+  'no-unnecessary-type-assertion',
+]) {
+  // 룰명 문자열만 보면 주석 오탐·'off'/'warn' 다운그레이드를 통과시킴(적대적 리뷰 #230 지적).
+  // 룰 키 + 'error' 바인딩까지 매칭 → 주석 오탐·off·warn 셋 다 봉쇄(수용기준 '활성=error'와 일치).
+  const ruleRe = new RegExp(`['"]@typescript-eslint/${rule}['"]\\s*:\\s*['"]error['"]`)
+  must(ruleRe.test(eslintCfg), `eslint 결함룰 error 레벨 활성: ${rule}`)
+}
+// CI 블로킹 lint 스텝(위반 시 머지 차단) + 게이트가 호출하는 lint 스크립트.
+const ci = read('.github/workflows/ci.yml') ?? ''
+must(/pnpm lint|eslint/.test(ci), 'ci.yml 에 lint 블로킹 스텝(머지 차단)')
+must(typeof scripts.lint === 'string' && /eslint/.test(scripts.lint), 'package.json lint 스크립트(eslint)')
 
 if (pass) { console.log('✅ goal 49 gate passes'); process.exit(0) }
 console.log('❌ goal 49 gate failed'); process.exit(1)
