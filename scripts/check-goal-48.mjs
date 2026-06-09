@@ -52,9 +52,35 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 48 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 48 고유 검증 (MCP↔CLI 단일 진실원) ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+
+// 1) git-session 공유 SoT 존재 + 세션 git 질문 함수 export.
+const session = read('src/lib/git-session.ts') ?? ''
+must(session.length > 0, 'src/lib/git-session.ts 존재')
+must(/import \{ safeExecFile/.test(session), 'git-session 이 safeExecFile(Goal 46 단일 통로) 위에 구축')
+for (const fn of ['statusPorcelain', 'stageAll', 'commit', 'push', 'softReset', 'recentCommits', 'unstagedStat', 'numstatHead', 'okOut']) {
+  must(new RegExp('export function ' + fn + '\\b').test(session), `git-session export: ${fn}`)
+}
+// porcelain 은 raw 보존(선행 공백 load-bearing) — trim 하면 status 오집계.
+must(/trimOutput:\s*false/.test(session), 'statusPorcelain raw 보존(trimOutput:false)')
+
+// 2) MCP 가 git 을 인라인 재구현하지 않는다 — server.ts 에 직접 git 호출 0건.
+const server = read('src/mcp/server.ts') ?? ''
+must(!/safeExecFile\((['"])git\1/.test(server), "server.ts 인라인 git 호출 제거(safeExecFile('git') 0건)")
+must(!/function isGitRepo\s*\(/.test(server), 'server.ts 로컬 isGitRepo 재정의 제거')
+must(/import \{ isGitRepo \} from '\.\.\/lib\/git-repo\.js'/.test(server), 'server.ts isGitRepo 를 git-repo SoT(Goal 46) 에서 import')
+must(/from '\.\.\/lib\/git-session\.js'/.test(server), 'server.ts 가 git-session 공유 함수 사용')
+
+// 3) CLI 세션 명령(save/undo/status/diff)도 동일 git-session 함수를 공유(같은 질문=함수 하나).
+for (const cmd of ['save', 'undo', 'status', 'diff']) {
+  const src = read(`src/commands/${cmd}.ts`) ?? ''
+  must(/from '\.\.\/lib\/git-session\.js'/.test(src), `${cmd}.ts 가 git-session 공유 SoT 사용`)
+}
+
+// 4) 회귀 봉쇄 — git-session 행동 테스트 + MCP↔CLI 계약(#150/#152/#161 앵커).
+must(existsSync('tests/git-session.test.ts'), 'tests/git-session.test.ts 존재(행동 봉쇄)')
+must(existsSync('tests/mcp-cli-contract.test.ts'), 'tests/mcp-cli-contract.test.ts 존재(#150/#152/#161 앵커)')
 
 if (pass) { console.log('✅ goal 48 gate passes'); process.exit(0) }
 console.log('❌ goal 48 gate failed'); process.exit(1)

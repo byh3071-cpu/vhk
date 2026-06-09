@@ -1,11 +1,8 @@
 import chalk from 'chalk'
 import { safeExecFile } from '../lib/exec.js'
+// Goal 48: diff 의 git 질문(stat/ls-files/numstat)은 git-session 공유 SoT 를 쓴다(MCP 와 동일 함수).
+import { okOut, unstagedStat, stagedStat, untrackedFiles, numstatHead } from '../lib/git-session.js'
 import { t } from '../i18n/ko.js'
-
-function gitOut(args: string[]): string {
-  const r = safeExecFile('git', args)
-  return r.ok ? r.out : ''
-}
 
 export interface DiffFile {
   name: string
@@ -72,9 +69,9 @@ export async function diff(): Promise<void> {
     return
   }
 
-  const unstaged = gitOut(['diff', '--stat'])
-  const staged = gitOut(['diff', '--cached', '--stat'])
-  const untracked = gitOut(['ls-files', '--others', '--exclude-standard'])
+  const unstaged = okOut(unstagedStat())
+  const staged = okOut(stagedStat())
+  const untracked = okOut(untrackedFiles())
 
   if (!unstaged && !staged && !untracked) {
     console.log(chalk.green(`\n✅ ${t('diff.noChanges')}`))
@@ -97,7 +94,7 @@ export async function diff(): Promise<void> {
     files.forEach(f => console.log(`   ${chalk.green('+')} ${f}`))
   }
 
-  const numstat = gitOut(['diff', '--numstat', 'HEAD'])
+  const numstat = okOut(numstatHead())
   if (numstat) {
     const { fileCount, totalAdd, totalDel } = summarizeNumstat(numstat)
     console.log(chalk.cyan(`\n${t('diff.summaryHeader')}`))
