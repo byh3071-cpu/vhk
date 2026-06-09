@@ -14,6 +14,8 @@ import {
   REPORT_PATH_REL,
   type GateResult,
 } from '../src/commands/verify.js'
+import { buildLedgerEntry } from '../src/lib/evidence-ledger.js'
+import { MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
 
 function gate(id: GateResult['id'], status: GateResult['status'], exitCode: number | null = 0): GateResult {
   return { id, label: id, status, exitCode, skipped: status === 'skip' }
@@ -202,5 +204,46 @@ describe('verify — CLI (--json / HARD_STOP)', () => {
     expect(fs.existsSync(path.join(d, REPORT_PATH_REL))).toBe(false)
     process.chdir(origCwd) // Windows: cwd 인 디렉터리는 rmSync 불가 → 먼저 빠져나온다
     fs.rmSync(d, { recursive: true, force: true })
+  })
+})
+
+describe('verify — Goal 59: 스캔 불완전 → secure WARN (거짓 PASS 차단)', () => {
+  it('runSecureGate — 파일>512KB(불완전)+severe 0 → warn(scan-incomplete) + exitCode 0(비차단)', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'big.js'), 'x'.repeat(MAX_SCAN_FILE_BYTES + 1), 'utf-8')
+    const g = runSecureGate(d)
+    expect(g.status).toBe('warn')
+    expect(g.exitCode).toBe(0) // 비차단 — 가시화만(거짓 FAIL 도 거짓 PASS 도 아님)
+    expect(g.skipped).toBe(false)
+    expect(g.detail).toMatch(/scan-incomplete/)
+    expect(g.detail).toMatch(/file-size/)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('runSecureGate — 시크릿 없고 완전 스캔이면 여전히 pass (회귀 0)', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'a.js'), 'const x = 1\n', 'utf-8')
+    expect(runSecureGate(d).status).toBe('pass')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('aggregateStatus — warn 게이트 있으면 WARN(fail 없을 때) / fail 있으면 FAIL 우선', () => {
+    const warn: GateResult = { id: 'secure', label: 'secure', status: 'warn', exitCode: 0, skipped: false }
+    expect(aggregateStatus([gate('typecheck', 'pass'), warn])).toBe('WARN')
+    expect(aggregateStatus([gate('test', 'fail', 1), warn])).toBe('FAIL')
+  })
+
+  it('buildReport + buildLedgerEntry — secure warn → report.status WARN → 원장 status WARN 전파', () => {
+    const warn: GateResult = {
+      id: 'secure',
+      label: 'secure scan',
+      status: 'warn',
+      exitCode: 0,
+      skipped: false,
+      detail: '스캔 불완전(scan-incomplete: file-size)',
+    }
+    const r = buildReport([gate('typecheck', 'pass'), warn], '2026-06-10T00:00:00.000Z', '2026-06-10')
+    expect(r.status).toBe('WARN')
+    expect(buildLedgerEntry(r, '1.2.3').status).toBe('WARN')
   })
 })

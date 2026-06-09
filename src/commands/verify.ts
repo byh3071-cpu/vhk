@@ -42,7 +42,9 @@ export const REPORT_PATH_REL = join(REPORT_DIR_REL, 'latest.json')
 /** Goal 14: 사람용 정적 HTML 리포트 경로(같은 증거 latest.json 을 렌더). */
 export const REPORT_HTML_PATH_REL = join(REPORT_DIR_REL, 'latest.html')
 
-export type GateRunStatus = 'pass' | 'fail' | 'skip'
+// Goal 59: 'warn' — 게이트가 돌긴 했으나 결과를 신뢰할 수 없음(예: 시크릿 스캔이 한도로 잘림).
+// fail(차단) 도 pass(거짓 green) 도 아닌 제3상태 → aggregateStatus 가 WARN 으로 올린다.
+export type GateRunStatus = 'pass' | 'fail' | 'skip' | 'warn'
 export type ReportStatus = 'PASS' | 'WARN' | 'FAIL'
 
 export interface GateResult {
@@ -192,19 +194,37 @@ export function runGates(cwd: string): GateResult[] {
   return gates
 }
 
-/** 보안 스캔 게이트 — severe(critical/high) 발견 시 fail. 시크릿 값은 리포트 미포함(count 만). */
+/**
+ * 보안 스캔 게이트 — severe(critical/high) 발견 시 fail. 시크릿 값은 리포트 미포함(count 만).
+ * Goal 59: severe 0 이라도 스캔이 한도로 잘렸으면(truncated) PASS 금지 → warn(scan-incomplete).
+ * 잘린 스캔의 "severe 0" 은 "안전" 이 아니라 "다 못 봤다" 이므로 거짓 green 을 차단한다.
+ */
 export function runSecureGate(cwd: string): GateResult {
   try {
-    const severe = filterSevereFindings(scanProjectForSecrets(cwd).findings)
-    const n = severe.length
-    return {
-      id: 'secure',
-      label: 'secure scan',
-      status: n === 0 ? 'pass' : 'fail',
-      exitCode: n === 0 ? 0 : 1,
-      skipped: false,
-      detail: n === 0 ? undefined : `severe 시크릿 ${n}건 (값 미기록 — vhk secure scan 으로 확인)`,
+    const scan = scanProjectForSecrets(cwd)
+    const n = filterSevereFindings(scan.findings).length
+    if (n > 0) {
+      return {
+        id: 'secure',
+        label: 'secure scan',
+        status: 'fail',
+        exitCode: 1,
+        skipped: false,
+        detail: `severe 시크릿 ${n}건 (값 미기록 — vhk secure scan 으로 확인)`,
+      }
     }
+    if (scan.truncated) {
+      // 비차단(exitCode 0) — 거짓 FAIL 이 아니라 "PASS 보류" 가시화. report.status 는 WARN 으로 올라간다.
+      return {
+        id: 'secure',
+        label: 'secure scan',
+        status: 'warn',
+        exitCode: 0,
+        skipped: false,
+        detail: `스캔 불완전(scan-incomplete: ${scan.truncationReasons.join(', ')}) — severe 0 이나 PASS 보류`,
+      }
+    }
+    return { id: 'secure', label: 'secure scan', status: 'pass', exitCode: 0, skipped: false }
   } catch (e) {
     // 스캔 자체 실패 → fail 로 기록(추측 금지).
     return {
@@ -218,10 +238,11 @@ export function runSecureGate(cwd: string): GateResult {
   }
 }
 
-/** 게이트 결과 → 전체 상태. fail 하나라도 → FAIL, 없고 skip 있으면 → WARN, 전부 pass → PASS. */
+/** 게이트 결과 → 전체 상태. fail 하나라도 → FAIL, 없고 skip/warn 있으면 → WARN, 전부 pass → PASS. */
 export function aggregateStatus(gates: GateResult[]): ReportStatus {
   if (gates.some((g) => g.status === 'fail')) return 'FAIL'
-  if (gates.some((g) => g.status === 'skip')) return 'WARN'
+  // Goal 59: warn(스캔 불완전)도 skip 과 동일하게 WARN 으로 — 거짓 PASS 차단.
+  if (gates.some((g) => g.status === 'skip' || g.status === 'warn')) return 'WARN'
   return 'PASS'
 }
 
@@ -234,6 +255,9 @@ export function buildNextActions(gates: GateResult[]): string[] {
       else actions.push(`${g.label} 실패(종료코드 ${g.exitCode}) — 로그 확인 후 수정`)
     } else if (g.status === 'skip') {
       actions.push(`${g.label} 게이트 없음 — package.json scripts 에 추가하면 검증 커버리지 ↑`)
+    } else if (g.status === 'warn') {
+      // Goal 59: 스캔 불완전 — severe 0 이지만 다 못 봤다. 사유는 게이트 detail 에.
+      actions.push(`${g.label} 불완전 — ${g.detail ?? '한도로 일부 미스캔'}. 한도 완화/대상 축소 후 재검증 권장`)
     }
   }
   if (actions.length === 0) actions.push('검증 통과 — vhk save 로 저장하세요.')
@@ -495,7 +519,8 @@ export async function verify(
   console.log(chalk.dim(`  현재 Safety Mode: ${mode} — ${SAFETY_MODE_DESC[mode]}`))
 
   // 게이트별 한 줄
-  const icon = (s: GateRunStatus) => (s === 'pass' ? chalk.green('✓') : s === 'fail' ? chalk.red('✗') : chalk.yellow('⊘'))
+  const icon = (s: GateRunStatus) =>
+    s === 'pass' ? chalk.green('✓') : s === 'fail' ? chalk.red('✗') : s === 'warn' ? chalk.yellow('⚠') : chalk.yellow('⊘')
   for (const g of report.gates) {
     const tail = g.detail ? chalk.dim(` — ${g.detail}`) : ''
     console.log(`   ${icon(g.status)} ${g.label}${tail}`)

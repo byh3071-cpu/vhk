@@ -24,11 +24,12 @@ const STATUS_COLOR: Record<ReportStatus, { bg: string; fg: string; label: string
   FAIL: { bg: '#dc2626', fg: '#ffffff', label: 'FAIL' },
 }
 
-/** 게이트 상태(pass/fail/skip) → 한글 라벨 + 색상. */
+/** 게이트 상태(pass/fail/skip/warn) → 한글 라벨 + 색상. */
 const GATE_STATUS: Record<GateResult['status'], { color: string; label: string }> = {
   pass: { color: '#16a34a', label: '통과' },
   fail: { color: '#dc2626', label: '실패' },
   skip: { color: '#d97706', label: '건너뜀' },
+  warn: { color: '#d97706', label: '불완전' }, // Goal 59: 스캔이 한도로 잘림(거짓 PASS 보류).
 }
 
 function renderGateRow(g: GateResult): string {

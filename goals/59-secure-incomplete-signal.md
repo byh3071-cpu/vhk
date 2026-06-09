@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 59
 title: secure 불완전 신호(secure-incomplete-signal) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-09
+completed: 2026-06-10
 leads_to: 55
 ---
 
