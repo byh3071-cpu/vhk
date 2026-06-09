@@ -61,7 +61,7 @@
     "url": "git+https://github.com/byh3071-cpu/vhk.git"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

@@ -213,7 +213,7 @@ vhk mcp
 
 ## 요구 사항
 
-- Node.js >= 20
+- Node.js >= 22
 - Git
 - 선택: `gh` CLI (`vhk cloud push/pull` 사용 시)
 - 선택: pnpm/yarn/npm 중 프로젝트 패키지 매니저
