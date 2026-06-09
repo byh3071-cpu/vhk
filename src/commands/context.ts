@@ -38,7 +38,7 @@ function buildTree(dir: string, prefix = '', maxDepth = 3, depth = 0): string[] 
   if (depth >= maxDepth) return []
   const lines: string[] = []
   try {
-    const entries = readdirSync(dir) as string[]
+    const entries = readdirSync(dir)
     const filtered = entries.filter(
       (e) => (!e.startsWith('.') || e === '.env.example') && !IGNORE_DIRS.has(e)
     )

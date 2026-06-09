@@ -32,7 +32,7 @@ import { audit } from './commands/audit.js'
 import { migrate } from './commands/migrate.js'
 import { update } from './commands/update.js'
 import { context, contextShow } from './commands/context.js'
-import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, type MemBucket } from './commands/memory.js'
+import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate } from './commands/memory.js'
 import { brief } from './commands/brief.js'
 import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
@@ -600,7 +600,7 @@ memoryCmd
   .option('--all', '보관(archived)·해결(resolved) 포함')
   .description('저장된 기억 목록 (기본 활성만)')
   .action(async (opts: { type?: string; all?: boolean }) => {
-    const type = (opts.type === 'decision' || opts.type === 'failure' || opts.type === 'success' ? opts.type : undefined) as MemBucket | undefined
+    const type = (opts.type === 'decision' || opts.type === 'failure' || opts.type === 'success' ? opts.type : undefined)
     await memoryList({ type, all: opts.all })
   })
 

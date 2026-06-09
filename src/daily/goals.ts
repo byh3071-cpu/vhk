@@ -1,5 +1,5 @@
 import type { ParsedGoal, GoalStatus } from '../lib/goal-frontmatter.js'
-import type { GoalState, GoalStatusLite } from './types.js'
+import type { GoalState } from './types.js'
 
 // 파일명에서 slug 추출: 'goals/32-standup.md' → 'standup'.
 function slugFromPath(filePath: string): string {
@@ -11,7 +11,7 @@ function toState(g: ParsedGoal): GoalState {
   return {
     id: g.frontmatter.id as number,
     slug: slugFromPath(g.filePath),
-    status: (g.frontmatter.status ?? 'NOT_STARTED') as GoalStatusLite,
+    status: (g.frontmatter.status ?? 'NOT_STARTED'),
   }
 }
 
