@@ -1,0 +1,10 @@
+$ vitest --run
+
+ RUN  v4.1.7 C:/Users/user/Desktop/01_AI_projects/AI_solo_studio/vhk-p2
+
+
+ Test Files  137 passed (137)
+      Tests  1385 passed (1385)
+   Start at  10:35:57
+   Duration  12.42s (transform 8.49s, setup 0ms, import 14.85s, tests 53.75s, environment 22ms)
+

@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { ko } from '../i18n/ko.js'
+import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { safeExecFile } from '../lib/exec.js'
@@ -36,7 +37,7 @@ export interface PreflightCliOptions {
 // 치명(critical) 실패 1개라도 있으면 exit 1 로 차단(--force 우회 없음).
 export async function preflight(opts: PreflightCliOptions = {}): Promise<void> {
   if (!ensureNotHardStopped('preflight')) return // VHK-020
-  console.log(chalk.bold(`\n${ko.preflight.title}\n`))
+  log.bold(`\n${ko.preflight.title}\n`)
 
   const cwd = process.cwd()
 
@@ -88,13 +89,13 @@ export async function preflight(opts: PreflightCliOptions = {}): Promise<void> {
   )
 
   for (const c of checks) {
-    console.log(`  ${statusIcon(c)} ${c.name.padEnd(14)} ${chalk.dim(c.detail)}`)
+    log.plain(`  ${statusIcon(c)} ${c.name.padEnd(14)} ${chalk.dim(c.detail)}`)
   }
 
   const s = summarizePreflight(checks)
-  console.log('')
+  log.plain('')
   if (s.blocked) {
-    console.log(chalk.red.bold(`  ${ko.preflight.resultBlocked(s.failed)}`))
+    log.plain(chalk.red.bold(`  ${ko.preflight.resultBlocked(s.failed)}`))
     printNextStep({
       message: ko.preflight.nextBlocked,
       command: 'vhk preflight',
@@ -102,7 +103,7 @@ export async function preflight(opts: PreflightCliOptions = {}): Promise<void> {
     })
     process.exitCode = 1
   } else {
-    console.log(chalk.green.bold(`  ${ko.preflight.resultPass(s.warned)}`))
+    log.plain(chalk.green.bold(`  ${ko.preflight.resultPass(s.warned)}`))
     printNextStep({
       message: ko.preflight.nextPass,
       command: opts.publish ? 'vhk publish' : 'vhk save',
