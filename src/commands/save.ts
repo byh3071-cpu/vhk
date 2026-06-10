@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import chalk from 'chalk'
 import ora from 'ora'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
 import { parsePorcelainLines } from '../lib/git-porcelain.js'
 import {
@@ -71,7 +71,7 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
       console.log(chalk.dim(`   ... 외 ${severe.length - 5}건 (vhk 보안 scan)`))
     }
     const proceed = await promptOrDefault(
-      async () => (await inquirer.prompt<{ proceed: boolean }>([{
+      async () => (await prompt<{ proceed: boolean }>([{
         type: 'confirm',
         name: 'proceed',
         message: t('save.secretsConfirm'),
@@ -103,7 +103,7 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
   const message = opts.message?.trim()
     ? opts.message.trim()
     : await promptOrDefault(
-        async () => (await inquirer.prompt<{ message: string }>([{
+        async () => (await prompt<{ message: string }>([{
           type: 'input',
           name: 'message',
           message: t('save.commitMessage'),

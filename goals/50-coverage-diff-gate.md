@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 50
 title: 커버리지 측정 + diff-coverage 게이트 — 미검증 경로 가시화 — P1
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P1
 created: 2026-06-08
 leads_to: 테스트 4→5 · 1162 pass에 분모 부여
@@ -27,11 +27,13 @@ leads_to: 테스트 4→5 · 1162 pass에 분모 부여
 - `pnpm test:run --coverage`로 커버리지 리포트 생성, CI에 노출. 신규분 게이트 동작(임계 강제 아님).
 
 ## Completion Check
-- [ ] @vitest/coverage-v8 추가 + vitest.config coverage 블록
-- [ ] 커버리지 리포트 CI Summary 노출
-- [ ] diff-coverage(신규분 차단) 도입
-- [ ] 공통 게이트 통과, 회귀 0
-- [ ] check-goal-50.mjs 통과
+- [x] @vitest/coverage-v8 추가 + vitest.config coverage 블록 (PR1)
+- [ ] 커버리지 리포트 CI Summary 노출 — **PR2/CI**
+- [x] diff-coverage **측정** 도입 (`vhk diff-cover`, 자문형·차단 0, PR1) — **차단은 PR2**(RFC 0050 §5 승격 시)
+- [x] 공통 게이트 통과, 회귀 0 (PR1)
+- [ ] check-goal-50.mjs 통과 — **PR2**(게이트 스크립트는 차단 도입과 함께)
+
+> **PR 분할(RFC 0050)**: PR1 = 측정(coverage 인프라 + 순수 3모듈 + `vhk diff-cover` 자문). 차단/review 통합/CI는 PR1 도그푸딩 실측이 정당화하면 PR2(measure-first). 카드의 "신규분 차단" 원문은 PR2로 미룸.
 
 ## Mandatory Reading
 - vitest.config.ts · package.json(devDeps) · .github/workflows/ci.yml

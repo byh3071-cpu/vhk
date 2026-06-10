@@ -86,11 +86,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-08
+**마지막 갱신:** 2026-06-10
 - **버전:** v2.5.1 (발행 완료) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 1162 pass · **MCP tools:** 29
-- **Phase:** v2.5.1 발행 완료 (npm latest=2.5.1) — 생산성 5종(Phase 2~3) + 증거 체인(goal 44 SHA·45 ledger) + self-gate(goal 28 testmap·43 drift·46 git-access 단일화) + README/npm 갱신.
+- **테스트:** 1385 pass(main) · **MCP tools:** 29 — 사실값은 package.json·CHANGELOG
+- **Phase:** measure-first 2종. recall(RFC 0049) #232·#233. diff-coverage(RFC 0050·Goal 50) PR1 #236+파서픽스 #239 — `vhk diff-cover` 측정(자문·차단 0). 둘 다 실측 누적 후 게이트/ML 결정. 추가: 콜드스타트 −37%(#240 inquirer lazy).
 - **블로커:** 없음
-- **진행 중(미발행):** 없음
-- **다음 할 일:** 미완 goal(silent-fallback 린트 Goal 25/27·#128, SEO 묶음 21~26) + 열린 이슈 10개 트리아지(불확실 4: #157·#155·#171·#148 해결확인 후 close).
+- **진행 중(미발행):** diff-coverage PR1 + 콜드스타트(#240) main 머지(미발행). PR2(review/CI 통합)는 ≥5 diff 실측 대기.
+- **다음 할 일:** measure-first 실측 누적 — `vhk diff-cover` ≥5 실제 diff(RFC 0050 §5) + `vhk recall` 실사용→eval(RFC 0049 §5). 그 후 PR2/2차ML 결정. 병행: 미완 goal(린트 25/27·#128, SEO 21~26). 열린 이슈 = #38 1개(.vhk 규격 의견수렴, 코딩 아님).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유

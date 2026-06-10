@@ -2,7 +2,7 @@ import { Command, Help } from 'commander'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from './lib/prompt.js'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
 import { getVhkVersion } from './lib/version.js'
@@ -18,6 +18,7 @@ import { save } from './commands/save.js'
 import { undo } from './commands/undo.js'
 import { restore } from './commands/restore.js'
 import { diff } from './commands/diff.js'
+import { diffCover } from './commands/diff-cover.js'
 import { status } from './commands/status.js'
 import { startMcpServer } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
@@ -73,7 +74,7 @@ async function guardCli(
       approved,
       target,
       confirm: async () => {
-        const { ok } = await inquirer.prompt<{ ok: boolean }>([{
+        const { ok } = await prompt<{ ok: boolean }>([{
           type: 'confirm',
           name: 'ok',
           message: `⚠️ 위험 작업(${action})을 실행할까요?`,
@@ -135,6 +136,7 @@ const KO_ALIASES: Record<string, string> = {
   restore: '복원',
   status: '상태',
   diff: '변경',
+  'diff-cover': '커버리지',
   deploy: '배포',
   env: '환경변수',
   'env-check': '환경변수점검',
@@ -343,6 +345,12 @@ program
   .alias('차이')
   .description('Git 변경사항 한국어 요약 (staged / unstaged / 새 파일)')
   .action(diff)
+
+program
+  .command('diff-cover')
+  .alias('커버리지')
+  .description('이번 변경(HEAD 대비)이 테스트로 커버됐는지 측정 (자문형·차단 없음)')
+  .action(async () => { await diffCover() })
 
 program
   .command('mcp')
@@ -892,7 +900,7 @@ program.action(async () => {
     { name: '⏸️  작업 중단 정리 (handoff)', value: 'work-handoff' },
   ]
 
-  const { choice } = await inquirer.prompt<{ choice: string }>([{
+  const { choice } = await prompt<{ choice: string }>([{
     type: 'list',
     name: 'choice',
     message: '뭘 도와드릴까요?',

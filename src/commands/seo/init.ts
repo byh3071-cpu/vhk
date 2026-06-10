@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../../lib/prompt.js'
 import { ko } from '../../i18n/ko.js'
 import { isInteractive, TTY_REQUIRED_EXIT_CODE } from '../../lib/interactive.js'
 import {
@@ -42,7 +42,7 @@ export async function seoInit(opts: SeoInitOptions = {}, root: string = process.
       process.exitCode = TTY_REQUIRED_EXIT_CODE
       return
     }
-    const ans = await inquirer.prompt<{ domain: string }>([
+    const ans = await prompt<{ domain: string }>([
       { type: 'input', name: 'domain', message: ko.seo.init.domainPrompt },
     ])
     domain = ans.domain?.trim()

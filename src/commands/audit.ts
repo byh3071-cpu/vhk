@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -144,7 +144,7 @@ export async function audit(autoFix = false): Promise<void> {
     ? true
     : aggregate.critical > 0 || aggregate.high > 0
       ? (
-          await inquirer.prompt<{ shouldFix: boolean }>([
+          await prompt<{ shouldFix: boolean }>([
             {
               type: 'confirm',
               name: 'shouldFix',

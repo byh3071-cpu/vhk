@@ -35,3 +35,6 @@ dist/
 
 # Serena MCP 로컬 캐시/프로젝트 메모 — 머신별 툴 산출물, 커밋 금지
 .serena/
+
+# coverage 리포트 — 파생 산출물(vitest --coverage), 버려도 됨 (Goal 50 / RFC 0050)
+coverage/
