@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from './prompt.js'
 import { routeNaturalLanguage, extractNotionUrl, type NlpRoute, type NlpCommand } from './nlp-router.js'
 import { ko } from '../i18n/ko.js'
 import { gate } from '../commands/gate.js'
@@ -179,7 +179,7 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
   console.log(chalk.cyan(`  → ${route.explanation}`))
 
   if (requiresConfirmation(route)) {
-    const { confirm } = await inquirer.prompt<{ confirm: boolean }>([{
+    const { confirm } = await prompt<{ confirm: boolean }>([{
       type: 'confirm',
       name: 'confirm',
       message: `${route.explanation} — ${ko.nlp.matched}`,

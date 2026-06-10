@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { localDate } from '../lib/date.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -605,7 +605,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
     promptOrDefault(
       async () => {
         for (const d of drifted) console.log(chalk.yellow(`  ${ko.sync.driftWarn(d.path)}`))
-        const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+        const { confirm } = await prompt<{ confirm: boolean }>([
           {
             type: 'confirm',
             name: 'confirm',

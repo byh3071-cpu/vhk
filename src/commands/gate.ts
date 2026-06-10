@@ -1,4 +1,4 @@
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import chalk from 'chalk'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -44,7 +44,7 @@ export async function gate() {
 
   console.log(chalk.bold(`\n${ko.gate.title}\n`))
 
-  const { mode } = await inquirer.prompt<{ mode: GateMode }>([{
+  const { mode } = await prompt<{ mode: GateMode }>([{
     type: 'list',
     name: 'mode',
     message: ko.gate.modePrompt,
@@ -56,7 +56,7 @@ export async function gate() {
   }])
 
   if (mode === 'skip') {
-    const { source } = await inquirer.prompt<{ source: string }>([{
+    const { source } = await prompt<{ source: string }>([{
       type: 'input',
       name: 'source',
       message: ko.gate.skipSourcePrompt,
@@ -77,17 +77,17 @@ export async function gate() {
   console.log(chalk.dim(`\n${ko.gate.welcome}\n`))
 
   console.log(chalk.dim(`  ${ko.gate.ideaHint}`))
-  const { idea } = await inquirer.prompt<{ idea: string }>([
+  const { idea } = await prompt<{ idea: string }>([
     { type: 'input', name: 'idea', message: ko.gate.idea },
   ])
 
   console.log(chalk.dim(`  ${ko.gate.painPointHint}`))
-  const { painPoint } = await inquirer.prompt<{ painPoint: string }>([
+  const { painPoint } = await prompt<{ painPoint: string }>([
     { type: 'input', name: 'painPoint', message: ko.gate.painPoint },
   ])
 
   console.log(chalk.dim(`  ${ko.gate.edgeHint}`))
-  const { edge } = await inquirer.prompt<{ edge: string }>([
+  const { edge } = await prompt<{ edge: string }>([
     { type: 'input', name: 'edge', message: ko.gate.edge },
   ])
 
@@ -101,13 +101,13 @@ export async function gate() {
     const q = questions[i]
     if (q.hint) console.log(chalk.dim(`${ko.gate.hintPrefix} ${q.hint}`))
 
-    const { answer } = await inquirer.prompt<{ answer: string }>([{
+    const { answer } = await prompt<{ answer: string }>([{
       type: 'input',
       name: 'answer',
       message: `[${i + 1}/${total}] ${q.stage}: ${q.question}`,
     }])
 
-    const { status } = await inquirer.prompt<{ status: GateStatus }>([{
+    const { status } = await prompt<{ status: GateStatus }>([{
       type: 'list',
       name: 'status',
       message: ko.gate.verdictPrompt(q.failIf),

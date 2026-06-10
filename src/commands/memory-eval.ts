@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { readMemory, recallMemories, type FailEntry } from './memory.js'
 import { scoreEval, RECALL_EVAL_THRESHOLD, type EvalLabel } from '../lib/recall-eval.js'
 import { readRecallLog } from '../lib/recall-log.js'
@@ -90,7 +90,7 @@ async function memoryEvalInit(): Promise<void> {
       continue
     }
     hits.forEach((h, i) => console.log(`   [${i + 1}] ${entryText(h.entry)}`))
-    const { ans } = await inquirer.prompt<{ ans: string }>([
+    const { ans } = await prompt<{ ans: string }>([
       { type: 'input', name: 'ans', message: '정답 기억 번호 (쉼표 구분, 없으면 엔터로 skip):' },
     ])
     const ids = String(ans || '')

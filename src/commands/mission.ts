@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { atomicWriteFile } from '../lib/atomic-write.js'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { simpleGit } from 'simple-git'
 import { readJsonFile } from '../lib/read-json.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
@@ -134,7 +134,7 @@ export async function missionSet(opts: {
   let objective = opts.objective ?? existing?.objective ?? ''
   if (!objective) {
     if (isInteractive(opts)) {
-      const ans = await inquirer.prompt<{ obj: string }>([
+      const ans = await prompt<{ obj: string }>([
         { type: 'input', name: 'obj', message: '미션 목표(objective)는?' },
       ])
       objective = ans.obj.trim()

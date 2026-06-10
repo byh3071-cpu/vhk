@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { safeExecFile, safeExecFileStream } from '../lib/exec.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { t } from '../i18n/ko.js'
@@ -132,7 +132,7 @@ export async function deploy(): Promise<void> {
     config = target.config
     console.log(chalk.cyan(`\n🔍 감지된 플랫폼: ${config.name}`))
   } else {
-    const { selected } = await inquirer.prompt<{ selected: Platform }>([
+    const { selected } = await prompt<{ selected: Platform }>([
       {
         type: 'list',
         name: 'selected',
@@ -157,7 +157,7 @@ export async function deploy(): Promise<void> {
     return
   }
 
-  const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+  const { confirm } = await prompt<{ confirm: boolean }>([
     {
       type: 'confirm',
       name: 'confirm',

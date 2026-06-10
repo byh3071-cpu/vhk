@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { simpleGit } from 'simple-git'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -76,7 +76,7 @@ export async function start(options: StartOptions = {}): Promise<void> {
     console.log(chalk.yellow('⚠️  이미 VHK 설치 흔적이 감지됐어요:'))
     for (const f of footprint) console.log(chalk.dim(`   - ${f}`))
     console.log(chalk.dim('   계속 진행하면 일부 파일(`.cursor/mcp.json`, `.vhk/context.md`)은 갱신·덮어쓰기됩니다.'))
-    const { proceedExisting } = await inquirer.prompt<{ proceedExisting: boolean }>([{
+    const { proceedExisting } = await prompt<{ proceedExisting: boolean }>([{
       type: 'confirm',
       name: 'proceedExisting',
       message: '그래도 다시 마법사를 진행할까요?',
@@ -87,7 +87,7 @@ export async function start(options: StartOptions = {}): Promise<void> {
       return
     }
   } else if (!options.yes) {
-    const { proceed } = await inquirer.prompt<{ proceed: boolean }>([{
+    const { proceed } = await prompt<{ proceed: boolean }>([{
       type: 'confirm',
       name: 'proceed',
       message: ko.start.confirmStart,

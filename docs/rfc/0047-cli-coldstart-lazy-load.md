@@ -1,11 +1,13 @@
 ---
 rfc: 47
 title: "CLI 콜드스타트 단축 — 명령 지연 로딩(dynamic import) + 번들 코드 분할"
-status: Deferred
+status: In Progress
 author: VHK
 created: 2026-06-08
 depends_on: "index.ts 를 건드리는 모든 선행 작업(예: goal 21 seo-init 등록, 명령 추가 이슈) 머지 완료"
 ---
+
+> **구현 진행(2026-06-10):** 측정으로 단일 최대 레버 = **inquirer(~212ms net = 콜드스타트 절반)** 확정 → `lib/prompt.ts` lazy 래퍼로 먼저 처리. **vhk --version 512→323ms (−37%)**. 22파일 코드모드 + 회귀 가드(`tests/check-inquirer-lazy.test.ts`). 나머지(명령 60+ lazy + tsup splitting)는 잔여 dep 가 12~33ms로 ROI 낮아 보류 — §9 참조.
 
 # RFC 0047 — CLI 콜드스타트 지연 로딩
 
@@ -75,3 +77,21 @@ VHK(얇은 git/파일 래퍼, 유저가 이미 Node 보유)에는 그 4대 이�
 - 측정에 Windows 오버헤드(Defender의 node spawn 스캔, `.ps1` 래퍼) 섞임. 절대 수치는 OS별 상이하나 **비율(VHK로드 ≫ Node바닥)은 OS 불문 유지** → 결론 불변.
 - splitting 활성 시 dist 산출물이 단일파일→다중청크. `bin` 진입점(dist/index.js·dist/mcp/index.js)과 청크 경로 해석이 깨지지 않는지 확인 필요.
 - `--help` 전체 출력은 모든 명령 메타가 필요 → help 경로는 지연 이득이 작을 수 있음(명령 *실행*은 이득 큼).
+
+## 9. 구현 결과 (2026-06-10)
+
+**측정이 전략을 바꿈(measure-first).** dep별 import 비용 실측:
+
+| dep | net import |
+|---|---|
+| **inquirer** | **212ms** ← 단일 최대(전체 434ms의 절반) |
+| handlebars | 33ms |
+| simple-git | 31ms |
+| @notionhq/client | 20ms |
+| chalk / commander | 14 / 12ms |
+
+→ "명령 60+ 전부 lazy" 대신 **inquirer 하나만 lazy** 가 80/20. `lib/prompt.ts`(`await import('inquirer')`) 래퍼 + 22파일 `inquirer.prompt`→`prompt` 코드모드. 모든 호출이 async라 무위험. splitting 불필요(ESM dynamic import 자체가 모듈 init 지연).
+
+**결과:** `vhk --version` 512→**323ms (−37%)** · `vhk status` 739→610ms · 전체 1383 테스트 green(inquirer mock 정상, 테스트 import도 23s→12s). 회귀 가드 `tests/check-inquirer-lazy.test.ts`.
+
+**보류(다음 레버는 작음):** 명령 모듈 60+ lazy + tsup splitting 으로 잔여 ~297ms 추가 공략 가능하나, 다음 dep 가 12~33ms 단위라 inquirer 만큼 극적이지 않고 index.ts 통째 재작성(고위험)이 필요 → 실수요/추가 실측이 정당화할 때.

@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { listBackups, restoreBackup } from '../lib/backup.js'
@@ -30,7 +30,7 @@ export async function restore(id?: string): Promise<void> {
       console.log(chalk.yellow(`\n${ko.restore.nonTtyHint}`))
       return
     }
-    const { picked } = await inquirer.prompt<{ picked: string }>([
+    const { picked } = await prompt<{ picked: string }>([
       {
         type: 'list',
         name: 'picked',

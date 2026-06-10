@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import {
   countLocalCommits,
   getGitRoot,
@@ -75,7 +75,7 @@ export async function undo(): Promise<void> {
   })
 
   const maxUndo = commits.length
-  const { count } = await inquirer.prompt<{ count: number }>([{
+  const { count } = await prompt<{ count: number }>([{
     type: 'number',
     name: 'count',
     message: t('undo.howMany'),
@@ -104,7 +104,7 @@ export async function undo(): Promise<void> {
     }
   }
 
-  const { confirm } = await inquirer.prompt<{ confirm: boolean }>([{
+  const { confirm } = await prompt<{ confirm: boolean }>([{
     type: 'confirm',
     name: 'confirm',
     message: risky ? t('undo.confirmRisky', undoCount) : t('undo.confirmMessage'),

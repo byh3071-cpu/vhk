@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, renameSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureInteractive } from '../lib/interactive.js'
@@ -346,14 +346,14 @@ export async function evolveApply(idStr: string): Promise<void> {
   console.log(chalk.cyan('\n추가될 룰 초안:'))
   console.log(chalk.white(`  ${item.draft}`))
 
-  const { editedDraft } = await inquirer.prompt<{ editedDraft: string }>([{
+  const { editedDraft } = await prompt<{ editedDraft: string }>([{
     type: 'input',
     name: 'editedDraft',
     message: '룰 문구 수정 (Enter = 그대로):',
     default: item.draft,
   }])
 
-  const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([{
+  const { confirmed } = await prompt<{ confirmed: boolean }>([{
     type: 'confirm',
     name: 'confirmed',
     message: `RULES.md에 이 룰을 추가할까요?\n  ${editedDraft}`,
@@ -478,7 +478,7 @@ export async function evolveUndo(): Promise<void> {
   console.log(chalk.dim(`  되돌릴 항목: [${last.id}] ${last.draft}`))
 
   // 4. 확인 프롬프트
-  const { confirmed } = await inquirer.prompt<{ confirmed: boolean }>([{
+  const { confirmed } = await prompt<{ confirmed: boolean }>([{
     type: 'confirm',
     name: 'confirmed',
     message: 'RULES.md를 .bak으로 복원하고 vhk sync를 재실행할까요?',
