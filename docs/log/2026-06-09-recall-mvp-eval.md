@@ -45,3 +45,26 @@
 1. **제안 3 diff-aware 검증**(최우선·측정블로커 0): git diff↔coverage 교차 TIA로 "이번 변경 테스트 커버" 게이트. review.ts 자백한 거짓완료 80% 구멍 메움. ML0·결정적. recall처럼 설계→TDD→PR.
 2. **recall 실측**: 며칠 `vhk recall` 실사용 → `--init` 실쿼리 라벨 → 진짜 Recall@5. <70 반복이면 2차 ML(bge-m3, 결정 잠금됨).
 3. **제안 2 결정그래프 = 보류**(decisions=0 — 그래프 그릴 결정 없음).
+
+---
+
+## 후속 (2026-06-10) — eval 재현 + 기억 N 증가 robustness
+
+> measure-first 점검(diff-coverage §5 실측과 같은 세션). recall eval을 **현재 기억 상태로 재실행**해 6/9 수치 재현성·N 증가 영향 확인.
+
+- **기억 N: 18 → 34** (failures 18 그대로 + patterns 13 + decisions 2 + successes 1). 6/9엔 failures 18뿐이었음.
+- **`vhk memory eval` 재실행 → Recall@5 56% · MRR 0.56 — 6/9과 정확히 동일.** 10/18 hit(전부 rank 1), 8/18 miss.
+- **= N 16개 증가에 robust**: 신규 patterns/decisions/successes가 정답 failure를 top-5에서 밀어내지 않음(키워드+태그 점수가 관련 실패를 안정적으로 1위 유지). full-scan 키워드가 N=34에서도 흔들림 없음.
+- **미스 8건 = 6/9과 동일 단일 패턴** — KR↔EN/동의어 어휘격차(윈도우↔Windows·박아넣다↔hardcode·시간초과↔timeout·머리말↔frontmatter·형변환↔cast·바이너리·자연어 라우터·도구 등록). multilingual 임베딩 영역.
+
+### 정직한 한계 (§5 미충족 — 사람 게이트)
+
+- eval set(`.vhk/eval/recall-eval.json` 18라벨)·recall-log(5쿼리) **둘 다 6/9 합성 그대로 · 신규 실사용 0**. 재현은 측정 안정성만 입증, **합성 단계 못 벗어남**.
+- §5 최종 판정 = **사용자 실쿼리**(`vhk recall` 며칠 실사용 → `vhk memory eval --init` 라벨링). AI가 쿼리를 더 지어내면 또 합성(6/9이 명시한 함정) → **안 함**.
+- **잠정 종합**: 합성 56% 안정·미스 단일패턴(어휘격차) → Kill-gate 신호 일관. ML(multilingual 임베딩) **조건부 정당**하나, *실쿼리 Recall@5 <70 반복* 확인 전까지 도입 보류(RFC 0049 §3 Kill-gate 유지).
+
+### measure-first 2종 종합 (diff-coverage + recall)
+
+- **diff-coverage(RFC 0050 §5)**: 실로직 미검증 2/5(명령부 국한) → 승격 임계 미달. 차단 대신 advisory 경고형으로 좁힘(PR2).
+- **recall(RFC 0049 §5)**: 합성 56% 안정, 실쿼리 대기. ML 조건부 정당·도입 보류.
+- **공통 결론**: 둘 다 "구멍 실재하나 임계 미달/실사용 미축적" → **무리한 승격/ML 도입 안 함**. 각자 실사용 데이터 더 모은 뒤 재판정. measure-first가 또 조기 결정을 막음.
