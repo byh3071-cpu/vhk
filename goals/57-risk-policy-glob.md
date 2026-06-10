@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 57
 title: 위험 정책 글롭 확장·통합(risk-policy-glob) — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-09
+completed: 2026-06-10
 leads_to: 60
 ---
 
@@ -24,7 +25,9 @@ leads_to: 60
 - (2) 분산 결정점(HARD_STOP/preflight/secure)이 risk-policy를 참조하도록 일원화 — 중복 정책 상수 제거.
 - (3) 완전성 가드 테스트(현 `NL_GUARDED_ACTIONS` ↔ dispatch 교차검증 패턴)를 글롭 정책으로 확장.
 
-## 수용 기준
+## 적용 범위 (정직 표기 — 적대검증 후 B' 반영)
+- 정책층(`isRiskyTarget`+`RISKY_TARGET_PATTERNS`+`resolveGuard(target?)`)·plumbing(`GuardDeps.target`→`runGuarded`→행동원장 `target`) 완성.
+- **production 배선**: `guardCli`가 `target` 수용, `env-write`가 `.env` 전달(plumbing 실작동 + 행동원장 `target` 채움). 단 vhk엔 "저위험 액션 + AI 임의 위험 경로" 명령이 없어(전부 고정경로/이미 high-risk, sync는 정상 생성기) **글롭이 가드 *결정*을 바꾸는 지점은 미존재** → 그 escalation 데모는 향후 저위험 파일편집 명령 도입 시 활성화(후속).
 - 새 위험 경로(예: `AGENTS.md` 자동수정 시도)가 CLI=confirm / MCP=preview로 차단됨(테스트).
 - HARD_STOP/preflight/secure의 중복 정책 상수 0건(grep), risk-policy 단일 참조.
 - 기존 9종 액션 가드 회귀 0(기존 테스트 green 유지).

@@ -37,6 +37,10 @@ version: v1.1
    — Goal 28: `vhk testmap` 으로 변경 기능 소스(src/commands·src/lib) ↔ 테스트 매핑을 점검한다.
    기본은 경고만, `VHK_TEST_FIRST=1` 일 때만 HARD 차단(과안정화 경계 — 실사용 신호 전 강제 안 함).
 5. **README.md / COMMANDS.md** 명령어 표에 신규 명령어가 반영됨.
+6. **완료(DONE) 표시된 goal 은 비스텁 게이트를 가진다** (Goal 60, M.4). status `DONE`
+   인데 `check-goal-<id>.mjs` 가 미싱이거나 빈 스캐폴드(`고유 검증 (직접 추가)` 마커만)면
+   "헛통과 DONE" — `check-meta` 가 FAIL. `NOT_STARTED`/`IN_PROGRESS`/`BLOCKED` 은 제외
+   (미구현/진행 중/미주장 — 스텁 게이트 정상. IN_PROGRESS 완화: 머지 시 in-flight goal 오탐 방지).
 
 각 condition 은 source-of-truth 로부터 enumerate 된다:
 
@@ -45,6 +49,7 @@ version: v1.1
 | typecheck | `tsconfig.json` | `pnpm exec tsc --noEmit` |
 | tests | `vitest` 자동 탐색 (`tests/**`) | `pnpm test:run` |
 | build | `tsup.config.ts` | `pnpm build` |
+| 완료-스텁 0 | `goals/*.md` ↔ `scripts/check-goal-*.mjs` | `findCompletedStubGates` (`scripts/_lib.mjs`) |
 
 ## Env flags
 

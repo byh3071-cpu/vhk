@@ -45,32 +45,54 @@ export type ProjectSecretScan = {
   findings: SecretFinding[]
   scannedFiles: number
   truncated: boolean
+  /**
+   * Goal 59: 스캔이 불완전해진 사유(중복 제거). 빈 배열 = 완전 스캔.
+   * 'findings-cap'(발견 200건 한도) · 'line-length'(4000자 초과 줄 스킵) · 'file-size'(512KB 초과 파일 스킵).
+   */
+  truncationReasons: string[]
 }
 
 export function scanProjectForSecrets(cwd: string): ProjectSecretScan {
   const findings: SecretFinding[] = []
   let scannedFiles = 0
-  let truncated = false
+  // findings 한도 도달 → 더 모으지 않음(작업량 bound). 불완전 '사유'와는 분리한다 —
+  // 사유로 조기 return 하면(예: 큰 파일 1개 만나고 truncated=true) 뒤 파일 스캔이 끊겨 severe 누락(false-negative).
+  let cappedFindings = false
+  const reasons = new Set<string>()
 
-  walkProjectFiles(cwd, (filePath, relPath) => {
-    scannedFiles++
-    const content = fs.readFileSync(filePath, 'utf-8')
-    const lines = content.split('\n')
+  walkProjectFiles(
+    cwd,
+    (filePath, relPath) => {
+      scannedFiles++
+      const content = fs.readFileSync(filePath, 'utf-8')
+      const lines = content.split('\n')
 
-    lines.forEach((line, idx) => {
-      if (truncated) return
-      const lineFindings = findSecretsInLine(line, relPath, idx + 1)
-      for (const f of lineFindings) {
-        findings.push(f)
-        if (findings.length >= MAX_SECRET_FINDINGS) {
-          truncated = true
+      lines.forEach((line, idx) => {
+        if (cappedFindings) return
+        // Goal 59: 4000자 초과 줄은 findSecretsInLine 가 조용히 스킵하던 사각 → 사유로 노출(스캔은 계속).
+        if (line.length > MAX_LINE_CHARS) {
+          reasons.add('line-length')
           return
         }
-      }
-    })
-  })
+        const lineFindings = findSecretsInLine(line, relPath, idx + 1)
+        for (const f of lineFindings) {
+          findings.push(f)
+          if (findings.length >= MAX_SECRET_FINDINGS) {
+            cappedFindings = true
+            reasons.add('findings-cap')
+            return
+          }
+        }
+      })
+    },
+    undefined,
+    // Goal 59: 512KB 초과로 walk 가 스킵한 파일 → 불완전 신호.
+    () => {
+      reasons.add('file-size')
+    }
+  )
 
-  return { findings, scannedFiles, truncated }
+  return { findings, scannedFiles, truncated: reasons.size > 0, truncationReasons: [...reasons] }
 }
 
 export function filterSevereFindings(findings: SecretFinding[]): SecretFinding[] {

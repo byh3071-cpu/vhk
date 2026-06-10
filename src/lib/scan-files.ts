@@ -44,7 +44,9 @@ export function isScannableFileName(fileName: string): boolean {
 export function walkProjectFiles(
   rootDir: string,
   onFile: (absolutePath: string, relativePath: string) => void,
-  ig: Ignore = loadGitignore(rootDir)
+  ig: Ignore = loadGitignore(rootDir),
+  // Goal 59: 512KB 초과로 스킵된 파일을 호출부에 신호(불완전 스캔 가시화). optional — 기존 호출부 무영향.
+  onSkippedLargeFile?: (relativePath: string) => void
 ) {
   function walk(dir: string) {
     let entries: fs.Dirent[]
@@ -74,7 +76,10 @@ export function walkProjectFiles(
       } catch {
         continue
       }
-      if (size > MAX_SCAN_FILE_BYTES) continue
+      if (size > MAX_SCAN_FILE_BYTES) {
+        onSkippedLargeFile?.(rel) // Goal 59: 조용히 스킵하던 대용량 파일을 불완전 신호로 노출.
+        continue
+      }
 
       onFile(fullPath, rel)
     }

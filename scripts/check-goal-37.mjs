@@ -52,9 +52,16 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 37 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 37 고유 검증 (원자적 쓰기 헬퍼 + ref/review/verify/sync 적용) ─────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const aw37 = read('src/lib/atomic-write.ts') ?? ''
+must(/export function atomicWriteFile/.test(aw37), 'atomic-write.ts atomicWriteFile export')
+must(/renameSync\(/.test(aw37), 'atomicWriteFile 가 renameSync(원자적 교체) 사용')
+must(/process\.pid/.test(aw37), 'temp 명에 process.pid(동시 실행 충돌 방지)')
+for (const f of ['ref', 'review', 'verify', 'sync']) {
+  must(/atomicWriteFile\(/.test(read(`src/commands/${f}.ts`) ?? ''), `${f}.ts 가 atomicWriteFile 적용`)
+}
+must(existsSync('tests/atomic-write.test.ts'), 'tests/atomic-write.test.ts 단위 봉쇄')
 
 if (pass) { console.log('✅ goal 37 gate passes'); process.exit(0) }
 console.log('❌ goal 37 gate failed'); process.exit(1)

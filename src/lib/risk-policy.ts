@@ -52,13 +52,40 @@ export function isHighRisk(action: string): action is HighRiskAction {
 }
 
 /**
- * 액션·모드·채널로 가드 결정.
- * - 저위험(+strict 추가대상 아님) → allow
+ * Goal 57: 파일·경로 글롭 위험 차원 — 액션 문자열(9종)만으로는 못 잡는 "위험 대상".
+ * 자동수정/삭제가 위험한 대상을 basename/정규식만으로 판정(신규 의존성 0):
+ *  - 생성-SoT 파일(RULES.md·AGENTS.md·.cursorrules·.windsurfrules): vhk sync 산출 원본 — 자동수정 시 규칙 드리프트.
+ *  - .env 시작 시크릿 파일: 변경 시 자격증명 노출/손상.
+ *  - rm -rf 경로성 문자열: 경로 통째 삭제.
+ * resolveGuard 의 target 차원 단일 소스(분산 결정점은 이걸 참조만 — 정책 재정의 금지).
+ */
+export const RISKY_TARGET_PATTERNS: ReadonlyArray<{ re: RegExp; reason: string }> = [
+  { re: /(^|[\\/])(RULES\.md|AGENTS\.md|\.cursorrules|\.windsurfrules)$/i, reason: '생성-SoT 자동수정(vhk sync 산출 원본)' },
+  // .env / .env.<X> 는 risky. 단 .env.example|.sample|.template 은 시크릿 값 없는 커밋용 템플릿이라 제외(오탐 방지).
+  { re: /(^|[\\/])\.env(\.(?!example|sample|template)[^\\/]*)?$/i, reason: '시크릿 파일(.env*) 변경' },
+  { re: /\brm\s+-rf\b/i, reason: '경로 통째 삭제(rm -rf)' },
+]
+
+/** 대상(파일/경로/명령 문자열)이 글롭 위험에 해당하는지. 첫 매칭 사유를 반환. */
+export function isRiskyTarget(target: string): { risky: boolean; reason?: string } {
+  for (const { re, reason } of RISKY_TARGET_PATTERNS) {
+    if (re.test(target)) return { risky: true, reason }
+  }
+  return { risky: false }
+}
+
+/**
+ * 액션·모드·채널(+선택적 대상)로 가드 결정.
+ * - 저위험(+strict 추가대상 아님, +위험 대상 아님) → allow
  * - lite → 막지 않고 warn(경고만)
  * - standard/strict → CLI 는 confirm, MCP/자연어는 preview(실행 전 무엇을 할지 출력)
+ * Goal 57: target 은 optional(하위호환) — 주어지고 isRiskyTarget 이면 액션이 저위험이어도 가드 발동.
  */
-export function resolveGuard(action: string, mode: SafetyMode, channel: Channel): Guard {
-  const guarded = isHighRisk(action) || (mode === 'strict' && STRICT_EXTRA_ACTIONS.has(action))
+export function resolveGuard(action: string, mode: SafetyMode, channel: Channel, target?: string): Guard {
+  const guarded =
+    isHighRisk(action) ||
+    (mode === 'strict' && STRICT_EXTRA_ACTIONS.has(action)) ||
+    (target !== undefined && isRiskyTarget(target).risky)
   if (!guarded) return 'allow'
   if (mode === 'lite') return 'warn'
   return channel === 'cli' ? 'confirm' : 'preview'

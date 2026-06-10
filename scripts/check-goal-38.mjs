@@ -52,9 +52,14 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 38 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 38 고유 검증 (원자적 쓰기 확대 — mission.json + state-files) ──────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+must(/atomicWriteFile\(/.test(read('src/commands/mission.ts') ?? ''), 'mission.ts(missionSet) atomicWriteFile 적용')
+const sf38 = read('src/lib/state-files.ts') ?? ''
+must(/import \{ atomicWriteFile \} from '\.\/atomic-write\.js'/.test(sf38), 'state-files.ts atomicWriteFile import')
+must(/export function writeHardStop/.test(sf38), 'state-files.ts writeHardStop export')
+must(/atomicWriteFile\(/.test(sf38), 'state-files.ts(HARD_STOP/blockers 첫생성) atomicWriteFile 적용')
+must(existsSync('tests/state-files-atomic.test.ts'), 'tests/state-files-atomic.test.ts 회귀 봉쇄')
 
 if (pass) { console.log('✅ goal 38 gate passes'); process.exit(0) }
 console.log('❌ goal 38 gate failed'); process.exit(1)
