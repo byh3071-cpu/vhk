@@ -73,3 +73,29 @@
   harness·help·mcp-init·memory-eval·mode·pattern·recap·ref·restore·save·secure·ship·
   standup·start·stats·status·testmap·theme·today·undo·update·verify·verify-report·work) —
   문서화 후 check-commands-doc --strict 승격.
+
+## T4 — 구조 정합성 (자정 넘김 — 실작업 2026-06-11 새벽, 세션 연속이라 본 파일에 append)
+
+- `scripts/check-goal-frontmatter.mjs` (8 tests): 필수(type:goal·숫자 id·title·status enum)
+  FAIL / 권장(priority·created·DONE의 completed)·version 형식 경고. **사전 실측**: 62 goal
+  전부 필수 충족(필수 하드화 안전), 권장 누락 31건(created 27·completed 5)·version 은
+  v1.1(2파트)·v2.4.1(3파트) 혼용 → 둘 다 허용. 일괄 마이그레이션 안 함(spec 준수).
+- `.vhk` ↔ spec 정합: 충돌 실측 결과 **제품 기본값(init 템플릿)은 자기일관**(README ✅ +
+  템플릿 .gitignore 는 context/brief 무시 안 함) — 모순은 vhk 레포 자신의 로컬
+  .vhk/.gitignore 오버라이드 vs spec 사이에만 있었음. 결정 = **기본 커밋 유지 + 프로젝트별
+  로컬 무시 오버라이드를 spec 이 공식 인정**(제품 동작 무변경·보수 — 처음 "로컬 전용
+  공식화"로 썼다가 템플릿 실측 후 정정). cloud.json 은 템플릿도 무시라 로컬 전용으로 정정
+  (VHK-022). spec.md **v1.1** 범프 — RFC 0038(spec_version_target 1.1)의 미실행 체크리스트
+  실행에 해당: 하위 폴더 공식 인정(backups/events/eval/reports/seo) + 누락 파일 표 등록
+  (config.json·mission.json·recall-log.jsonl·prompt 파일·.synced) + 변경 이력 섹션.
+- spec 1.0 핀 테스트(init.test.ts "spec_version 1.0") FAIL → 1.1 + 가산분 단언으로 갱신.
+  src 주석/템플릿 문자열의 1.0 참조 3곳도 1.1 로(스펙 체크포인트 "버전범프 테스트 영향"
+  실물 — version-sync 아닌 init.test 였음).
+- `.vhk/.gitignore` += `events/` — goal 55 원장(ai-actions.jsonl)이 untracked 방치돼 있었음
+  (이번 sync 실행에서 발견). check-ignore 검증: events/context/brief=ignored ·
+  README/config=tracked 정책 일치 확인.
+- next-task.md 상단에 덮어쓰기 경고 추가(스펙은 "이미 있음 강화"였으나 실측 부재 → 신설).
+- PRD.md: __FILL__ 템플릿을 실내용으로 채움(참조 다수 — src 16곳이 PRD 경로 참조라 이동
+  대신 채움 선택).
+- learnings↔memory 이원: learnings.md 파일 자체가 부재(이미 v2 흡수 완료) + spec §2.1·
+  CLAUDE.md 기록 규칙에 동결 명시 이미 있음 → no-op.

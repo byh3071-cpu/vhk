@@ -41,7 +41,7 @@ export function loadVhkignore(rootDir: string): Ignore {
 
 /**
  * `.vhk/` 안에서 클라우드로 보낼 파일명 목록 (제외 규칙 적용 후).
- * 평면 구조만 대상 (하위 폴더 무시 — spec_version 1.0).
+ * 평면 파일만 대상 (spec 1.1 하위 폴더는 전부 로컬 전용 — 백업 대상 아님).
  */
 export function collectVhkFiles(
   rootDir: string,
