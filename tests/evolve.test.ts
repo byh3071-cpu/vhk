@@ -11,7 +11,10 @@ import {
   writeQueue,
   nextQueueId,
   checkApplyRef,
+  migrateQueueToV2,
+  findDedupeCollisions,
   QUEUE_PATH_REL,
+  QUEUE_VERSION,
   type EvolveItemStatus,
   type EvolveQueueItem,
   type EvolveQueueFile,
@@ -192,10 +195,10 @@ describe('isDuplicateRule', () => {
 // ── readQueue ────────────────────────────────────────────────────────────────
 
 describe('readQueue', () => {
-  it('파일 없으면 빈 큐 반환', () => {
+  it('파일 없으면 빈 큐 반환 (v2)', () => {
     const d = tmp()
     const q = readQueue(d)
-    expect(q.version).toBe(1)
+    expect(q.version).toBe(2) // Goal 58: 스키마 v2
     expect(q.items).toEqual([])
     fs.rmSync(d, { recursive: true, force: true })
   })
@@ -422,5 +425,123 @@ describe('evolveUndo 로직 검증 (순수 로직 테스트)', () => {
     expect(item.status).toBe('pending')
     expect(item.appliedAt).toBeUndefined()
     expect(item.rulesBackupPath).toBeUndefined()
+  })
+})
+
+// ── Goal 58: 스키마 v2 마이그레이션 ─────────────────────────────────────────
+
+// v1 큐 fixture(targetLayer 없음, version:1).
+function v1Queue(): EvolveQueueFile {
+  return {
+    version: 1,
+    items: [
+      { id: 'e1', patternId: 'p1', kind: 'rule', status: 'pending',
+        draft: '- 룰1', dedupeKey: 'p1:rule', createdAt: '2026-01-01T00:00:00Z' },
+      { id: 'e2', patternId: 'p2', kind: 'rule', status: 'applied',
+        draft: '- 룰2', dedupeKey: 'p2:rule', createdAt: '2026-01-02T00:00:00Z',
+        appliedAt: '2026-01-03T00:00:00Z', rulesBackupPath: '/tmp/RULES.md.bak' },
+    ],
+  }
+}
+
+describe('migrateQueueToV2', () => {
+  it('v1 → v2: version 승격 + 모든 항목에 targetLayer="rule" 부여', () => {
+    const v2 = migrateQueueToV2(v1Queue())
+    expect(v2.version).toBe(QUEUE_VERSION)
+    expect(v2.version).toBe(2)
+    expect(v2.items.every((i) => i.targetLayer === 'rule')).toBe(true)
+  })
+
+  it('무손실 라운드트립 — 기존 필드 전부 보존', () => {
+    const before = v1Queue()
+    const after = migrateQueueToV2(before)
+    // id/patternId/status/draft/createdAt/appliedAt/rulesBackupPath 보존
+    expect(after.items[0]).toMatchObject({
+      id: 'e1', patternId: 'p1', status: 'pending', draft: '- 룰1',
+      createdAt: '2026-01-01T00:00:00Z', dedupeKey: 'p1:rule', targetLayer: 'rule',
+    })
+    expect(after.items[1]).toMatchObject({
+      id: 'e2', patternId: 'p2', status: 'applied', draft: '- 룰2',
+      appliedAt: '2026-01-03T00:00:00Z', rulesBackupPath: '/tmp/RULES.md.bak',
+      dedupeKey: 'p2:rule', targetLayer: 'rule',
+    })
+  })
+
+  it('dedupeKey 재계산 = `${patternId}:${targetLayer}` (v1 rule 과 동일)', () => {
+    const v2 = migrateQueueToV2(v1Queue())
+    expect(v2.items.map((i) => i.dedupeKey)).toEqual(['p1:rule', 'p2:rule'])
+  })
+
+  it('마이그레이션 후 dedupeKey 충돌 0', () => {
+    const v2 = migrateQueueToV2(v1Queue())
+    expect(findDedupeCollisions(v2.items)).toEqual([])
+  })
+
+  it('빈 v1 큐도 안전 변환', () => {
+    expect(migrateQueueToV2({ version: 1, items: [] })).toEqual({ version: 2, items: [] })
+  })
+})
+
+describe('findDedupeCollisions', () => {
+  it('점유(pending/applied) 항목 중 같은 dedupeKey 2회 → 충돌', () => {
+    const items: EvolveQueueItem[] = [
+      { id: 'e1', patternId: 'p1', kind: 'rule', targetLayer: 'rule', status: 'pending',
+        draft: 'a', dedupeKey: 'p1:rule', createdAt: 't' },
+      { id: 'e2', patternId: 'p1', kind: 'rule', targetLayer: 'rule', status: 'applied',
+        draft: 'b', dedupeKey: 'p1:rule', createdAt: 't' },
+    ]
+    expect(findDedupeCollisions(items)).toEqual(['p1:rule'])
+  })
+
+  it('서로 다른 targetLayer → dedupeKey 다름 → 충돌 0 (5계층 확장 안전)', () => {
+    const items: EvolveQueueItem[] = [
+      { id: 'e1', patternId: 'p1', kind: 'rule', targetLayer: 'rule', status: 'pending',
+        draft: 'a', dedupeKey: 'p1:rule', createdAt: 't' },
+      { id: 'e2', patternId: 'p1', kind: 'rule', targetLayer: 'memory', status: 'pending',
+        draft: 'b', dedupeKey: 'p1:memory', createdAt: 't' },
+    ]
+    expect(findDedupeCollisions(items)).toEqual([])
+  })
+
+  it('rejected 중복은 충돌 아님(재제안 억제 키)', () => {
+    const items: EvolveQueueItem[] = [
+      { id: 'e1', patternId: 'p1', kind: 'rule', targetLayer: 'rule', status: 'rejected',
+        draft: 'a', dedupeKey: 'p1:rule', createdAt: 't' },
+      { id: 'e2', patternId: 'p1', kind: 'rule', targetLayer: 'rule', status: 'rejected',
+        draft: 'b', dedupeKey: 'p1:rule', createdAt: 't' },
+    ]
+    expect(findDedupeCollisions(items)).toEqual([])
+  })
+})
+
+describe('readQueue/writeQueue v2 마이그레이션·백업', () => {
+  it('디스크 v1 파일 → readQueue 가 v2 로 자동 변환(무손실)', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk', 'evolve'), { recursive: true })
+    fs.writeFileSync(path.join(d, QUEUE_PATH_REL), JSON.stringify(v1Queue(), null, 2), 'utf-8')
+    const q = readQueue(d)
+    expect(q.version).toBe(2)
+    expect(q.items).toHaveLength(2)
+    expect(q.items.every((i) => i.targetLayer === 'rule')).toBe(true)
+    expect(q.items[1].appliedAt).toBe('2026-01-03T00:00:00Z') // 무손실
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('기존 v1 파일 덮어쓰기 시 .v1.bak(원본 스키마) + .bak(롤링) 보존', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk', 'evolve'), { recursive: true })
+    const p = path.join(d, QUEUE_PATH_REL)
+    fs.writeFileSync(p, JSON.stringify(v1Queue(), null, 2), 'utf-8')
+    // readQueue → v2 변환본을 writeQueue(첫 쓰기에서 v1 원본 백업)
+    writeQueue(d, readQueue(d))
+    expect(fs.existsSync(p + '.bak')).toBe(true)
+    expect(fs.existsSync(p + '.v1.bak')).toBe(true)
+    // .v1.bak 은 원본 v1(version 1)
+    const orig = JSON.parse(fs.readFileSync(p + '.v1.bak', 'utf-8')) as EvolveQueueFile
+    expect(orig.version).toBe(1)
+    // 디스크 본문은 v2 로 영속
+    const now = readQueue(d)
+    expect(now.version).toBe(2)
+    fs.rmSync(d, { recursive: true, force: true })
   })
 })
