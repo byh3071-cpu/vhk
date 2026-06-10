@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import ora from 'ora'
 import { safeExecFile, safeExecFileStream } from '../lib/exec.js'
 import { t } from '../i18n/ko.js'
@@ -205,7 +205,7 @@ export async function publish(): Promise<void> {
     }
   }
 
-  const { bumpType } = await inquirer.prompt<{ bumpType: BumpType }>([
+  const { bumpType } = await prompt<{ bumpType: BumpType }>([
     {
       type: 'list',
       name: 'bumpType',
@@ -266,7 +266,7 @@ export async function publish(): Promise<void> {
   testSpinner.succeed(t('publish.testSuccess'))
 
   // 최종 확인
-  const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+  const { confirm } = await prompt<{ confirm: boolean }>([
     {
       type: 'confirm',
       name: 'confirm',

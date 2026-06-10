@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { promptOrDefault } from '../lib/interactive.js'
@@ -89,7 +89,7 @@ export async function theme(options?: { yes?: boolean }): Promise<void> {
     const overwrite = options?.yes === true
       ? true
       : await promptOrDefault(
-          async () => (await inquirer.prompt<{ overwrite: boolean }>([{
+          async () => (await prompt<{ overwrite: boolean }>([{
             type: 'confirm',
             name: 'overwrite',
             message: `다음 파일이 이미 있어요. 덮어쓸까요?\n   ${conflicts.join('\n   ')}`,

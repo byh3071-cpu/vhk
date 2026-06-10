@@ -2,7 +2,7 @@ import { Command, Help } from 'commander'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from './lib/prompt.js'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
 import { getVhkVersion } from './lib/version.js'
@@ -72,7 +72,7 @@ async function guardCli(
       channel: 'cli',
       approved,
       confirm: async () => {
-        const { ok } = await inquirer.prompt<{ ok: boolean }>([{
+        const { ok } = await prompt<{ ok: boolean }>([{
           type: 'confirm',
           name: 'ok',
           message: `⚠️ 위험 작업(${action})을 실행할까요?`,
@@ -898,7 +898,7 @@ program.action(async () => {
     { name: '⏸️  작업 중단 정리 (handoff)', value: 'work-handoff' },
   ]
 
-  const { choice } = await inquirer.prompt<{ choice: string }>([{
+  const { choice } = await prompt<{ choice: string }>([{
     type: 'list',
     name: 'choice',
     message: '뭘 도와드릴까요?',

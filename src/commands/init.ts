@@ -1,4 +1,4 @@
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import type { DistinctQuestion } from 'inquirer'
 import chalk from 'chalk'
 import fs from 'node:fs'
@@ -90,7 +90,7 @@ async function collectAnswers(
     }
   }
 
-  const prompted = prompts.length ? await inquirer.prompt(prompts) : {}
+  const prompted = prompts.length ? await prompt(prompts) : {}
 
   // 폴백(비대화형에서만 실제 발동 — 대화형이면 prompted 값이 채워져 있음):
   //   name → 현재 디렉토리명, description → name 기반, type → 기본 타입(webapp)
@@ -149,7 +149,7 @@ export async function init(options: InitOptions = {}) {
   // 비대화형(yes/비-TTY)이면 confirmStack 프롬프트 skip — default(진행)로 자동 진행.
   // (이전엔 !options.yes 만 봐서 비-TTY+무-yes 에서 EOF 멈춤 — Goal 8 비대화형 계약 위반.)
   if (isInteractive(options)) {
-    const { confirmStack } = await inquirer.prompt([{
+    const { confirmStack } = await prompt([{
       type: 'confirm', name: 'confirmStack',
       message: ko.init.confirmStack, default: true,
     }])
@@ -168,7 +168,7 @@ export async function init(options: InitOptions = {}) {
     const existingRules = detectExistingRuleFiles(cwd)
     if (existingRules.length > 0) {
       if (isInteractive(options)) {
-        const { adopt } = await inquirer.prompt([{
+        const { adopt } = await prompt([{
           type: 'confirm',
           name: 'adopt',
           message: ko.init.adoptPrompt(
@@ -206,7 +206,7 @@ export async function init(options: InitOptions = {}) {
       // 비대화형이면 프롬프트 default(=false, 보존) 자동 적용 — 기존 파일 클로버 금지.
       const overwrite = !isInteractive(options)
         ? false
-        : (await inquirer.prompt([{
+        : (await prompt([{
             type: 'confirm', name: 'overwrite',
             message: ko.init.overwrite(filePath),
             default: false,
@@ -352,7 +352,7 @@ async function writeInitExtras(projectDir: string, noninteractive = false) {
     // 비대화형이면 프롬프트 default(=false, 보존) 자동 적용.
     const overwrite = noninteractive
       ? false
-      : (await inquirer.prompt([{
+      : (await prompt([{
           type: 'confirm',
           name: 'overwrite',
           message: ko.init.overwrite('COMMANDS.md'),

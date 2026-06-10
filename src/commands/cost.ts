@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { readConfig, writeConfig } from '../lib/config.js'
 import { readCostEntries, appendCostEntry, sumUsd, type CostEntry } from '../lib/cost-ledger.js'
 import { evaluateBudget, costToGuard, usdOf, type BudgetEval } from '../lib/cost-policy.js'
@@ -156,7 +156,7 @@ export async function cost(action?: string, value?: string, opts: CostOptions = 
   // runGuarded 와 동일 기준(stdin TTY)으로 대화형 가능 여부 판단 — stdout/stdin 비대칭 제거.
   const isTTY = !!process.stdin.isTTY
   if (isTTY) {
-    const { ok } = await inquirer.prompt<{ ok: boolean }>([
+    const { ok } = await prompt<{ ok: boolean }>([
       { type: 'confirm', name: 'ok', message: '예산을 초과했습니다. 그래도 계속할까요?', default: false },
     ])
     if (ok) return
