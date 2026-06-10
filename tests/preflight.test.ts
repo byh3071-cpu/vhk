@@ -103,6 +103,16 @@ describe('checkTypecheck', () => {
     const { run } = mockRunner({ 'npx tsc --noEmit': { ok: false, out: 'TS2322', err: '' } })
     expect(checkTypecheck(run).status).toBe('fail')
   })
+  it('#245: typecheckCmd=null(tsconfig·스크립트 없음)이면 skip — 바닐라 JS 차단 안 함', () => {
+    const { run } = mockRunner({})
+    const r = checkTypecheck(run, null)
+    expect(r.status).toBe('skip')
+  })
+  it('#245: typecheck 스크립트(CmdSpec) 주면 그걸 실행', () => {
+    const { run } = mockRunner({ 'pnpm run typecheck': { ok: true, out: '' } })
+    const r = checkTypecheck(run, { bin: 'pnpm', args: ['run', 'typecheck'] })
+    expect(r.status).toBe('pass')
+  })
 })
 
 describe('checkTests', () => {
@@ -275,5 +285,16 @@ describe('runPreflight', () => {
       worktreeEnv: (): PreflightCheck => ({ name: 'worktree env', status: 'fail', detail: '누락', severity: 'critical' }),
     })
     expect(summarizePreflight(checks).blocked).toBe(true)
+  })
+  it('#245: tsconfig 없고 typecheck 스크립트도 없으면 typecheck skip(차단 아님)', () => {
+    const checks = runPreflight({}, { ...deps, hasTsconfig: false })
+    const tc = checks.find((c) => c.name === 'typecheck')
+    expect(tc?.status).toBe('skip')
+    expect(summarizePreflight(checks).blocked).toBe(false)
+  })
+  it('#245: tsconfig 있으면 typecheck 실행(npx tsc 폴백)', () => {
+    const checks = runPreflight({}, { ...deps, hasTsconfig: true })
+    const tc = checks.find((c) => c.name === 'typecheck')
+    expect(tc?.status).toBe('pass')
   })
 })

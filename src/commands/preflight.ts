@@ -85,6 +85,7 @@ export async function preflight(opts: PreflightCliOptions = {}): Promise<void> {
       pm,
       scripts,
       hasVitest,
+      hasTsconfig: existsSync(join(cwd, 'tsconfig.json')), // #245: 없으면 typecheck skip(바닐라 JS)
     }
   )
 

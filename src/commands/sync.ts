@@ -623,10 +623,12 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
 
   // ③ 누락 발생 지점(syncCore)이 집계한 미매칭 섹션을 호출자가 경고 — 조용히 사라지지 않게.
   if (result.unmapped.length) {
+    // #249: 비표준 섹션은 AGENTS.md 「기타 규칙」에 전파됨(#130) — 손실 아님.
+    //       단 .cursorrules 등 코딩 규칙 파일은 표준 제목만(설계상 코딩/디자인 전용).
     console.error(
       chalk.yellow(
-        `  ⚠️  ${result.unmapped.length}개 섹션이 어느 타깃에도 매핑 안 돼 산출물에서 제외됨: ${result.unmapped.join(', ')}` +
-          `\n     (코딩 규칙/기술 스택/커밋/기록 등 표준 제목을 쓰거나, 이 섹션은 RULES.md 에만 보존됩니다.)`
+        `  ⚠️  ${result.unmapped.length}개 비표준 섹션은 .cursorrules 등 코딩 규칙 파일엔 미포함(표준 제목만): ${result.unmapped.join(', ')}` +
+          `\n     (단 AGENTS.md 「기타 규칙」에는 전파됨 — 손실 아님. 코딩 파일에도 넣으려면 표준 제목 사용, 수정은 RULES.md 에서.)`
       )
     )
   }

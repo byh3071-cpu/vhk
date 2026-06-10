@@ -39,17 +39,18 @@ export function loadDefinedEnvKeys(dir = '.'): string[] {
   return [...keys]
 }
 
-function ensureGitignore(): void {
+// #247: 사용한 env 파일(.env 또는 .env.local)을 gitignore 에 보장 — 둘 다 시크릿 보유.
+function ensureGitignore(envFile = '.env'): void {
   const gitignorePath = '.gitignore'
   if (existsSync(gitignorePath)) {
     const content = readFileSync(gitignorePath, 'utf-8')
-    if (!content.split('\n').some((l) => l.trim() === '.env')) {
-      appendFileSync(gitignorePath, '\n.env\n')
-      console.log(chalk.green('\n🔒 .gitignore에 .env 추가됨'))
+    if (!content.split('\n').some((l) => l.trim() === envFile)) {
+      appendFileSync(gitignorePath, `\n${envFile}\n`)
+      console.log(chalk.green(`\n🔒 .gitignore에 ${envFile} 추가됨`))
     }
   } else {
-    writeFileSync(gitignorePath, '.env\nnode_modules/\ndist/\n')
-    console.log(chalk.green('\n🔒 .gitignore 생성 (.env 포함)'))
+    writeFileSync(gitignorePath, `${envFile}\nnode_modules/\ndist/\n`)
+    console.log(chalk.green(`\n🔒 .gitignore 생성 (${envFile} 포함)`))
   }
 }
 
@@ -58,13 +59,15 @@ export async function env(): Promise<void> {
   console.log(chalk.bold('\n🔐 ' + t('env.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  if (!existsSync('.env')) {
-    console.log(chalk.yellow('\n⚠️  .env 파일이 없습니다.'))
-    console.log(chalk.gray('   .env 파일을 먼저 만들어주세요.'))
+  // #247: .env 없으면 .env.local 폴백(Vercel/Vite 관례) — doctor 와 일관.
+  const envFile = existsSync('.env') ? '.env' : existsSync('.env.local') ? '.env.local' : null
+  if (!envFile) {
+    console.log(chalk.yellow('\n⚠️  .env / .env.local 파일이 없습니다.'))
+    console.log(chalk.gray('   .env 또는 .env.local 파일을 먼저 만들어주세요.'))
     return
   }
 
-  const envContent = readFileSync('.env', 'utf-8')
+  const envContent = readFileSync(envFile, 'utf-8')
   const keys = parseEnvKeys(envContent)
 
   if (keys.length === 0) {
@@ -77,7 +80,7 @@ export async function env(): Promise<void> {
   console.log(chalk.green(`\n✅ .env.example 생성 (${keys.length}개 키)`))
   keys.forEach((k) => console.log(chalk.gray(`   ${k}`)))
 
-  ensureGitignore()
+  ensureGitignore(envFile)
 
   printNextStep({
     message: '.env.example 생성 완료!',

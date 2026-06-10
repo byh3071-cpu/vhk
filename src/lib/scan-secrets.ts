@@ -21,12 +21,20 @@ export function findSecretsInLine(
   if (line.length > MAX_LINE_CHARS) return found
   // #218: 주석줄이라고 줄 전체를 스킵하면('example' 포함 시) 주석에 섞인 진짜 시크릿을 놓친다
   //       (보안 false-negative). 매칭된 '값' 자체가 placeholder(…EXAMPLE 등)일 때만 그 매치를 무시한다.
-  const isComment = trimmed.startsWith('//') || trimmed.startsWith('#')
+  // #250: 블록주석(/** */·* 연속줄·/*)도 주석으로 인식 + placeholder 표식 확대(YOUR_·xxxx 등).
+  //       단 isComment 게이트 안에서만 동작 → 진짜 토큰은 주석/코드 어디서든 여전히 탐지(false-negative 0).
+  const isComment =
+    trimmed.startsWith('//') ||
+    trimmed.startsWith('#') ||
+    trimmed.startsWith('*') ||
+    trimmed.startsWith('/*')
 
   for (const pattern of SECRET_PATTERNS) {
     const regex = globalPattern(pattern.pattern)
     for (const match of line.matchAll(regex)) {
-      if (isComment && /example/i.test(match[0])) continue // placeholder 시크릿만 무시
+      // placeholder 표식이 매칭값에 있으면(주석 한정) 무시 — your_·fake_·dummy·redacted·changeme·xxxx·<...>
+      if (isComment && /(?:example|placeholder|your[_-]|fake[_-]|dummy|redacted|changeme|x{4,}|<[^>]+>)/i.test(match[0]))
+        continue // placeholder 시크릿만 무시
       found.push({
         patternId: pattern.id,
         patternName: pattern.name,
