@@ -32,6 +32,8 @@
 - 모든 커맨드 파일에 `printNextStep()` 패턴 사용
 - 한국어 별칭 `.alias()` + `ko.ts` 메시지 필수
 - 신규 커맨드 시 `nlp-router.ts` 키워드 추가 필수
+- 주석: 복잡 로직(git porcelain·drift·sync 등)은 why 블록주석 / 자명한 코드엔 주석 금지 / JSDoc 지양(타입이 말함) / 트러블 우회 코드는 원인 `#이슈` 참조
+- 신규 명령 체크리스트: 등록 4지점(index.ts + command-registry TOP_LEVEL·CONTAINER·한글별칭 + cli-args + ko.ts) 누락 = NL 라우터 가드 무력 — 영문·한글 별칭 둘 다 테스트. + COMMANDS.md·README 사용법 갱신
 
 ### MCP 규칙
 
@@ -51,6 +53,21 @@
 
 - 형식: `feat:` / `fix:` / `refactor:` / `docs:` / `chore:`
 - 1 iteration = 작은 commit 하나 + 게이트 통과(or 정직한 블로커)
+
+## VHK 운영 — Forbidden (전역 금지)
+
+> 단일 Forbidden 목록(통합 SoT — goals/_meta.md 는 이 섹션을 포인터로 참조).
+> CLAUDE.md 헌법 영구구역의 Forbidden 은 불가침이라 그대로 둠 — 의례 수준 금지는 그쪽, 코드/운영 수준 금지는 여기.
+
+- `node_modules/` 직접 수정 금지
+- `package.json` 기존 명령어 시그니처 breaking change 금지 (GA 정책)
+- `execSync` 신규 사용 금지 → `safeExecFile`
+- MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
+- 토큰/시크릿 코드·커밋 평문 노출 금지 (`.env` + `.gitignore`)
+- dev log·blockers 과거 항목 수정·삭제 금지 (append-only)
+- 게이트 실패 상태에서 done 처리 금지 / `vhk resume` 자동 호출 금지
+- AGENTS.md·.cursorrules 등 sync 산출물 직접 편집 금지 → RULES.md + `vhk sync`
+- publish 는 main 에서만 + 사람 승인 (가드 #119)
 
 ## 기록 규칙
 

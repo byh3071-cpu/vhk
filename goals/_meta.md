@@ -60,11 +60,7 @@ version: v1.1
 
 ## Forbidden Actions (전역)
 
-- `node_modules/` 직접 수정 금지
-- `package.json` 의 기존 명령어 시그니처 breaking change 금지 (GA 정책)
-- `execSync` 신규 사용 금지 → `safeExecFile` 사용
-- MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
-- 토큰/시크릿 코드·커밋에 평문 노출 금지 (`.env` + `.gitignore`)
+> 단일 SoT = [RULES.md §VHK 운영 — Forbidden](../RULES.md) (governance T3 통합 — 중복 목록 제거).
 
 ## Relation to numeric goals
 
