@@ -130,6 +130,33 @@ describe('action-ledger — runGuarded 자동 기록 (chokepoint hook)', () => {
     }
   })
 
+  it('goal 57 plumbing — runGuarded(target) → 행동원장 target 필드 기록', async () => {
+    const d = tmp()
+    try {
+      await runGuarded(
+        'env-write',
+        { channel: 'cli', mode: 'standard', target: '.env', approved: true, cwd: d, log: () => {} },
+        async () => 'x'
+      )
+      const e = readActionLedger(d)
+      expect(e).toHaveLength(1)
+      expect(e[0].target).toBe('.env')
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  it('target 미지정이면 행동원장 target 없음(하위호환)', async () => {
+    const d = tmp()
+    try {
+      await runGuarded('publish', { channel: 'cli', mode: 'standard', approved: true, cwd: d, log: () => {} }, async () => 'x')
+      const e = readActionLedger(d)
+      expect(e[0].target).toBeUndefined()
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+
   it('저위험(allow) 작업도 기록 — ran=true guard=allow reason=low-risk', async () => {
     const d = tmp()
     try {

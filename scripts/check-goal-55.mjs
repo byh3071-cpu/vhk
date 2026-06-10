@@ -71,6 +71,7 @@ const guard = read('src/lib/safety-guard.ts') ?? ''
 must(/runGuardedInner\b/.test(guard), 'safety-guard: runGuarded 얇은 래핑(runGuardedInner)')
 must(/appendActionEntry\(/.test(guard), 'safety-guard: appendActionEntry 기록 hook')
 must(/deps\.cwd \?\? process\.cwd\(\)/.test(guard), 'safety-guard: 기록 경로 deps.cwd ?? process.cwd()')
+must(/target: deps\.target/.test(guard), 'safety-guard: 행동원장에 deps.target 기록(goal 57 plumbing 통합)')
 
 // 3) hard-stop-guard: 트립와이어 차단도 행동 이벤트로 기록.
 const hardStop = read('src/lib/hard-stop-guard.ts') ?? ''

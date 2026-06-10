@@ -62,6 +62,7 @@ async function guardCli(
   action: string,
   approved: boolean,
   run: () => Promise<void> | void,
+  target?: string, // Goal 57: 위험 대상(파일/경로) — risk-policy 글롭 차원 + 행동원장 target 기록.
 ): Promise<void> {
   // VHK-020: HARD_STOP 활성 시 high-risk CLI 작업(save/deploy/publish/sync/migrate/cloud-pull/env-write) 차단.
   if (!ensureNotHardStopped(action)) return
@@ -70,6 +71,7 @@ async function guardCli(
     {
       channel: 'cli',
       approved,
+      target,
       confirm: async () => {
         const { ok } = await inquirer.prompt<{ ok: boolean }>([{
           type: 'confirm',
@@ -369,7 +371,7 @@ program
   .alias('환경변수')
   .option('--yes', '확인 없이 실행 (위험 작업 명시 승인)')
   .description('.env → .env.example 동기화 + .gitignore 자동 추가')
-  .action(async (opts: { yes?: boolean }) => { await guardCli('env-write', opts?.yes === true, () => env()) })
+  .action(async (opts: { yes?: boolean }) => { await guardCli('env-write', opts?.yes === true, () => env(), '.env') })
 
 program
   .command('env-check')

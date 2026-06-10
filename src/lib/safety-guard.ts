@@ -54,6 +54,8 @@ export async function runGuarded<T>(
       guard: res.outcome.guard,
       ran: res.outcome.ran,
       reason: res.outcome.reason,
+      // Goal 57 plumbing: 위험 대상(deps.target)을 원장에 기록(미지정이면 JSON 직렬화에서 생략).
+      target: deps.target,
     })
   } catch {
     /* 원장 기록 실패는 무시 — 가드 본 기능 보호 */

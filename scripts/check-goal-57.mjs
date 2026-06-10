@@ -71,7 +71,12 @@ for (const f of ['src/lib/hard-stop-guard.ts', 'src/lib/preflight.ts', 'src/comm
   must(!/RISKY_TARGET_PATTERNS\s*[=:]/.test(src) && !/function isRiskyTarget\b/.test(src), `${f}: 위험대상 정책 재정의 0(단일 소스 유지)`)
 }
 
-// 4) 회귀 테스트 존재(글롭 매핑 + 기존 9종 회귀 0 + 단일성 가드).
+// 4) plumbing 실작동(B') — guardCli 가 target 받아 production 경로에서 전달(env-write → .env).
+const idx = read('src/index.ts') ?? ''
+must(/async function guardCli\([\s\S]*?target\?: string/.test(idx), 'index.ts: guardCli 에 target? param')
+must(/guardCli\('env-write',[^\n]*'\.env'/.test(idx), "index.ts: env-write 가 target '.env' 전달(plumbing 실작동)")
+
+// 5) 회귀 테스트 존재(글롭 매핑 + 기존 9종 회귀 0 + 단일성 가드).
 must(existsSync('tests/risk-glob.test.ts'), 'tests/risk-glob.test.ts 존재')
 
 if (pass) { console.log('✅ goal 57 gate passes'); process.exit(0) }
