@@ -9,6 +9,9 @@ import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
 import { context } from './context.js'
 import { copyToClipboard } from '../lib/clipboard.js'
+import { detectDocCandidates, formatDocCandidatesForPrompt, type DocCandidates } from '../lib/doc-suggest.js'
+import { getSessionDiff, getRecentCommits } from '../lib/git.js'
+import { localDate } from '../lib/date.js'
 
 const VHK_DIR = '.vhk'
 
@@ -96,7 +99,11 @@ export function buildStartPrompt(git: string, goalLine: string): string {
 }
 
 // 인수인계(중단 정리) 프롬프트 — Claude CLI 에 붙여넣을 텍스트. (테스트 위해 export)
-export function buildHandoffPrompt(git: string): string {
+// RFC 0051: 미기록 ADR/트러블슈팅 후보가 있으면 자동 감지 섹션을 끼운다(자문형, 강제 아님).
+export function buildHandoffPrompt(
+  git: string,
+  docCandidates: DocCandidates = { adr: [], troubleshooting: [] },
+): string {
   const gitBlock = git || '(변경 없음)'
   return [
     '당신은 VHK 프로젝트의 작업 파트너입니다. 오늘은 여기서 작업을 중단하고 컴퓨터를 꺼야 합니다.',
@@ -107,6 +114,7 @@ export function buildHandoffPrompt(git: string): string {
     '[지금 상태 — 자동 수집됨]',
     '- 변경된 파일 (git status --short):',
     gitBlock,
+    ...formatDocCandidatesForPrompt(docCandidates),
     '',
     '[해주세요 — 정리만, 새 개발 시작 금지]',
     '1. 현재 변경사항을 확인하고, 완료된 일 / 미완료된 일로 나눠 한국어로 정리해 주세요.',
@@ -216,7 +224,26 @@ export async function workHandoff(): Promise<void> {
   console.log(chalk.cyan('📋 바뀐 파일'))
   printGit(git)
 
-  const prompt = buildHandoffPrompt(git)
+  // RFC 0051: 미기록 ADR/트러블슈팅 후보 감지(자문형) → 정리 프롬프트에 주입.
+  // git 호출 실패해도 핸드오프는 막지 않는다(graceful → 후보 0).
+  let docCandidates: DocCandidates = { adr: [], troubleshooting: [] }
+  try {
+    const since = localDate()
+    const [diff, commits] = await Promise.all([
+      getSessionDiff(since),
+      getRecentCommits(20, since),
+    ])
+    docCandidates = detectDocCandidates(diff, commits)
+  } catch {
+    /* 감지 실패는 무시 — 핸드오프 우선 */
+  }
+  const candidateCount = docCandidates.adr.length + docCandidates.troubleshooting.length
+  if (candidateCount > 0) {
+    console.log('')
+    console.log(chalk.cyan(`🧾 미기록 문서 후보 ${candidateCount}건 감지 — 정리 프롬프트에 포함했어요`))
+  }
+
+  const prompt = buildHandoffPrompt(git, docCandidates)
   emitPrompt(prompt, 'handoff-prompt.md', '중단 정리 프롬프트')
 
   console.log('')

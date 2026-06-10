@@ -70,6 +70,25 @@ describe('work — 프롬프트 빌더', () => {
     expect(p).toContain('vhk goal done 실행 금지')
     expect(p).toContain('git commit')
   })
+
+  it('buildHandoffPrompt — 문서 후보 있으면 미기록 ADR/트러블슈팅 섹션 주입 (RFC 0051)', async () => {
+    const { buildHandoffPrompt } = await import('../src/commands/work.js')
+    const p = buildHandoffPrompt(' M package.json', {
+      adr: [{ title: '의존성 변경', context: 'package.json 변경', files: ['package.json'] }],
+      troubleshooting: [{ hash: 'abc1234def', message: 'fix: 크래시 수정' }],
+    })
+    expect(p).toContain('미기록 의사결정/에러 후보')
+    expect(p).toContain('의존성 변경')
+    expect(p).toContain('fix: 크래시 수정')
+    // 기존 인수인계 항목은 그대로 유지
+    expect(p).toContain('완료된 일 / 미완료된 일')
+  })
+
+  it('buildHandoffPrompt — 후보 없으면 섹션 미삽입(기존 시그니처 호환)', async () => {
+    const { buildHandoffPrompt } = await import('../src/commands/work.js')
+    const p = buildHandoffPrompt(' M a.ts')
+    expect(p).not.toContain('미기록 의사결정/에러 후보')
+  })
 })
 
 describe('work / workHandoff — 동작·안전장치', () => {
