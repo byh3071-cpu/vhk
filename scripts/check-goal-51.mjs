@@ -53,8 +53,22 @@ if (!skipDeep) {
 }
 
 // ─── goal 51 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+
+// 1) logger 가 출력 SoT 로 승격 — 단일 sink + 조용한 모드 + 확장 프린터.
+const logger = read('src/utils/logger.ts')
+must(!!logger, 'src/utils/logger.ts 존재')
+must(/export function setSink\b/.test(logger ?? ''), 'logger.setSink (테스트 캡처/리다이렉트 단일 지점)')
+must(/export function setQuiet\b/.test(logger ?? ''), 'logger.setQuiet (조용한 모드 단일 지점)')
+must(/\bplain:\s*\(/.test(logger ?? '') && /\blist:\s*\(/.test(logger ?? ''), 'logger 렌더 프린터 확장(plain/list 등)')
+must(/function emit\(/.test(logger ?? '') && /sink\(/.test(logger ?? ''), 'logger 가 단일 sink 경유(emit→sink)')
+
+// 2) 신규 raw console.log(chalk…) 차단 가드 존재 + 동작(리포트 모드 exit 0).
+must(existsSync('scripts/check-no-raw-output.mjs'), 'scripts/check-no-raw-output.mjs 가드 존재')
+const guardScript = read('scripts/check-no-raw-output.mjs') ?? ''
+must(/vhk-allow-raw-output/.test(guardScript), '가드에 allow 주석 경로(vhk-allow-raw-output)')
+must(guardScript.includes('console') && guardScript.includes('chalk'), '가드가 console.log(chalk…) 패턴 대상')
+must(run('node', ['scripts/check-no-raw-output.mjs', 'src']), 'check-no-raw-output 리포트 실행(exit 0)')
 
 if (pass) { console.log('✅ goal 51 gate passes'); process.exit(0) }
 console.log('❌ goal 51 gate failed'); process.exit(1)

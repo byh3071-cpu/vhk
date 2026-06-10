@@ -52,9 +52,26 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 54 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 54 고유 검증 (README 버전 = package.json SoT 동적 비교) ─────────────
+// ⚠️ 버전 하드코딩 금지 — origin/main 이동으로 버전 변할 수 있으니 pkg.version 과 동적 비교.
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const stripBom = (t) => (t && t.charCodeAt(0) === 0xfeff ? t.slice(1) : t)
+const expected = pkg.version
+const readme = stripBom(read('README.md') ?? '')
+const head = readme.split('\n').slice(0, 16).join('\n') // frontmatter + 제목 blockquote 범위
+
+const tagM = head.match(/tags:.*?v(\d+\.\d+\.\d+)/)
+must(!!tagM, 'README frontmatter tags 에 vX.Y.Z 존재')
+must(tagM && tagM[1] === expected, `README tags 버전(${tagM ? tagM[1] : '없음'}) = package.json(${expected})`)
+
+const bqM = head.match(/\*\*v(\d+\.\d+\.\d+)\*\*/)
+must(!!bqM, 'README 상단 blockquote 에 **vX.Y.Z** 존재')
+must(bqM && bqM[1] === expected, `README blockquote 버전(${bqM ? bqM[1] : '없음'}) = package.json(${expected})`)
+
+// 가드(version-sync.test.ts)가 README 까지 검사하도록 확장됐는지.
+const vsT = read('tests/version-sync.test.ts') ?? ''
+must(/README\.md/.test(vsT), 'version-sync.test 가 README 검사로 확장됨')
+must(/frontmatter/.test(vsT) && /blockquote/.test(vsT), 'version-sync 가 frontmatter+blockquote 두 곳 검사')
 
 if (pass) { console.log('✅ goal 54 gate passes'); process.exit(0) }
 console.log('❌ goal 54 gate failed'); process.exit(1)

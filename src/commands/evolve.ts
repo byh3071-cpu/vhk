@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, renameSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import { prompt } from '../lib/prompt.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -16,24 +17,30 @@ import type { PatternEntryV19 } from './pattern.js'
  */
 
 export const QUEUE_PATH_REL = join('.vhk', 'evolve', 'queue.json')
-export const QUEUE_VERSION = 1
+// Goal 58: 스키마 v2 — 진화 큐가 5계층 자기개선(memory/rule/workflow/code/product)을 표현.
+export const QUEUE_VERSION = 2
+
+/** 진화 제안이 반영될 타깃 계층(5계층 자기개선). v1 의 단일 'rule' 을 일반화. */
+export type TargetLayer = 'memory' | 'rule' | 'workflow' | 'code' | 'product'
+export const TARGET_LAYERS: TargetLayer[] = ['memory', 'rule', 'workflow', 'code', 'product']
 
 export type EvolveItemStatus = 'pending' | 'rejected' | 'applied'
 
 export interface EvolveQueueItem {
   id: string              // 'e1', 'e2', ...
   patternId: string       // reference only, no copy
-  kind: 'rule'
+  kind: 'rule'            // (deprecated, v1 호환) 항상 'rule'. 신규 코드는 targetLayer 사용.
+  targetLayer?: TargetLayer // v2: 반영 타깃 계층. 미지정(v1 항목)은 'rule' 로 간주.
   status: EvolveItemStatus
   draft: string
-  dedupeKey: string       // `${patternId}:${kind}`
+  dedupeKey: string       // `${patternId}:${targetLayer}` (v1 = `${patternId}:rule` 와 동일)
   createdAt: string
   appliedAt?: string
   rulesBackupPath?: string
 }
 
 export interface EvolveQueueFile {
-  version: 1
+  version: number         // 1 = legacy, 2 = current. readQueue 가 v1 을 자동 변환.
   items: EvolveQueueItem[]
 }
 
@@ -49,9 +56,9 @@ export function buildDraft(p: PatternEntryV19): string {
   return `- ${axisLabel} 관련 작업 시 사전 점검 필수 (근거: ${countDesc}, ${p.summary})`
 }
 
-/** dedupeKey = `${patternId}:${kind}` */
-export function buildDedupeKey(patternId: string, kind: 'rule'): string {
-  return `${patternId}:${kind}`
+/** dedupeKey = `${patternId}:${targetLayer}`. v1 의 `${patternId}:rule` 과 하위호환(targetLayer 기본 'rule'). */
+export function buildDedupeKey(patternId: string, targetLayer: TargetLayer = 'rule'): string {
+  return `${patternId}:${targetLayer}`
 }
 
 /**
@@ -78,12 +85,14 @@ export function generateCandidates(
 
   const result: Omit<EvolveQueueItem, 'id' | 'createdAt'>[] = []
   for (const p of eligible) {
+    // v0 후보는 모두 'rule' 계층 타깃(패턴→RULES.md). 다른 계층 생성은 후속.
     const dedupeKey = buildDedupeKey(p.id, 'rule')
     if (rejectedKeys.has(dedupeKey)) continue  // A1: rejected → 재제안 억제
     if (occupiedKeys.has(dedupeKey)) continue   // A2: pending/applied → 스킵
     result.push({
       patternId: p.id,
       kind: 'rule',
+      targetLayer: 'rule',
       status: 'pending',
       draft: buildDraft(p),
       dedupeKey,
@@ -115,36 +124,94 @@ function stripBomStr(s: string): string {
 }
 
 /**
- * queue.json 읽기. BOM-safe.
- * 파일 없음 또는 손상 → {version:1, items:[]} 반환 (절대 throw 안 함).
+ * Goal 58: 큐 스키마 v1 → v2 마이그레이션(순수 함수, 무손실).
+ * - 각 항목에 targetLayer 부여(kind:'rule' → targetLayer:'rule' 기본 매핑). 기존 필드 전부 보존.
+ * - dedupeKey 를 `${patternId}:${targetLayer}` 로 재계산(v1 'rule' 은 동일 값 → 충돌 0).
+ * - version 을 QUEUE_VERSION(2)로 승격.
+ */
+export function migrateQueueToV2(old: EvolveQueueFile): EvolveQueueFile {
+  // 방어: items 가 배열이 아니면(손상/오용) 빈 배열로 — 순수·무throw 계약 유지.
+  const items = (Array.isArray(old.items) ? old.items : []).map((it) => {
+    // v1 항목은 targetLayer 부재 → 'rule' 로 매핑(현 v1 kind 는 'rule' 단일).
+    const targetLayer: TargetLayer = it.targetLayer ?? 'rule'
+    return {
+      ...it,                       // 무손실: id/patternId/status/draft/createdAt/appliedAt/rulesBackupPath 보존
+      kind: 'rule' as const,
+      targetLayer,
+      dedupeKey: `${it.patternId}:${targetLayer}`,
+    }
+  })
+  return { version: QUEUE_VERSION, items }
+}
+
+/**
+ * dedupeKey 충돌 검출 — 점유(pending/applied) 항목 중 같은 dedupeKey 가 2회+면 충돌.
+ * rejected 는 재제안 억제 키라 중복 허용(충돌 아님). 반환: 충돌한 dedupeKey 목록.
+ */
+export function findDedupeCollisions(items: EvolveQueueItem[]): string[] {
+  const seen = new Set<string>()
+  const collided = new Set<string>()
+  for (const it of items) {
+    if (it.status !== 'pending' && it.status !== 'applied') continue
+    if (seen.has(it.dedupeKey)) collided.add(it.dedupeKey)
+    else seen.add(it.dedupeKey)
+  }
+  return [...collided]
+}
+
+/**
+ * queue.json 읽기. BOM-safe + v1 자동 변환.
+ * 파일 없음 또는 손상 → {version:QUEUE_VERSION, items:[]} 반환 (절대 throw 안 함).
+ * 디스크가 v1 이면 migrateQueueToV2 로 변환해 v2 를 반환(읽기는 디스크 미변경 — 다음 writeQueue 에서 영속).
  */
 export function readQueue(cwd: string): EvolveQueueFile {
   const p = join(cwd, QUEUE_PATH_REL)
-  if (!existsSync(p)) return { version: 1, items: [] }
+  if (!existsSync(p)) return { version: QUEUE_VERSION, items: [] }
   try {
     const raw = stripBomStr(readFileSync(p, 'utf-8'))
     const parsed = JSON.parse(raw) as EvolveQueueFile
-    if (!parsed || !Array.isArray(parsed.items)) return { version: 1, items: [] }
-    return parsed
+    if (!parsed || !Array.isArray(parsed.items)) return { version: QUEUE_VERSION, items: [] }
+    const v = typeof parsed.version === 'number' ? parsed.version : 1
+    if (v === QUEUE_VERSION) return parsed
+    if (v < QUEUE_VERSION) return migrateQueueToV2(parsed)  // v1 → v2 (상향 마이그레이션만)
+    return parsed  // 미래 버전(v3+) — 다운그레이드 금지, best-effort 그대로 반환(데이터 손실 방지)
   } catch {
-    return { version: 1, items: [] }
+    return { version: QUEUE_VERSION, items: [] }
   }
 }
 
 /**
  * queue.json 쓰기. 디렉터리가 없으면 재귀 생성.
- * 원자적 쓰기: .tmp에 먼저 쓰고 rename — 프로세스 강제 종료 시 queue.json 손상 방지.
+ * Goal 58: 쓰기 전 .bak(롤링) 백업 + 원본이 v1 이면 .v1.bak(원본 스키마 1회) 보존.
+ *   atomicWriteFile 로 원자 치환(프로세스 강제 종료 시 손상 0). 쓰기 실패 시 .bak 복원.
  */
 export function writeQueue(cwd: string, queue: EvolveQueueFile): void {
   const p = join(cwd, QUEUE_PATH_REL)
   mkdirSync(join(cwd, '.vhk', 'evolve'), { recursive: true })
-  // 원자적 쓰기: .tmp에 먼저 쓰고 rename — 프로세스 강제 종료 시 queue.json 손상 방지
-  const tmpPath = p + '.tmp'
-  writeFileSync(tmpPath, JSON.stringify(queue, null, 2) + '\n', 'utf-8')
+
+  const bakPath = p + '.bak'
+  const v1BakPath = p + '.v1.bak'
+  if (existsSync(p)) {
+    try {
+      // 기존 파일이 파싱되는 경우에만 백업 — 손상본이 양호한 .bak 을 덮어쓰는 걸 방지.
+      const prevRaw = stripBomStr(readFileSync(p, 'utf-8'))
+      const prev = JSON.parse(prevRaw) as { version?: number }
+      copyFileSync(p, bakPath)  // 롤링 백업(쓰기 직전 양호 상태)
+      // 원본이 v1 이면 마이그레이션 전 원본 스키마를 1회 보존(.v1.bak)
+      if (!existsSync(v1BakPath) && prev?.version === 1) copyFileSync(p, v1BakPath)
+    } catch {
+      /* 기존 파일 손상/읽기 실패 → 백업 스킵(양호한 .bak 보존). 원자 치환이 손상은 방지 */
+    }
+  }
+
+  const data = JSON.stringify(queue, null, 2) + '\n'
   try {
-    renameSync(tmpPath, p)
+    atomicWriteFile(p, data)
   } catch (err) {
-    try { rmSync(tmpPath, { force: true }) } catch { /* 정리 실패 무시 */ }
+    // 쓰기 실패 → .bak 으로 복원(큐 손상 0)
+    if (existsSync(bakPath)) {
+      try { copyFileSync(bakPath, p) } catch { /* 복원 실패는 무시 — 원래 에러 전파 */ }
+    }
     throw err
   }
 }
