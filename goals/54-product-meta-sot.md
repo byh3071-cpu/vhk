@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 54
 title: 제품 메타 SoT — README 버전 빌드주입 + version-sync README 확장 — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-08
+completed: 2026-06-10
 leads_to: 제품 3→4 · README 버전 드리프트 0
 ---
 
@@ -27,11 +28,18 @@ leads_to: 제품 3→4 · README 버전 드리프트 0
 - version-sync가 README까지 검사, README 버전 드리프트 0. 회귀 0.
 
 ## Completion Check
-- [ ] version-sync.test.ts에 README 버전 대조 케이스 추가
-- [ ] README 버전 문자열 빌드주입(package.json SoT) 또는 갱신
-- [ ] (옵션) 영어 요약 1문단
-- [ ] 공통 게이트 통과, 회귀 0
-- [ ] check-goal-54.mjs 통과
+- [x] version-sync.test.ts에 README 버전 대조 케이스 2개(frontmatter tags + 제목 blockquote) — package.json 동적 비교
+- [x] README 버전 두 곳 갱신(v2.5.0 → v2.5.1 = 현 package.json). 빌드주입은 스코프 아웃(tsup SoT 주석)
+- [ ] (옵션) 영어 요약 1문단 — 스코프 아웃(본질 한국어 우선 유지)
+- [x] 공통 게이트 통과, 회귀 0
+- [x] check-goal-54.mjs 통과
+
+## ✅ Completion (2026-06-10)
+- **드리프트 실측·교정**: README frontmatter tag·제목 blockquote 가 v2.5.0 인데 package.json 은 2.5.1 → 두 곳 갱신.
+- **가드 확장**(tests/version-sync.test.ts): 기존 CLAUDE.md 케이스 유지 + README 2케이스 추가. **버전 하드코딩 0** — 모두 `package.json.version` 과 동적 대조(blockquote 은 상단 16줄 범위 검색). 이제 README 드리프트가 CI 를 조용히 통과 못 함.
+- **SoT 선언**(tsup.config.ts 주석): package.json = 버전 SoT, README/CLAUDE.md 는 version-sync.test 가 대조. 런타임 빌드 주입은 스코프 아웃(가드 기반 정합으로 충분).
+- **check-goal-54**: README 두 버전 추출 → package.json 동적 일치(하드코딩 금지) + 가드 확장 확인.
+- **게이트**: tsc ✓ · version-sync 3 pass · test:run 회귀 0 · check-goal-54 ✓.
 
 ## Mandatory Reading
 - README.md · tests/version-sync.test.ts · package.json · tsup.config.ts(빌드주입 지점)
