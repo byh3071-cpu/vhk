@@ -130,8 +130,10 @@ function stripBomStr(s: string): string {
  * - version 을 QUEUE_VERSION(2)로 승격.
  */
 export function migrateQueueToV2(old: EvolveQueueFile): EvolveQueueFile {
-  const items = (old.items ?? []).map((it) => {
-    const targetLayer: TargetLayer = it.targetLayer ?? (it.kind === 'rule' ? 'rule' : 'rule')
+  // 방어: items 가 배열이 아니면(손상/오용) 빈 배열로 — 순수·무throw 계약 유지.
+  const items = (Array.isArray(old.items) ? old.items : []).map((it) => {
+    // v1 항목은 targetLayer 부재 → 'rule' 로 매핑(현 v1 kind 는 'rule' 단일).
+    const targetLayer: TargetLayer = it.targetLayer ?? 'rule'
     return {
       ...it,                       // 무손실: id/patternId/status/draft/createdAt/appliedAt/rulesBackupPath 보존
       kind: 'rule' as const,
@@ -169,8 +171,10 @@ export function readQueue(cwd: string): EvolveQueueFile {
     const raw = stripBomStr(readFileSync(p, 'utf-8'))
     const parsed = JSON.parse(raw) as EvolveQueueFile
     if (!parsed || !Array.isArray(parsed.items)) return { version: QUEUE_VERSION, items: [] }
-    if (parsed.version !== QUEUE_VERSION) return migrateQueueToV2(parsed)  // v1(또는 미래 미지원) → v2
-    return parsed
+    const v = typeof parsed.version === 'number' ? parsed.version : 1
+    if (v === QUEUE_VERSION) return parsed
+    if (v < QUEUE_VERSION) return migrateQueueToV2(parsed)  // v1 → v2 (상향 마이그레이션만)
+    return parsed  // 미래 버전(v3+) — 다운그레이드 금지, best-effort 그대로 반환(데이터 손실 방지)
   } catch {
     return { version: QUEUE_VERSION, items: [] }
   }
@@ -189,14 +193,14 @@ export function writeQueue(cwd: string, queue: EvolveQueueFile): void {
   const v1BakPath = p + '.v1.bak'
   if (existsSync(p)) {
     try {
-      copyFileSync(p, bakPath)  // 롤링 백업(쓰기 직전 상태)
-      if (!existsSync(v1BakPath)) {
-        // 원본이 v1 이면 마이그레이션 전 원본 스키마를 1회 보존(.v1.bak)
-        const prev = JSON.parse(stripBomStr(readFileSync(p, 'utf-8'))) as { version?: number }
-        if (prev?.version === 1) copyFileSync(p, v1BakPath)
-      }
+      // 기존 파일이 파싱되는 경우에만 백업 — 손상본이 양호한 .bak 을 덮어쓰는 걸 방지.
+      const prevRaw = stripBomStr(readFileSync(p, 'utf-8'))
+      const prev = JSON.parse(prevRaw) as { version?: number }
+      copyFileSync(p, bakPath)  // 롤링 백업(쓰기 직전 양호 상태)
+      // 원본이 v1 이면 마이그레이션 전 원본 스키마를 1회 보존(.v1.bak)
+      if (!existsSync(v1BakPath) && prev?.version === 1) copyFileSync(p, v1BakPath)
     } catch {
-      /* 백업 실패는 치명적 아님 — 쓰기는 계속(원자 치환이 손상은 방지) */
+      /* 기존 파일 손상/읽기 실패 → 백업 스킵(양호한 .bak 보존). 원자 치환이 손상은 방지 */
     }
   }
 

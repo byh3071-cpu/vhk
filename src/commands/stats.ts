@@ -28,11 +28,12 @@ export function countLedgerStatus(entries: LedgerEntry[]): LedgerStatusCounts {
   let warn = 0
   let fail = 0
   for (const e of entries) {
-    if (e.status === 'PASS') pass++
-    else if (e.status === 'WARN') warn++
-    else if (e.status === 'FAIL') fail++
+    if (e?.status === 'PASS') pass++
+    else if (e?.status === 'WARN') warn++
+    else if (e?.status === 'FAIL') fail++
   }
-  return { pass, warn, fail, total: entries.length }
+  // total = 인식된 상태 합 — 손상/미인식 라인이 total 을 부풀려 'total ≠ PASS+WARN+FAIL' 되는 불일치 방지.
+  return { pass, warn, fail, total: pass + warn + fail }
 }
 
 export interface RateStat {

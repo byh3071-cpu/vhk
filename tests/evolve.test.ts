@@ -480,6 +480,26 @@ describe('migrateQueueToV2', () => {
   it('빈 v1 큐도 안전 변환', () => {
     expect(migrateQueueToV2({ version: 1, items: [] })).toEqual({ version: 2, items: [] })
   })
+
+  it('items 가 배열이 아니어도 안전(빈 배열) — 순수·무throw', () => {
+    // 손상/오용 입력. 타입 우회 캐스팅.
+    const bad = { version: 1, items: {} } as unknown as EvolveQueueFile
+    expect(() => migrateQueueToV2(bad)).not.toThrow()
+    expect(migrateQueueToV2(bad)).toEqual({ version: 2, items: [] })
+  })
+})
+
+describe('readQueue 미래 버전 보호(다운그레이드 금지)', () => {
+  it('디스크 version > 현재(예 v3) → 마이그레이션 없이 그대로 반환(데이터 손실 방지)', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk', 'evolve'), { recursive: true })
+    const future = { version: 3, items: [], futureField: 'keep' }
+    fs.writeFileSync(path.join(d, QUEUE_PATH_REL), JSON.stringify(future, null, 2), 'utf-8')
+    const q = readQueue(d) as EvolveQueueFile & { futureField?: string }
+    expect(q.version).toBe(3) // 강등 안 함
+    expect(q.futureField).toBe('keep') // v3 전용 필드 보존
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })
 
 describe('findDedupeCollisions', () => {

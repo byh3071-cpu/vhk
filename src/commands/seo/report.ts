@@ -26,13 +26,18 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+/** href 스킴 화이트리스트 — latest.json 의 외부 입력이 `javascript:` 등으로 XSS 되는 것을 차단. */
+function safeHref(href: string): string {
+  return /^https?:\/\//i.test(href) ? href : '#'
+}
+
 function num(n: number | undefined, dash = '—'): string {
   return typeof n === 'number' ? String(n) : dash
 }
 
 /** ⚠️ 배지 + 딥링크 — API 로 못 가져오는 항목용. */
 function warnBadge(label: string, href: string): string {
-  return `<span class="warn">⚠️ ${esc(label)} — <a href="${esc(href)}" target="_blank" rel="noopener">여기서 직접 하기</a></span>`
+  return `<span class="warn">⚠️ ${esc(label)} — <a href="${esc(safeHref(href))}" target="_blank" rel="noopener">여기서 직접 하기</a></span>`
 }
 
 /**

@@ -52,4 +52,21 @@ describe('Goal 25: renderSeoReportHtml (무빌드 오프라인)', () => {
     expect(html).not.toContain('a<b>"&')
     expect(html).toContain('&lt;b&gt;')
   })
+
+  it('XSS 방어 — aiCitationsDeepLink 의 javascript: 스킴은 href 에서 차단(#)', () => {
+    const html = renderSeoReportHtml({
+      version: 1, collectedAt: 't', domain: 'x.com',
+      bing: { aiCitationsDeepLink: 'javascript:alert(document.cookie)' },
+    })
+    expect(html).not.toContain('javascript:')
+    expect(html).toContain('href="#"') // 비-http(s) 스킴 → 안전한 # 로 대체
+  })
+
+  it('정상 https 딥링크는 보존', () => {
+    const html = renderSeoReportHtml({
+      version: 1, collectedAt: 't', domain: 'x.com',
+      bing: { aiCitationsDeepLink: 'https://bing.com/webmasters' },
+    })
+    expect(html).toContain('https://bing.com/webmasters')
+  })
 })

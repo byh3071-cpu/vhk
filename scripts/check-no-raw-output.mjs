@@ -47,6 +47,9 @@ for (const file of files) {
   RAW.lastIndex = 0
   let m
   while ((m = RAW.exec(text))) {
+    // 라인 주석(`//`) 안의 매치는 오탐 — 같은 줄에서 매치 앞에 `//` 가 있으면 스킵.
+    const lineStart = text.lastIndexOf('\n', m.index - 1) + 1
+    if (text.slice(lineStart, m.index).includes('//')) continue
     // 화이트리스트: 매치 직전 ~160자 안에 `// vhk-allow-raw-output:` 있으면 의도된 raw 출력 → 통과.
     const before = text.slice(Math.max(0, m.index - 160), m.index)
     if (before.includes(ALLOW)) continue

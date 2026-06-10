@@ -61,7 +61,7 @@ must(/export function migrateQueueToV2/.test(evolve), 'migrateQueueToV2 export')
 must(/export function findDedupeCollisions/.test(evolve), 'findDedupeCollisions export')
 
 // 3) readQueue v1 자동 변환 + writeQueue 원자 치환·백업.
-must(/parsed\.version\s*!==\s*QUEUE_VERSION/.test(evolve) && /migrateQueueToV2\(parsed\)/.test(evolve), 'readQueue 가 v1 자동 변환')
+must(/v\s*<\s*QUEUE_VERSION/.test(evolve) && /migrateQueueToV2\(parsed\)/.test(evolve), 'readQueue 가 v1 상향 자동 변환(미래버전 다운그레이드 금지)')
 must(/atomicWriteFile\(/.test(evolve), 'writeQueue 원자 치환(atomicWriteFile)')
 must(/\.v1\.bak/.test(evolve) && /\.bak/.test(evolve), 'writeQueue .bak/.v1.bak 백업')
 
