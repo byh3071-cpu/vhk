@@ -91,7 +91,12 @@ export async function seoSubmit(_opts: { yes?: boolean } = {}, root: string = pr
   const site = cfg.sites[0]
 
   // 1) IndexNow 키 보장(오프라인 — 키파일 생성/검증). 키파일은 사이트 루트에 배포해야 핑이 인증됨.
+  // 기존 키파일이 손상/형식불일치이면 새 키로 교체되므로 재배포 경고(멱등성 깨짐 방지).
+  const hadInvalidKey = existsSync(join(root, INDEXNOW_KEY_REL)) && readIndexNowKey(root) === null
   const key = ensureIndexNowKey(root)
+  if (hadInvalidKey) {
+    log.warn('기존 IndexNow 키파일이 손상/형식불일치 — 새 키로 교체됨. 사이트 루트에 새 키파일 재배포 필요(옛 keyLocation 404 방지).')
+  }
   log.plain(chalk.green(`  ✓ IndexNow 키 준비: ${INDEXNOW_KEY_REL}`))
   log.plain(chalk.dim(`    → 사이트 루트에 https://${site.domain}/${indexNowKeyFileName(key)} 로 배포 필요`))
 

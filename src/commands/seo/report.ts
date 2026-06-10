@@ -22,13 +22,16 @@ export const DEEP_LINKS = {
   bingAi: 'https://www.bing.com/webmasters/',
 } as const
 
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+// 입력이 문자열이 아닐 수 있음(손상/수동편집 latest.json) → String 강제로 esc(undefined) 크래시 방지.
+// 타입은 base 값만(객체 미허용) — 런타임에 객체가 와도 String() 으로 안 죽고, lint(no-base-to-string)도 통과.
+function esc(s: string | number | null | undefined): string {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 /** href 스킴 화이트리스트 — latest.json 의 외부 입력이 `javascript:` 등으로 XSS 되는 것을 차단. */
-function safeHref(href: string): string {
-  return /^https?:\/\//i.test(href) ? href : '#'
+function safeHref(href: string | null | undefined): string {
+  const h = String(href ?? '')
+  return /^https?:\/\//i.test(h) ? h : '#'
 }
 
 function num(n: number | undefined, dash = '—'): string {

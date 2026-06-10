@@ -90,7 +90,8 @@ export function mergeLatest(prev: SeoLatest | null, patch: Partial<SeoLatest>, c
   return {
     ...base,
     ...patch,
-    version: SEO_LATEST_VERSION,
+    // 미래 버전(prev/patch 가 더 높음) 다운그레이드 금지 — 더 높은 version 보존(evolve readQueue 와 일관).
+    version: Math.max(base.version || SEO_LATEST_VERSION, patch.version || SEO_LATEST_VERSION, SEO_LATEST_VERSION),
     collectedAt,
     domain: patch.domain ?? base.domain,
     index: { ...base.index, ...patch.index },

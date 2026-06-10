@@ -69,4 +69,12 @@ describe('Goal 25: renderSeoReportHtml (무빌드 오프라인)', () => {
     })
     expect(html).toContain('https://bing.com/webmasters')
   })
+
+  it('손상 latest(domain/collectedAt 누락) 에도 크래시 없음(esc 비문자열 방어)', () => {
+    // 부분 기록/수동편집으로 필드가 undefined·비문자열인 경우.
+    const bad = { version: 1 } as unknown as SeoLatest
+    expect(() => renderSeoReportHtml(bad)).not.toThrow()
+    const weird = { version: 1, collectedAt: 't', domain: { x: 1 }, index: { sitemapStatus: 5 } } as unknown as SeoLatest
+    expect(() => renderSeoReportHtml(weird)).not.toThrow()
+  })
 })

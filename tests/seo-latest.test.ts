@@ -54,4 +54,10 @@ describe('SEO latest.json 스키마·I/O', () => {
     expect(merged.domain).toBe('y.com')
     expect(merged.index?.bingIndexed).toBe(1)
   })
+
+  it('mergeLatest — 미래 버전(prev) 다운그레이드 금지(더 높은 version 보존)', () => {
+    const prev = { version: 3, collectedAt: 't0', domain: 'x.com' } as SeoLatest
+    const merged = mergeLatest(prev, { traffic: { clicks: 1 } }, 't1')
+    expect(merged.version).toBe(3) // 1 로 강등 안 함
+  })
 })
