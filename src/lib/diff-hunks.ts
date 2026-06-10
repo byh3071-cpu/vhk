@@ -8,20 +8,28 @@ import { isFeatureSource, toPosix } from './test-mapping.js'
 export function addedLinesByFile(diffText: string): Map<string, Set<number>> {
   const out = new Map<string, Set<number>>()
   let curFile: string | null = null
+  // 상태: false=헤더 영역(+++ b/ 가 파일 경로), true=헌트 본문(+++/--- 은 *내용*이므로 무시).
+  // 첫 @@ 이후 본문으로 전환 → 추가된 소스 라인 "++ x"(diff 에선 "+++ x")를 헤더로 오인하지 않음.
+  // (적대 검증 2026-06-10: 본문 +++/--- 오인이 같은 파일 후속 헌트를 누락시키던 버그 차단.)
+  let inHunks = false
   for (const raw of diffText.split(/\r?\n/)) {
     if (raw.startsWith('diff --git ')) {
       curFile = null // 파일 경계 — binary/rename은 +++ 없음 → null 유지.
+      inHunks = false
       continue
     }
-    const plus = raw.match(/^\+\+\+ (?:b\/)?(.+)$/)
-    if (plus) {
-      const path = plus[1].trim()
-      curFile = path !== '/dev/null' && isFeatureSource(path) ? toPosix(path) : null
-      continue
+    if (!inHunks) {
+      const plus = raw.match(/^\+\+\+ (?:b\/)?(.+)$/)
+      if (plus) {
+        const path = plus[1].trim()
+        curFile = path !== '/dev/null' && isFeatureSource(path) ? toPosix(path) : null
+        continue
+      }
     }
-    if (!curFile) continue
     const hunk = raw.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/)
     if (!hunk) continue
+    inHunks = true // 이 파일은 헌트 본문 진입 — 이후 +++/--- 은 내용.
+    if (!curFile) continue
     const start = Number(hunk[1])
     const count = hunk[2] === undefined ? 1 : Number(hunk[2])
     if (count <= 0) continue // 순수 삭제 헌트(+c,0).
