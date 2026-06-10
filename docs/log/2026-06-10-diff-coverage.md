@@ -40,3 +40,27 @@ PR1 코드 자체(vs main)에 도구를 돌림:
 
 1. **며칠 `vhk diff-cover` 실사용** — 실제 코드 작업 diff ≥5건 누적해 미검증 변경분 분포 측정(RFC 0050 §5). 유의미하면 PR2(review 통합 + CI), ≈0이면 "이론적 구멍" 문서화 후 중단.
 2. recall 실측(RFC 0049 §5)과 병행 — 둘 다 measure-first 대기.
+
+---
+
+## 후속 (같은 날 2026-06-10 — 같은 세션)
+
+### #239 diff-hunks 파서 버그 (적대적 검증 발견)
+
+PR1 머지 후 "머지해도 됐나" 적대 검증 — **읽기 아닌 실행**(악성 diff 8케이스 직접 돌림). BUG 2건 확정: 헌트 본문의 추가라인 `++ x`(diff에선 `+++ x`)·제거라인 `-- y`(`--- y`)를 파일 헤더로 오인 → 같은 파일 후속 헌트 누락(undercount). TDD red→green·도그푸딩 둘 다 못 친 엣지. 헤더/본문 상태머신(첫 `@@` 이후 `+++`/`---` 무시)으로 차단 + 회귀 테스트 2건. 나머지(새파일·CRLF·파일격리·diff-coverage 엣지)는 견고 확인.
+
+- **교훈**: 적대적 검증은 *실행*으로 — 합성 TDD 입력은 작성자 가정만 검증, 적대적 실행 입력이 가정 밖 노출.
+
+### #240 콜드스타트 −37% (RFC 0047, measure-first가 전략 바꿈)
+
+dep별 import 비용 실측 → **inquirer 단독 212ms = 콜드스타트 절반**(handlebars/notion/simple-git는 20~33ms). "명령 60+ 전부 lazy"(index.ts 통째 재작성·고위험) 대신 **inquirer 하나만 lazy**(`lib/prompt.ts` `await import` 래퍼 + 22파일 코드모드) = 80/20. `vhk --version` 512→323ms(−37%), `status` 739→610. 전체 1385 green(inquirer mock 정상, 테스트 import도 23s→12s). 회귀 가드 `tests/check-inquirer-lazy.test.ts`. splitting 불필요(ESM dynamic import 자체가 지연).
+
+- **교훈**: lazy-load 전 dep별 비용 측정 — 하나가 절반이면 그것만 고치는 게 80/20. 추측으로 전부 lazy화(고위험) 금지.
+
+### #38 close
+
+RFC 0001 .vhk 규격 의견수렴 이슈 — 11일 코멘트 0(솔로). 4개 질문 현재상태로 답하고 close(Q1 드리프트=doctor --strict·goal 43 구현됨, Q2~4 YAGNI). 열린 이슈 0.
+
+### 세션 머지 총 6 PR + 1 close
+
+PR/이슈: #235 recall dev log · #236 diff-coverage PR1 · #237 상태 · #239 파서 · #240 콜드스타트 · #241 정리 · #38 close.
