@@ -55,4 +55,34 @@ describe('addedLinesByFile — unified=0 diff → 기능소스별 추가 라인'
   it('빈 diff → 빈 맵', () => {
     expect(addedLinesByFile('').size).toBe(0)
   })
+
+  // 적대 검증 발견(2026-06-10): 헌트 본문의 +++/--- 내용라인을 파일 헤더로 오인 →
+  // 같은 파일 후속 헌트 누락. 상태머신(첫 @@ 이후 본문)으로 차단.
+  it('헌트 본문 +++ 내용라인(소스 "++ x") 뒤 후속 헌트 유지', () => {
+    const diff = [
+      'diff --git a/src/lib/a.ts b/src/lib/a.ts',
+      '--- a/src/lib/a.ts',
+      '+++ b/src/lib/a.ts',
+      '@@ -5,0 +6,1 @@',
+      '+++ x', // 소스 "++ x" 추가 → diff 본문(헤더 아님)
+      '@@ -20,0 +30,2 @@', // 같은 파일 두 번째 헌트
+      '+y',
+      '+z',
+    ].join('\n')
+    expect([...(addedLinesByFile(diff).get('src/lib/a.ts') ?? [])]).toEqual([6, 30, 31])
+  })
+
+  it('헌트 본문 --- 내용라인(소스 "-- y")도 헤더 오인 안 함', () => {
+    const diff = [
+      'diff --git a/src/lib/a.ts b/src/lib/a.ts',
+      '--- a/src/lib/a.ts',
+      '+++ b/src/lib/a.ts',
+      '@@ -5,1 +6,1 @@',
+      '--- y',
+      '+++ x',
+      '@@ -20,0 +30,1 @@',
+      '+z',
+    ].join('\n')
+    expect([...(addedLinesByFile(diff).get('src/lib/a.ts') ?? [])]).toEqual([6, 30])
+  })
 })
