@@ -32,6 +32,46 @@ export function hasCustomGateAssertions(scriptContent: string): boolean {
   return false
 }
 
+// Goal 53: 가드 신뢰도 — 정규식 shape 단언 측정.
+//   `must(/.../.test(src), ...)` 형태는 함수명만 바꿔도 깨지고(거짓음성), import 만 해두면 통과(거짓양성).
+//   비율을 측정해 상한(ratchet)으로 묶고, 핵심 행동은 behavior 테스트(tests/*.test.ts)로 검증한다.
+const REGEX_SHAPE_ASSERTION = /must\([^)]*\/.*\/\.test/
+
+/**
+ * check-goal 본문에서 정규식 shape 단언(`must(/.../.test(...))`)의 개수와 예시(최대 5).
+ * 주석(`//`)·헬퍼 정의(`const must =`) 라인은 제외.
+ */
+export function countRegexAssertions(content: string): { count: number; examples: string[] } {
+  const examples: string[] = []
+  let count = 0
+  for (const raw of content.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('//')) continue
+    if (/const\s+must\s*=/.test(line)) continue
+    if (!line.includes('must(')) continue
+    if (REGEX_SHAPE_ASSERTION.test(line)) {
+      count++
+      if (examples.length < 5) examples.push(line.slice(0, 100))
+    }
+  }
+  return { count, examples }
+}
+
+/**
+ * check-goal 본문의 전체 `must()` 호출 수(정규식 비율의 분모).
+ * 주석·헬퍼 정의 라인 제외 — countRegexAssertions 와 동일 기준.
+ */
+export function countMustAssertions(content: string): number {
+  let count = 0
+  for (const raw of content.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('//')) continue
+    if (/const\s+must\s*=/.test(line)) continue
+    if (line.includes('must(')) count++
+  }
+  return count
+}
+
 export interface DriftCandidate {
   id: number
   title: string

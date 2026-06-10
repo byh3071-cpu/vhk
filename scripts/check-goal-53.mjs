@@ -52,9 +52,42 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 53 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 53 고유 검증 (behavior-우선 슬림 모델) ─────────────────────────
+// 이 게이트 자체가 "shape grep 대신 behavior 테스트 실행 + export 시그니처 spot check" 의 모범.
+import { readdirSync } from 'node:fs'
+
+// 1) 측정 인프라 export 존재(시그니처 spot check — 1줄).
+const goalDrift = existsSync('src/lib/goal-drift.ts') ? readFileSync('src/lib/goal-drift.ts', 'utf-8') : ''
+must(/export function countRegexAssertions/.test(goalDrift), 'goal-drift.ts countRegexAssertions export')
+must(/export function countMustAssertions/.test(goalDrift), 'goal-drift.ts countMustAssertions export')
+
+// 2) behavior 테스트 목록 존재(shape grep 의 신뢰 대체재).
+must(existsSync('tests/guard-behavior-migration.test.ts'), 'guard-behavior-migration.test.ts 존재')
+for (const f of ['goal-drift.test.ts', 'git-repo.test.ts', 'version-sync.test.ts']) {
+  must(existsSync('tests/' + f), 'behavior 테스트 ' + f + ' 존재')
+}
+
+// 3) 정규식 shape 비율 측정(분자/분모) + 상한 ratchet 검증. 동적 계산 — 하드코딩 금지.
+const REGEX_SHAPE = /must\([^)]*\/.*\/\.test/
+let mustTotal = 0, shapeCount = 0
+for (const f of readdirSync('scripts')) {
+  if (!/^check-goal-\d+\.mjs$/.test(f)) continue
+  for (const raw of readFileSync('scripts/' + f, 'utf-8').split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('//') || /const\s+must\s*=/.test(line) || !line.includes('must(')) continue
+    mustTotal++
+    if (REGEX_SHAPE.test(line)) shapeCount++
+  }
+}
+const ratio = mustTotal ? shapeCount / mustTotal : 0
+console.log(`    · 정규식 shape 단언 ${shapeCount}/${mustTotal} (${(ratio * 100).toFixed(1)}%) — 상한 85%`)
+must(mustTotal > 0, '게이트 must() 단언 측정됨')
+must(ratio <= 0.85, '정규식 shape 비율 ≤ 85% (ratchet — 폭증 차단)')
+
+// 4) behavior 테스트 실제 실행(shape grep 이 아닌 동작 검증 — 핵심).
+if (!skipDeep) {
+  must(run(pm, ['exec', 'vitest', 'run', 'tests/guard-behavior-migration.test.ts']), 'guard-behavior-migration 테스트 통과')
+}
 
 if (pass) { console.log('✅ goal 53 gate passes'); process.exit(0) }
 console.log('❌ goal 53 gate failed'); process.exit(1)
