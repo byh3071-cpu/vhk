@@ -88,9 +88,9 @@ tags: [process, constitution]
 
 **마지막 갱신:** 2026-06-10
 - **버전:** v2.5.1 (발행 완료) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 1381 pass(main) · **MCP tools:** 29 — 사실값은 package.json·CHANGELOG
-- **Phase:** measure-first 2종. recall(RFC 0049) #232·#233 머지. diff-coverage(RFC 0050·Goal 50) PR1 #236 머지 — `vhk diff-cover` 측정 도구(자문·차단 0). 둘 다 실측 누적 후 게이트/ML 결정.
+- **테스트:** 1385 pass(main) · **MCP tools:** 29 — 사실값은 package.json·CHANGELOG
+- **Phase:** measure-first 2종. recall(RFC 0049) #232·#233. diff-coverage(RFC 0050·Goal 50) PR1 #236+파서픽스 #239 — `vhk diff-cover` 측정(자문·차단 0). 둘 다 실측 누적 후 게이트/ML 결정. 추가: 콜드스타트 −37%(#240 inquirer lazy).
 - **블로커:** 없음
-- **진행 중(미발행):** diff-coverage PR1 main 머지(미발행). PR2(review/CI 통합)는 도그푸딩 ≥5 diff 실측 대기.
-- **다음 할 일:** measure-first 실측 누적 — `vhk diff-cover` ≥5 실제 diff(RFC 0050 §5) + `vhk recall` 실사용→eval(RFC 0049 §5). 그 후 PR2/2차ML 결정. 병행: 미완 goal(린트 25/27·#128, SEO 21~26) + 열린 이슈 트리아지(#157·#155·#171·#148). ※ PR2 시 diff-hunks 파서 `diff --git`줄 기반으로 강화(코드리뷰 발견 엣지).
+- **진행 중(미발행):** diff-coverage PR1 + 콜드스타트(#240) main 머지(미발행). PR2(review/CI 통합)는 ≥5 diff 실측 대기.
+- **다음 할 일:** measure-first 실측 누적 — `vhk diff-cover` ≥5 실제 diff(RFC 0050 §5) + `vhk recall` 실사용→eval(RFC 0049 §5). 그 후 PR2/2차ML 결정. 병행: 미완 goal(린트 25/27·#128, SEO 21~26). 열린 이슈 = #38 1개(.vhk 규격 의견수렴, 코딩 아님).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유
