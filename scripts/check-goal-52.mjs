@@ -53,8 +53,30 @@ if (!skipDeep) {
 }
 
 // ─── goal 52 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+
+// 1) Notion 실 API 경로 — vi.mock 3케이스(auth throw·페이지네이션·retrieve 실패).
+const notionT = read('tests/notion.test.ts') ?? ''
+must(/vi\.mock\(['"]@notionhq\/client['"]/.test(notionT), 'notion.test 에 @notionhq/client vi.mock')
+must(/importNotionPrd/.test(notionT), 'notion.test 가 importNotionPrd(실 API 경로) 검증')
+must(/NOTION_TOKEN/.test(notionT), 'auth 누락(NOTION_TOKEN) throw 케이스')
+must(/has_more|페이지네이션|mockResolvedValueOnce/.test(notionT), 'fetchAllBlocks 페이지네이션 케이스')
+must(/mockRejectedValue|reject/.test(notionT), 'pages.retrieve reject 전파 케이스')
+
+// 2) restore 커맨드 셸 — 정상복원 + 미존재 id(exitCode=1).
+const restoreT = read('tests/restore.test.ts') ?? ''
+must(restoreT.length > 0, 'tests/restore.test.ts 존재')
+must(/from '\.\.\/src\/commands\/restore\.js'/.test(restoreT) || /commands\/restore/.test(restoreT), 'restore 커맨드 셸 import')
+must(/exitCode/.test(restoreT), '미존재 id → process.exitCode 검증')
+
+// 3) 구현부 무수정(테스트 전용 goal) — notion-import/restore 핵심 export 시그니처 spot check.
+must(/export async function importNotionPrd/.test(read('src/lib/notion-import.ts') ?? ''), 'importNotionPrd export 유지')
+must(/export async function restore/.test(read('src/commands/restore.ts') ?? ''), 'restore export 유지')
+
+// 4) 두 테스트 파일 실제 통과(서브셋 — deep 스킵 모드에서도 회귀 사정거리 확인).
+if (!skipDeep) {
+  must(run(pm, ['exec', 'vitest', 'run', 'tests/notion.test.ts', 'tests/restore.test.ts']), 'notion/restore 테스트 통과')
+}
 
 if (pass) { console.log('✅ goal 52 gate passes'); process.exit(0) }
 console.log('❌ goal 52 gate failed'); process.exit(1)
