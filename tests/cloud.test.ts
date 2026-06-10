@@ -42,6 +42,10 @@ describe('vhk-cloud — 기본 제외', () => {
     expect(DEFAULT_CLOUD_EXCLUDES).toContain('HARD_STOP')
     expect(DEFAULT_CLOUD_EXCLUDES).toContain('cloud.json')
   })
+
+  it('#248: *.bak 백업본도 기본 제외 (memory.json.bak 누출 차단)', () => {
+    expect(DEFAULT_CLOUD_EXCLUDES).toContain('*.bak')
+  })
 })
 
 describe('vhk-cloud — collectVhkFiles', () => {
@@ -68,6 +72,14 @@ describe('vhk-cloud — collectVhkFiles', () => {
     const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-empty-'))
     expect(collectVhkFiles(empty)).toEqual([])
     fs.rmSync(empty, { recursive: true, force: true })
+  })
+
+  it('#248: memory.json.bak 등 *.bak 백업본을 수집서 제외(개인정보 누출 차단)', () => {
+    fs.writeFileSync(path.join(repo, '.vhk', 'memory.json.bak'), '[]\n')
+    fs.writeFileSync(path.join(repo, '.vhk', 'memory.json.v1.bak'), '[]\n')
+    const files = collectVhkFiles(repo)
+    expect(files).not.toContain('memory.json.bak')
+    expect(files).not.toContain('memory.json.v1.bak')
   })
 })
 

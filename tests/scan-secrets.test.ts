@@ -47,6 +47,26 @@ describe('scan-secrets', () => {
     expect(findings.filter(f => f.patternId === 'authorization-bearer')).toHaveLength(0)
   })
 
+  // #250: 블록주석(* 연속줄·/**·/*)의 placeholder 토큰(YOUR_*·xxxx)은 오탐 → 스킵.
+  it('#250: 블록주석(* 줄)의 placeholder Bearer(YOUR_*)는 스킵', () => {
+    const line = ' *   Header: Authorization: Bearer' + ' YOUR_TRIGGER_SYNC_SECRET'
+    const findings = findSecretsInLine(line, 'api/trigger-sync.js', 11)
+    expect(findings.filter(f => f.patternId === 'authorization-bearer')).toHaveLength(0)
+  })
+
+  it('#250: /* 시작 주석의 placeholder(xxxx)도 스킵', () => {
+    const line = '/* Authorization: Bearer' + ' xxxxxxxx */'
+    const findings = findSecretsInLine(line, 'a.ts', 1)
+    expect(findings.filter(f => f.patternId === 'authorization-bearer')).toHaveLength(0)
+  })
+
+  // SECURITY 회귀: 블록주석이라도 진짜 토큰은 여전히 탐지 — placeholder 확대가 false-negative 만들면 안 됨.
+  it('#250: 블록주석에 진짜 토큰이 있으면 여전히 탐지(false-negative 0)', () => {
+    const line = ' * Authorization: Bearer' + ' tok_RealAbCd123456'
+    const findings = findSecretsInLine(line, 'api/x.js', 1)
+    expect(findings.filter(f => f.patternId === 'authorization-bearer')).toHaveLength(1)
+  })
+
   // #170 회귀 픽스처: tracked .cursor/mcp.json 의 Bearer 자격증명을 프로젝트 스캔이 탐지.
   it('회귀: .cursor/mcp.json 의 Bearer 자격증명을 scanProjectForSecrets 가 탐지', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-scan-cursor-'))

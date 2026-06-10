@@ -26,6 +26,7 @@ export interface PreflightDeps {
   pm?: string // 'pnpm' | 'yarn' | 'npm'
   scripts?: Record<string, string> // package.json scripts
   hasVitest?: boolean // vitest 설치/설정 여부 (없으면 테스트 하드코딩 강제 안 함)
+  hasTsconfig?: boolean // #245: tsconfig.json 존재 여부 (typecheck 스크립트도 없으면 skip)
 }
 
 /** 명령 실행 spec — 스크립트 우선 해석 결과. */
@@ -89,10 +90,16 @@ export function checkLint(run: Runner, hasLinter: boolean, lintCmd?: CmdSpec): P
     : check('lint', 'fail', `eslint 오류 — ${evidence(r)}`, 'critical')
 }
 
-export function checkTypecheck(run: Runner): PreflightCheck {
-  const r = run('npx', ['tsc', '--noEmit'])
+// #245: typecheckCmd 우선 — {bin,args}=그 스크립트, null=수단 없음(tsconfig·스크립트 둘 다 없음)→skip,
+//       undefined=npx tsc 폴백(하위호환). verify 게이트 로직(스크립트/tsconfig 없으면 skip) 미러.
+export function checkTypecheck(run: Runner, typecheckCmd?: CmdSpec | null): PreflightCheck {
+  if (typecheckCmd === null) {
+    return check('typecheck', 'skip', 'tsconfig.json/typecheck 스크립트 없음 — 스킵', 'critical')
+  }
+  const spec: CmdSpec = typecheckCmd ?? { bin: 'npx', args: ['tsc', '--noEmit'] }
+  const r = run(spec.bin, spec.args)
   return r.ok
-    ? check('typecheck', 'pass', 'tsc --noEmit pass', 'critical')
+    ? check('typecheck', 'pass', typecheckCmd ? '통과' : 'tsc --noEmit pass', 'critical')
     : check('typecheck', 'fail', `tsc 타입 오류 — ${evidence(r)}`, 'critical')
 }
 
@@ -177,6 +184,13 @@ export function runPreflight(opts: PreflightOptions, deps: PreflightDeps): Prefl
 
   const lintCmd = scripts.lint ? mkCmd('lint') : undefined
 
+  // #245: typecheck 스크립트 우선 → tsconfig 있으면 npx tsc 폴백 → 둘 다 없으면 skip(바닐라 JS 차단 방지).
+  const typecheckCmd: CmdSpec | null | undefined = scripts.typecheck
+    ? mkCmd('typecheck')
+    : deps.hasTsconfig
+      ? undefined
+      : null
+
   // 테스트: 일회성(run) 스크립트 우선 → vitest 폴백 → 비-vitest test 스크립트 → 없으면 skip.
   // bare `test` 를 vitest 폴백보다 뒤에 두는 건 의도적 — `test:"vitest"`(watch) 가 preflight 를
   // 멈추게 하는 회귀 방지. (test:run/test:ci 는 관례상 일회성.)
@@ -194,7 +208,7 @@ export function runPreflight(opts: PreflightOptions, deps: PreflightDeps): Prefl
     checkShim(deps.nodeVersion),
     deps.worktreeEnv(),
     checkLint(deps.run, deps.hasLinter, lintCmd),
-    checkTypecheck(deps.run),
+    checkTypecheck(deps.run, typecheckCmd),
     checkTests(deps.run, { full: opts.full }, testCmd),
     checkGitClean(deps.run),
     checkBranch(deps.run),
