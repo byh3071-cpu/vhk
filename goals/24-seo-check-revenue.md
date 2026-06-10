@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 24
 title: vhk seo check 수익+빙 (AdSense v2 + Bing) — P2
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P2
 version: v2.4.3
 ---

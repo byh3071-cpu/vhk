@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 22
 title: vhk seo submit (사이트맵 + IndexNow) — P2
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P2
 version: v2.4.1
 ---

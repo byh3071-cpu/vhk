@@ -21,7 +21,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   evolve: ['suggest', 'list', 'apply', 'reject', 'undo'],
   work: ['handoff'],
   worktree: ['add', 'check'],
-  seo: ['init'],
+  seo: ['init', 'submit', 'check', 'report', 'automate'],
 }
 
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */

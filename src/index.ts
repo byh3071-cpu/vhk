@@ -115,7 +115,7 @@ import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalSync 
 import { blocker, learn, resume } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo } from './commands/evolve.js'
-import { runSeo, seoInit } from './commands/seo/index.js'
+import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './commands/seo/index.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -862,6 +862,31 @@ seoCmd
   .option('--yes', '비대화형 — 프롬프트 없이 진행 (MCP/CI 안전)')
   .description('사이트 등록(.vhk/seo/config.json) + 5개 서비스 자격증명 참조 보관 (값은 .env)')
   .action(async (opts: { domain?: string; yes?: boolean }) => { await seoInit(opts) })
+
+seoCmd
+  .command('submit')
+  .option('--yes', '비대화형')
+  .description('사이트맵(GSC·Bing) 제출 + IndexNow 핑 (구글 Indexing API 미사용)')
+  .action(async (opts: { yes?: boolean }) => { await seoSubmit(opts) })
+
+seoCmd
+  .command('check')
+  .option('--yes', '비대화형')
+  .description('색인·트래픽(GSC+GA4) + 수익·빙(AdSense v2+Bing) 수집 → latest.json')
+  .action(async (opts: { yes?: boolean }) => { await seoCheck(opts) })
+
+seoCmd
+  .command('report')
+  .option('--open', '생성 후 기본 브라우저로 열기 (비대화형 자동 스킵)')
+  .option('--yes', '비대화형')
+  .description('latest.json → 무빌드 오프라인 HTML 대시보드(4블록)')
+  .action(async (opts: { open?: boolean; yes?: boolean }) => { await seoReport(opts) })
+
+seoCmd
+  .command('automate')
+  .option('--yes', '비대화형')
+  .description('report 결과 Notion 적재 + 스케줄러 도우미 + 확장 슬롯')
+  .action(async (opts: { yes?: boolean }) => { await seoAutomate(opts) })
 
 program.on('command:*', (operands: string[]) => {
   const unknown = operands[0] ?? ''
