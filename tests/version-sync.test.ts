@@ -16,3 +16,29 @@ describe('버전 정합 — package.json ↔ CLAUDE.md', () => {
     ).toBe(pkg.version)
   })
 })
+
+// Goal 54: README 버전 드리프트 가드 — package.json(SoT)을 동적 비교(버전 하드코딩 금지).
+//   README 두 곳(frontmatter tags + 제목 blockquote)이 발행 버전과 어긋나면 CI 실패.
+describe('버전 정합 — package.json ↔ README.md', () => {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf-8')) as { version: string }
+  const readme = readFileSync('README.md', 'utf-8')
+  const head = readme.split('\n').slice(0, 16).join('\n') // frontmatter + 제목 blockquote 범위
+
+  it('README frontmatter tags 의 vX.Y.Z 가 package.json 과 일치', () => {
+    const m = head.match(/tags:.*?v(\d+\.\d+\.\d+)/)
+    expect(m, 'README frontmatter tags 에 vX.Y.Z 태그가 있어야 함').not.toBeNull()
+    expect(
+      m![1],
+      `README tags 버전(v${m![1]}) ≠ package.json(${pkg.version}) — 릴리즈 시 README 도 갱신하세요`,
+    ).toBe(pkg.version)
+  })
+
+  it('README 제목 blockquote 의 **vX.Y.Z** 가 package.json 과 일치', () => {
+    const m = head.match(/\*\*v(\d+\.\d+\.\d+)\*\*/)
+    expect(m, 'README 상단 blockquote 에 **vX.Y.Z** 가 있어야 함').not.toBeNull()
+    expect(
+      m![1],
+      `README blockquote 버전(v${m![1]}) ≠ package.json(${pkg.version}) — 릴리즈 시 README 도 갱신하세요`,
+    ).toBe(pkg.version)
+  })
+})

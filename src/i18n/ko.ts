@@ -1,4 +1,13 @@
 export const ko = {
+  stats: {
+    title: '통계 대시보드',
+    ledger: '증거 원장:',
+    blockRate: 'AI 행동 차단율:',
+    applyRate: '진화 적용율:',
+    noActions: '데이터 없음 (action-ledger 미연동 — Goal 55 머지 후 집계)',
+    nextMessage: '집계 확인 완료! 증거를 더 쌓으려면 검증을 실행하세요.',
+    nextCursor: '검증 실행해줘',
+  },
   status: {
     title: '프로젝트 상태',
     notGitRepo: 'Git 저장소가 아니에요. 먼저 git init을 실행하세요.',
@@ -511,7 +520,25 @@ export const ko = {
       secretPresent: (name: string) => `${name} — 설정됨 ✓`,
       secretMissing: (name: string) => `${name} — 미설정 (필요 시 .env 에 추가)`,
       secretWarn: '⚠️  실제 키 값은 절대 config.json·커밋·로그에 넣지 마세요 (.env + .gitignore).',
-      nextStep: '다음: vhk seo submit 으로 사이트맵·IndexNow 제출 (후속 goal)',
+      nextStep: '다음: vhk seo submit 으로 사이트맵·IndexNow 제출',
+    },
+    submit: {
+      title: '🚀 vhk seo submit — 사이트맵 + IndexNow 제출',
+      keyReady: (path: string) => `IndexNow 키 준비: ${path}`,
+      noCredentials: '실 제출(GSC·Bing·IndexNow)은 자격증명이 필요합니다 — 현재 미설정.',
+    },
+    check: {
+      title: '📈 vhk seo check — 색인·트래픽·수익 수집',
+      noCredentials: '실 수집은 자격증명이 필요합니다 — 현재 미설정.',
+    },
+    report: {
+      title: '🖥️ vhk seo report — 무빌드 HTML 대시보드',
+      noLatest: 'latest.json 이 없습니다. 먼저 vhk seo check 로 수집하세요.',
+      generated: (path: string) => `리포트 생성: ${path}`,
+    },
+    automate: {
+      title: '⚙️ vhk seo automate — Notion 적재 + 스케줄러 + 확장 슬롯',
+      notionBlocked: 'Notion 실 적재는 자격증명·연동이 필요합니다 — 운영 단계.',
     },
   },
 } as const

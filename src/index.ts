@@ -20,6 +20,7 @@ import { restore } from './commands/restore.js'
 import { diff } from './commands/diff.js'
 import { diffCover } from './commands/diff-cover.js'
 import { status } from './commands/status.js'
+import { stats } from './commands/stats.js'
 import { startMcpServer } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
 import { deploy } from './commands/deploy.js'
@@ -116,7 +117,7 @@ import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalSync 
 import { blocker, learn, resume } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo } from './commands/evolve.js'
-import { runSeo, seoInit } from './commands/seo/index.js'
+import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './commands/seo/index.js'
 
 const program = new Command()
 const defaultHelp = new Help()
@@ -135,6 +136,7 @@ const KO_ALIASES: Record<string, string> = {
   undo: '되돌리기',
   restore: '복원',
   status: '상태',
+  stats: '통계',
   diff: '변경',
   'diff-cover': '커버리지',
   deploy: '배포',
@@ -351,6 +353,12 @@ program
   .alias('커버리지')
   .description('이번 변경(HEAD 대비)이 테스트로 커버됐는지 측정 (자문형·차단 없음)')
   .action(async () => { await diffCover() })
+
+program
+  .command('stats')
+  .alias('통계')
+  .description('통계 대시보드 — 패스율/차단율/진화 적용율 집계 (읽기 전용)')
+  .action(async () => { await stats() })
 
 program
   .command('mcp')
@@ -856,6 +864,31 @@ seoCmd
   .option('--yes', '비대화형 — 프롬프트 없이 진행 (MCP/CI 안전)')
   .description('사이트 등록(.vhk/seo/config.json) + 5개 서비스 자격증명 참조 보관 (값은 .env)')
   .action(async (opts: { domain?: string; yes?: boolean }) => { await seoInit(opts) })
+
+seoCmd
+  .command('submit')
+  .option('--yes', '비대화형')
+  .description('사이트맵(GSC·Bing) 제출 + IndexNow 핑 (구글 Indexing API 미사용)')
+  .action(async (opts: { yes?: boolean }) => { await seoSubmit(opts) })
+
+seoCmd
+  .command('check')
+  .option('--yes', '비대화형')
+  .description('색인·트래픽(GSC+GA4) + 수익·빙(AdSense v2+Bing) 수집 → latest.json')
+  .action(async (opts: { yes?: boolean }) => { await seoCheck(opts) })
+
+seoCmd
+  .command('report')
+  .option('--open', '생성 후 기본 브라우저로 열기 (비대화형 자동 스킵)')
+  .option('--yes', '비대화형')
+  .description('latest.json → 무빌드 오프라인 HTML 대시보드(4블록)')
+  .action(async (opts: { open?: boolean; yes?: boolean }) => { await seoReport(opts) })
+
+seoCmd
+  .command('automate')
+  .option('--yes', '비대화형')
+  .description('report 결과 Notion 적재 + 스케줄러 도우미 + 확장 슬롯')
+  .action(async (opts: { yes?: boolean }) => { await seoAutomate(opts) })
 
 program.on('command:*', (operands: string[]) => {
   const unknown = operands[0] ?? ''
