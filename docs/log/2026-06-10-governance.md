@@ -99,3 +99,18 @@
   대신 채움 선택).
 - learnings↔memory 이원: learnings.md 파일 자체가 부재(이미 v2 흡수 완료) + spec §2.1·
   CLAUDE.md 기록 규칙에 동결 명시 이미 있음 → no-op.
+
+## T5 — 과거 선별 백필 (LOW·선택 — 실행함)
+
+- 사실 수집은 Explore 서브에이전트(CHANGELOG·git 태그·src/mcp 실측) 후 직접 작성.
+- **ADR-0001 → ADR-001 개명**: src/lib/adr.ts 자동 채번이 3자리(padStart 3) — 내가 만든
+  4자리가 기계 형식과 모순(TS-NNN 통일과 같은 병). 머지 전 브랜치 내 정정. T1 섹션의
+  "ADR-0001" 표기는 과거 기록이라 보존(append-only).
+- 백필 ADR 3건(전부 "재구성·일부 추정" 명시): ADR-002 MCP stdio 아키텍처(v0.6.0) ·
+  ADR-003 design/theme/ref(v0.8.0) · ADR-004 memory v2 breaking + breaking 템플릿 겸용
+  (발행은 2.0.1 — 2.0.0 미발행 사실 반영).
+- `docs/mcp-evolution.md`: 8→10→16→24→25→27→29 진화 표 + 29 tools 카탈로그.
+  v1.0.2→v1.3.0 태그 갭 구간은 '추정' 표기(goal 0 Phase 기준).
+- 초기 회고 5건(docs/log/2026-06-11-retro-*.md): v0.x 기초 / v0.6~1.0 MCP→GA /
+  v1.3~1.9 goal·증거 / v2.0~2.3 memory·진화 / v2.4~2.5 세션 자동화.
+  손실 구간(v0.3 부재·v1.1/1.2 태그 갭·v2.2 빈 범프) 정직 표기.

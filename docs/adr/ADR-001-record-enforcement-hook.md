@@ -1,11 +1,11 @@
 ---
-id: ADR-0001
+id: ADR-001
 date: 2026-06-10
 status: accepted
 tags: [governance, hooks, records]
 ---
 
-# ADR-0001: 기록 집행을 Claude Code hook 하이브리드로 한다
+# ADR-001: 기록 집행을 Claude Code hook 하이브리드로 한다
 
 ## 맥락 (Context)
 

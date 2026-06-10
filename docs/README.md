@@ -31,6 +31,7 @@
 - [spec.md](spec.md) — `.vhk/` 파일 규격 (버전 명시·변경 시 범프)
 - [PRD.md](PRD.md) — 제품 요구사항
 - [til.md](til.md) — 배움 메모 (가벼운 한 줄들)
+- [mcp-evolution.md](mcp-evolution.md) — MCP 0→29 tools 진화 카탈로그 (T5 백필)
 
 ## 집행 (governance-v2)
 
