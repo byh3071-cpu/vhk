@@ -66,6 +66,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'undo', desc: '최근 커밋 되돌리기' },
   { name: 'restore', desc: 'sync 백업 복원' },
   { name: 'status', desc: '프로젝트 상태 대시보드' },
+  { name: 'stats', desc: '통계 대시보드 — 패스율/차단율/진화 적용율 (읽기 전용)' },
   { name: 'diff', desc: 'Git 변경사항 한국어 요약' },
   { name: 'diff-cover', desc: '이번 변경이 테스트로 커버됐는지 측정 (자문형)' },
   { name: 'mcp', desc: 'MCP 서버 시작 (stdio)' },

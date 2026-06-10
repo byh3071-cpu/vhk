@@ -1,4 +1,13 @@
 export const ko = {
+  stats: {
+    title: '통계 대시보드',
+    ledger: '증거 원장:',
+    blockRate: 'AI 행동 차단율:',
+    applyRate: '진화 적용율:',
+    noActions: '데이터 없음 (action-ledger 미연동 — Goal 55 머지 후 집계)',
+    nextMessage: '집계 확인 완료! 증거를 더 쌓으려면 검증을 실행하세요.',
+    nextCursor: '검증 실행해줘',
+  },
   status: {
     title: '프로젝트 상태',
     notGitRepo: 'Git 저장소가 아니에요. 먼저 git init을 실행하세요.',

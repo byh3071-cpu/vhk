@@ -20,6 +20,7 @@ import { restore } from './commands/restore.js'
 import { diff } from './commands/diff.js'
 import { diffCover } from './commands/diff-cover.js'
 import { status } from './commands/status.js'
+import { stats } from './commands/stats.js'
 import { startMcpServer } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
 import { deploy } from './commands/deploy.js'
@@ -133,6 +134,7 @@ const KO_ALIASES: Record<string, string> = {
   undo: '되돌리기',
   restore: '복원',
   status: '상태',
+  stats: '통계',
   diff: '변경',
   'diff-cover': '커버리지',
   deploy: '배포',
@@ -349,6 +351,12 @@ program
   .alias('커버리지')
   .description('이번 변경(HEAD 대비)이 테스트로 커버됐는지 측정 (자문형·차단 없음)')
   .action(async () => { await diffCover() })
+
+program
+  .command('stats')
+  .alias('통계')
+  .description('통계 대시보드 — 패스율/차단율/진화 적용율 집계 (읽기 전용)')
+  .action(async () => { await stats() })
 
 program
   .command('mcp')
