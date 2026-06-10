@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { isScannableFileName, walkProjectFiles } from '../src/lib/scan-files.js'
+import { isScannableFileName, walkProjectFiles, MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
 
 describe('scan-files', () => {
   it('lock 파일은 스캔 대상에서 제외', () => {
@@ -43,5 +43,24 @@ describe('scan-files', () => {
     expect(scanned).toContain('.cursor/mcp.json')
 
     fs.rmSync(tmp, { recursive: true })
+  })
+
+  // Goal 59: 512KB 초과 파일은 스캔 스킵 + onSkippedLargeFile 콜백으로 신호(불완전 스캔 가시화).
+  it('512KB 초과 파일은 스킵하고 onSkippedLargeFile 콜백 호출', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-scan-big-'))
+    try {
+      fs.writeFileSync(path.join(tmp, 'big.js'), 'x'.repeat(MAX_SCAN_FILE_BYTES + 1), 'utf-8')
+      fs.writeFileSync(path.join(tmp, 'small.js'), 'const x = 1\n', 'utf-8')
+
+      const scanned: string[] = []
+      const skipped: string[] = []
+      walkProjectFiles(tmp, (_abs, rel) => scanned.push(rel), undefined, (rel) => skipped.push(rel))
+
+      expect(scanned).toContain('small.js')
+      expect(scanned).not.toContain('big.js')
+      expect(skipped).toEqual(['big.js'])
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
   })
 })

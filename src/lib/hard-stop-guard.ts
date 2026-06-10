@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import { isHardStopActive, readHardStopReason } from './state-files.js'
+import { appendActionEntry } from './action-ledger.js'
 
 /**
  * VHK-020: `.vhk/HARD_STOP` 트립와이어 가드.
@@ -20,5 +21,18 @@ export function ensureNotHardStopped(action: string): boolean {
   if (reason) console.error(chalk.dim(`   사유: ${reason.replace(/\s*\n\s*/g, ' ')}`))
   console.error(chalk.dim('   해제: vhk resume --confirm (사람이 직접 실행)'))
   process.exitCode = 1
+  // Goal 55: 트립와이어 차단도 행동 이벤트 — 레포 영속 원장에 기록(best-effort, 실패해도 차단은 유지).
+  try {
+    appendActionEntry(process.cwd(), {
+      ts: new Date().toISOString(),
+      action,
+      channel: 'hardstop',
+      guard: 'hardstop',
+      ran: false,
+      reason: 'hard-stop',
+    })
+  } catch {
+    /* 원장 기록 실패는 무시 — 차단 본 기능 보호 */
+  }
   return false
 }

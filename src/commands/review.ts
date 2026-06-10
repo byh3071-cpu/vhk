@@ -175,6 +175,9 @@ export function crossCheck(
         //        suspicions(거짓완료 강한 의심)가 아니라 gaps(수동 확인)로 분류 → verify 통과 후
         //        skip 만으로 review 가 거짓 실패(exit 1) 내던 혼란(#157) 제거.
         gaps.push({ check: c.text, note: `${gid} 게이트 skip — 검증이 이번 변경을 안 건드렸을 수 있음(수동 확인 권장).` })
+      } else if (g.status === 'warn') {
+        // Goal 59: warn(스캔 불완전)도 soft 신호 — 거짓완료 강한 의심(suspicion)이 아니라 gap(수동 확인).
+        gaps.push({ check: c.text, note: `${gid} 게이트 불완전(warn) — ${g.detail ?? '한도로 일부 미검증'}(수동 확인 권장).` })
       }
     }
   }

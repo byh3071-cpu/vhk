@@ -3,6 +3,7 @@ import { resolveGuard, type Channel, type Guard } from './risk-policy.js'
 import type { SafetyMode } from './safety-mode.js'
 import { readMemory, recallForAction } from '../commands/memory.js'
 import { logRecall } from './recall-log.js'
+import { appendActionEntry } from './action-ledger.js'
 
 /**
  * 위험 작업 가드의 **단일 chokepoint**.
@@ -27,6 +28,8 @@ export interface GuardDeps {
   log?: (msg: string) => void
   /** just-in-time 회상 기준 디렉터리 (기본 process.cwd()) — RFC 0049 */
   cwd?: string
+  /** Goal 57: 위험 대상(파일/경로). 주어지면 isRiskyTarget 글롭 차원으로 가드 발동(액션 저위험이어도). */
+  target?: string
 }
 
 export interface GuardedOutcome {
@@ -40,9 +43,35 @@ export async function runGuarded<T>(
   deps: GuardDeps,
   run: () => Promise<T> | T
 ): Promise<{ outcome: GuardedOutcome; result?: T }> {
+  const res = await runGuardedInner(action, deps, run)
+  // Goal 55: 가드 chokepoint 를 지난 모든 행동을 레포 영속 원장(.vhk/events/ai-actions.jsonl)에 1줄 기록.
+  // best-effort — 기록 실패가 가드 본 기능을 막지 않는다. run() 이 throw 하면 위 await 에서 전파 → 미기록(v1).
+  try {
+    appendActionEntry(deps.cwd ?? process.cwd(), {
+      ts: new Date().toISOString(),
+      action,
+      channel: deps.channel,
+      guard: res.outcome.guard,
+      ran: res.outcome.ran,
+      reason: res.outcome.reason,
+      // Goal 57 plumbing: 위험 대상(deps.target)을 원장에 기록(미지정이면 JSON 직렬화에서 생략).
+      target: deps.target,
+    })
+  } catch {
+    /* 원장 기록 실패는 무시 — 가드 본 기능 보호 */
+  }
+  return res
+}
+
+async function runGuardedInner<T>(
+  action: string,
+  deps: GuardDeps,
+  run: () => Promise<T> | T
+): Promise<{ outcome: GuardedOutcome; result?: T }> {
   const mode: SafetyMode = deps.mode ?? readConfig().safetyMode
   const log = deps.log ?? (() => {})
-  const guard = resolveGuard(action, mode, deps.channel)
+  // Goal 57: deps.target 이 있으면 글롭 위험 차원도 함께 평가(하위호환 — 미지정 시 기존 동작).
+  const guard = resolveGuard(action, mode, deps.channel, deps.target)
 
   // RFC 0049 ②: 위험 작업 직전, 관련 과거 실패를 회상해 경고로 표출(just-in-time).
   // precision 우선(약매칭 침묵) · 회상 실패는 가드 동작을 절대 막지 않는다.
