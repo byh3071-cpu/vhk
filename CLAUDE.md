@@ -85,6 +85,14 @@ tags: [process, constitution]
 
 ## 기록 규칙
 - 의사결정 → docs/adr/ · 에러 → docs/troubleshooting/ · 배움 → docs/til.md · 설계 → docs/rfc/
+- 기록 경로 판단표 (governance-v2):
+  - 작은 구현 선택(국소·되돌리기 쉬움) → commit 메시지 본문
+  - 패키지·아키텍처·정책 결정 → docs/adr/ `ADR-NNN-슬러그.md`
+  - 설계·제안(구현 전 검토) → docs/rfc/ `NNNN-슬러그.md`
+  - 에러·해결 과정 → docs/troubleshooting/ `TS-NNN-슬러그.md`
+  - 세션 작업 내역 → docs/log/ `YYYY-MM-DD-작업명.md` (append-only)
+  - 범용 패턴(타 프로젝트 재사용 가능) → docs/patterns/ `PAT-NNN-영문명.md`
+- 기록 집행: 실질 코드변경(src/commands·src/lib·scripts/check-goal-*) 커밋 시 오늘자 dev log 스테이지 필수 — check-records hook 이 커밋을 차단. 사소·문서성 커밋은 메시지에 `[skip-record]` 로 우회 (governance-v2 T1).
 - 세션 종료(`vhk work handoff`) 시 미기록 ADR·트러블슈팅 후보를 자동 감지·보고 → 해당하면 docs/adr·docs/troubleshooting 에 기록(자문형, 강제 아님) (RFC 0051)
 - dev log `docs/log/YYYY-MM-DD-<작업명>.md` = append-only (추가만, 수정·삭제 금지)
 - 코드 변경이 동작/사용법을 바꾸면 README 만 같이 갱신 (CLAUDE.md 는 갱신 대상 아님)
