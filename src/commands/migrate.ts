@@ -1,6 +1,6 @@
 import { existsSync, unlinkSync, rmSync } from 'node:fs'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -40,7 +40,7 @@ export async function migrate(target?: string): Promise<void> {
     const choices = (['npm', 'yarn', 'pnpm'] as PackageManager[])
       .filter((pm) => pm !== current)
       .map((pm) => ({ name: pm, value: pm }))
-    const { selected } = await inquirer.prompt<{ selected: PackageManager }>([
+    const { selected } = await prompt<{ selected: PackageManager }>([
       {
         type: 'list',
         name: 'selected',
@@ -62,7 +62,7 @@ export async function migrate(target?: string): Promise<void> {
     return
   }
 
-  const { confirm } = await inquirer.prompt<{ confirm: boolean }>([
+  const { confirm } = await prompt<{ confirm: boolean }>([
     {
       type: 'confirm',
       name: 'confirm',

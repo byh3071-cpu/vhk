@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import fs from 'node:fs'
 import path from 'node:path'
 import { ko } from '../i18n/ko.js'
@@ -74,7 +74,7 @@ export async function ship() {
 
   console.log(chalk.cyan.bold(`  ${ko.ship.checklist}\n`))
 
-  const { passed } = await inquirer.prompt<{ passed: string[] }>([{
+  const { passed } = await prompt<{ passed: string[] }>([{
     type: 'checkbox',
     name: 'passed',
     message: ko.ship.checkboxPrompt,
@@ -94,7 +94,7 @@ export async function ship() {
       console.log(chalk.dim(`      → ${ko.ship[s.hintKey]}`))
     })
 
-    const { proceed } = await inquirer.prompt<{ proceed: boolean }>([{
+    const { proceed } = await prompt<{ proceed: boolean }>([{
       type: 'confirm',
       name: 'proceed',
       message: ko.ship.proceedConfirm,
@@ -116,7 +116,7 @@ export async function ship() {
   console.log(chalk.cyan.bold(`  ${ko.ship.retro}\n`))
 
   console.log(chalk.dim(`  ${ko.ship.versionHint}`))
-  const retro = await inquirer.prompt<{
+  const retro = await prompt<{
     version: string
     whatWentWell: string
     whatWentWrong: string

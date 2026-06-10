@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import chalk from 'chalk'
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureInteractive } from '../lib/interactive.js'
@@ -128,7 +128,7 @@ export async function design(): Promise<void> {
   // VHK-014: 비-TTY 면 inquirer 크래시(ERR_USE_AFTER_CLOSE) 대신 friendly 안내 + exit 1.
   if (!ensureInteractive('컬러 팔레트 선택은 대화형으로만 가능합니다.')) return
 
-  const { paletteIndex } = await inquirer.prompt<{ paletteIndex: number }>([
+  const { paletteIndex } = await prompt<{ paletteIndex: number }>([
     {
       type: 'list',
       name: 'paletteIndex',
@@ -156,7 +156,7 @@ export async function design(): Promise<void> {
       : generateCSSTokens(palette)
 
   if (existsSync(targetPath)) {
-    const { overwrite } = await inquirer.prompt<{ overwrite: boolean }>([{
+    const { overwrite } = await prompt<{ overwrite: boolean }>([{
       type: 'confirm',
       name: 'overwrite',
       message: `${targetPath} 이미 있어요. 덮어쓸까요?`,

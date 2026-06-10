@@ -1,4 +1,4 @@
-import inquirer from 'inquirer'
+import { prompt } from '../lib/prompt.js'
 import chalk from 'chalk'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -70,7 +70,7 @@ export async function recap(options: RecapOptions = {}) {
   // VHK-014: 비-TTY 면 프롬프트 크래시 대신 friendly 안내 + exit 1 (위 git 분석은 보여준 뒤).
   if (!ensureInteractive('회고 입력은 대화형으로만 가능합니다.')) return
 
-  const answers = await inquirer.prompt([
+  const answers = await prompt([
     {
       type: 'input',
       name: 'summary',
@@ -153,7 +153,7 @@ export async function recap(options: RecapOptions = {}) {
       candidate.files.forEach(f => console.log(chalk.dim(`    ${f}`)))
     }
 
-    const { createAdr } = await inquirer.prompt([{
+    const { createAdr } = await prompt([{
       type: 'confirm',
       name: 'createAdr',
       message: ko.recap.createAdr,
@@ -162,7 +162,7 @@ export async function recap(options: RecapOptions = {}) {
 
     if (createAdr) {
       for (const candidate of adrCandidates) {
-        const adrAnswers = await inquirer.prompt([
+        const adrAnswers = await prompt([
           {
             type: 'input',
             name: 'decision',
@@ -197,7 +197,7 @@ export async function recap(options: RecapOptions = {}) {
       console.log(chalk.dim(`  • ${c.message}`))
     })
 
-    const { createTroubleshoot } = await inquirer.prompt([{
+    const { createTroubleshoot } = await prompt([{
       type: 'confirm',
       name: 'createTroubleshoot',
       message: ko.recap.createTroubleshoot,
@@ -208,7 +208,7 @@ export async function recap(options: RecapOptions = {}) {
       const tsDir = path.join(process.cwd(), 'docs', 'troubleshooting')
       if (!fs.existsSync(tsDir)) fs.mkdirSync(tsDir, { recursive: true })
 
-      const tsAnswers = await inquirer.prompt([
+      const tsAnswers = await prompt([
         {
           type: 'input',
           name: 'problem',
@@ -260,7 +260,7 @@ export async function recap(options: RecapOptions = {}) {
 
   const claudeMdPath = path.join(process.cwd(), 'CLAUDE.md')
   if (fs.existsSync(claudeMdPath)) {
-    const { updateClaude } = await inquirer.prompt([{
+    const { updateClaude } = await prompt([{
       type: 'confirm',
       name: 'updateClaude',
       message: ko.recap.updateClaude,
