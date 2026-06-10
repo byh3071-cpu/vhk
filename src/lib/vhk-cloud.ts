@@ -15,6 +15,7 @@ export const DEFAULT_CLOUD_EXCLUDES = [
   'HARD_STOP',     // 로컬 안전 신호
   'cloud.json',    // gist 포인터 (백업 대상 아님)
   '.gitignore',    // .vhk/ 내부 gitignore
+  '*.bak',         // #248: 백업본(memory.json.bak·.v1.bak 등) — 원본과 동일 개인정보, 누출 차단
 ]
 
 export const VHK_DIR = '.vhk'

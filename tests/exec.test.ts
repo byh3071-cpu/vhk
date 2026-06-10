@@ -11,6 +11,10 @@ describe('lib/exec', () => {
       expect(platformCmd('npm')).toBe('npm.cmd')
       expect(platformCmd('npx')).toBe('npx.cmd')
       expect(platformCmd('yarn')).toBe('yarn.cmd')
+      // #246: 배포 CLI도 .cmd shim — Windows 에서 deploy isCLIAvailable 탐지 위해.
+      expect(platformCmd('vercel')).toBe('vercel.cmd')
+      expect(platformCmd('netlify')).toBe('netlify.cmd')
+      expect(platformCmd('wrangler')).toBe('wrangler.cmd')
       expect(platformCmd('git')).toBe('git')
       expect(platformCmd('node')).toBe('node')
     } finally {

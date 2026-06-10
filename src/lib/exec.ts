@@ -2,7 +2,9 @@ import { execFileSync } from 'node:child_process'
 
 // Windows에서 pnpm/npm/npx/yarn/vhk는 .cmd shim. execFileSync는 native 바이너리만 찾으므로 .cmd 확장자 부여.
 // #150: 'vhk' 추가 — 전역 설치 시 vhk.cmd 만 노출돼 MCP 가 bare 'vhk' spawn 시 ENOENT 였음.
-const SHIM_BINARIES = new Set(['pnpm', 'npm', 'npx', 'yarn', 'vhk'])
+// #246: 배포 CLI(vercel/netlify/wrangler) 추가 — npm 전역 설치 시 .cmd shim 만 노출돼
+//       deploy 의 isCLIAvailable 가 Windows 에서 설치돼 있어도 ENOENT 로 "미설치" 오판.
+const SHIM_BINARIES = new Set(['pnpm', 'npm', 'npx', 'yarn', 'vhk', 'vercel', 'netlify', 'wrangler'])
 
 export function platformCmd(cmd: string): string {
   if (process.platform === 'win32' && SHIM_BINARIES.has(cmd)) {

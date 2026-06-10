@@ -134,7 +134,7 @@ export async function doctor(opts: DoctorOptions = {}) {
       }
     } else if (file.name === '.env' && fs.existsSync(path.join(cwd, '.env.local'))) {
       // VHK-009: .env 없어도 .env.local 있으면 정상(Vite 관례) — 모호한 부재 안내 대신 인식.
-      console.log(chalk.green('    ✅ .env.local') + chalk.dim(' — 로컴 env 사용 중 (.env 없어도 정상)'))
+      console.log(chalk.green('    ✅ .env.local') + chalk.dim(' — 로컬 env 사용 중 (.env 없어도 정상)'))
     } else {
       console.log(chalk.dim(`    ⚫ ${file.name}`) + chalk.dim(` — ${file.hint}`))
     }

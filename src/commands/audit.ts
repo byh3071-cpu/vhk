@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { prompt } from '../lib/prompt.js'
+import { promptOrDefault } from '../lib/interactive.js'
 import ora from 'ora'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -140,19 +141,25 @@ export async function audit(autoFix = false): Promise<void> {
     console.log(chalk.bold(`\n  총 ${aggregate.total}개의 취약점`))
   }
 
+  // #244: 비-TTY(CI/agent)면 프롬프트에 hang → promptOrDefault 로 report-only(false) 폴백.
+  //       대화형이면 기존대로 확인. --fix(autoFix) 는 비-TTY 에서도 강제 수정 경로.
   const shouldRunFix = autoFix
     ? true
     : aggregate.critical > 0 || aggregate.high > 0
-      ? (
-          await prompt<{ shouldFix: boolean }>([
-            {
-              type: 'confirm',
-              name: 'shouldFix',
-              message: '자동 수정을 시도할까요? (npm audit fix)',
-              default: true,
-            },
-          ])
-        ).shouldFix
+      ? await promptOrDefault(
+          async () =>
+            (
+              await prompt<{ shouldFix: boolean }>([
+                {
+                  type: 'confirm',
+                  name: 'shouldFix',
+                  message: '자동 수정을 시도할까요? (npm audit fix)',
+                  default: true,
+                },
+              ])
+            ).shouldFix,
+          false,
+        )
       : false
 
   if (shouldRunFix) {

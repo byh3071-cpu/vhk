@@ -67,6 +67,19 @@ describe('env', () => {
     expect(String(exampleCall![1])).not.toContain('postgres')
   })
 
+  it('#247: .env 없고 .env.local 있으면 .env.local 로 폴백 (.env.example 생성)', async () => {
+    mockExistsSync.mockImplementation((p: unknown) => String(p) === '.env.local')
+    mockReadFileSync.mockReturnValue('API_KEY=secret\nDB_URL=postgres')
+    const { env } = await import('../src/commands/env.js')
+    await env()
+    // .env.local 을 읽어야 함 (.env 폴백)
+    const readCall = mockReadFileSync.mock.calls.find((c) => String(c[0]) === '.env.local')
+    expect(readCall).toBeDefined()
+    const exampleCall = mockWriteFileSync.mock.calls.find((c) => String(c[0]) === '.env.example')
+    expect(exampleCall).toBeDefined()
+    expect(String(exampleCall![1])).toContain('API_KEY=')
+  })
+
   it('envCheck: .env.example 없으면 경고', async () => {
     mockExistsSync.mockReturnValue(false)
     const { envCheck } = await import('../src/commands/env.js')
