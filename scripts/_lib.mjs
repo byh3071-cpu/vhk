@@ -43,8 +43,9 @@ export function ensureNoHardStop(goalLabel) {
 }
 
 // ─── Goal 60: 메타게이트 — 완료 표시된 goal 의 빈/스텁 게이트 검출 ───────────────
-// "헛통과 DONE" 방지: status=DONE/IN_PROGRESS 인데 게이트가 미싱 또는 빈 스캐폴드면
+// "헛통과 DONE" 방지: status=DONE 인데 게이트가 미싱 또는 빈 스캐폴드면
 // check 가 가짜 통과한다. check-meta.mjs M.4 가 이 함수로 검출 → FAIL.
+// IN_PROGRESS 는 제외(완료 주장 아님·진행 중 스텁 게이트 정상 — 머지 발견으로 완화).
 // 게이트사이드 단일 소스(.mjs) — check-meta 는 node 직실행이라 TS(src/lib) import 불가.
 // 개념상 src/lib/goal-drift.ts 의 드리프트 게이트(goal 43)와 역방향 짝.
 
@@ -79,8 +80,8 @@ export function parseGoalMeta(md) {
 }
 
 /**
- * goals/ ↔ scripts/ 대조: status∈{DONE,IN_PROGRESS} 인데 게이트가 미싱 or 스텁인 goal.
- * NOT_STARTED(미구현 정상)·BLOCKED(완료 주장 아님)는 제외. 순수(fs 읽기만), id 오름차순.
+ * goals/ ↔ scripts/ 대조: status=DONE 인데 게이트가 미싱 or 스텁인 goal(헛통과 DONE).
+ * NOT_STARTED(미구현)·IN_PROGRESS(진행 중·완료 주장 아님)·BLOCKED 는 제외. 순수(fs 읽기만), id 오름차순.
  */
 export function findCompletedStubGates(goalsDir, scriptsDir) {
   const out = []
@@ -100,7 +101,7 @@ export function findCompletedStubGates(goalsDir, scriptsDir) {
     }
     const meta = parseGoalMeta(md)
     if (!meta) continue
-    if (meta.status !== 'DONE' && meta.status !== 'IN_PROGRESS') continue
+    if (meta.status !== 'DONE') continue // DONE-only: IN_PROGRESS 는 진행 중이라 스텁 게이트 정상(완화)
     const gate = join(scriptsDir, `check-goal-${meta.id}.mjs`)
     if (!existsSync(gate)) {
       out.push({ id: meta.id, status: meta.status, reason: '게이트 파일 없음(미싱)' })

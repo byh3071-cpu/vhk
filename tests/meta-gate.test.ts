@@ -99,9 +99,12 @@ describe('findCompletedStubGates', () => {
     expect(findCompletedStubGates(gdir, sdir).map((x: { id: number }) => x.id)).toEqual([40])
     fs.rmSync(root, { recursive: true, force: true })
   })
-  it('IN_PROGRESS + 스텁 → 검출', () => {
+  it('IN_PROGRESS + 스텁 → 무시(mid-work 정상 — DONE-only 완화)', () => {
+    // 완화(머지 발견): IN_PROGRESS 는 완료 주장이 아니라 진행 중 → 게이트 미완(스텁)이 정상.
+    // 헛통과 위험은 DONE 주장에만 존재. main 의 in-flight goal(예: 50)이 이 신설 게이트에
+    // retroactively 걸려 무관한 PR 머지를 막던 문제 해소.
     const { root, gdir, sdir } = setup({ '41-x.md': card(41, 'IN_PROGRESS') }, { 'check-goal-41.mjs': scaffold(41) })
-    expect(findCompletedStubGates(gdir, sdir).map((x: { id: number }) => x.id)).toEqual([41])
+    expect(findCompletedStubGates(gdir, sdir)).toEqual([])
     fs.rmSync(root, { recursive: true, force: true })
   })
   it('NOT_STARTED + 스텁 → 무시(미구현 정상)', () => {
