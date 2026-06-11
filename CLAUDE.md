@@ -108,7 +108,7 @@ tags: [process, constitution]
   - 에러·해결 과정 → docs/troubleshooting/ `TS-NNN-슬러그.md`
   - 세션 작업 내역 → docs/log/ `YYYY-MM-DD-작업명.md` (append-only)
   - 범용 패턴(타 프로젝트 재사용 가능) → docs/patterns/ `PAT-NNN-영문명.md`
-- 기록 집행: 실질 코드변경(src/commands·src/lib·scripts/check-goal-*) 커밋 시 오늘자 dev log 스테이지 필수 — check-records hook 이 커밋을 차단. 사소·문서성 커밋은 메시지에 `[skip-record]` 로 우회 (governance-v2 T1).
+- 기록 집행: 실질 코드변경(src/** · scripts/check-*) 커밋 시 세션 dev log(오늘 또는 자정 넘긴 연속 세션의 어제 파일) 스테이지 필수 — check-records hook 이 커밋을 차단. 사소·문서성 커밋은 메시지에 `[skip-record]` 로 우회 (governance-v2 T1).
 - 세션 종료(`vhk work handoff`) 시 미기록 ADR·트러블슈팅 후보를 자동 감지·보고 → 해당하면 docs/adr·docs/troubleshooting 에 기록(자문형, 강제 아님) (RFC 0051)
 - dev log `docs/log/YYYY-MM-DD-<작업명>.md` = append-only (추가만, 수정·삭제 금지)
 - 코드 변경이 동작/사용법을 바꾸면 README 만 같이 갱신 (CLAUDE.md 는 갱신 대상 아님)

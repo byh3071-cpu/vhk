@@ -114,3 +114,45 @@
 - 초기 회고 5건(docs/log/2026-06-11-retro-*.md): v0.x 기초 / v0.6~1.0 MCP→GA /
   v1.3~1.9 goal·증거 / v2.0~2.3 memory·진화 / v2.4~2.5 세션 자동화.
   손실 구간(v0.3 부재·v1.1/1.2 태그 갭·v2.2 빈 범프) 정직 표기.
+
+## 통합 — /code-review high (7앵글) 발견·수정
+
+리뷰 7앵글(라인스캔·제거동작·크로스파일·재사용·단순화·효율·고도)이 실행 재현 포함
+후보 ~30건 보고. 수정 반영분:
+
+- **[중대] events/ gitignore 철회**: T4 에서 .vhk/.gitignore 에 events/ 추가한 것이
+  goal 55 설계 불변식("ai-actions.jsonl 은 어디서도 제외하지 않는다 — 레포 영속",
+  action-ledger.ts:9) 위반이었음. "untracked 방치"는 내 오판 — 줄 제거 + 원장 git add
+  + spec/README 표를 ✅ 커밋으로 정정. goal 45 ledger.jsonl 도 spec 표에 등록(같은 누락).
+- **check-records 오차단/우회 5종 픽스**(전부 회귀 테스트 고정):
+  ① add 감지 regex 가 커밋 메시지 속 "add" 단어에 오매칭 → commit 과 동일 토크나이저로.
+  ② 한글 devlog 파일명이 core.quotepath octal 이스케이프로 미인식 → quotepath=false + 언쿼트.
+  ③ 자정 넘긴 연속 세션의 전날 devlog append 차단(이 세션이 실사례) → staged 한정 어제 허용.
+  ④ PS 권장 체인 `if ($?) { git commit }`·서브셸 미감지 → 래퍼 토큰 스킵.
+  ⑤ 손상 hook 페이로드가 단독모드 폴백 → 전 명령 차단 위험 → fail-open.
+  + `git -C <path>` 추출해 대상 레포 기준 평가.
+- **CODE_GLOBS 확대**: src/commands·lib 한정 → src/** + scripts/check-*.(mjs|sh).
+  근거 = 이 PR 자신이 글롭 밖 src 파일(src/templates) 변경(리뷰 적발) + 미커버 커밋은
+  차단 로그를 안 남겨 확대 신호가 수집 안 되는 구조. RULES.md 집행 줄도 갱신(sync).
+- **_lib.mjs 공유 승격**: isMainModule(8.3 단축경로 realpath 방어)·porcelainPath·
+  unquoteGitPath·parseFlatFrontmatter — 게이트 6종이 import (파서 2벌·porcelain 2벌·
+  isMain 6벌 복제 제거).
+- **HARD_STOP 보장 이행**: .vhk/README "check-*.mjs 는 HARD_STOP 검사" 문구 대비 신규
+  게이트 미검사였음 → check-records(커밋 차단 exit 2)·record-reminder(침묵)·
+  rules-sync/commands-doc/goal-frontmatter(ensureNoHardStop) 전부 반영.
+- **record-reminder**: Stop hook plain stdout 은 아무에게도 안 보임 → systemMessage JSON.
+  devlog 존재 선검사(세션 중반 매 턴 git 스캔 생략) + pathspec(src·scripts) 한정.
+- **check-goal-frontmatter**: title 필수→권장 완화(제품 스키마 SoT goal.ts VHK-021 표와
+  일치 — 게이트가 제품보다 엄격한 별도 스키마 금지).
+- **check-commands-doc**: lookbehind regex → 토큰 Set. v0 한계(파일명≠registry SoT,
+  recall·blocker 등 동명 파일 없는 명령 미검사) 헤더 주석 명문화 — --strict 승격 전
+  registry 기반 재구현 후속.
+- **ADR-001 정정**: pre-commit 기각 근거 중 "stderr 모델 전달" 은 hook 만의 장점 아님
+  (pre-commit 도 동일) 정정 + 우회 경로 3종(vhk save/MCP·worktree cd·외부 에이전트)
+  명시, L2 pre-commit 재검토 트리거 문서화.
+- spec.md: config.json 생성 주체 정정(vhk mode lazy), 생성 프로젝트 폴더 무시 갭(후속,
+  RFC 0038 이관) 명시.
+
+미수정(후속 기록): check-rules-sync 가 CLAUDE.md 1타겟만 가드(8타겟 전체는
+`vhk sync --check` 내장이 맞는 고도 — 후속 goal 후보) · goal 템플릿 created 필드(제품
+변경이라 별도 PR) · PreToolUse 의 호출당 node spawn 비용(설계 수용, ADR-001 결과 명시).

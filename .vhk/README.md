@@ -11,7 +11,8 @@
 | `context.md` · `brief.md` | ❌ (이 레포는 로컬 오버라이드) | spec 1.1 기본값은 커밋이나, 본 레포는 동시 세션 충돌·노이즈 방지로 `.vhk/.gitignore` 오버라이드 사용. 공유는 `vhk cloud push`. |
 | `memory.json` | ❌ (로컬 only) | 의사결정 메모 (`vhk memory add`). 개인 메모 노출 방지로 `.gitignore`. |
 | `refs.json` | ❌ (로컬 only) | 참고 URL (`vhk ref add`). `.gitignore`. |
-| `backups/` `events/` `eval/` `reports/` `seo/` | ❌ (로컬 only) | 기능별 하위 폴더 (1.1 공식 인정) |
+| `backups/` `eval/` `reports/` `seo/` | ❌ (로컬 only) | 기능별 하위 폴더 (1.1 공식 인정) |
+| `events/ai-actions.jsonl` · `ledger.jsonl` | ✅ | 행동 원장(Goal 55)·증거 원장(Goal 45) — 레포 영속 설계 |
 | `HARD_STOP` | ❌ (로컬 only) | 존재하면 모든 자동화 즉시 중단. `vhk resume --confirm` 으로만 해제. |
 
 ## HARD_STOP 규칙

@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 // tsconfig include=src/** 라 tsc --noEmit(M.1)는 tests/ 미검사 → .mjs 직접 import 가 게이트를 깨지 않음(meta-gate.test.ts 선례).
-import { isGitCommitCommand, evaluateRecords, localToday } from '../scripts/check-records.mjs'
+import { isGitCommitCommand, findGitSubcommand, evaluateRecords, localToday } from '../scripts/check-records.mjs'
 
 const SCRIPT = path.join(process.cwd(), 'scripts', 'check-records.mjs')
 const TODAY = '2026-06-10'
@@ -25,6 +25,23 @@ describe('isGitCommitCommand — git commit 명령 감지', () => {
     expect(isGitCommitCommand('pnpm test:run')).toBe(false)
     expect(isGitCommitCommand('echo "git commit 하지마"')).toBe(false)
     expect(isGitCommitCommand('')).toBe(false)
+  })
+
+  it('PS 권장 체인·서브셸 래퍼도 감지 (리뷰 발견 — 우회 차단)', () => {
+    expect(isGitCommitCommand('git add .; if ($?) { git commit -m "x" }')).toBe(true)
+    expect(isGitCommitCommand('(git commit -m "x")')).toBe(true)
+  })
+
+  it('findGitSubcommand — -C 경로 추출', () => {
+    expect(findGitSubcommand('git -C ../other commit -m "x"', 'commit')).toEqual({
+      found: true,
+      cPath: '../other',
+    })
+  })
+
+  it('add 감지도 토크나이저 — 커밋 메시지 속 "add" 단어는 오매칭 안 함 (리뷰 발견)', () => {
+    expect(findGitSubcommand('git commit -m "docs: add README"', 'add').found).toBe(false)
+    expect(findGitSubcommand('git add -A; git commit -m "x"', 'add').found).toBe(true)
   })
 })
 
@@ -75,13 +92,35 @@ describe('evaluateRecords — 기록 집행 판정 (spec 4케이스)', () => {
     expect(r.ok).toBe(false)
   })
 
-  it('scripts/check-goal-*.mjs 변경도 코드변경으로 본다', () => {
+  it('scripts/check-*.mjs·src/mcp 변경도 코드변경으로 본다 (글롭 확대 — 리뷰 발견)', () => {
+    expect(
+      evaluateRecords({
+        stagedFiles: ['scripts/check-goal-62.mjs'],
+        commandText: 'git commit -m "feat: gate"',
+        today: TODAY,
+      }).ok
+    ).toBe(false)
+    expect(
+      evaluateRecords({
+        stagedFiles: ['src/mcp/server.ts'],
+        commandText: 'git commit -m "feat: tool"',
+        today: TODAY,
+      }).ok
+    ).toBe(false)
+  })
+
+  it('자정 넘긴 연속 세션 — 어제자 devlog 가 staged 면 통과 (실제 오늘 기준)', () => {
+    const today = localToday()
+    const d = new Date()
+    d.setDate(d.getDate() - 1)
+    const p = (n: number) => String(n).padStart(2, '0')
+    const yesterday = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
     const r = evaluateRecords({
-      stagedFiles: ['scripts/check-goal-62.mjs'],
-      commandText: 'git commit -m "feat: gate"',
-      today: TODAY,
+      stagedFiles: ['src/lib/git.ts', `docs/log/${yesterday}-governance.md`],
+      commandText: 'git commit -m "feat: x"',
+      today,
     })
-    expect(r.ok).toBe(false)
+    expect(r.ok).toBe(true)
   })
 })
 
@@ -159,6 +198,56 @@ describe('check-records e2e — 실제 staged + hook stdin', () => {
     fs.mkdirSync(path.dirname(fp), { recursive: true })
     fs.writeFileSync(fp, 'x', 'utf-8')
     expect(runHook(repo, 'git add -A; git commit -m "feat: x"')).toBe(2)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('메시지에 "add" 단어 + 더티 코드 워킹트리 + docs 만 staged → exit 0 (오매칭 제거)', () => {
+    const repo = makeRepo()
+    const dirty = path.join(repo, 'src/lib/dirty.ts')
+    fs.mkdirSync(path.dirname(dirty), { recursive: true })
+    fs.writeFileSync(dirty, 'x', 'utf-8') // 미스테이지 잔재
+    stage(repo, 'docs/adr/ADR-009-x.md')
+    expect(runHook(repo, 'git commit -m "docs: add usage section"')).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('한글 devlog 파일명도 인식 (core.quotepath 이스케이프 — 리뷰 발견)', () => {
+    const repo = makeRepo()
+    stage(repo, 'src/commands/foo.ts')
+    stage(repo, `docs/log/${localToday()}-거버넌스.md`)
+    expect(runHook(repo, 'git commit -m "feat: x"')).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('손상된 hook 페이로드 → fail-open exit 0 (전 명령 차단 방지 — 리뷰 발견)', () => {
+    const repo = makeRepo()
+    stage(repo, 'src/commands/foo.ts')
+    let status = 0
+    try {
+      execFileSync('node', [SCRIPT], { cwd: repo, encoding: 'utf-8', stdio: 'pipe', input: '{broken json' })
+    } catch (e) {
+      status = (e as { status?: number }).status ?? -1
+    }
+    expect(status).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('git -C <다른 레포> commit — 대상 레포 기준으로 평가 (리뷰 발견)', () => {
+    const repoA = makeRepo()
+    const repoB = makeRepo()
+    stage(repoB, 'src/commands/foo.ts') // B 에 코드 staged, devlog 없음
+    const bPath = repoB.replace(/\\/g, '/')
+    expect(runHook(repoA, `git -C ${bPath} commit -m "feat: x"`)).toBe(2)
+    fs.rmSync(repoA, { recursive: true, force: true })
+    fs.rmSync(repoB, { recursive: true, force: true })
+  })
+
+  it('HARD_STOP 활성 → 커밋 차단 exit 2 (.vhk/README 보장 이행)', () => {
+    const repo = makeRepo()
+    stage(repo, 'docs/x.md') // 코드변경 없어도 HARD_STOP 이면 차단
+    fs.mkdirSync(path.join(repo, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(repo, '.vhk/HARD_STOP'), '')
+    expect(runHook(repo, 'git commit -m "docs: x"')).toBe(2)
     fs.rmSync(repo, { recursive: true, force: true })
   })
 })

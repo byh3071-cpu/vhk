@@ -7,7 +7,7 @@
 // RULES 신규 섹션의 미전파는 sync 자체가 unmapped 경고로 잡으므로 여기선 다루지 않는다.
 // 사용: node scripts/check-rules-sync.mjs [rulesPath=RULES.md] [claudePath=CLAUDE.md]
 import { readFileSync } from 'node:fs'
-import { pathToFileURL } from 'node:url'
+import { isMainModule, ensureNoHardStop } from './_lib.mjs'
 
 const VHK_BLOCK_START = '<!-- vhk:rules:start -->'
 const VHK_BLOCK_END = '<!-- vhk:rules:end -->'
@@ -66,6 +66,7 @@ export function findRulesDrift(rulesMd, claudeMd) {
 }
 
 function main() {
+  ensureNoHardStop('rules-sync')
   const rulesPath = process.argv[2] || 'RULES.md'
   const claudePath = process.argv[3] || 'CLAUDE.md'
   let rules, claude
@@ -91,5 +92,4 @@ function main() {
   process.exit(1)
 }
 
-const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url
-if (isMain) main()
+if (isMainModule(import.meta.url)) main()

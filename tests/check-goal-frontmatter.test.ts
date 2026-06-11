@@ -18,9 +18,10 @@ describe('validateGoalFrontmatter', () => {
     expect(r.warnings).toEqual([])
   })
 
-  it('필수 누락(id·title·status) → errors', () => {
+  it('필수 누락(id·status) → errors, title 은 경고(제품 스키마 SoT=권장과 일치)', () => {
     const r = validateGoalFrontmatter({ type: 'goal' })
-    expect(r.errors.length).toBeGreaterThanOrEqual(3)
+    expect(r.errors).toHaveLength(2)
+    expect(r.warnings.some((w: string) => w.includes('title'))).toBe(true)
   })
 
   it('status 비표준 값 → error', () => {

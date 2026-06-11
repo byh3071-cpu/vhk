@@ -8,23 +8,10 @@
 //       tsup 이 dist 를 번들(entry 2개)로만 내서 .mjs 가 TS 모듈을 import 할 수 없음(_lib.mjs 선례).
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, basename } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { isMainModule, parseFlatFrontmatter } from './_lib.mjs'
 
-/** flat `key: value` frontmatter 파싱. 블록 없으면 null. 값은 전부 string 보존. */
-export function parseFlatFrontmatter(md) {
-  const text = md.charCodeAt(0) === 0xfeff ? md.slice(1) : md
-  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
-  if (!m) return null
-  const out = {}
-  for (const raw of m[1].split(/\r?\n/)) {
-    const line = raw.trim()
-    if (!line || line.startsWith('#')) continue
-    const idx = line.indexOf(':')
-    if (idx <= 0) continue
-    out[line.slice(0, idx).trim()] = line.slice(idx + 1).trim()
-  }
-  return out
-}
+// flat frontmatter 파서는 _lib.mjs 단일본 — check-goal-frontmatter 와 해석이 갈라지지 않게.
+export { parseFlatFrontmatter }
 
 /** goals 디렉토리에서 유효 goal(type:goal + 숫자 id)만 수집, id 오름차순. */
 export function collectGoals(goalsDir) {
@@ -101,5 +88,4 @@ function main() {
   console.log(`[gen-goals-index] ${basename(out)} 생성 — goal ${goals.length}건`)
 }
 
-const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url
-if (isMain) main()
+if (isMainModule(import.meta.url)) main()
