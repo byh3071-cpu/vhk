@@ -12,7 +12,7 @@
 - **recall 실측** → 며칠 `vhk recall` 실사용 → `vhk memory eval --init` 실쿼리 라벨 → 진짜 Recall@5. <70 반복이면 2차 ML(bge-m3, RFC 0049 §2 결정 잠금됨). **실사용 시나리오 추가(2026-06-11): "리뷰 기준 추출"** — PR 리뷰 전 diff 요약을 쿼리로 `vhk recall` 실행 → 관련 ADR·패턴만 뽑아 리뷰 기준으로 주입(외부 사례 gen-criteria 패턴: 메타데이터 1차 필터 + 의미 2차 판단 + "이 작업에 어떻게 적용되는지" 서술 강제). 실쿼리 라벨 축적과 직결.
 - **🎯 업계최상위(~4.7) 품질 로드맵** → [docs/rfc/0048](../rfc/0048-top-tier-quality-roadmap.md) + **Goals 47~54**. 13-에이전트 감사(3.5/5) 도출. 순서: **P0 먼저** — Goal 47(win32+Node20 CI 매트릭스) · Goal 48(MCP↔CLI 단일 진실원) → P1 49(린트 확대)·50(커버리지) → P2 51~54. 각 goal `vhk goal next`로 꺼내 개별 PR(AI 독주 방지). ※ 작업2.2(fast-check #213)·2.3(tsc/eslint #216) 머지로 Goal 49는 "도입→확대", Goal 52 property 옵션은 선점됨 — 재조정 필요.
 - **미완 goal** (goals/ 동적 계산 — `vhk goal next`): silent-fallback 린트(Goal 25/27 영역·#128) · SEO 묶음(Goal 21~26) 등.
-- **하네스 사례 연구 후속(2026-06-11)**: CodeRabbit 자동 PR 리뷰 설정 PR #255 — **사용자 GitHub App 설치 대기**(coderabbit.ai에서 vhk 레포 승인, ~2분, public=Pro 무료). Goal 62(docs-first+docs-diff, P2) 기안됨. 파이썬 headless 러너는 보류(6/15 Agent SDK 종량제 전환 + 현행 worktree 패턴으로 충분).
+- **하네스 사례 연구 후속(2026-06-11)**: CodeRabbit 자동 PR 리뷰 설정 PR #255 — **사용자 GitHub App 설치 대기**(coderabbit.ai에서 vhk 레포 승인, ~2분, public=Pro 무료). Goal 62(docs-first+docs-diff, P2) 기안됨. 파이썬 headless 러너는 보류(6/15 Agent SDK 종량제 전환 + 현행 worktree 패턴으로 충분). 후속 구현 완료(저녁): @claude 리뷰반영 워크플로(#259) + auto-merge 무인 머지 스킬(#262 — 가동은 전용 세션 `/loop 15m /auto-merge`, 라벨은 사람만 부착).
 - **열린 이슈 = #38 1개** (RFC 0001 .vhk 규격 의견수렴 — 코딩 아닌 결정 토론, 4개 미해결 질문). 나머지(#157·#155·#171·#148·#160·#159·#158·#151) close 완료. #38은 close/유지 product 결정.
 
 ## 백로그 (예약 — 선행조건 충족 후)

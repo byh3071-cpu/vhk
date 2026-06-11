@@ -151,8 +151,8 @@ tags: [process, constitution]
 **마지막 갱신:** 2026-06-11
 - **버전:** v2.5.1 (발행 완료) — 사실 확인은 package.json·CHANGELOG
 - **테스트:** 1536 pass(main) · **MCP tools:** 29 — 사실값은 package.json·CHANGELOG
-- **Phase:** measure-first 2종(diff-coverage RFC 0050·recall RFC 0049) 측정·기록 완료, 승격/ML 보류(실사용 대기). 추가: 도그푸딩 버그 8건 일괄 픽스(#254, 2026-06-11 dev log) — 트리아지 워크플로 8병렬.
+- **Phase:** measure-first 2종(diff-coverage RFC 0050·recall RFC 0049) 측정·기록 완료, 승격/ML 보류(실사용 대기). 추가: 도그푸딩 버그 8건 일괄 픽스(#254, 2026-06-11 dev log) — 트리아지 워크플로 8병렬. 저녁: 전수 코드 리뷰 137건+Top10 즉시수정(#260) · governance T1~T5 기록 집행 hook(#261) · @claude 리뷰반영 워크플로(#259) · auto-merge 무인 머지 스킬(#262) · CodeRabbit 도입(#255, App 설치 대기). 오늘 작업 5건 Notion Dev Log DB 적재 완료.
 - **블로커:** 없음
-- **진행 중(미발행):** main 누적 미발행분 — measure-first 2종(#251) + RFC 0051 docs 배선(#253) + 도그푸딩 8건(#254). 다음 릴리즈 시 일괄 발행 판단.
+- **진행 중(미발행):** main 누적 미발행분 — measure-first 2종(#251) + RFC 0051 docs 배선(#253) + 도그푸딩 8건(#254) + 전수리뷰 Top10(#260) + governance T1~T5(#261, CodeRabbit 후속픽스 #263). 다음 릴리즈 시 일괄 발행 판단.
 - **다음 할 일:** measure-first 잔여 = **사람 게이트**: `vhk recall` 며칠 실사용 → `vhk memory eval --init` 실쿼리 라벨 → 진짜 Recall@5(<70 반복이면 2차 ML bge-m3). 병행: 미완 goal(린트 25/27·#128, SEO 21~26). **열린 이슈 = 0개**(2026-06-11 확인, #243~250 일괄 close).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유
