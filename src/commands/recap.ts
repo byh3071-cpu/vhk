@@ -250,17 +250,23 @@ export async function recap(options: RecapOptions = {}) {
     }])
 
     if (updateClaude) {
-      let claudeContent = fs.readFileSync(claudeMdPath, 'utf-8')
-      claudeContent = claudeContent.replace(
-        /- \*\*마지막 업데이트:\*\*.*/,
-        `- **마지막 업데이트:** ${today}`
-      )
-      claudeContent = claudeContent.replace(
-        /- \*\*다음 액션:\*\*.*/,
-        `- **다음 액션:** ${answers.nextTodo}`
-      )
-      fs.writeFileSync(claudeMdPath, claudeContent, 'utf-8')
-      console.log(chalk.green('  ✅ CLAUDE.md 업데이트 완료'))
+      const original = fs.readFileSync(claudeMdPath, 'utf-8')
+      // vhk init 템플릿(`- **마지막 업데이트:**`)과 수동 운영 형식(`**마지막 갱신:**`) 둘 다 지원.
+      // nextTodo 는 사용자 입력 — replacement 문자열의 `$&`/`$1` 특수 토큰 해석을 막기 위해 콜백 사용.
+      const claudeContent = original
+        .replace(/- \*\*마지막 업데이트:\*\*.*/, `- **마지막 업데이트:** ${today}`)
+        .replace(/\*\*마지막 갱신:\*\*.*/, `**마지막 갱신:** ${today}`)
+        .replace(/- \*\*다음 액션:\*\*.*/, () => `- **다음 액션:** ${answers.nextTodo}`)
+      if (claudeContent !== original) {
+        fs.writeFileSync(claudeMdPath, claudeContent, 'utf-8')
+        console.log(chalk.green('  ✅ CLAUDE.md 업데이트 완료'))
+      } else {
+        // 무매치(또는 이미 최신)인데 "완료"라고 말하던 거짓 성공 제거.
+        console.log(
+          chalk.yellow('  ⚠ CLAUDE.md에서 갱신 대상 줄을 찾지 못했거나 이미 최신입니다 — 변경 없음.')
+        )
+        console.log(chalk.gray('     (인식 형식: "- **마지막 업데이트:**" / "**마지막 갱신:**" / "- **다음 액션:**")'))
+      }
     }
   }
 

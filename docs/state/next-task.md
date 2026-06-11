@@ -14,6 +14,7 @@
 - **열린 이슈 = #38 1개** (RFC 0001 .vhk 규격 의견수렴 — 코딩 아닌 결정 토론, 4개 미해결 질문). 나머지(#157·#155·#171·#148·#160·#159·#158·#151) close 완료. #38은 close/유지 product 결정.
 
 ## 백로그 (예약 — 선행조건 충족 후)
+- **2026-06-11 전수 코드 리뷰 잔여분** → [docs/log/2026-06-11-full-code-review.md](../log/2026-06-11-full-code-review.md) — P1 23건 중 Top 10 즉시수정 외 잔여 P2 60건(HARD_STOP 갭 의도확정·sync 마커 견고화·goal next 덮어쓰기 보존 등)·리팩토링 로드맵(server.ts→memory→ko 순)·테스트 보강(MCP save L2)·DX(git hooks·check-goal 통합·CI 가드 배선). 파이썬 도입은 불필요 결론.
 - **CLI 콜드스타트 — inquirer lazy 머지 완료(#240, 512→323ms −37%)**. dep별 실측 결과 inquirer가 단일 최대(212ms=절반) → `lib/prompt.ts` lazy 래퍼로 80/20 처리(RFC 0047 §9). 잔여 명령 lazy+splitting(잔여 ~297ms, dep 12~33ms 단위)는 ROI↓·index.ts 고위험이라 보류.
 
 ## 블로커

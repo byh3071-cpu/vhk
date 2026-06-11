@@ -183,7 +183,9 @@ export function updateFrontmatterStatus(
   newStatus: GoalStatus,
   extraFields?: Record<string, string>
 ): string {
-  const m = content.match(FRONTMATTER_RE)
+  // parse 측(parseFrontmatter)과 동일하게 BOM 제거 — BOM 파일에서 무변경 반환(거짓 성공)되던 비대칭 제거.
+  const normalized = stripBom(content)
+  const m = normalized.match(FRONTMATTER_RE)
   if (!m) return content
   const fmRaw = m[1]
   const body = m[2] ?? ''

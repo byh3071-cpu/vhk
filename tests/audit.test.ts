@@ -139,4 +139,44 @@ describe('audit', () => {
     )
     expect(fixCall).toBeUndefined()
   })
+
+  describe('해석 실패 = 결과 불명 (거짓 음성 방지 — 리뷰 B1-01)', () => {
+    afterEach(() => {
+      process.exitCode = undefined // exitCode 누수로 vitest 종료코드 오염 방지
+    })
+
+    it('비JSON 출력이면 "취약점 없음" 대신 결과 불명 + exitCode 1', async () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      mockSafeExecFile.mockReturnValue({ ok: false, err: 'crashed', out: 'not-json' })
+      const { audit } = await import('../src/commands/audit.js')
+      await audit(false)
+      const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(printed).not.toContain('취약점이 발견되지 않았습니다')
+      expect(printed).toContain('결과 불명')
+      expect(process.exitCode).toBe(1)
+    })
+
+    it('빈 출력도 결과 불명 처리', async () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      mockSafeExecFile.mockReturnValue({ ok: false, err: 'no output', out: '' })
+      const { audit } = await import('../src/commands/audit.js')
+      await audit(false)
+      const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(printed).toContain('결과 불명')
+      expect(process.exitCode).toBe(1)
+    })
+
+    it('metadata 스키마가 정상이면 기존대로 🎉 (회귀 가드)', async () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+      mockSafeExecFile.mockReturnValue({
+        ok: true,
+        out: JSON.stringify({ metadata: { vulnerabilities: { total: 0 } } }),
+      })
+      const { audit } = await import('../src/commands/audit.js')
+      await audit(false)
+      const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(printed).toContain('취약점이 발견되지 않았습니다')
+      expect(process.exitCode).not.toBe(1)
+    })
+  })
 })
