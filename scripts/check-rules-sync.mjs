@@ -76,8 +76,8 @@ function main() {
   try {
     rules = readFileSync(rulesPath, 'utf-8')
     claude = readFileSync(claudePath, 'utf-8')
-  } catch {
-    console.log('[check-rules-sync] RULES.md/CLAUDE.md 없음 — 비적용 통과')
+  } catch (err) {
+    console.log(`[check-rules-sync] ${err?.path ?? 'RULES.md/CLAUDE.md'} 읽기 불가(${err?.code ?? err}) — 비적용 통과`)
     process.exit(0)
   }
   if (extractVhkBlockSections(claude) === null) {
