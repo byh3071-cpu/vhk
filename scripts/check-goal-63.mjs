@@ -57,7 +57,8 @@ const read = (p) => (existsSync(p) ? readFileSync(p, 'utf-8') : null)
 // 바인딩까지 단언(주석 오탐 회피): syncCheck 가 export 되고 buildSyncPlan 을 재사용하는지.
 const syncSrc = read('src/commands/sync.ts') ?? ''
 must(/export function syncCheck\(/.test(syncSrc), 'sync.ts 에 syncCheck export')
-must(/const plan = buildSyncPlan\(/.test(syncSrc.slice(syncSrc.indexOf('export function syncCheck'))), 'syncCheck 가 buildSyncPlan 재사용(검사기 drift 0)')
+const syncCheckIdx = syncSrc.indexOf('export function syncCheck')
+must(syncCheckIdx !== -1 && /const plan = buildSyncPlan\(/.test(syncSrc.slice(syncCheckIdx)), 'syncCheck 가 buildSyncPlan 재사용(검사기 drift 0)')
 must(/process\.exitCode = 1/.test(syncSrc), 'check 모드 비정상 종료코드(exitCode 대입 — process.exit 금지 준수)')
 must(/--check/.test(read('src/index.ts') ?? ''), 'index.ts 에 --check 옵션 등록')
 must(/checkPass/.test(read('src/i18n/ko.ts') ?? ''), 'ko.ts 검사 메시지 존재')
