@@ -1,6 +1,6 @@
 import { localDate } from '../lib/date.js'
 
-export function CLAUDE_MD_TEMPLATE(name: string, _stack: string): string {
+export function CLAUDE_MD_TEMPLATE(name: string, stack: string): string {
   const d = localDate(); // VHK-019
   const slug = name.toLowerCase().replace(/\s+/g, '-');
   return [
@@ -21,6 +21,9 @@ export function CLAUDE_MD_TEMPLATE(name: string, _stack: string): string {
     '- **다음 액션:** **FILL**',
     '- **마지막 업데이트:** ' + d,
     '',
+    '## 기술 스택',
+    '- ' + (stack || '**FILL** (예: Next.js + TypeScript)'),
+    '',
     '## ADR',
     '기술/라이브러리 선택 시 docs/adr/ADR-{번호}-{제목}.md 생성.',
     '',
@@ -33,10 +36,11 @@ export function CLAUDE_MD_TEMPLATE(name: string, _stack: string): string {
     '## TIL',
     '새로 배운 개념 → docs/til.md 한 줄 추가',
     '',
-    '## /done 커맨드',
-    '세션 종료 → /done → 요약 자동 생성 → docs/log/ 저장',
+    '## 세션 종료',
+    '세션 종료 시 `vhk recap` (한국어: "오늘 한 일 정리해") → 요약 생성 → docs/log/ 저장',
     '',
     '## 종료 전 체크리스트',
-    '1. ADR 2. 작업 로그 3. 트러블슈팅 4. TIL 5. /done',
+    '해당 사항 있을 때만: ① 기술 결정 → ADR ② 에러 해결 → 트러블슈팅 ③ 새 배움 → TIL',
+    '항상: 작업 로그(docs/log/) + `vhk recap`',
   ].join('\n');
 }
