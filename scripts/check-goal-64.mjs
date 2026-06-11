@@ -53,8 +53,12 @@ if (!skipDeep) {
 }
 
 // ─── goal 64 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => (existsSync(p) ? readFileSync(p, 'utf-8') : null)
+must(existsSync('tests/commands-doc.test.ts'), 'registry 기반 커버리지 테스트 존재(SoT 강제)')
+must(/TOP_LEVEL_COMMANDS/.test(read('tests/commands-doc.test.ts') ?? ''), '테스트가 command-registry 를 우주로 사용')
+must(/전체 명령 카탈로그/.test(read('COMMANDS.md') ?? ''), 'COMMANDS.md 카탈로그 섹션 존재')
+// 커버리지 0건은 test 단계(test:run 의 commands-doc.test)가 강제 — 보조 리포트 strict 로 이중 확인.
+gate('check-commands-doc --strict (보조)', run('node', ['scripts/check-commands-doc.mjs', '--strict']))
 
 if (pass) { console.log('✅ goal 64 gate passes'); process.exit(0) }
 console.log('❌ goal 64 gate failed'); process.exit(1)

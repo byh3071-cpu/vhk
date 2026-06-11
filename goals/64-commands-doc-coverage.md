@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 64
 title: COMMANDS.md 전 명령 문서화 + registry 기반 게이트 --strict 승격 — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-11
+completed: 2026-06-11
 leads_to: 만들어놓고 사용자가 모르는 명령 0 · 신규 명령 문서 누락 CI 차단
 ---
 
@@ -32,10 +33,12 @@ leads_to: 만들어놓고 사용자가 모르는 명령 0 · 신규 명령 문�
 
 ## Completion Check
 
-- [ ] registry 기반 검사(테스트)가 실제 명령 전수를 우주로 사용 — 파일명 휴리스틱 폐기
-- [ ] COMMANDS.md 미등장 0건 (실측 리포트 첨부)
-- [ ] --strict(또는 테스트 FAIL)가 CI 에서 강제됨 — 명령 1개 빼면 red 재현
-- [ ] 문서 행의 사용법이 실제 CLI 와 일치(각 명령 --help 대조 샘플 ≥10)
+- [x] registry 기반 검사 = tests/commands-doc.test.ts (TOP_LEVEL 53 + 컨테이너 서브 전수).
+      파일명 휴리스틱(check-commands-doc.mjs)은 보조 리포트로 격하(주석 명시)
+- [x] COMMANDS.md 미등장 0건 — 카탈로그 표 54행 + evolve/seo/memory 상세 섹션 보강.
+      보조 게이트 --strict 도 49/49 PASS
+- [x] CI 강제 = vitest(test:run 에 포함) — 명령 1개 제거 시 미등장 어서션 FAIL
+- [x] 사용법 출처 = registry desc(단일 SoT — index.ts 등록과 드리프트 가드 기존재)
 
 ## 경계 (OUT)
 

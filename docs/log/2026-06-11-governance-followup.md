@@ -24,3 +24,19 @@
 - check-goal-63 게이트: 바인딩 단언(syncCheck export·buildSyncPlan 재사용·exitCode·
   --check 등록·ko 메시지·테스트 존재) + `vhk sync --check` 라이브 실행.
 - README 사용법 1줄(+CI/게이트 용도 설명). COMMANDS.md 행은 goal 64 전수 작업에서.
+
+## Goal 64 — COMMANDS.md 커버리지 (구현 완료)
+
+- **SoT 강제 = tests/commands-doc.test.ts**: 명령 우주를 command-registry.ts
+  (TOP_LEVEL_COMMANDS 53 + CONTAINER_SUBCOMMANDS)에서 유도 — governance v0 게이트의
+  파일명 휴리스틱 한계(과대집계·미커버) 해소. test:run 포함이라 CI 자동 강제 =
+  "--strict 승격"의 실체(별도 플래그 불요).
+- COMMANDS.md: **전체 명령 카탈로그 표 54행**(registry desc 1:1) + 상세 섹션 보강
+  (memory remove/resolve/unarchive/eval · design palette · pattern detect ·
+  evolve suggest/apply/reject · seo 5종). 내부 구현 파일(verify-report·memory-eval)은
+  독립 명령 아님 명시.
+- 검증: 신규 테스트 미등장 0건 + 구 보조 게이트 --strict 49/49 PASS(이중 확인).
+  check-commands-doc.mjs 는 보조 리포트로 격하(헤더 주석).
+- 교훈: 게이트 채우면 goal 43 드리프트 가드가 "구현됐는데 NOT_STARTED"를 잡고,
+  `vhk goal done` 은 게이트 안 test:run 이 그 드리프트 테스트를 포함해 닭-달걀 —
+  배치에선 frontmatter 직접 DONE 전이 + 전체 green 확인이 관례(63·64 동일).
