@@ -8,6 +8,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- **`vhk sync --check` — 8개 sync 타겟 drift 검사 모드** (Goal 63, #266) — 쓰기 0, 생성 로직(buildSyncPlan) 재사용으로 검사기 자체의 drift 차단, drift 시 exit 1(CI/게이트용).
+- **governance 배치 — 기록 집행 + 문서 인덱스 + 게이트 4종** (T1~T5, #261·#263) — ① 기록 집행 hook(코드 커밋 시 당일 dev log 스테이지 강제, `[skip-record]` 우회) + Stop 자문 넛지 ② docs/README 대시보드 + goals 인덱스 자동 생성(gen-goals-index) ③ check-rules-sync·check-commands-doc·check-goal-frontmatter 게이트 ④ `.vhk` spec v1.1(하위 폴더 공식화·트래킹 정책 확정) ⑤ 첫 실제 ADR 4건 + MCP 진화 카탈로그 + 회고 백필. `.gitattributes` 신설(`*.mjs`/`*.sh` LF — 셔뱅+CRLF로 Windows CI 전멸하던 결함 차단).
+- **COMMANDS.md 전 명령 커버리지** (Goal 64, #266) — 전체 명령 카탈로그 표(registry desc 1:1) + command-registry 기반 테스트가 미문서 명령을 CI에서 차단(기존 미문서 32건 → 0).
+- **auto-merge 무인 머지 스킬 + @claude 리뷰 반영 워크플로** (#262·#264·#259·#255) — auto-merge 라벨 PR을 4중 게이트(CI·diff 상한·CodeRabbit 해소·적대 리뷰) 통과 시 무인 squash 머지 + CodeRabbit 자동 PR 리뷰 설정. 머지·publish 권한은 여전히 사람.
 - **`vhk recall` — 기억 회상 MVP + 검증 하네스** (RFC 0049, #232·#233) — 키워드 검색 + 위험 작업 직전 just-in-time 과거 교훈 경고 + 사용 로그/eval(Recall@5·MRR).
 - **`vhk diff-cover` — diff 커버리지 측정** (RFC 0050 PR1, Goal 50, #236·#239) — 변경 줄 중 미검증분 자문 측정(차단 0). `+++/---` 본문 오인 파서 픽스 포함.
 - **`vhk cost` — 비용·예산 가드** (Goal 56, #234) — 자문형 비용 원장 + 양방향 입력.
