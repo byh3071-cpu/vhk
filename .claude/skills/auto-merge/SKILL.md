@@ -31,7 +31,7 @@ gh pr list --state open --label auto-merge --json number,title,headRefName,addit
 | G3. CodeRabbit 해소 | 아래 GraphQL로 미해결 리뷰 스레드 0개 확인 | 스킵 |
 | G4. 적대적 최종 리뷰 | 아래 §3 | 스킵 + 사유 보고 |
 
-G3 쿼리 (owner/name은 vhk 레포 전용 하드코딩 — 이 스킬 자체가 vhk 헌법·가드 #119 의존이라 타 레포 이식 시 전면 수정 필요):
+G3 쿼리 — **반드시 Bash 도구로 실행** (PowerShell은 중첩 따옴표가 깨져 `Expected type 'number', malformed "-cpu"` 오류 — 2026-06-11 실측). owner/name은 vhk 레포 전용 하드코딩(이 스킬 자체가 vhk 헌법·가드 #119 의존이라 타 레포 이식 시 전면 수정 필요):
 
 ```sh
 gh api graphql -f query='query($n:Int!){repository(owner:"byh3071-cpu",name:"vhk"){pullRequest(number:$n){reviewThreads(first:50){nodes{isResolved}}}}}' -F n=<번호>
