@@ -2,8 +2,9 @@
 // src/lib/exec.ts 의 safeExecFile 패턴과 동일하지만 ts-build 없이 Node 직실행 가능.
 
 import { execFileSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
+import { pathToFileURL, fileURLToPath } from 'node:url'
 
 const SHIM_BINS = new Set(['pnpm', 'npm', 'npx', 'yarn'])
 
@@ -33,6 +34,65 @@ export function safeExec(cmd, args) {
 
 export function hardStopActive() {
   return existsSync('.vhk/HARD_STOP')
+}
+
+/**
+ * "직접 실행일 때만 main" 가드 — 테스트가 import 해도 부수효과 0 (governance 게이트 공통).
+ * Windows 8.3 단축경로·심링크로 argv[1]과 import.meta.url 이 어긋나면 게이트가 조용히
+ * no-op 되는 함정(레포 교훈: realpathSync.native) → realpath 양쪽 정규화로 비교.
+ */
+export function isMainModule(importMetaUrl) {
+  const argv = process.argv[1]
+  if (!argv) return false
+  try {
+    if (pathToFileURL(argv).href === importMetaUrl) return true
+    const a = realpathSync.native(argv)
+    const b = realpathSync.native(fileURLToPath(importMetaUrl))
+    return process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b
+  } catch {
+    return false
+  }
+}
+
+/** git 이 비ASCII 경로를 감싸는 따옴표 제거 (core.quotepath=false 와 이중 방어). */
+export function unquoteGitPath(p) {
+  return p.replace(/^"|"$/g, '')
+}
+
+/** porcelain 라인 → 경로. XY+공백 3칸 고정 오프셋(라인 trim 금지!), 리네임은 new 쪽. */
+export function porcelainPath(line) {
+  const body = line.slice(3)
+  const arrow = body.indexOf(' -> ')
+  return unquoteGitPath(arrow >= 0 ? body.slice(arrow + 4) : body)
+}
+
+/**
+ * flat `key: value` frontmatter 파싱(BOM 허용·`#` 주석 스킵·값은 string 보존). 블록 없으면 null.
+ * src/lib/goal-frontmatter.ts parseSimpleYaml 과 동형 — .mjs 가 TS(번들 dist)를 import 못해 복제
+ * (이 파일이 .mjs 쪽 단일본 — 게이트들은 여기서 import 할 것, 재복제 금지).
+ */
+export function parseFlatFrontmatter(md) {
+  const text = md.charCodeAt(0) === 0xfeff ? md.slice(1) : md
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)
+  if (!m) return null
+  const out = {}
+  for (const raw of m[1].split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    const idx = line.indexOf(':')
+    if (idx <= 0) continue
+    let value = line.slice(idx + 1).trim()
+    // 따옴표 값(status: "DONE")은 제품 파서(parseSimpleYaml)처럼 벗긴다 — 게이트와 제품이
+    // 같은 카드를 다르게 읽는 분기 방지(적대검증 D2-2/D2-3).
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    out[line.slice(0, idx).trim()] = value
+  }
+  return out
 }
 
 export function ensureNoHardStop(goalLabel) {
