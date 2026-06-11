@@ -4,7 +4,40 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-_다음 릴리즈 예정 항목 없음._
+> v2.5.1 이후 main 누적분 백필(2026-06-11 전수 리뷰 G-01에서 공백 발견) + 전수 리뷰 Top 10 즉시수정.
+
+### Added
+
+- **`vhk recall` — 기억 회상 MVP + 검증 하네스** (RFC 0049, #232·#233) — 키워드 검색 + 위험 작업 직전 just-in-time 과거 교훈 경고 + 사용 로그/eval(Recall@5·MRR).
+- **`vhk diff-cover` — diff 커버리지 측정** (RFC 0050 PR1, Goal 50, #236·#239) — 변경 줄 중 미검증분 자문 측정(차단 0). `+++/---` 본문 오인 파서 픽스 포함.
+- **`vhk cost` — 비용·예산 가드** (Goal 56, #234) — 자문형 비용 원장 + 양방향 입력.
+- **`vhk stats`·AI 행동 원장·위험 글롭 가드** (Goal 55·57·59·61, #238·#252) — 가드 통과 행동 영속 기록(.vhk/events/) + 대상 글롭 위험 평가 + scan-incomplete 신호.
+- **`vhk seo init`** (Goal 21, #214) — SEO 대시보드 스캐폴드 + 사이트 등록 + 키 보관(Env 참조). SEO 22~26 scaffold(#252).
+- **CI 멀티 OS/Node 매트릭스** (Goal 47, #227·#229) — ubuntu·windows × node 22·24 + engines.node >=22 정직화.
+- **MCP↔CLI 계약 테스트 + fast-check 속성 테스트** (#212·#213) — 위임 드리프트·파서 불변식 회귀 봉쇄.
+- **handoff 미기록 ADR/TS 후보 자동 보고** (RFC 0051, #253).
+- **시크릿 패턴 7종 추가** (전수 리뷰 C-01) — GitHub fine-grained PAT(`github_pat_`)·OAuth(`gho_/ghu_/ghs_/ghr_`)·npm(`npm_`)·Slack(`xox*-`)·Google(`AIza`)·Stripe(`sk_live_/rk_live_`)·Notion(`ntn_`) + 17패턴 전수 단위테스트.
+
+### Fixed
+
+- **도그푸딩 버그 8건 일괄** (#243~#250, #254) + 퍼징 발견 파싱 가드 3건(#218~#220, #224) + cloud/blocker/goal check·theme·ref/memory 소픽스(#221~#223·#226).
+- **자연어 오라우팅 5계열** (전수 리뷰 F2-01~05·08) — "컨텍스트 업데이트해줘"가 무확인 자가업데이트로, "버전 올려줘"가 git 커밋으로, "검증 실행해줘"가 아이디어 마법사로 새던 것 등 실측 13케이스 수정 + 회귀 가드.
+- **거짓 성공/음성 제거 4건** (전수 리뷰) — BOM goal 파일에서 `goal done`이 변경 없이 "✅ DONE" 출력(A3-02) · `vhk audit` 해석 실패를 "취약점 없음"으로 보고(B1-01) · recap CLAUDE.md 갱신 무매치에도 "완료"(A3-03) · MCP에서 가드 차단을 "✅"로 보고(A1-03).
+- **데이터 보호 2건** (전수 리뷰) — 손상 refs.json을 빈 배열 취급 후 덮어써 전체 소실되던 경로 차단(B1-02) · memory.json 쓰기를 atomicWriteFile로 통일해 동시 세션 tmp 충돌 제거(A2-02).
+- **publish 가드 강화** (전수 리뷰 A3-01/04) — untracked 신규 src 파일 발행 차단(빌드 포함분) + git 상태 실패 시 fail-closed.
+- **review advisory 기본 모드** (#157, #226) — skip/미검증만으로 거짓 실패 안 함.
+
+### Changed
+
+- **eslint type-aware 결함룰 확대** (Goal 49, #230) + tsc strict 플래그·async 안전성 게이트(#216) + silent-fallback 린트 리포트 v0(Goal 27, #207).
+- **MCP↔CLI git 단일 진실원** (Goal 48, #228) — git-session 추출, 인라인 재구현 제거.
+- **릴리즈 준비 게이트** (Goal 42, #206) — CHANGELOG 빈/플레이스홀더 본문 차단.
+- **harness/audit 중첩 패키지 발견** (#171, #225) — 루트+nested 점검.
+- **init 생성 템플릿 정비** (전수 리뷰 F1) — PowerShell 미호환 `&&` 안내 제거(`vhk save`로), 유령 `/done` 커맨드 → `vhk recap`, 기술 스택 섹션 생성, 시작/핸드오프 프롬프트에 blockers·dev log append-only 지시 추가.
+
+### Performance
+
+- **CLI 콜드스타트 512→323ms (−37%)** (RFC 0047 §9, #240) — inquirer 지연 로딩.
 
 ## [2.5.1] - 2026-06-08
 
