@@ -33,7 +33,7 @@ npm install -g @byh3071/vhk
 vhk --version
 ```
 
-요구 사항은 Node.js 20 이상입니다. 1회성 실행은 `npx -y @byh3071/vhk`로도 가능합니다.
+요구 사항은 Node.js 22 이상입니다. 1회성 실행은 `npx -y @byh3071/vhk`로도 가능합니다.
 
 ## 3분 시작
 

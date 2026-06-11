@@ -371,6 +371,16 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   const content = readFileSync(target.filePath, 'utf-8')
   const today = localDate() // VHK-019
   const updated = updateFrontmatterStatus(content, 'DONE', { completed: today })
+  if (updated === content) {
+    // 갱신 결과 무변경 — frontmatter 미인식(손상·마커 누락) 또는 이미 동일 상태. "✅ DONE" 거짓 성공 방지.
+    console.log(
+      chalk.yellow(
+        `\n  ⚠ frontmatter 갱신 결과 변경 없음 — 이미 DONE(completed: ${today})이거나 frontmatter 형식 미인식. 파일을 확인하세요.`
+      )
+    )
+    process.exitCode = 1
+    return
+  }
   atomicWriteFile(target.filePath, updated) // Goal 40: frontmatter 갱신 중 kill 시 goal 파일 손상 방지
   console.log(chalk.green(`\n  ✅ Goal ${id} → DONE (completed: ${today})`))
   printNextStep({

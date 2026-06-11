@@ -111,6 +111,13 @@ describe('updateFrontmatterStatus', () => {
     const updated = updateFrontmatterStatus(content, 'DONE')
     expect(updated).toBe(content)
   })
+
+  it('BOM 있는 파일도 status 갱신 (parse 측과 비대칭으로 무변경 거짓 성공되던 회귀 가드 — 리뷰 A3-02)', () => {
+    const withBom = '\uFEFF' + SAMPLE
+    const updated = updateFrontmatterStatus(withBom, 'IN_PROGRESS')
+    expect(updated).toContain('status: IN_PROGRESS')
+    expect(updated).not.toBe(withBom)
+  })
 })
 
 describe('parseGoalFile', () => {

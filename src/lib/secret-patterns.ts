@@ -48,6 +48,52 @@ export const SECRET_PATTERNS: SecretPattern[] = [
     pattern: /ghp_[A-Za-z0-9]{36,}/,
   },
   {
+    id: 'github-fine-grained-pat',
+    name: 'GitHub Fine-grained PAT',
+    severity: 'critical',
+    pattern: /github_pat_[A-Za-z0-9_]{36,}/,
+  },
+  {
+    // gho_(OAuth)/ghu_(user-to-server)/ghs_(server-to-server)/ghr_(refresh)
+    id: 'github-oauth-token',
+    name: 'GitHub OAuth/App Token',
+    severity: 'critical',
+    pattern: /gh[ousr]_[A-Za-z0-9]{36,}/,
+  },
+  {
+    // npm_config_* 류 env 변수명은 36자 연속 영숫자 조건에 안 걸린다(오탐 방지).
+    id: 'npm-token',
+    name: 'npm Access Token',
+    severity: 'critical',
+    pattern: /npm_[A-Za-z0-9]{36,}/,
+  },
+  {
+    // xoxb(bot)/xoxp(user)/xoxa(app)/xoxr(refresh)/xoxs(session)
+    id: 'slack-token',
+    name: 'Slack Token',
+    severity: 'critical',
+    pattern: /xox[baprs]-[A-Za-z0-9][A-Za-z0-9-]{8,}/,
+  },
+  {
+    id: 'google-api-key',
+    name: 'Google API Key',
+    severity: 'high',
+    pattern: /AIza[0-9A-Za-z_-]{35}/,
+  },
+  {
+    // sk_live_(secret)/rk_live_(restricted). test 키(sk_test_)는 의도적 제외.
+    id: 'stripe-live-key',
+    name: 'Stripe Live Key',
+    severity: 'critical',
+    pattern: /[sr]k_live_[A-Za-z0-9]{20,}/,
+  },
+  {
+    id: 'notion-token-v2',
+    name: 'Notion Token (ntn)',
+    severity: 'critical',
+    pattern: /ntn_[A-Za-z0-9]{30,}/,
+  },
+  {
     id: 'openai-key',
     name: 'OpenAI API Key',
     severity: 'critical',

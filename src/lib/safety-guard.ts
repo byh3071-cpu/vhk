@@ -100,7 +100,8 @@ async function runGuardedInner<T>(
     // R13/E8: lite 여도 비대화형(stdin 비-TTY)+미승인이면 destructive 중단 — 경고 볼 사람 없음.
     const canConfirm = deps.isTTY ?? !!process.stdin.isTTY
     if (!deps.approved && !canConfirm) {
-      log(`⚠️ 위험 작업(${action}) — lite 지만 비대화형+미승인 → 중단. (--yes 로 승인)`)
+      // "실행하지 않았습니다" 문구는 MCP 가 가드 차단을 식별하는 마커 — 차단 메시지 3종 공통 유지(리뷰 A1-03).
+      log(`⚠️ 위험 작업(${action}) — lite 지만 비대화형+미승인 → 실행하지 않았습니다. (--yes 로 승인)`)
       return { outcome: { ran: false, guard, reason: 'lite-noninteractive-block' } }
     }
     log(`⚠️ 위험 작업(${action}) — lite 모드: 경고만 하고 진행합니다.`)

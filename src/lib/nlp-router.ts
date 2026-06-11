@@ -145,7 +145,9 @@ const RULES: NlpRule[] = [
     command: 'verify',
     explanation: '저장/위험 작업 전 검증 묶음 (vhk verify)',
     confidence: 'high',
-    test: t => /검증\s*묶음|사전\s*검증|저장\s*전\s*(검증|확인)|^verify$/.test(t),
+    // '검증 실행/돌려'·bare '검증해줘' 는 verify 의도 — gate(아이디어 검증)가 가로채지 않게 먼저 흡수.
+    test: t =>
+      /검증\s*(묶음|실행|돌려|돌리)|사전\s*검증|저장\s*전\s*(검증|확인)|^verify$|^검증\s*(해줘|해)?$/.test(t),
   },
   {
     command: 'review',
@@ -239,8 +241,12 @@ const RULES: NlpRule[] = [
     command: 'update',
     explanation: 'VHK CLI 최신 버전 업데이트 (vhk update)',
     confidence: 'high',
+    // '업데이트' 단독 키워드가 컨텍스트/기억/규칙 갱신 표현을 가로채 무확인 자가업데이트가 되지 않게:
+    // 자가업데이트 의도(vhk/cli/셀프 동반 또는 단독 발화)일 때만 매칭.
     test: t =>
-      /업데이트|update|버전\s*업|최신\s*버전|셀프\s*업데이트|vhk.*최신|vhk.*업데이트/.test(t),
+      (/^업데이트$|^update$|셀프\s*업데이트|self.?update/.test(t) ||
+        (/업데이트|update|최신\s*버전|버전\s*업/.test(t) && /vhk|cli|셀프/.test(t))) &&
+      !/컨텍스트|맥락|기억|메모리|memory|규칙|목표|문서|readme/.test(t),
   },
   {
     command: 'context-show',
@@ -315,7 +321,8 @@ const RULES: NlpRule[] = [
       (matchesKeywords(t, 'status') ||
         /^status$/.test(t) ||
         /브랜치.*(뭐|어디)|git\s*상태|동기화\s*상태|프로젝트\s*상태/.test(t)) &&
-      !/보안|시크릿|규칙|점검|린트|환경|진단|doctor|secure|check|스캔|설치/.test(t),
+      // '지금/어떻게' 과민 매칭이 동사형 의도(저장·배포·출시)를 가리지 않게 제외.
+      !/보안|시크릿|규칙|점검|린트|환경|진단|doctor|secure|check|스캔|설치|저장|커밋|푸시|push|배포|출시|올려|deploy|publish/.test(t),
   },
   {
     command: 'save',
@@ -323,19 +330,25 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     test: t =>
       (matchesKeywords(t, 'save') || /깃허브|github/.test(t)) &&
-      !/정리|recap|되돌|취소|rollback|reset|리셋|롤백|원래대로|클라우드|cloud|gist/.test(t),
+      // '올려/커밋' 키워드가 deploy('vercel에 올려줘')·publish('버전 올려줘')·memory('기억 저장해줘')를 선점하지 않게 제외.
+      !/정리|recap|되돌|취소|rollback|reset|리셋|롤백|원래대로|클라우드|cloud|gist|vercel|netlify|cloudflare|배포|디플로이|deploy|npm|출시|퍼블리시|publish|버전|기억|메모리|memory/.test(t),
   },
   {
     command: 'recap',
     explanation: '오늘 한 일 정리 (vhk 정리)',
     confidence: 'high',
-    test: t => /오늘.*(정리|기록)|한\s*일|세션|회고|recap|정리해/.test(t),
+    // '정리해/세션' 이 work handoff(인수인계·중단 정리)를 가리지 않게 제외 — handoff 규칙으로 낙하.
+    // bare '세션' 단독 매칭 금지(CodeRabbit) — "세션 시작해줘" 류 비-recap 의도를 가로채지 않게 동반어 요구.
+    test: t =>
+      /오늘.*(정리|기록)|한\s*일|세션\s*(정리|기록|요약|회고|마무리)|회고|recap|정리해/.test(t) &&
+      !/인수인계|핸드오프|handoff|넘기|넘겨|전달|중단/.test(t),
   },
   {
     command: 'gate',
     explanation: '아이디어 검증 (vhk 검증)',
     confidence: 'high',
-    test: t => /아이디어|검증|gate|go\/refine|pain\s*point/.test(t),
+    // bare '검증' 매칭 제거 — verify('검증 실행')·goal check('목표 검증')를 가로채던 광범위 키워드.
+    test: t => /아이디어|^gate$|\bgate\b|go\/refine|pain\s*point/.test(t),
   },
   {
     command: 'sync',
@@ -355,7 +368,8 @@ const RULES: NlpRule[] = [
     confidence: 'high',
     test: t =>
       /^배포$|배포\s*해|배포하|배포해줘|^deploy$|디플로이|vercel|netlify|cloudflare|wrangler|프로덕션|올려줘/.test(t) &&
-      !/체크|준비|점검|출하|회고|빌드\s*전/.test(t),
+      // '올려줘' 가 publish('버전 올려줘'·'npm에 올려줘')를 가로채지 않게 제외.
+      !/체크|준비|점검|출하|회고|빌드\s*전|버전|npm|출시|퍼블리시|publish|릴리즈|release/.test(t),
   },
   {
     command: 'env-check',
@@ -435,7 +449,7 @@ const RULES: NlpRule[] = [
     explanation: '작업 중단 정리 프롬프트 (vhk work handoff)',
     confidence: 'high',
     args: ['handoff'],
-    test: t => /인수인계|핸드오프|handoff|작업\s*(넘기|넘겨|전달|마무리)|중단\s*정리/.test(t),
+    test: t => /인수인계|핸드오프|handoff|(작업|세션)\s*(넘기|넘겨|전달|마무리)|중단\s*정리/.test(t),
   },
   {
     command: 'work',

@@ -55,6 +55,12 @@ function getVhkCli(): VhkCliInvocation {
 // vhk CLI 자체를 서브프로세스로 호출해서 결과를 MCP content로 변환.
 // MCP 모드에서는 inquirer/ora 프롬프트가 동작하지 않으므로 비대화형 커맨드만 위임.
 // chalk 가 색을 안 쓰도록 FORCE_COLOR=0 + NO_COLOR=1 강제 + 잔여 ANSI 는 regex strip.
+// 가드 차단은 CLI exit 0 으로 끝난다 — 출력 문구로 식별해 "✅" 거짓 성공 헤드라인을 막는다(리뷰 A1-03).
+// safety-guard 의 차단 메시지 3종(no-confirm/preview/lite-noninteractive)이 이 문구를 공통 포함.
+export function isGuardBlockedOutput(body: string): boolean {
+  return /위험 작업\(/.test(body) && body.includes('실행하지 않았습니다')
+}
+
 function runVhkCli(
   args: string[],
   headline: string
@@ -64,7 +70,11 @@ function runVhkCli(
     env: { FORCE_COLOR: '0', NO_COLOR: '1' },
   })
   const body = stripAnsi(result.out || (result.ok ? '' : `(stdout 없음)\n${result.err}`))
-  const prefix = result.ok ? `✅ ${headline}` : `❌ ${headline} 실패`
+  const prefix = result.ok
+    ? isGuardBlockedOutput(body)
+      ? `⛔ ${headline} 실행 안 됨 (가드 차단 — 승인 필요)`
+      : `✅ ${headline}`
+    : `❌ ${headline} 실패`
   return { content: [{ type: 'text', text: `${prefix}\n${body}`.trim() }] }
 }
 
