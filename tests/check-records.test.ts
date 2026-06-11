@@ -32,10 +32,28 @@ describe('isGitCommitCommand — git commit 명령 감지', () => {
     expect(isGitCommitCommand('(git commit -m "x")')).toBe(true)
   })
 
-  it('findGitSubcommand — -C 경로 추출', () => {
-    expect(findGitSubcommand('git -C ../other commit -m "x"', 'commit')).toEqual({
+  it('env 할당 접두·명령 래퍼·git.exe/풀경로도 감지 (적대검증 D1-1)', () => {
+    expect(isGitCommitCommand('GIT_COMMITTER_DATE="2020-01-01" git commit -m x')).toBe(true)
+    expect(isGitCommitCommand('command git commit -m x')).toBe(true)
+    expect(isGitCommitCommand('env nohup git commit -m x')).toBe(true)
+    expect(isGitCommitCommand('git.exe commit -m x')).toBe(true)
+    expect(isGitCommitCommand('/usr/bin/git commit -m x')).toBe(true)
+    expect(isGitCommitCommand('cmd /d /s /c git commit -m x')).toBe(true)
+  })
+
+  it('줄연속(백슬래시/백틱+개행)으로 쪼개진 명령도 감지 (적대검증 D1-3)', () => {
+    expect(isGitCommitCommand('git \\\ncommit -m "x"')).toBe(true)
+    expect(isGitCommitCommand('git `\r\ncommit -m "x"')).toBe(true)
+  })
+
+  it('findGitSubcommand — -C 경로 추출(공백 포함 따옴표 경로 포함, 적대검증 D1-2)', () => {
+    expect(findGitSubcommand('git -C ../other commit -m "x"', 'commit')).toMatchObject({
       found: true,
       cPath: '../other',
+    })
+    expect(findGitSubcommand('git -C "C:/a b/repo" commit -m "x"', 'commit')).toMatchObject({
+      found: true,
+      cPath: 'C:/a b/repo',
     })
   })
 
@@ -149,7 +167,7 @@ function stage(repo: string, rel: string, content = 'x') {
 /** hook stdin JSON 으로 게이트 실행 → exit code. */
 function runHook(repo: string, command: string): number {
   try {
-    execFileSync('node', [SCRIPT], {
+    execFileSync('node', [SCRIPT, '--hook'], {
       cwd: repo,
       encoding: 'utf-8',
       stdio: 'pipe',
@@ -211,6 +229,20 @@ describe('check-records e2e — 실제 staged + hook stdin', () => {
     fs.rmSync(repo, { recursive: true, force: true })
   })
 
+  it('pathspec add 체인은 그 범위만 합산 — 무관 더티 코드로 오차단 안 함 (적대검증 D1-4)', () => {
+    const repo = makeRepo()
+    const dirty = path.join(repo, 'src/lib/dirty.ts')
+    fs.mkdirSync(path.dirname(dirty), { recursive: true })
+    fs.writeFileSync(dirty, 'x', 'utf-8') // 미스테이지 잔재 — add 대상 아님
+    const doc = path.join(repo, 'docs/adr/ADR-009-x.md')
+    fs.mkdirSync(path.dirname(doc), { recursive: true })
+    fs.writeFileSync(doc, 'x', 'utf-8')
+    expect(runHook(repo, 'git add docs/adr/ADR-009-x.md; git commit -m "docs: x"')).toBe(0)
+    // 같은 상태에서 광역 add 는 여전히 차단 (헛통과 방지 유지)
+    expect(runHook(repo, 'git add -A; git commit -m "docs: x"')).toBe(2)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
   it('한글 devlog 파일명도 인식 (core.quotepath 이스케이프 — 리뷰 발견)', () => {
     const repo = makeRepo()
     stage(repo, 'src/commands/foo.ts')
@@ -224,7 +256,7 @@ describe('check-records e2e — 실제 staged + hook stdin', () => {
     stage(repo, 'src/commands/foo.ts')
     let status = 0
     try {
-      execFileSync('node', [SCRIPT], { cwd: repo, encoding: 'utf-8', stdio: 'pipe', input: '{broken json' })
+      execFileSync('node', [SCRIPT, '--hook'], { cwd: repo, encoding: 'utf-8', stdio: 'pipe', input: '{broken json' })
     } catch (e) {
       status = (e as { status?: number }).status ?? -1
     }

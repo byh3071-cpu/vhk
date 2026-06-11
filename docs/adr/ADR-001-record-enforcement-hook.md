@@ -21,9 +21,10 @@ RFC 0051이 ADR/TS 후보 *감지·보고*(자문형)를 handoff에 배선했지
 Claude Code hook **하이브리드**(평소 자문 + 커밋 시점 차단)로 집행한다.
 
 - **PreToolUse hook**(matcher `Bash|PowerShell`) → `scripts/check-records.mjs`:
-  명령이 `git commit`이고 staged에 실질 코드변경(src/commands·src/lib·scripts/check-goal-*)이
-  있는데 오늘자 dev log(docs/log/<오늘>-*.md)가 미스테이지면 **exit 2로 커밋 차단**.
-  stderr 사유가 모델에 피드백되어 AI가 dev log를 쓰고 재시도하는 자기교정 루프가 생긴다.
+  명령이 `git commit`이고 커밋 범위에 실질 코드변경(src/** · scripts/check-*)이 있는데
+  세션 dev log(docs/log/<오늘>-*.md — 자정 넘긴 연속 세션은 staged 된 어제 파일도 인정)가
+  미스테이지면 **exit 2로 커밋 차단**. stderr 사유가 모델에 피드백되어 AI가 dev log를
+  쓰고 재시도하는 자기교정 루프가 생긴다.
 - **Stop hook** → `scripts/record-reminder.mjs`: 미커밋 코드변경 + 오늘 dev log 부재 시
   자문 출력(항상 exit 0, 차단 없음).
 - 탈출구: 커밋 메시지 `[skip-record]` 토큰(사소·문서성 커밋), hook 자체 예외는 fail-open

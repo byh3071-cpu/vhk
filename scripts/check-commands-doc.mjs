@@ -6,8 +6,9 @@
 // 바로 HARD 게이트로 안 건다 — 기본 exit 0 리포트, --strict 면 exit 1. 부채 정리 후 승격.
 // 알려진 한계(v0): 명령 우주를 src/commands 파일명에서 유도 — command-registry.ts 의
 // TOP_LEVEL_COMMANDS 가 진짜 SoT 라 ①비명령 파일이 부채로 과대집계 ②동명 파일 없는 명령
-// (recall·blocker 등)은 검사 밖. --strict 승격 전에 registry 기반(vitest 테스트 고도)으로
-// 재구현할 것 — 리뷰 발견, 후속.
+// (recall·blocker 등)은 검사 밖. 매칭도 토큰 일치라 ③글롭/산문 속 우연 등장(`**/*.foo`)이
+// 거짓 통과 ④하이픈 명령을 공백형('mcp init')으로 문서화하면 거짓 미등장(적대검증 D2-4).
+// --strict 승격 전에 registry 기반(vitest 테스트 고도)으로 재구현할 것 — 리뷰 발견, 후속.
 // 사용: node scripts/check-commands-doc.mjs [--strict]
 import { readdirSync, readFileSync } from 'node:fs'
 import { isMainModule, ensureNoHardStop } from './_lib.mjs'

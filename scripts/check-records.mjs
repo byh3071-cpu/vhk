@@ -37,23 +37,48 @@ function localDateOffset(days) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-// PS `if ($?) { git commit }`·bash 서브셸 `(git commit)` 같은 권장 체인이 빠지지 않게
-// 세그먼트 선두의 제어 래퍼 토큰은 건너뛴다. 따옴표 내부는 구분 못 하는 한계(문자열 속
-// `; git commit` 오감지)는 수용 — staged 위반 상태에서만 발현 + [skip-record] 탈출구.
-const WRAPPER_TOKEN = /^(if|then|do|else|elif|fi|done|try|finally|\{|\(|\(\$\?\)|\$\?|&&|\|\|)$/
+// PS `if ($?) { git commit }`·bash 서브셸 `(git commit)`·env 할당 접두(GIT_X=1 git commit)·
+// 명령 래퍼(command/exec/time/env/nohup 등)가 빠지지 않게 세그먼트 선두의 비-git 토큰을
+// 건너뛴다(적대검증 D1-1). 따옴표 내부는 구분 못 하는 한계(문자열 속 `; git commit` 오감지)는
+// 수용 — staged 위반 상태에서만 발현 + [skip-record] 탈출구.
+const WRAPPER_TOKEN =
+  /^(if|then|do|else|elif|fi|done|try|finally|\{|\(|\(\$\?\)|\$\?|&&|\|\||command|exec|time|env|nohup|sudo|builtin|cmd)$/i
+const ENV_ASSIGN = /^[A-Za-z_]\w*=/
+const CMD_FLAG = /^\/[a-z]+$/i // cmd.exe /d /s /c
 
-/** 명령 문자열에서 git 서브커맨드 호출 감지 + 전역 `-C <path>` 추출 (commit/add 공용 토크나이저). */
+/** 따옴표 보존 토큰화 — `-C "a b/c"` 가 공백에서 쪼개지지 않게 (적대검증 D1-2). */
+function tokenize(seg) {
+  return seg.match(/"[^"]*"|'[^']*'|\S+/g) ?? []
+}
+
+/** git/풀경로/git.exe 전부 git 으로 인식 (적대검증 D1-1). */
+function isGitToken(t) {
+  if (!t) return false
+  const base = unquoteGitPath(t).split(/[\\/]/).pop()?.toLowerCase()
+  return base === 'git' || base === 'git.exe'
+}
+
+/**
+ * 명령 문자열에서 git 서브커맨드 호출 감지 + 전역 `-C <path>` 추출 + 서브커맨드 뒤 인자
+ * (commit/add 공용 토크나이저). 줄연속(bash `\`·PS 백틱 + 개행)은 접어서 세그먼트 분리가
+ * 한 명령을 못 쪼개게 한다(적대검증 D1-3).
+ */
 export function findGitSubcommand(cmd, sub) {
-  if (!cmd) return { found: false, cPath: null }
-  const segments = String(cmd).split(/(?:&&|\|\||[;|\n])/)
+  if (!cmd) return { found: false, cPath: null, args: [] }
+  const folded = String(cmd).replace(/(\\|`)\r?\n/g, ' ')
+  const segments = folded.split(/(?:&&|\|\||[;|\n])/)
   for (const seg of segments) {
-    const tokens = seg.trim().split(/\s+/).filter(Boolean)
+    const tokens = tokenize(seg)
     let i = 0
-    while (i < tokens.length && WRAPPER_TOKEN.test(tokens[i])) i++
+    while (
+      i < tokens.length &&
+      (WRAPPER_TOKEN.test(tokens[i]) || ENV_ASSIGN.test(tokens[i]) || CMD_FLAG.test(tokens[i]))
+    )
+      i++
     // `(git commit ...)` 처럼 토큰에 괄호가 붙은 형태
     if (tokens[i]?.startsWith('(')) tokens[i] = tokens[i].slice(1)
     if (tokens[i] === 'rtk') i++
-    if (tokens[i] !== 'git') continue
+    if (!isGitToken(tokens[i])) continue
     i++
     let cPath = null
     while (i < tokens.length) {
@@ -73,9 +98,15 @@ export function findGitSubcommand(cmd, sub) {
       }
       break
     }
-    if (tokens[i] === sub) return { found: true, cPath: cPath ? unquoteGitPath(cPath) : null }
+    if (tokens[i] === sub) {
+      return {
+        found: true,
+        cPath: cPath ? unquoteGitPath(cPath) : null,
+        args: tokens.slice(i + 1).map(unquoteGitPath),
+      }
+    }
   }
-  return { found: false, cPath: null }
+  return { found: false, cPath: null, args: [] }
 }
 
 export function isGitCommitCommand(cmd) {
@@ -110,8 +141,8 @@ export function evaluateRecords({ stagedFiles, commandText, today }) {
   return {
     ok: false,
     reason:
-      `실질 코드변경 ${codeFiles.length}건이 staged 인데 세션 dev log(docs/log/${today}-*.md)가 ` +
-      `스테이지되지 않음. dev log 를 작성·스테이지하거나, 사소한 변경이면 커밋 메시지에 [skip-record] 를 넣으세요.`,
+      `실질 코드변경 ${codeFiles.length}건이 커밋 범위(staged 또는 add 예정)에 있는데 세션 dev log` +
+      `(docs/log/${today}-*.md)가 스테이지되지 않음. dev log 를 작성·스테이지하거나, 사소한 변경이면 커밋 메시지에 [skip-record] 를 넣으세요.`,
     codeFiles,
   }
 }
@@ -136,22 +167,44 @@ function collectFiles(commandText, cPath) {
   // `git add …; git commit` 체인은 hook 시점에 add 가 아직 안 돌았음 → 워킹트리 변경도 합산.
   // add 감지도 commit 과 같은 토크나이저 — 커밋 메시지 속 "add" 단어 오매칭 방지(리뷰 발견).
   // -uall: untracked 디렉토리가 `?? src/` 로 접히면 글롭 매칭 불가 → 파일 단위 강제.
-  if (commandText && findGitSubcommand(commandText, 'add').found) {
+  const add = commandText ? findGitSubcommand(commandText, 'add') : { found: false, args: [] }
+  if (add.found) {
     const wt = gitRaw(['status', '--porcelain', '-uall'], cPath)
       .split(/\r?\n/)
       .filter(Boolean)
       .map(porcelainPath)
-    return [...new Set([...staged, ...wt])]
+    // pathspec 이 명시된 add(`git add docs/x.md`)는 그 범위만 합산 — 무관한 더티 파일로
+    // docs-only 커밋이 오차단되는 것 방지(적대검증 D1-4). -A/--all/-u/'.'/무인자는 전량.
+    const spec = add.args.filter((a) => !a.startsWith('-'))
+    const broad =
+      spec.length === 0 ||
+      spec.includes('.') ||
+      add.args.some((a) => ['-A', '--all', '-u', '--update'].includes(a))
+    const extra = broad
+      ? wt
+      : wt.filter((f) =>
+          spec.some((p) => {
+            const n = p.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '')
+            return f === n || f.startsWith(`${n}/`)
+          })
+        )
+    return [...new Set([...staged, ...extra])]
   }
   return staged
 }
 
 function main() {
+  // stdin 은 --hook 모드에서만 읽는다 — 비-TTY 인데 stdin 이 안 닫힌 환경(파이프라인·셸 래퍼)
+  // 에서 readFileSync(0) 가 무한 블록되는 행 방지(라이브 실측). hook 등록(.claude/settings.json)
+  // 이 --hook 을 넘기고, Claude Code 는 페이로드 후 stdin 을 닫으므로 hook 경로는 안전.
+  const hookMode = process.argv.includes('--hook')
   let raw = ''
-  try {
-    if (!process.stdin.isTTY) raw = readFileSync(0, 'utf-8')
-  } catch {
-    raw = ''
+  if (hookMode) {
+    try {
+      raw = readFileSync(0, 'utf-8')
+    } catch {
+      raw = ''
+    }
   }
 
   let input = null
@@ -159,12 +212,14 @@ function main() {
     try {
       input = JSON.parse(raw)
     } catch {
-      // hook 페이로드 손상 — fail-open (예전엔 단독모드 폴백 → 모든 명령 차단 위험이 있었음).
+      // hook 페이로드 손상 — fail-open (단독모드 폴백 시 모든 명령 차단 위험이 있었음).
       process.exit(0)
     }
   }
+  if (hookMode && !input) process.exit(0) // hook 인데 페이로드 없음 — 판단 불가, fail-open
 
-  const commandText = input?.tool_input?.command ?? process.argv.slice(2).join(' ')
+  const commandText =
+    input?.tool_input?.command ?? process.argv.slice(2).filter((a) => a !== '--hook').join(' ')
 
   // hook 은 모든 Bash/PowerShell 호출에 발동 → 커밋이 아니면 즉시 통과.
   const commit = findGitSubcommand(commandText, 'commit')

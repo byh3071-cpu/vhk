@@ -4,7 +4,10 @@
 // CLAUDE.md vhk:rules 블록 안의 모든 섹션이 RULES.md 동명 섹션과 내용 일치하는지 대조해 FAIL.
 //
 // 판정 방향: CLAUDE 블록 ⊆ RULES (블록 섹션이 RULES 에 없거나 내용 다름 = drift).
-// RULES 신규 섹션의 미전파는 sync 자체가 unmapped 경고로 잡으므로 여기선 다루지 않는다.
+// 알려진 한계(v0, 적대검증 D2-1): 역방향 — RULES 의 **매핑된** 섹션이 CLAUDE 블록에서
+// 통째로 빠진 경우(예: sync 미실행 + 블록 수동 삭제)는 무탐지. sync 의 unmapped 경고는
+// 무매핑 섹션 전용이라 이 갭을 못 메움. 양방향 대조는 키 목록 복제가 필요(drift 검사기
+// 자신의 drift 위험) → `vhk sync --check` CLI 내장이 맞는 고도 — 후속 goal 후보.
 // 사용: node scripts/check-rules-sync.mjs [rulesPath=RULES.md] [claudePath=CLAUDE.md]
 import { readFileSync } from 'node:fs'
 import { isMainModule, ensureNoHardStop } from './_lib.mjs'

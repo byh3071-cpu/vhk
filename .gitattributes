@@ -1,0 +1,5 @@
+# 셔뱅(#!) 있는 스크립트가 autocrlf=true 체크아웃에서 CRLF 가 되면 vitest 의 .mjs import 가
+# "SyntaxError: Invalid or unexpected token" 으로 수집 실패 — Windows CI 전멸 (적대검증 D4-1 실측).
+# LF 고정으로 차단.
+*.mjs text eol=lf
+*.sh text eol=lf

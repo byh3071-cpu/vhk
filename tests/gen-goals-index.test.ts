@@ -21,6 +21,11 @@ describe('parseFlatFrontmatter', () => {
   it('frontmatter 없으면 null', () => {
     expect(parseFlatFrontmatter('# 그냥 문서')).toBeNull()
   })
+
+  it('따옴표 값은 제품 파서처럼 벗긴다 (적대검증 D2-2/D2-3 — 게이트·제품 해석 분기 방지)', () => {
+    const fm = parseFlatFrontmatter('---\ntype: goal\nid: "9"\nstatus: \'DONE\'\n---\nx')
+    expect(fm).toEqual({ type: 'goal', id: '9', status: 'DONE' })
+  })
 })
 
 describe('collectGoals + buildGoalsIndex', () => {

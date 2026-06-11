@@ -156,3 +156,42 @@
 미수정(후속 기록): check-rules-sync 가 CLAUDE.md 1타겟만 가드(8타겟 전체는
 `vhk sync --check` 내장이 맞는 고도 — 후속 goal 후보) · goal 템플릿 created 필드(제품
 변경이라 별도 PR) · PreToolUse 의 호출당 node spawn 비용(설계 수용, ADR-001 결과 명시).
+
+## 통합 — Workflow 적대검증 (4차원 × 파인더 + 발견당 3 skeptic, 40 에이전트)
+
+발견 23 → 12 검증 → **12 전원 확정**(기각 0 — skeptic 들이 전부 직접 재현). 수정:
+
+- **[치명] D4-1 — 셔뱅+CRLF 로 Windows CI 전멸**: autocrlf=true 체크아웃에서 셔뱅 있는
+  scripts/*.mjs 를 import 하는 신규 테스트 6파일 전부 `SyntaxError: Invalid or unexpected
+  token` 수집 실패(skeptic 3명이 clone 실측 재현 — push 했으면 windows×node22/24 즉사).
+  레포에 .gitattributes 가 없었음 → 신설(`*.mjs`·`*.sh` eol=lf). 로컬 게이트는 LF
+  체크아웃이라 못 잡는 부류 — 적대검증이 아니면 머지 후 발견됐을 결함.
+- **D1-1 — 토크나이저 우회 8종**: env 할당 접두(GIT_X=1 git commit)·명령 래퍼(command/
+  exec/time/env/nohup/sudo/cmd)·git.exe·풀경로 전부 미감지였음 → 래퍼/할당 토큰 스킵 +
+  git 토큰 basename 매칭.
+- **D1-2 — `-C "공백 경로"` 토큰 분할로 미감지** → 따옴표 보존 토큰화.
+- **D1-3 — 줄연속(`\`·백틱+개행)으로 git/commit 분리 미감지** → 접기 전처리.
+- **D1-4 — pathspec add 체인 오차단**: `git add docs/x.md; git commit` 인데 무관한 더티
+  src 까지 합산 → add 인자의 pathspec 범위만 합산(-A/--all/'.'/무인자는 종전대로 전량).
+  차단 메시지 'staged' 오표기도 '커밋 범위(staged 또는 add 예정)'로 정정.
+- **D2-2/D2-3 — 따옴표 frontmatter 값 분기**: 게이트 파서가 `status: "DONE"` 을 비표준
+  FAIL, 인덱스가 `id: "9"` 를 누락 — 제품 파서(parseSimpleYaml)처럼 따옴표 제거(_lib 단일 수정).
+- **D3-1/D3-2 — 문서 자기모순 잔존**: spec 변경 이력 줄의 events/ 로컬 표기, ADR-001
+  Decision 절의 구 글롭·'오늘자' 표현 → 코드 실물로 갱신.
+- **D3-3 — spec 누락 파일 2차**: cost.jsonl(goal 56)·evolve/(goal 58) 표·gitignore 등록.
+  daily-shown.json 은 ~/.vhk(홈 — spec 범위 밖) 명시. ledger 류와 달리 cost 는 개인 비용
+  데이터라 로컬 전용.
+- D2-1(rules-sync 역방향 무탐지)·D2-4(commands-doc 토큰 매칭 거짓양/음성)는 v0 한계로
+  스크립트 헤더에 명문화 — vhk sync --check / registry 기반 재구현 후속.
+
+### 교훈
+
+- 적대검증의 가치 = **로컬에서 절대 안 깨지는 결함**(CRLF 체크아웃·우회 변형)을 잡는 것.
+  코드리뷰 7앵글이 못 본 D4-1 을 skeptic 의 "다른 환경 clone 실측"이 잡았다.
+- 명령 문자열 파싱 게이트는 변형 공간이 넓다 — 우회 8종이 한 번에 나옴. 깊은 지점
+  (pre-commit L2·vhk git-session chokepoint)으로의 이전 트리거를 ADR-001 에 박아둔 것이
+  옳았음을 재확인.
+- 추가 라이브 발견: 비-TTY 인데 stdin 이 안 닫힌 환경(셸 래퍼·파이프라인)에서 standalone
+  check-records 가 readFileSync(0) 무한 블록 — 검증 명령 자체가 행으로 재현. stdin 읽기를
+  `--hook` 플래그 모드로 한정(settings.json 이 --hook 전달, hook 페이로드 후 stdin 닫힘이라
+  안전)해 해소.

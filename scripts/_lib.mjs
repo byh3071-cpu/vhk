@@ -81,7 +81,16 @@ export function parseFlatFrontmatter(md) {
     if (!line || line.startsWith('#')) continue
     const idx = line.indexOf(':')
     if (idx <= 0) continue
-    out[line.slice(0, idx).trim()] = line.slice(idx + 1).trim()
+    let value = line.slice(idx + 1).trim()
+    // 따옴표 값(status: "DONE")은 제품 파서(parseSimpleYaml)처럼 벗긴다 — 게이트와 제품이
+    // 같은 카드를 다르게 읽는 분기 방지(적대검증 D2-2/D2-3).
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1)
+    }
+    out[line.slice(0, idx).trim()] = value
   }
   return out
 }

@@ -16,10 +16,11 @@ updated: 2026-06-10
 `.vhk/` 는 한 프로젝트 안에서 VHK CLI가 읽고 쓰는 **로컬 상태 디렉토리**다.
 기본은 **평면(flat) 파일 모음**이고, `spec_version 1.1`부터 기능별 **하위 폴더를
 공식 인정**한다: 로컬 전용 = `backups/`(sync 백업) · `eval/`(recall 평가) ·
-`reports/`(검증 리포트) · `seo/`(SEO 대시보드 설정) / **커밋** = `events/`(AI 행동
-원장, Goal 55 — "어디서도 gitignore 하지 않는다"가 설계 불변식, src/lib/action-ledger.ts).
-1.0의 "평면" 문구는 현실(기능들이 폴더를 사용)과 어긋나 1.1에서 정정했다 —
-파일명·포맷 호환성은 그대로다(§4).
+`reports/`(검증 리포트) · `seo/`(SEO 대시보드 설정) · `evolve/`(진화 큐, goal 58) /
+**커밋** = `events/`(AI 행동 원장, Goal 55 — "어디서도 gitignore 하지 않는다"가 설계
+불변식, src/lib/action-ledger.ts). 1.0의 "평면" 문구는 현실(기능들이 폴더를 사용)과
+어긋나 1.1에서 정정했다 — 파일명·포맷 호환성은 그대로다(§4).
+머신 전역 상태(`~/.vhk/daily-shown.json` 등 홈 디렉토리)는 이 spec 범위 밖이다.
 
 각 파일은 특정 커맨드가 **필요할 때 생성**(lazy)하거나, `vhk init`이
 프로젝트 시작 시 **씨앗(seed)** 으로 미리 만든다.
@@ -39,11 +40,12 @@ updated: 2026-06-10
 | `memory.json` | JSON | ❌ 로컬 전용 | `vhk memory add` (lazy) | 프로젝트 의사결정 메모 (개인/세션 기록) |
 | `refs.json` | JSON | ❌ 로컬 전용 | `vhk ref add` (lazy) | 참고 URL + 메모 모음 |
 | `mission.json` | JSON | ❌ 로컬 전용 | `vhk mission set` | 미션 범위 계약 |
+| `cost.jsonl` | JSONL | ❌ 로컬 전용 | `vhk cost add` (Goal 56) | 토큰/비용 사용 원장 (개인) |
 | `recall-log.jsonl` | JSONL | ❌ 로컬 전용 | `vhk recall` | recall 측정 로그 (RFC 0049) |
 | `.synced` | (마커) | ❌ 로컬 전용 | `vhk sync` | 마지막 sync 마커 |
 | `HARD_STOP` | (내용 없음) | ❌ 로컬 전용 | 게이트/사용자 | 존재하면 모든 자동화 즉시 중단 |
 | `cloud.json` | JSON | ❌ 로컬 전용² | `vhk cloud push/pull` | 클라우드 백업 gist 포인터 `{ "gistId": "..." }` |
-| `backups/` `eval/` `reports/` `seo/` | 폴더 | ❌ 로컬 전용 | 각 기능 | §0 참조 (1.1 공식 인정) |
+| `backups/` `eval/` `reports/` `seo/` `evolve/` | 폴더 | ❌ 로컬 전용 | 각 기능 | §0 참조 (1.1 공식 인정) |
 
 > ¹ **1.1 명확화**: 기본은 커밋(팀 공유, `vhk init` 템플릿과 일치)이되, 동시 세션
 > 충돌·세션 산출물 노이즈가 큰 프로젝트는 `.vhk/.gitignore` 에 추가해 **로컬 전용으로
@@ -57,8 +59,9 @@ updated: 2026-06-10
 > **트래킹 정책 요약 (1.1)**
 > - 커밋 = `README.md`·`.gitignore`·`config.json`·원장 2종(`ledger.jsonl`·`events/`)
 >   + (기본값) `context.md`·`brief.md`.
-> - 로컬 전용 = 개인 메모(memory/refs)·런타임 신호(HARD_STOP·.synced)·세션 프롬프트·
->   `cloud.json`·backups/eval/reports/seo 폴더. context/brief 는 프로젝트별 로컬 오버라이드 허용(¹).
+> - 로컬 전용 = 개인 메모(memory/refs)·비용 원장(cost.jsonl)·런타임 신호(HARD_STOP·.synced)·
+>   세션 프롬프트·`cloud.json`·backups/eval/reports/seo/evolve 폴더. context/brief 는
+>   프로젝트별 로컬 오버라이드 허용(¹).
 > - 팀 공유가 필요한 로컬 항목은 `vhk cloud push`(secret gist) 경로를 쓴다.
 > - ⚠️ 알려진 갭(후속): `vhk init` 생성 프로젝트의 씨앗 `.gitignore` 는 backups/ 만 무시 —
 >   eval/·seo/ 등은 런타임 보강이 일부(reports/·.synced)뿐이라 사용자 프로젝트에서 추적될 수
@@ -135,10 +138,11 @@ updated: 2026-06-10
 
 ### 변경 이력
 
-- **1.1 (2026-06-10, governance T4 — RFC 0038 후속)**: 하위 폴더 공식 인정(backups/events/
-  eval/reports/seo — 전부 로컬 전용) · context/brief 는 기본 커밋 + 프로젝트별 로컬 무시
-  오버라이드 공식 인정 · cloud.json 은 로컬 전용으로 정정(VHK-022) · 누락 파일
-  (config.json·mission.json·recall-log.jsonl·work/handoff-prompt.md·.synced) 표 등록.
+- **1.1 (2026-06-10, governance T4 — RFC 0038 후속)**: 하위 폴더 공식 인정 — 로컬 전용
+  backups/eval/reports/seo/evolve + **커밋** events/(goal 55 원장 영속) · context/brief 는
+  기본 커밋 + 프로젝트별 로컬 무시 오버라이드 공식 인정 · cloud.json 은 로컬 전용으로
+  정정(VHK-022) · 누락 파일(config.json·ledger.jsonl·cost.jsonl·mission.json·
+  recall-log.jsonl·work/handoff-prompt.md·.synced) 표 등록.
   파일 마이그레이션 없음 — 문서를 현실에 맞춘 가산·정정.
 - **1.0 (2026-05-29)**: 최초 규격.
 

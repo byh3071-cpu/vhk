@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/check-records.mjs"
+            "command": "node scripts/check-records.mjs --hook"
           }
         ]
       }
