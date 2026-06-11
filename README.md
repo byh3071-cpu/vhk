@@ -94,10 +94,12 @@ vhk work handoff
 
 ```powershell
 vhk sync
+vhk sync --check   # 검사만 — 8개 타겟이 RULES.md 와 일치하는지 (drift 시 exit 1, 쓰기 0)
 vhk doctor
 ```
 
-`vhk doctor`는 VHK, MCP, audit, drift 상태를 읽기 중심으로 진단합니다.
+`vhk doctor`는 VHK, MCP, audit, drift 상태를 읽기 중심으로 진단합니다. `vhk sync --check`는
+CI/게이트용 — 산출물을 직접 고쳤거나 sync 를 깜빡한 drift 를 잡아냅니다.
 
 ### 2. Goal과 HARD_STOP
 
