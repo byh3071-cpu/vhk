@@ -33,9 +33,15 @@ function detectPMForDir(dir: string, fallback: PackageManager): PackageManager {
   return fallback
 }
 
-export function parseAuditOutput(output: string, pm: PackageManager): AuditSummary {
+export interface AuditParseResult {
+  summary: AuditSummary
+  /** 출력이 비었거나 JSON/스키마 해석 실패 — 0 집계를 "취약점 없음"으로 단정하면 안 됨. */
+  indeterminate: boolean
+}
+
+export function parseAuditOutputDetailed(output: string, pm: PackageManager): AuditParseResult {
   const empty: AuditSummary = { critical: 0, high: 0, moderate: 0, low: 0, total: 0 }
-  if (!output) return empty
+  if (!output) return { summary: empty, indeterminate: true }
   try {
     const json = JSON.parse(output) as Record<string, unknown>
     // npm / yarn classic: { metadata: { vulnerabilities: {...} } }
@@ -53,13 +59,17 @@ export function parseAuditOutput(output: string, pm: PackageManager): AuditSumma
       if (!summary.total) {
         summary.total = summary.critical + summary.high + summary.moderate + summary.low
       }
-      return summary
+      return { summary, indeterminate: false }
     }
     void pm
-    return empty
+    return { summary: empty, indeterminate: true }
   } catch {
-    return empty
+    return { summary: empty, indeterminate: true }
   }
+}
+
+export function parseAuditOutput(output: string, pm: PackageManager): AuditSummary {
+  return parseAuditOutputDetailed(output, pm).summary
 }
 
 export function runAuditJson(pm: PackageManager, cwd?: string): string {
@@ -102,7 +112,7 @@ export async function audit(autoFix = false): Promise<void> {
   const multi = targets.length > 1
   const rootPm = detectCurrentPM()
 
-  const perProject: { path: string; pm: PackageManager; summary: AuditSummary }[] = []
+  const perProject: { path: string; pm: PackageManager; summary: AuditSummary; indeterminate: boolean }[] = []
   let aggregate: AuditSummary = { critical: 0, high: 0, moderate: 0, low: 0, total: 0 }
 
   for (const tgt of targets) {
@@ -111,8 +121,8 @@ export async function audit(autoFix = false): Promise<void> {
     const spinner = ora(`${multi ? tgt.path + ' ' : ''}보안 감사 실행 중...`).start()
     const output = runAuditJson(pm, tgt.path === '.' ? undefined : dir)
     spinner.stop()
-    const summary = parseAuditOutput(output, pm)
-    perProject.push({ path: tgt.path, pm, summary })
+    const { summary, indeterminate } = parseAuditOutputDetailed(output, pm)
+    perProject.push({ path: tgt.path, pm, summary, indeterminate })
     aggregate = addSummary(aggregate, summary)
   }
 
@@ -120,10 +130,20 @@ export async function audit(autoFix = false): Promise<void> {
     console.log(chalk.cyan(`📦 패키지 매니저: ${perProject[0].pm}`))
   }
 
+  // 해석 실패를 취약점 0으로 삼키면 "🎉 없음" 거짓 안심(보안 거짓 음성) — 결과 불명으로 구분 보고.
+  const failedPaths = perProject.filter((p) => p.indeterminate).map((p) => p.path)
+  if (failedPaths.length > 0) {
+    console.log(chalk.yellow(`\n⚠️  감사 결과를 해석하지 못했습니다 (결과 불명): ${failedPaths.join(', ')}`))
+    console.log(chalk.gray('   패키지 매니저의 `audit --json` 출력 형식 미지원이거나 감사 실행이 실패했습니다.'))
+    process.exitCode = 1
+  }
+
   if (aggregate.total === 0) {
-    console.log(chalk.green.bold('\n🎉 취약점이 발견되지 않았습니다!'))
-    if (multi) {
-      console.log(chalk.gray(`   (점검 ${targets.length}개: ${targets.map((p) => p.path).join(', ')})`))
+    if (failedPaths.length === 0) {
+      console.log(chalk.green.bold('\n🎉 취약점이 발견되지 않았습니다!'))
+      if (multi) {
+        console.log(chalk.gray(`   (점검 ${targets.length}개: ${targets.map((p) => p.path).join(', ')})`))
+      }
     }
     return
   }
