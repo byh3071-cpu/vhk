@@ -31,6 +31,51 @@ describe('자연어 라우팅', () => {
     }
   })
 
+  describe('오라우팅 회귀 가드 (2026-06-11 전수 리뷰 F2-01~05·08, 실측 13케이스)', () => {
+    it('"컨텍스트 업데이트해줘" → context (자가업데이트로 새지 않음)', () => {
+      expect(routeNaturalLanguage('컨텍스트 업데이트해줘')?.command).toBe('context')
+    })
+    it('"메모리 업데이트해줘" → null (무확인 npm update -g 차단)', () => {
+      expect(routeNaturalLanguage('메모리 업데이트해줘')).toBeNull()
+    })
+    it('"vhk 업데이트 해줘" → update (자가업데이트 의도는 유지)', () => {
+      expect(routeNaturalLanguage('vhk 업데이트 해줘')?.command).toBe('update')
+    })
+    it('"vercel에 올려줘" → deploy (git 커밋 아님)', () => {
+      expect(routeNaturalLanguage('vercel에 올려줘')?.command).toBe('deploy')
+    })
+    it('"버전 올려줘" → publish (git 커밋 아님)', () => {
+      expect(routeNaturalLanguage('버전 올려줘')?.command).toBe('publish')
+    })
+    it('"기억 저장해줘" → null (git save 누수 차단 — memory add는 직접 실행)', () => {
+      expect(routeNaturalLanguage('기억 저장해줘')).toBeNull()
+    })
+    it('"지금 저장해줘" → save (status 과민 매칭 제거)', () => {
+      expect(routeNaturalLanguage('지금 저장해줘')?.command).toBe('save')
+    })
+    it('"검증 실행해줘" → verify (아이디어 검증 마법사 아님)', () => {
+      expect(routeNaturalLanguage('검증 실행해줘')?.command).toBe('verify')
+    })
+    it('"목표 검증해줘" → goal check (gate가 가로채지 않음)', () => {
+      const r = routeNaturalLanguage('목표 검증해줘')
+      expect(r?.command).toBe('goal')
+      expect(r?.args).toEqual(['check'])
+    })
+    it('"아이디어 검증해줘" → gate (본래 의도는 유지)', () => {
+      expect(routeNaturalLanguage('아이디어 검증해줘')?.command).toBe('gate')
+    })
+    it('"중단 정리해줘" → work handoff (recap이 가로채지 않음)', () => {
+      const r = routeNaturalLanguage('중단 정리해줘')
+      expect(r?.command).toBe('work')
+      expect(r?.args).toEqual(['handoff'])
+    })
+    it('"세션 넘겨줘" → work handoff', () => {
+      const r = routeNaturalLanguage('세션 넘겨줘')
+      expect(r?.command).toBe('work')
+      expect(r?.args).toEqual(['handoff'])
+    })
+  })
+
   it('"오늘 한 일 정리" → recap', () => {
     const result = routeNaturalLanguage('오늘 한 일 정리')
     expect(result?.command).toBe('recap')
