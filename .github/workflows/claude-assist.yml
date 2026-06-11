@@ -1,0 +1,35 @@
+name: Claude 리뷰 반영
+
+# PR 코멘트에 @claude 멘션하면 Claude Code가 리뷰 반영(커밋 푸시 + 답글)까지 무인 수행.
+# 머지는 항상 사람 — 헌법(사람 게이트, publish main+2FA)과 충돌하지 않는 반자동 구간만 자동화.
+# 비용: 2026-06-15부터 구독의 Agent SDK 월간 크레딧에서 차감(API 요율), 소진 시 종량제.
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  claude:
+    # 보안 게이트(public 레포): @claude 멘션 + 작성자가 OWNER 본인일 때만 실행.
+    # 외부인의 크레딧 소모·프롬프트 주입을 트리거 단계에서 차단 (action 자체의 write 권한 검증과 이중).
+    if: |
+      contains(github.event.comment.body, '@claude') &&
+      github.event.comment.author_association == 'OWNER'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # 리뷰 반영 커밋을 PR 브랜치에 푸시
+      pull-requests: write # 리뷰 코멘트에 반영/거부 답글
+      issues: write
+      actions: read # CI 결과 참조
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # PR 브랜치 전환·diff 계산에 전체 이력 필요
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # 폭주 방지(크레딧 보호) — 리뷰 반영은 30턴이면 충분, 초과는 비정상
+          claude_args: "--max-turns 30"
