@@ -35,8 +35,8 @@ function main() {
   let entries
   try {
     entries = readdirSync(goalsDir)
-  } catch {
-    console.log('[check-goal-frontmatter] goals/ 없음 — 비적용 통과')
+  } catch (err) {
+    console.log(`[check-goal-frontmatter] ${goalsDir} 읽기 불가(${err?.code ?? err}) — 비적용 통과`)
     process.exit(0)
   }
 
@@ -48,7 +48,9 @@ function main() {
     let fm
     try {
       fm = parseFlatFrontmatter(readFileSync(join(goalsDir, name), 'utf-8'))
-    } catch {
+    } catch (err) {
+      // 읽기 불가 파일은 스키마 판정 불가 — 경고 후 스킵(차단은 과안정화).
+      console.log(`  (스킵) ${name}: 읽기 실패 — ${err?.code ?? err}`)
       continue
     }
     if (!fm || fm.type !== 'goal') continue

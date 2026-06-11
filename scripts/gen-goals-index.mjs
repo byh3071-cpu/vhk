@@ -86,7 +86,12 @@ function main() {
   const goalsDir = process.argv[2] || 'goals'
   const out = process.argv[3] || join(goalsDir, 'README.md')
   const goals = collectGoals(goalsDir)
-  writeFileSync(out, buildGoalsIndex(goals), 'utf-8')
+  try {
+    writeFileSync(out, buildGoalsIndex(goals), 'utf-8')
+  } catch (err) {
+    console.error(`[gen-goals-index] ${out} 쓰기 실패: ${err?.message ?? err}`)
+    process.exit(1)
+  }
   console.log(`[gen-goals-index] ${basename(out)} 생성 — goal ${goals.length}건`)
 }
 

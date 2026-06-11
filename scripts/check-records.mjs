@@ -222,10 +222,13 @@ function main() {
     input?.tool_input?.command ?? process.argv.slice(2).filter((a) => a !== '--hook').join(' ')
 
   // hook 은 모든 Bash/PowerShell 호출에 발동 → 커밋이 아니면 즉시 통과.
+  // HARD_STOP 검사를 이 뒤에 두는 건 의도: non-commit 명령까지 exit 2 로 막으면 해제 명령
+  // (`vhk resume --confirm`)·진단(git status)조차 차단되는 자기잠금. HARD_STOP 의 전역 중단은
+  // vhk CLI 자체 가드(runGuarded)와 게이트들 소관 — 이 hook 은 커밋 행위만 막는다.
   const commit = findGitSubcommand(commandText, 'commit')
   if (input && !commit.found) process.exit(0)
 
-  // HARD_STOP = 모든 자동화 중단 — 커밋 평가 지점에서도 차단(.vhk/README 보장 이행).
+  // HARD_STOP = 자동화 중단 — 커밋 평가 지점에서 차단(.vhk/README 보장 이행).
   if (hardStopActive()) {
     console.error('[check-records BLOCK] .vhk/HARD_STOP 활성 — 자동 커밋 중단. 해제는 vhk resume --confirm (사람).')
     process.exit(2)
