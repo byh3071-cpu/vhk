@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const mockExistsSync = vi.fn()
 const mockMkdirSync = vi.fn()
@@ -151,5 +151,46 @@ describe('ref', () => {
       expect(args.some((a) => a.includes('calc.exe') && !a.includes('http'))).toBe(false)
       expect(args.includes(malicious)).toBe(true)
     }
+  })
+
+  describe('손상 refs.json 보호 — 빈 배열 취급 후 덮어쓰기로 전체 소실되던 경로 (리뷰 B1-02)', () => {
+    afterEach(() => {
+      process.exitCode = undefined
+    })
+
+    it('refAdd — 손상본 위에 덮어쓰지 않고 중단 + 복구 안내', async () => {
+      mockExistsSync.mockImplementation((p: unknown) => !String(p).includes('HARD_STOP'))
+      mockReadFileSync.mockReturnValue('not-json{{{')
+      const logSpy = vi.spyOn(console, 'log')
+      const { refAdd } = await import('../src/commands/ref.js')
+      await refAdd('https://new.example.com')
+      expect(mockAtomicWrite).not.toHaveBeenCalled()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).toContain('손상')
+      expect(process.exitCode).toBe(1)
+    })
+
+    it('refList — 손상이면 "레퍼런스 없음" 오진 대신 손상 안내', async () => {
+      mockExistsSync.mockReturnValue(true)
+      mockReadFileSync.mockReturnValue('broken')
+      const logSpy = vi.spyOn(console, 'log')
+      const { refList } = await import('../src/commands/ref.js')
+      await refList()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).toContain('손상')
+      expect(joined).not.toContain('저장된 레퍼런스가 없습니다')
+      expect(process.exitCode).toBe(1)
+    })
+
+    it('refList — 배열 아닌 JSON({})도 손상으로 취급', async () => {
+      mockExistsSync.mockReturnValue(true)
+      mockReadFileSync.mockReturnValue('{}')
+      const logSpy = vi.spyOn(console, 'log')
+      const { refList } = await import('../src/commands/ref.js')
+      await refList()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).toContain('손상')
+      expect(process.exitCode).toBe(1)
+    })
   })
 })

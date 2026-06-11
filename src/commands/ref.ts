@@ -15,14 +15,23 @@ interface RefEntry {
 
 const REFS_PATH = '.vhk/refs.json'
 
-function loadRefs(): RefEntry[] {
-  if (!existsSync(REFS_PATH)) return []
+// 손상(파싱 실패·배열 아님)과 부재를 구분 — 손상본을 빈 배열 취급 후 덮어쓰면 전체 레퍼런스 영구 소실.
+function loadRefsDetailed(): { refs: RefEntry[]; corrupted: boolean } {
+  if (!existsSync(REFS_PATH)) return { refs: [], corrupted: false }
   try {
     const parsed = readJsonFile<unknown>(REFS_PATH)
-    return Array.isArray(parsed) ? (parsed as RefEntry[]) : []
+    return Array.isArray(parsed)
+      ? { refs: parsed as RefEntry[], corrupted: false }
+      : { refs: [], corrupted: true }
   } catch {
-    return []
+    return { refs: [], corrupted: true }
   }
+}
+
+function warnCorruptedRefs(): void {
+  console.log(chalk.red(`❌ ${REFS_PATH} 이(가) 손상돼 읽을 수 없습니다.`))
+  console.log(chalk.gray('   파일을 열어 JSON 배열로 복구하거나, 비우려면 파일 삭제 후 다시 시도하세요.'))
+  process.exitCode = 1
 }
 
 function saveRefs(refs: RefEntry[]): void {
@@ -41,7 +50,12 @@ export async function refAdd(url: string, memo = ''): Promise<void> {
     return
   }
 
-  const refs = loadRefs()
+  const { refs, corrupted } = loadRefsDetailed()
+  if (corrupted) {
+    // 손상본 위에 새 배열을 덮어쓰지 않는다 — 기존 데이터 복구 여지 보존.
+    warnCorruptedRefs()
+    return
+  }
   if (refs.some((r) => r.url === url)) {
     console.log(chalk.yellow('⚠️  이미 저장된 URL입니다.'))
     return
@@ -65,7 +79,11 @@ export async function refList(): Promise<void> {
   console.log(chalk.bold('\n📚 ' + t('ref.listTitle')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const refs = loadRefs()
+  const { refs, corrupted } = loadRefsDetailed()
+  if (corrupted) {
+    warnCorruptedRefs()
+    return
+  }
   if (refs.length === 0) {
     console.log(chalk.yellow('\n📭 저장된 레퍼런스가 없습니다.'))
     console.log(chalk.gray('   vhk ref add <url> --memo "메모"로 추가하세요.'))
@@ -83,7 +101,11 @@ export async function refList(): Promise<void> {
 }
 
 export async function refOpen(indexStr: string): Promise<void> {
-  const refs = loadRefs()
+  const { refs, corrupted } = loadRefsDetailed()
+  if (corrupted) {
+    warnCorruptedRefs()
+    return
+  }
   const idx = parseInt(indexStr, 10) - 1
 
   if (Number.isNaN(idx) || idx < 0 || idx >= refs.length) {
