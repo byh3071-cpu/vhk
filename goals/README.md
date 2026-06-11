@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 62 goal — DONE 56 · IN_PROGRESS 6
+> 총 66 goal — DONE 57 · IN_PROGRESS 6 · NOT_STARTED 3
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -69,3 +69,7 @@
 | 59 | secure 불완전 신호(secure-incomplete-signal) — P1 | ✅ DONE | P1 | 55 |
 | 60 | 빈 스텁·누락 게이트 채움(stub-gate-fill) — P1 | ✅ DONE | P1 | 61 |
 | 61 | 통계·대시보드 집계(stats-blocks) — P2 | ✅ DONE | P2 | 0 (대시보드 종착) |
+| 62 | docs-first 작업 의례 — 문서 선행 갱신 + docs-diff 산출물 (자문형) — P2 | ⬜ NOT_STARTED | P2 | 스펙-코드 드리프트 사전 차단 · RFC 0051(사후 감지)의 사전 보완 |
+| 63 | vhk sync --check — 8개 sync 타겟 전체 drift 검사 모드 (쓰기 0) — P1 | ✅ DONE | P1 | 규칙 단일소스 무탐지 붕괴 차단 · check-rules-sync(CLAUDE.md 1타겟 한정) 대체/보완 |
+| 64 | COMMANDS.md 전 명령 문서화 + registry 기반 게이트 --strict 승격 — P1 | ⬜ NOT_STARTED | P1 | 만들어놓고 사용자가 모르는 명령 0 · 신규 명령 문서 누락 CI 차단 |
+| 65 | pre-commit L2 기록 집행 — 조건부(우회 실측 시에만 착수) — P2 | ⬜ NOT_STARTED | P2 | 기록 집행 우회 경로 0 (ADR-001 L2 트리거 이행) |
