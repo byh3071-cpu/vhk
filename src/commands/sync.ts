@@ -421,6 +421,30 @@ export interface SyncOptions {
   dryRun?: boolean
   /** drift 확인 프롬프트 생략(덮어쓰기 동의 간주) */
   yes?: boolean
+  /** 검사만 — 쓰기 0, drift 있으면 exitCode 1 (Goal 63) */
+  check?: boolean
+}
+
+export interface SyncCheckResult {
+  /** 디스크 내용이 생성본과 다른 타겟 (직접 수정 또는 RULES.md 변경 후 sync 미실행) */
+  drifted: string[]
+  /** 디스크에 없는 타겟 (sync 가 만들 파일) */
+  missing: string[]
+  ok: boolean
+}
+
+/**
+ * Goal 63 — 8개 sync 타겟(SYNC_TARGETS 7 + CLAUDE.md 블록) 전체 drift 검사. 쓰기 0.
+ * 생성 로직(buildSyncPlan)을 그대로 재사용 — 별도 검사기가 sync 와 어긋나는
+ * "검사기의 drift"(governance 배치에서 check-rules-sync 의 알려진 한계) 원천 차단.
+ */
+export function syncCheck(rootDir: string): SyncCheckResult {
+  const rulesContent = fs.readFileSync(path.join(rootDir, 'RULES.md'), 'utf-8')
+  const sections = parseRulesMd(rulesContent)
+  const plan = buildSyncPlan(rootDir, sections, deriveProjectName(rulesContent))
+  const drifted = plan.filter((p) => p.exists && p.drift).map((p) => p.path)
+  const missing = plan.filter((p) => !p.exists).map((p) => p.path)
+  return { drifted, missing, ok: drifted.length === 0 && missing.length === 0 }
 }
 
 export interface SyncPlanItem {
@@ -576,10 +600,29 @@ export async function syncCore(
 }
 
 export async function sync(opts: SyncOptions = {}): Promise<void> {
-  console.log(chalk.bold(`\n${ko.sync.title}\n`))
-
   const cwd = process.cwd()
   const rulesPath = path.join(cwd, 'RULES.md')
+
+  // --check: 검사 전용(쓰기 0). drift 시 process.exitCode=1 — MCP 규칙(process.exit 금지)
+  // 준수하며 CLI/CI 에 비정상 종료코드 전달.
+  if (opts.check) {
+    if (!fs.existsSync(rulesPath)) {
+      console.log(chalk.yellow(ko.sync.checkNoRules))
+      return
+    }
+    const r = syncCheck(cwd)
+    if (r.ok) {
+      console.log(chalk.green(ko.sync.checkPass))
+      return
+    }
+    for (const p of r.drifted) console.log(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
+    for (const p of r.missing) console.log(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
+    console.log(chalk.red(ko.sync.checkFail(r.drifted.length + r.missing.length)))
+    process.exitCode = 1
+    return
+  }
+
+  console.log(chalk.bold(`\n${ko.sync.title}\n`))
 
   if (!fs.existsSync(rulesPath)) {
     console.log(chalk.yellow(ko.sync.noRules))

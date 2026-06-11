@@ -276,6 +276,12 @@ export const ko = {
   sync: {
     title: '🔄 규칙 파일 맞추기',
     noRules: '⚠️ RULES.md 파일이 없어요.',
+    // Goal 63 — sync --check (검사 전용)
+    checkNoRules: '⚠️ RULES.md 없음 — 검사 비적용 통과',
+    checkPass: '✅ 규칙 동기화 상태 — 8개 타겟 전부 RULES.md 와 일치',
+    checkDrift: (p: string) => `↯ ${p} — 생성본과 다름 (직접 수정 또는 sync 미실행)`,
+    checkMissing: (p: string) => `∅ ${p} — 파일 없음 (sync 가 생성할 타겟)`,
+    checkFail: (n: number) => `❌ drift ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
     cursorrulesDone: '✅ .cursorrules 맞춤 완료',
     claudeDone: '✅ CLAUDE.md 맞춤 완료',
     windsurfDone: '✅ .windsurfrules 맞춤 완료',
