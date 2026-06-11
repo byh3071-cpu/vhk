@@ -36,7 +36,7 @@ function main() {
   try {
     entries = readdirSync(goalsDir)
   } catch (err) {
-    console.log(`[check-goal-frontmatter] goals/ 읽기 불가(${err?.code ?? err}) — 비적용 통과`)
+    console.log(`[check-goal-frontmatter] ${goalsDir} 읽기 불가(${err?.code ?? err}) — 비적용 통과`)
     process.exit(0)
   }
 
