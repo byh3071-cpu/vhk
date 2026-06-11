@@ -138,6 +138,23 @@ describe('MCP↔CLI 계약 — C. 래퍼 충실도 (ANSI strip · 한글 보존 
     const out = text(await callTool('secure'))
     expect(out.startsWith('❌ secure 실패')).toBe(true)
   })
+
+  it('가드 차단(exit 0): `✅` 거짓 성공 대신 `⛔ 실행 안 됨` prefix (리뷰 A1-03)', async () => {
+    // safety-guard 비대화형 차단 출력 흉내 — CLI 는 exit 0 으로 끝난다.
+    execFileSync.mockReturnValue(
+      Buffer.from('⚠️ 위험 작업(sync) — 확인 불가(비대화형). 실행하지 않았습니다. (--yes 로 명시 승인)')
+    )
+    const out = text(await callTool('sync'))
+    expect(out.startsWith('⛔ sync 실행 안 됨')).toBe(true)
+    expect(out.startsWith('✅')).toBe(false)
+    expect(out).toContain('실행하지 않았습니다') // 본문 안내 보존
+  })
+
+  it('isGuardBlockedOutput: 일반 성공 출력은 차단으로 오인하지 않음', async () => {
+    const { isGuardBlockedOutput } = await import('../src/mcp/server.js')
+    expect(isGuardBlockedOutput('✅ 동기화 완료 — 7개 파일 갱신')).toBe(false)
+    expect(isGuardBlockedOutput('🔎 위험 작업(undo) 미리보기\n실행하지 않았습니다 — 승인 후 재시도')).toBe(true)
+  })
 })
 
 // ─── D. 공유함수 패리티 (#152 cross-단언) ────────────────────────────────
