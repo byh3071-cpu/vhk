@@ -252,10 +252,11 @@ export async function recap(options: RecapOptions = {}) {
     if (updateClaude) {
       const original = fs.readFileSync(claudeMdPath, 'utf-8')
       // vhk init 템플릿(`- **마지막 업데이트:**`)과 수동 운영 형식(`**마지막 갱신:**`) 둘 다 지원.
+      // nextTodo 는 사용자 입력 — replacement 문자열의 `$&`/`$1` 특수 토큰 해석을 막기 위해 콜백 사용.
       const claudeContent = original
         .replace(/- \*\*마지막 업데이트:\*\*.*/, `- **마지막 업데이트:** ${today}`)
         .replace(/\*\*마지막 갱신:\*\*.*/, `**마지막 갱신:** ${today}`)
-        .replace(/- \*\*다음 액션:\*\*.*/, `- **다음 액션:** ${answers.nextTodo}`)
+        .replace(/- \*\*다음 액션:\*\*.*/, () => `- **다음 액션:** ${answers.nextTodo}`)
       if (claudeContent !== original) {
         fs.writeFileSync(claudeMdPath, claudeContent, 'utf-8')
         console.log(chalk.green('  ✅ CLAUDE.md 업데이트 완료'))

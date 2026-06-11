@@ -74,6 +74,12 @@ describe('자연어 라우팅', () => {
       expect(r?.command).toBe('work')
       expect(r?.args).toEqual(['handoff'])
     })
+    it('"세션 시작해줘" → recap 아님 (bare 세션 과민 매칭 제거 — CodeRabbit)', () => {
+      expect(routeNaturalLanguage('세션 시작해줘')?.command).not.toBe('recap')
+    })
+    it('"세션 정리해줘" → recap (동반어 의도는 유지)', () => {
+      expect(routeNaturalLanguage('세션 정리해줘')?.command).toBe('recap')
+    })
   })
 
   it('"오늘 한 일 정리" → recap', () => {

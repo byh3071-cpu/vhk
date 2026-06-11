@@ -338,8 +338,9 @@ const RULES: NlpRule[] = [
     explanation: '오늘 한 일 정리 (vhk 정리)',
     confidence: 'high',
     // '정리해/세션' 이 work handoff(인수인계·중단 정리)를 가리지 않게 제외 — handoff 규칙으로 낙하.
+    // bare '세션' 단독 매칭 금지(CodeRabbit) — "세션 시작해줘" 류 비-recap 의도를 가로채지 않게 동반어 요구.
     test: t =>
-      /오늘.*(정리|기록)|한\s*일|세션|회고|recap|정리해/.test(t) &&
+      /오늘.*(정리|기록)|한\s*일|세션\s*(정리|기록|요약|회고|마무리)|회고|recap|정리해/.test(t) &&
       !/인수인계|핸드오프|handoff|넘기|넘겨|전달|중단/.test(t),
   },
   {
