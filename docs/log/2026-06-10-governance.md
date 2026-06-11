@@ -198,3 +198,7 @@
 - PR #261 CI: test 4조합·dogfood 2조합·gate·분석 전부 pass(Windows pass = CRLF 픽스 실증).
   CodeQL 1건(high, js/incomplete-sanitization — gen-goals-index cell 의 백슬래시 미이스케이프)
   → 백슬래시 선 이스케이프로 픽스. 범용 패턴은 PAT-001 로 추출.
+- CodeRabbit 리뷰 6건 트리아지: 수용 5(빈 catch 3곳 에러 변수 캡처 — 레포 규칙 정합 /
+  gen-goals-index 쓰기 try-catch / PRD 테이블 공백 MD058) · **기각 1**(HARD_STOP 을
+  non-commit 명령까지 전역 차단하라는 Major — 모든 Bash 가 exit 2 면 해제 명령
+  `vhk resume --confirm` 조차 차단되는 자기잠금. 의도 설계임을 코드 주석으로 명문화).
