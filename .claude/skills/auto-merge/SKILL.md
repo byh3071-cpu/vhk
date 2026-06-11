@@ -1,6 +1,6 @@
 ---
 name: auto-merge
-description: auto-merge 라벨이 붙은 열린 PR을 3중 게이트(CI green + CodeRabbit 해소 + 적대적 최종 리뷰) 통과 시 무인 squash 머지. /loop 15m /auto-merge 로 전용 세션에서 상주 가동. 머지만 자동 — publish·main 직접 push는 절대 금지.
+description: auto-merge 라벨이 붙은 열린 PR을 4중 게이트(CI green + diff 상한 + CodeRabbit 해소 + 적대적 최종 리뷰) 통과 시 무인 squash 머지. /loop 15m /auto-merge 로 전용 세션에서 상주 가동. 머지만 자동 — publish·main 직접 push는 절대 금지. vhk 레포 전용.
 ---
 
 # auto-merge — 무인 머지 에이전트
@@ -15,7 +15,7 @@ description: auto-merge 라벨이 붙은 열린 PR을 3중 게이트(CI green + 
 
 ## 1. 대상 수집
 
-```
+```sh
 gh pr list --state open --label auto-merge --json number,title,headRefName,additions,deletions
 ```
 
@@ -31,10 +31,12 @@ gh pr list --state open --label auto-merge --json number,title,headRefName,addit
 | G3. CodeRabbit 해소 | 아래 GraphQL로 미해결 리뷰 스레드 0개 확인 | 스킵 |
 | G4. 적대적 최종 리뷰 | 아래 §3 | 스킵 + 사유 보고 |
 
-G3 쿼리:
-```
+G3 쿼리 (owner/name은 vhk 레포 전용 하드코딩 — 이 스킬 자체가 vhk 헌법·가드 #119 의존이라 타 레포 이식 시 전면 수정 필요):
+
+```sh
 gh api graphql -f query='query($n:Int!){repository(owner:"byh3071-cpu",name:"vhk"){pullRequest(number:$n){reviewThreads(first:50){nodes{isResolved}}}}}' -F n=<번호>
 ```
+
 `isResolved: false` 노드가 하나라도 있으면 탈락.
 
 ## 3. 적대적 최종 리뷰 (G4)
@@ -54,7 +56,7 @@ gh api graphql -f query='query($n:Int!){repository(owner:"byh3071-cpu",name:"vhk
 
 ## 5. 주기 보고 (매 주기 마지막, 한 줄씩)
 
-```
+```text
 [auto-merge] 머지: #N(제목) | 대기: #M(CI pending) | 스킵: #K(사유) | 사람호출: #J(diff 700줄)
 ```
 
