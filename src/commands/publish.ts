@@ -129,29 +129,38 @@ export function gitPostRelease(newVersion: string): GitReleaseResult {
   }
 }
 
-export type PublishPreflightCode = 'wrong-branch' | 'dirty'
+export type PublishPreflightCode = 'wrong-branch' | 'dirty' | 'status-failed' | 'untracked-src'
 export interface PublishPreflightResult {
   ok: boolean
   code?: PublishPreflightCode
+  untrackedSrc?: string[]
 }
 
 /**
  * 발행 전 안전 점검(순수 판정) — feature 브랜치/미커밋 상태서 발행해 픽스 누락본이
  * npm latest 로 나가는 사고 방지(v2.3.1 오발행 사례). 브랜치 위반을 dirty 보다 우선 보고.
+ * statusOk=false(git 상태 수집 실패)는 clean 으로 단정하지 않고 차단(fail-closed, 리뷰 A3-04).
+ * untracked src 파일은 빌드(dist)에 포함돼 발행되므로 plan 문서류와 달리 차단(리뷰 A3-01).
  */
 export function evaluatePublishPreflight(
   branch: string,
   trackedStatus: string,
-  defaultBranch: string
+  defaultBranch: string,
+  opts: { statusOk?: boolean; untrackedSrc?: string[] } = {}
 ): PublishPreflightResult {
   if (branch !== defaultBranch) return { ok: false, code: 'wrong-branch' }
+  if (opts.statusOk === false) return { ok: false, code: 'status-failed' }
   if (trackedStatus.trim()) return { ok: false, code: 'dirty' }
+  if (opts.untrackedSrc && opts.untrackedSrc.length > 0) {
+    return { ok: false, code: 'untracked-src', untrackedSrc: opts.untrackedSrc }
+  }
   return { ok: true }
 }
 
 /**
  * git 상태를 수집해 발행 전 점검. defaultBranch 는 origin/HEAD 에서 감지(실패 시 'main').
- * untracked 파일(미커밋 plan 문서 등)은 발행 산출물에 영향 없어 검사 제외(tracked 변경만).
+ * untracked 중 plan 문서류는 산출물에 영향 없어 무시하되, src/ 의 untracked .ts 는
+ * tsup 빌드에 포함돼 발행되므로 별도 검출해 차단.
  */
 export function publishPreflight(): PublishPreflightResult & { branch: string; defaultBranch: string } {
   const br = safeExecFile('git', ['branch', '--show-current'])
@@ -160,7 +169,18 @@ export function publishPreflight(): PublishPreflightResult & { branch: string; d
   const defaultBranch = head.ok ? head.out.trim().split('/').pop() || 'main' : 'main'
   const st = safeExecFile('git', ['status', '--porcelain', '--untracked-files=no'])
   const trackedStatus = st.ok ? st.out : ''
-  return { ...evaluatePublishPreflight(branch, trackedStatus, defaultBranch), branch, defaultBranch }
+  const untracked = safeExecFile('git', ['ls-files', '--others', '--exclude-standard', '--', 'src'])
+  const untrackedSrc = untracked.ok
+    ? untracked.out.split(/\r?\n/).map((s) => s.trim()).filter(Boolean)
+    : []
+  return {
+    ...evaluatePublishPreflight(branch, trackedStatus, defaultBranch, {
+      statusOk: st.ok && untracked.ok,
+      untrackedSrc,
+    }),
+    branch,
+    defaultBranch,
+  }
 }
 
 export async function publish(): Promise<void> {
@@ -173,8 +193,13 @@ export async function publish(): Promise<void> {
     const msg =
       pre.code === 'wrong-branch'
         ? t('publish.preflightWrongBranch', pre.branch || '(detached)', pre.defaultBranch)
-        : t('publish.preflightDirty')
+        : pre.code === 'status-failed'
+          ? t('publish.preflightStatusFailed')
+          : pre.code === 'untracked-src'
+            ? t('publish.preflightUntrackedSrc', (pre.untrackedSrc ?? []).join(', '))
+            : t('publish.preflightDirty')
     console.log(chalk.red(`\n❌ ${msg}`))
+    process.exitCode = 1
     return
   }
 

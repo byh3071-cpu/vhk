@@ -426,7 +426,11 @@ export const ko = {
     preflightWrongBranch: (branch: string, def: string) =>
       `발행 중단 — 현재 '${branch}' 브랜치입니다. 발행은 '${def}' 에서만 하세요 (feature 브랜치 발행 → 픽스 누락본이 npm latest 로 나가는 사고 방지). git checkout ${def} && git pull 후 재시도.`,
     preflightDirty:
-      '발행 중단 — 커밋 안 된 변경이 있습니다. 발행 전 커밋/정리하세요 (untracked 파일은 무시).',
+      '발행 중단 — 커밋 안 된 변경이 있습니다. 발행 전 커밋/정리하세요 (발행에 영향 없는 untracked 파일은 무시).',
+    preflightStatusFailed:
+      '발행 중단 — git 상태 확인에 실패했습니다 (clean 으로 단정하지 않음). git 저장소 상태를 확인 후 재시도하세요.',
+    preflightUntrackedSrc: (files: string) =>
+      `발행 중단 — 커밋 안 된 신규 소스 파일이 있습니다: ${files}. untracked .ts 도 빌드(dist)에 포함돼 발행되므로 커밋 또는 제거 후 재시도하세요.`,
   },
   harness: {
     title: '통합 품질 점검',

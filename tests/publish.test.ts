@@ -232,6 +232,49 @@ describe('publishPreflight — git 수집 + default 브랜치 추출', () => {
     expect(r.code).toBe('dirty')
   })
 
+  it('git status 실패는 clean 단정하지 않고 차단 — fail-closed (리뷰 A3-04)', async () => {
+    exec.mockImplementation((_c: string, args: string[]) => {
+      if (args[0] === 'branch') return { ok: true, out: 'main' }
+      if (args[0] === 'symbolic-ref') return { ok: true, out: 'origin/main' }
+      if (args[0] === 'status') return { ok: false, err: 'fatal', out: '' }
+      return { ok: true, out: '' }
+    })
+    const { publishPreflight } = await import('../src/commands/publish.js')
+    const r = publishPreflight()
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe('status-failed')
+  })
+
+  it('untracked src 신규 파일은 빌드에 포함돼 발행되므로 차단 (리뷰 A3-01)', async () => {
+    exec.mockImplementation((_c: string, args: string[]) => {
+      if (args[0] === 'branch') return { ok: true, out: 'main' }
+      if (args[0] === 'symbolic-ref') return { ok: true, out: 'origin/main' }
+      if (args[0] === 'status') return { ok: true, out: '' }
+      if (args[0] === 'ls-files') return { ok: true, out: 'src/commands/new-feature.ts\n' }
+      return { ok: true, out: '' }
+    })
+    const { publishPreflight } = await import('../src/commands/publish.js')
+    const r = publishPreflight()
+    expect(r.ok).toBe(false)
+    expect(r.code).toBe('untracked-src')
+    expect(r.untrackedSrc).toEqual(['src/commands/new-feature.ts'])
+  })
+
+  it('untracked가 src 밖(plan 문서 등)이면 통과 유지 — ls-files가 src 한정', async () => {
+    exec.mockImplementation((_c: string, args: string[]) => {
+      if (args[0] === 'branch') return { ok: true, out: 'main' }
+      if (args[0] === 'symbolic-ref') return { ok: true, out: 'origin/main' }
+      if (args[0] === 'status') return { ok: true, out: '' }
+      if (args[0] === 'ls-files') {
+        expect(args).toContain('src') // src 경로 한정 호출 계약
+        return { ok: true, out: '' }
+      }
+      return { ok: true, out: '' }
+    })
+    const { publishPreflight } = await import('../src/commands/publish.js')
+    expect(publishPreflight().ok).toBe(true)
+  })
+
   // 자동화 D — CHANGELOG 스텁 삽입(순수함수)
   const CL = '# Changelog\n\n## [Unreleased]\n\n## [2.3.0] - 2026-06-04\n\n> 기존 항목\n'
 
