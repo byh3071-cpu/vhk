@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, writeFileSync, copyFileSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
@@ -269,20 +270,9 @@ export function writeMemory(cwd: string, mem: MemoryFileV2): void {
       }
     }
   }
-  // 원자적 쓰기: temp 에 쓰고 rename — 부분 write 로 live 파일이 손상되는 창을 없앤다(손상 데이터 손실 근본 차단).
-  // rename 실패(Windows 잠금 등) 시 live 는 그대로(rename 은 live 를 안 건드림) — temp 만 정리하고 에러 전파.
-  const tmpPath = p + '.tmp'
-  writeFileSync(tmpPath, JSON.stringify(mem, null, 2) + '\n', 'utf-8')
-  try {
-    renameSync(tmpPath, p)
-  } catch (err) {
-    try {
-      rmSync(tmpPath, { force: true })
-    } catch {
-      /* 정리 실패는 치명적 아님 */
-    }
-    throw err
-  }
+  // 원자적 쓰기 — atomicWriteFile(pid+카운터 temp)로 통일. 고정 `.tmp` 경로 자체구현은
+  // 동시 세션이 같은 temp 를 잡아 rename 충돌·업데이트 유실 가능(리뷰 A2-02).
+  atomicWriteFile(p, JSON.stringify(mem, null, 2) + '\n')
 }
 
 // ── id / 순서 헬퍼 ──
