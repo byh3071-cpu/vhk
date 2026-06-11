@@ -1,0 +1,35 @@
+# CodeRabbit 자동 PR 리뷰 설정 (public 레포 = Pro 무료)
+# 스키마 참조: https://docs.coderabbit.ai/reference/configuration
+language: "ko-KR"
+tone_instructions: "한국어로 간결하게. 실행 가능한 지적만, 칭찬·장식 생략. 위치·문제·수정안 형식으로. 오너는 비개발자 — 핵심 위주, 전문용어는 짧게 풀이."
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+  path_filters:
+    # append-only 기록물·생성물은 리뷰 제외
+    - "!docs/log/**"
+    - "!docs/devlog/**"
+    - "!docs/state/**"
+    - "!CHANGELOG.md"
+    - "!dist/**"
+    - "!pnpm-lock.yaml"
+  path_instructions:
+    - path: "src/**"
+      instructions: |
+        프로젝트 규칙(RULES.md 단일소스):
+        - TypeScript strict — any 금지
+        - execSync 신규 사용 금지 → safeExecFile 사용
+        - try-catch 필수, 빈 catch 금지, console.log 프로덕션 금지
+        - 커맨드 파일: printNextStep() 패턴 + 한국어 별칭(.alias()) + src/i18n/ko.ts 메시지 필수
+        - 신규 커맨드는 src/nlp-router.ts 키워드 등록 확인
+        - MCP handler 내부 process.exit() 금지, MCP 모드에서 inquirer 호출 금지
+        - 새 이벤트 리스너는 해제 로직 짝으로, 새 캐시(Map/Set)는 TTL 또는 maxSize 필수
+chat:
+  auto_reply: true
