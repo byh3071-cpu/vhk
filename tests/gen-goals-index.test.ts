@@ -52,11 +52,13 @@ describe('collectGoals + buildGoalsIndex', () => {
     fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('title 의 파이프 문자는 이스케이프 (표 깨짐 방지)', () => {
+  it('title 의 파이프·백슬래시는 이스케이프 (표 깨짐 방지, CodeQL incomplete-sanitization)', () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-goalsidx-'))
     fs.writeFileSync(path.join(d, '3-pipe.md'), goalMd(3, 'a | b'))
+    fs.writeFileSync(path.join(d, '4-bs.md'), goalMd(4, 'c \\ d'))
     const md = buildGoalsIndex(collectGoals(d))
     expect(md).toContain('a \\| b')
+    expect(md).toContain('c \\\\ d')
     fs.rmSync(d, { recursive: true, force: true })
   })
 })

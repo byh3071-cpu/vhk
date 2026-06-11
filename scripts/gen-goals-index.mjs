@@ -49,7 +49,9 @@ export function collectGoals(goalsDir) {
 const STATUS_ICON = { DONE: '✅', IN_PROGRESS: '🔄', NOT_STARTED: '⬜', BLOCKED: '⛔' }
 
 function cell(v) {
-  return String(v).replace(/\|/g, '\\|')
+  // 백슬래시를 먼저 이스케이프 — 안 하면 `\` 포함 제목이 파이프 이스케이프와 얽혀
+  // 표가 깨질 수 있음 (CodeQL js/incomplete-sanitization).
+  return String(v).replace(/\\/g, '\\\\').replace(/\|/g, '\\|')
 }
 
 export function buildGoalsIndex(goals) {

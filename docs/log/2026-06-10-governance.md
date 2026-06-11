@@ -195,3 +195,6 @@
   check-records 가 readFileSync(0) 무한 블록 — 검증 명령 자체가 행으로 재현. stdin 읽기를
   `--hook` 플래그 모드로 한정(settings.json 이 --hook 전달, hook 페이로드 후 stdin 닫힘이라
   안전)해 해소.
+- PR #261 CI: test 4조합·dogfood 2조합·gate·분석 전부 pass(Windows pass = CRLF 픽스 실증).
+  CodeQL 1건(high, js/incomplete-sanitization — gen-goals-index cell 의 백슬래시 미이스케이프)
+  → 백슬래시 선 이스케이프로 픽스. 범용 패턴은 PAT-001 로 추출.
