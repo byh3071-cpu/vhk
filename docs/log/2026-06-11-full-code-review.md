@@ -113,7 +113,7 @@
 | A2-01(+B1-05 병합) | commands/evolve.ts:178 | 손상 queue.json → 무경고 빈 큐 (.bak 보호는 확인됨 — 복구 안내만 부재) |
 | A2-04 | commands/sync.ts:562 | CLAUDE.md 비원자 쓰기 + drift 없으면 백업 미생성 |
 | A2-05 | commands/sync.ts:212-217 | vhk:rules 마커 쌍 중복 시 스테일 블록 영구 잔존 |
-| A2-06 | commands/sync.ts:53,242,257 | 섹션 파서 코드펜스 미인지 — 펜스 내 `## `에서 오분할, 사용자 콘텐츠 제거 가능 |
+| A2-06 | commands/sync.ts:53,242,257 | 섹션 파서 코드펜스 미인지 — 펜스 내 `##` 헤더에서 오분할, 사용자 콘텐츠 제거 가능 |
 | A2-08 | commands/memory.ts:389 외 | 수동 편집으로 tags/id 누락 시 TypeError 크래시 |
 | A2-09 | commands/evolve.ts:561 | evolve undo가 apply 후 수동 편집을 무경고 소실 |
 | A3-04 | commands/publish.ts:161-162 | dirty 가드 fail-open (git 실패 시 clean 간주) |
