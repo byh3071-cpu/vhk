@@ -1,6 +1,8 @@
 # 다음 작업 (next-task)
 
 > "지금 무엇부터"의 상태 SoT. 버전·테스트 등 사실값은 package.json·CHANGELOG가 SoT.
+> ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
+> 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
 **갱신:** 2026-06-11
 **Phase:** measure-first 2종 진행. recall(RFC 0049) MVP+eval 머지(#232·#233). diff-coverage(RFC 0050·Goal 50) PR1 머지(#236)+파서픽스(#239) — `vhk diff-cover` 측정 도구(차단 0). 둘 다 **실측 누적 대기**(게이트/ML은 숫자가 정당화한 뒤). 추가: 콜드스타트 −37%(#240, inquirer lazy). 사실값(버전·테스트수)은 package.json·CHANGELOG.

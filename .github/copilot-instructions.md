@@ -25,6 +25,8 @@
 - 모든 커맨드 파일에 `printNextStep()` 패턴 사용
 - 한국어 별칭 `.alias()` + `ko.ts` 메시지 필수
 - 신규 커맨드 시 `nlp-router.ts` 키워드 추가 필수
+- 주석: 복잡 로직(git porcelain·drift·sync 등)은 why 블록주석 / 자명한 코드엔 주석 금지 / JSDoc 지양(타입이 말함) / 트러블 우회 코드는 원인 `#이슈` 참조
+- 신규 명령 체크리스트: 등록 4지점(index.ts + command-registry TOP_LEVEL·CONTAINER·한글별칭 + cli-args + ko.ts) 누락 = NL 라우터 가드 무력 — 영문·한글 별칭 둘 다 테스트. + COMMANDS.md·README 사용법 갱신
 
 ### MCP 규칙
 

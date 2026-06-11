@@ -1,6 +1,6 @@
 /**
  * `.vhk/` 디렉토리 씨앗(seed) 템플릿.
- * 규격: docs/spec.md (spec_version 1.0) — 평면 파일 구조.
+ * 규격: docs/spec.md (spec_version 1.1) — 평면 파일 구조.
  * vhk init 이 프로젝트 시작 시 README.md + context.md 를 미리 채운다.
  */
 
@@ -11,7 +11,7 @@ export function VHK_README_TEMPLATE(): string {
     '',
     '이 디렉토리는 VHK가 프로젝트별 상태를 저장하는 곳입니다.',
     // VHK-006: 생성 프로젝트엔 docs/spec.md 가 없음 → vhk 저장소의 규격 문서를 외부 링크로 참조.
-    '전체 규격은 [vhk 규격 문서](https://github.com/byh3071-cpu/vhk/blob/main/docs/spec.md) (spec_version 1.0) 참조.',
+    '전체 규격은 [vhk 규격 문서](https://github.com/byh3071-cpu/vhk/blob/main/docs/spec.md) (spec_version 1.1) 참조.',
     '',
     '## 트래킹 정책',
     '',

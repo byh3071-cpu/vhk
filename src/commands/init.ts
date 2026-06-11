@@ -271,7 +271,7 @@ export function generateFiles(
     'docs/troubleshooting/.gitkeep': '',
     'docs/til.md': `# TIL (Today I Learned)\n\n- [${localDate()}] 프로젝트 시작\n`, // VHK-019
     'BACKLOG.md': `# BACKLOG\n\n> v1 OUT 기능은 여기에 기록. 범위 수비 필수.\n\n## v1.1 후보\n\n- \n`,
-    // .vhk/ 씨앗 — 규격: docs/spec.md (spec_version 1.0)
+    // .vhk/ 씨앗 — 규격: docs/spec.md (spec_version 1.1)
     '.vhk/README.md': VHK_README_TEMPLATE(),
     '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack),
     '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),

@@ -192,11 +192,14 @@ describe('vhk init — 루트 .gitignore 보장', () => {
 })
 
 describe('docs/spec.md 규격', () => {
-  it('spec_version 1.0 과 핵심 파일을 명시한다', () => {
+  it('spec_version 1.1 과 핵심 파일을 명시한다 (governance T4 — RFC 0038 v1.1 반영)', () => {
     const spec = fs.readFileSync(path.join(process.cwd(), 'docs', 'spec.md'), 'utf-8')
-    expect(spec).toContain('spec_version: "1.0"')
+    expect(spec).toContain('spec_version: "1.1"')
     expect(spec).toContain('context.md')
     expect(spec).toContain('memory.json')
     expect(spec).toContain('HARD_STOP')
+    // 1.1 가산분 — 하위 폴더 공식 인정 + 변경 이력
+    expect(spec).toContain('events/')
+    expect(spec).toContain('변경 이력')
   })
 })
