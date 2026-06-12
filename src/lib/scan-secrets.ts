@@ -4,10 +4,23 @@ import { walkProjectFiles } from './scan-files.js'
 
 export const MAX_SECRET_FINDINGS = 200
 const MAX_LINE_CHARS = 4_000
+const PLACEHOLDER_MARKER =
+  /(?:example|placeholder|your[_-]|fake[_-]|dummy|redacted|changeme|replace[_-]?me|x{4,}|<[^>]+>)/i
+const STATUS_KEY_PREFIX = /^(?:missing|invalid|status|error|has|is|needs?)[_-]/i
 
 function globalPattern(pattern: RegExp): RegExp {
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`
   return new RegExp(pattern.source, flags)
+}
+
+function isGenericApiKeyFalsePositive(matchText: string): boolean {
+  const delimiterIndex = matchText.search(/[:=]/)
+  if (delimiterIndex < 0) return false
+  const key = matchText.slice(0, delimiterIndex).trim()
+  const delimiter = matchText[delimiterIndex]
+  if (delimiter === ':' && STATUS_KEY_PREFIX.test(key)) return true
+  const value = matchText.slice(delimiterIndex + 1).trim().replace(/^['"]/, '')
+  return PLACEHOLDER_MARKER.test(value)
 }
 
 /** 한 줄에서 시크릿 패턴 검색 (global regex 중복 버그 방지) */
@@ -32,8 +45,11 @@ export function findSecretsInLine(
   for (const pattern of SECRET_PATTERNS) {
     const regex = globalPattern(pattern.pattern)
     for (const match of line.matchAll(regex)) {
+      // Generic 패턴은 실제 토큰 형식을 모르는 보조 탐지다. 예제 env 값과
+      // missing_api_key 같은 상태 식별자는 값처럼 보여도 자격증명이 아니다.
+      if (pattern.id === 'generic-api-key' && isGenericApiKeyFalsePositive(match[0])) continue
       // placeholder 표식이 매칭값에 있으면(주석 한정) 무시 — your_·fake_·dummy·redacted·changeme·xxxx·<...>
-      if (isComment && /(?:example|placeholder|your[_-]|fake[_-]|dummy|redacted|changeme|x{4,}|<[^>]+>)/i.test(match[0]))
+      if (isComment && PLACEHOLDER_MARKER.test(match[0]))
         continue // placeholder 시크릿만 무시
       found.push({
         patternId: pattern.id,

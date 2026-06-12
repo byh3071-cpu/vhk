@@ -30,6 +30,7 @@ const SKIP_FILE_NAMES = new Set([
 
 const SCAN_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
+  '.py',
   '.json', '.yaml', '.yml', '.toml',
 ])
 
