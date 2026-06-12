@@ -5,6 +5,10 @@ import path from 'node:path'
 import { isScannableFileName, walkProjectFiles, MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
 
 describe('scan-files', () => {
+  it('Python 소스도 시크릿 스캔 대상이다', () => {
+    expect(isScannableFileName('script.py')).toBe(true)
+  })
+
   it('lock 파일은 스캔 대상에서 제외', () => {
     expect(isScannableFileName('pnpm-lock.yaml')).toBe(false)
     expect(isScannableFileName('package-lock.json')).toBe(false)

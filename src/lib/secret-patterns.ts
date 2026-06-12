@@ -103,7 +103,7 @@ export const SECRET_PATTERNS: SecretPattern[] = [
     id: 'generic-api-key',
     name: 'Generic API Key',
     severity: 'high',
-    pattern: /(?:api[_-]?key|apikey|access[_-]?token)\s*[:=]\s*['"]?[A-Za-z0-9_\-]{16,}['"]?/i,
+    pattern: /(?<![A-Za-z0-9_])(?:[A-Za-z0-9]+[_-])*(?:api[_-]?key|apikey|access[_-]?token)\s*[:=]\s*['"]?[A-Za-z0-9_\-]{16,}['"]?/i,
   },
   {
     // #170: 리터럴 Authorization: Bearer 자격증명. 토큰 문자 클래스가 '$','{' 를 제외하므로
