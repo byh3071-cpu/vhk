@@ -33,6 +33,58 @@ describe('scan-secrets', () => {
     expect(findings).toHaveLength(0)
   })
 
+  it('generic: .env.example placeholder 값은 스킵', () => {
+    const findings = findSecretsInLine(
+      'YOUTUBE_API_KEY=your_youtube_api_key_here',
+      '.env.example',
+      1,
+    )
+    expect(findings.filter((f) => f.patternId === 'generic-api-key')).toHaveLength(0)
+  })
+
+  it('generic: missing_api_key 상태 식별자는 스킵', () => {
+    const findings = findSecretsInLine(
+      'missing_api_key: "border-amber-500/20 bg-amber-500/10"',
+      'src/status.ts',
+      1,
+    )
+    expect(findings.filter((f) => f.patternId === 'generic-api-key')).toHaveLength(0)
+  })
+
+  it('generic: 실제 긴 api_key 할당은 계속 탐지', () => {
+    const actual = 'z'.repeat(24)
+    const findings = findSecretsInLine(`api_key = "${actual}"`, 'script.py', 1)
+    expect(findings.filter((f) => f.patternId === 'generic-api-key')).toHaveLength(1)
+  })
+
+  it('generic: 상태 접두어라도 실제 값 대입은 계속 탐지', () => {
+    const actual = 'z'.repeat(24)
+    const findings = findSecretsInLine(`invalid_api_key = "${actual}"`, 'script.py', 1)
+    expect(findings.filter((f) => f.patternId === 'generic-api-key')).toHaveLength(1)
+  })
+
+  it('generic: placeholder 단어가 변수명에만 있으면 실제 값은 탐지', () => {
+    const actual = 'z'.repeat(24)
+    const findings = findSecretsInLine(`example_api_key = "${actual}"`, 'script.py', 1)
+    expect(findings.filter((f) => f.patternId === 'generic-api-key')).toHaveLength(1)
+  })
+
+  it('Python 파일의 generic API key를 프로젝트 스캔이 탐지', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-scan-python-'))
+    const fixturePath = path.join(tmp, 'script.py')
+    try {
+      const apiKey = 'z'.repeat(24)
+      fs.writeFileSync(fixturePath, `api_key = "${apiKey}"\n`, 'utf-8')
+      const { findings } = scanProjectForSecrets(tmp)
+      expect(
+        findings.some((f) => f.patternId === 'generic-api-key' && f.file === 'script.py'),
+      ).toBe(true)
+    } finally {
+      if (fs.existsSync(fixturePath)) fs.unlinkSync(fixturePath)
+      fs.rmdirSync(tmp)
+    }
+  })
+
   // #170: Authorization Bearer 리터럴 자격증명 탐지.
   // "Bearer" 경계서 concat 분리 → 자기 레포 secure 스캔 자기탐지 방지 (런타임엔 합쳐짐).
   it('Authorization Bearer 리터럴 자격증명 탐지', () => {
