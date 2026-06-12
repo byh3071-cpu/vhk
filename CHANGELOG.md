@@ -4,6 +4,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-06-12
+
 > v2.5.1 이후 main 누적분 백필(2026-06-11 전수 리뷰 G-01에서 공백 발견) + 전수 리뷰 Top 10 즉시수정.
 
 ### Added
