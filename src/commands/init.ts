@@ -175,7 +175,7 @@ export async function init(options: InitOptions = {}) {
   // VHK-001: 기존 프로젝트면 실제 스택 감지(프리셋 하드코딩 대신) — 우선순위는 resolveInitStack 참조.
   const resolved = resolveInitStack(process.cwd(), answers.type)
   let stack = resolved.stack
-  let stackLabel = ko.init.recommendedStack
+  let stackLabel: string = ko.init.recommendedStack
   if (resolved.detected) console.log(chalk.dim('  🔎 프로젝트 매니페스트에서 실제 스택 감지'))
 
   // 기타(other) 등 프리셋 없는 타입 — 대화형이면 직접 입력(Enter=건너뛰기), 비대화형이면 미정.
