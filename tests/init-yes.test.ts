@@ -43,6 +43,13 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
     expect(fs.existsSync(path.join(dir, 'CLAUDE.md'))).toBe(true)
   })
 
+  it('-y --type other → 프롬프트 0개 + 스택 미정으로 파일 생성', async () => {
+    const { init } = await import('../src/commands/init.js')
+    await init({ yes: true, name: 'yohan-os', description: 'AI 베어메탈 OS', type: 'other' })
+    const claude = fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf-8')
+    expect(claude).toContain('미정')
+  })
+
   it('#132: -y 라도 기존 규칙 파일을 RULES.md 로 자동 adopt (thin 템플릿 함정 방지, 프롬프트 0)', async () => {
     // 기존 .cursorrules(알맹이) + RULES.md 없음 → 비대화형이라도 adopt 해야 thin RULES.md 가
     // SoT 가 돼 알맹이를 덮어쓰는 함정을 막는다. 프롬프트 호출 시 mock throw → 무프롬프트 보장.

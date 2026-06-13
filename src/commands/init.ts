@@ -21,7 +21,7 @@ import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { detectExistingRuleFiles, buildAdoptedRules } from '../lib/rules-import.js'
-import { detectProjectStack } from '../lib/stack-detect.js'
+import { detectProjectStack, detectManifestLangs } from '../lib/stack-detect.js'
 import { isInteractive } from '../lib/interactive.js'
 
 const PROJECT_TYPES = [
@@ -30,6 +30,7 @@ const PROJECT_TYPES = [
   { name: '⚙️ 자동화/CLI 도구',                      value: 'cli' },
   { name: '🤖 노션 통합/MCP 서버',                    value: 'notion' },
   { name: '📱 모바일 앱 (Flutter)',                    value: 'mobile' },
+  { name: '🧩 기타 — 직접 입력 (OS·게임·임베디드 등)', value: 'other' },
 ]
 
 const VALID_TYPES = PROJECT_TYPES.map(t => t.value)
@@ -40,6 +41,38 @@ const STACK_PRESETS: Record<string, string[]> = {
   cli:       ['Node.js', 'TypeScript', 'commander', 'inquirer', 'chalk'],
   notion:    ['TypeScript', 'Notion API', 'MCP SDK'],
   mobile:    ['Flutter', 'Dart', 'Supabase'],
+  other:     [], // 프리셋 없음 → 직접 입력(대화형) 또는 미정(비대화형)
+}
+
+/** 스택 미정 표시값 — 템플릿에 그대로 박혀 사용자가 나중에 채운다. */
+export const STACK_UNDECIDED = '미정'
+
+/**
+ * "Rust, QEMU" 같은 자유 입력을 스택 목록으로 파싱. 빈 입력 → [].
+ * 분리자는 쉼표 계열만(ASCII , + 전각 ， + 모점 、 — IME 입력 대응).
+ * '+'/'/'/'·' 는 "C++"·"C/C++"·"CI·CD" 같은 항목을 망가뜨려 제외.
+ */
+export function parseStackInput(input?: string): string[] {
+  if (!input) return []
+  return input.split(/[,，、]/).map(s => s.trim()).filter(Boolean)
+}
+
+/**
+ * init 의 스택 결정 (우선순위):
+ * ① JS deps 감지 → 비-JS 매니페스트 언어 병합 (Tauri = React + Rust)
+ * ② 프리셋 있는 타입 → 프리셋 (떠돌이 매니페스트가 명시적 --type 을 silent 대체하지 않도록)
+ * ③ 프리셋 없는 타입(other) → 매니페스트 언어 (Cargo.toml→Rust 등), 없으면 [] → 직접 입력/미정
+ */
+export function resolveInitStack(
+  cwd: string,
+  type: string
+): { stack: string[]; detected: boolean } {
+  const js = detectProjectStack(cwd)
+  if (js) return { stack: [...js, ...detectManifestLangs(cwd)], detected: true }
+  const preset = STACK_PRESETS[type] ?? []
+  if (preset.length) return { stack: preset, detected: false }
+  const manifest = detectManifestLangs(cwd)
+  return { stack: manifest, detected: manifest.length > 0 }
 }
 
 export type InitOptions = {
@@ -139,24 +172,51 @@ export async function init(options: InitOptions = {}) {
     process.exit(1)
   }
 
-  // VHK-001: 기존 프로젝트면 package.json 의존성에서 실제 스택 감지(프리셋 하드코딩 대신).
-  // 감지 실패(deps 없음/greenfield)면 --type 프리셋으로 폴백.
-  const detected = detectProjectStack(process.cwd())
-  const stack = detected ?? STACK_PRESETS[answers.type]
-  if (detected) console.log(chalk.dim('  🔎 package.json 의존성에서 실제 스택 감지'))
-  console.log(chalk.dim(`\n${ko.init.recommendedStack} ${stack.join(' + ')}\n`))
+  // VHK-001: 기존 프로젝트면 실제 스택 감지(프리셋 하드코딩 대신) — 우선순위는 resolveInitStack 참조.
+  const resolved = resolveInitStack(process.cwd(), answers.type)
+  let stack = resolved.stack
+  let stackLabel = ko.init.recommendedStack
+  if (resolved.detected) console.log(chalk.dim('  🔎 프로젝트 매니페스트에서 실제 스택 감지'))
+
+  // 기타(other) 등 프리셋 없는 타입 — 대화형이면 직접 입력(Enter=건너뛰기), 비대화형이면 미정.
+  if (stack.length === 0) {
+    if (isInteractive(options)) {
+      const { customStack } = await prompt([{
+        type: 'input', name: 'customStack', message: ko.init.stackInput,
+      }])
+      stack = parseStackInput(customStack)
+    }
+    stackLabel = ko.init.chosenStack // 사용자 입력/미정 — '추천' 아님
+    if (stack.length === 0) {
+      stack = [STACK_UNDECIDED]
+      console.log(chalk.dim(`  ${ko.init.stackSkipHint}`))
+    }
+  }
+
+  console.log(chalk.dim(`\n${stackLabel} ${stack.join(' + ')}\n`))
 
   // 비대화형(yes/비-TTY)이면 confirmStack 프롬프트 skip — default(진행)로 자동 진행.
   // (이전엔 !options.yes 만 봐서 비-TTY+무-yes 에서 EOF 멈춤 — Goal 8 비대화형 계약 위반.)
-  if (isInteractive(options)) {
+  // 스택 미정(직접 건너뜀)이면 확인 무의미 → skip.
+  const stackUndecided = stack.length === 1 && stack[0] === STACK_UNDECIDED
+  if (isInteractive(options) && !stackUndecided) {
     const { confirmStack } = await prompt([{
       type: 'confirm', name: 'confirmStack',
       message: ko.init.confirmStack, default: true,
     }])
 
     if (!confirmStack) {
-      log.warn(ko.init.canceled)
-      return
+      // 거절 = 즉시 취소가 아니라 직접 입력 기회 (Enter = 기존처럼 취소).
+      const { customStack } = await prompt([{
+        type: 'input', name: 'customStack', message: ko.init.stackEdit,
+      }])
+      const edited = parseStackInput(customStack)
+      if (edited.length === 0) {
+        log.warn(ko.init.canceled)
+        return
+      }
+      stack = edited
+      console.log(chalk.dim(`\n${ko.init.chosenStack} ${stack.join(' + ')}\n`))
     }
   }
 
