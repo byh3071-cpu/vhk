@@ -219,7 +219,7 @@ program
   .option('--from-notion <url>', 'Notion PRD 페이지에서 import')
   .option('--name <name>', '프로젝트 이름')
   .option('--description <desc>', '한 줄 설명')
-  .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile)')
+  .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile|other)')
   .option('-y, --yes', '모든 확인 스킵 (자동 yes)')
   .action(start)
 
@@ -233,7 +233,7 @@ program
   .option('--from-notion <url>', 'Notion PRD 페이지에서 import')
   .option('--name <name>', '프로젝트 이름')
   .option('--description <desc>', '한 줄 설명')
-  .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile)')
+  .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile|other)')
   .option('-y, --yes', '스택 확인 스킵')
   .action(init)
 

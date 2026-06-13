@@ -4,6 +4,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- **`vhk init` 기타(other) 프로젝트 타입 + 스택 직접 입력/건너뛰기** — OS·게임·임베디드 등 5개 프리셋 밖 프로젝트 지원. ① 타입 선택지에 `🧩 기타 — 직접 입력` 추가 ② 기타 선택 시 스택 자유 입력(쉼표 구분 — 전각 ，·모점 、 포함, Enter=미정으로 건너뛰기) ③ 추천 스택 거절 시 즉시 취소 대신 직접 입력 기회(Enter=기존처럼 취소) ④ 비-JS 매니페스트 언어 감지 `detectManifestLangs`(Cargo.toml→Rust, go.mod→Go, pyproject.toml/requirements.txt→Python, Gemfile→Ruby, build.zig→Zig, CMakeLists.txt→C/C++) — init 전용 소비(`resolveInitStack`): JS deps 감지 시 병합(Tauri 류), 프리셋 타입에선 떠돌이 매니페스트가 명시적 `--type` 을 대체하지 않음, 프리셋 없는 other 만 매니페스트 사용. `detectProjectStack` 은 JS-only 유지(theme #158 src/ 오염 비회귀). `-y --type other` 비대화형은 프롬프트 0 + 미정 폴백.
+
 ## [2.6.0] - 2026-06-12
 
 > v2.5.1 이후 main 누적분 백필(2026-06-11 전수 리뷰 G-01에서 공백 발견) + 전수 리뷰 Top 10 즉시수정.
