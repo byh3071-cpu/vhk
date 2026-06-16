@@ -67,6 +67,12 @@ must(/(loop-brief)/.test(read('src/lib/command-registry.ts') ?? ''), 'command-re
 must(/(loop-brief)/.test(read('src/lib/nlp-router.ts') ?? ''), 'nlp-router 등록')
 must(/(loop-brief)/.test(read('COMMANDS.md') ?? ''), 'COMMANDS.md 문서화')
 must(/(loop-brief)/.test(read('src/mcp/server.ts') ?? ''), 'MCP server 등록')
+// 4지점 완전성 — cli-args(KNOWN_COMMAND_TOKENS)·한글별칭·ko.ts 까지 게이트가 강제(누락이 CI 통과한 근본 원인 봉쇄).
+const cliArgs = read('src/lib/cli-args.ts') ?? ''
+must(/'loop-brief'/.test(cliArgs), 'cli-args KNOWN_COMMAND_TOKENS 에 loop-brief 등록')
+must(/'루프브리핑'/.test(cliArgs), 'cli-args 에 한글별칭 루프브리핑 등록')
+must(/루프브리핑/.test(read('src/index.ts') ?? ''), 'index.ts 한글별칭 alias')
+must(/loopBrief/.test(read('src/i18n/ko.ts') ?? ''), 'ko.ts loopBrief 메시지 키')
 
 if (pass) { console.log('✅ goal 67 gate passes'); process.exit(0) }
 console.log('❌ goal 67 gate failed'); process.exit(1)

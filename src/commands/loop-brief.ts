@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import chalk from 'chalk'
 import { printNextStep } from '../lib/next-step.js'
-import { readMemory, recallForAction } from './memory.js'
+import { t } from '../i18n/ko.js'
+import { readMemory, recallForAction, type FailEntry } from './memory.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
 import { isHardStopActive, getActiveBlockers } from '../lib/state-files.js'
@@ -12,8 +13,11 @@ function readVisionWhat(): { what?: string; loopAnchor?: string } {
   try {
     if (!existsSync('VISION.md')) return {}
     const text = readFileSync('VISION.md', 'utf-8')
-    const whatM = /## What \(한 줄\)\s*\n([^\n#]+)/.exec(text)
-    const anchorM = /## Loop Anchor[^\n]*\n([\s\S]*?)(?:\n##|$)/.exec(text)
+    // What 헤더 변형(`## What`·`## What (한 줄)` 등) 허용 + 본문 한 줄 전체 캡처.
+    // 이전 `[^\n#]+` 는 본문에 '#'(C#·Next.js #앱)이 있으면 거기서 잘렸다 — '#' 제외 삭제.
+    // CRLF 안전(`\r?\n`).
+    const whatM = /## What[^\r\n]*\r?\n([^\r\n]+)/.exec(text)
+    const anchorM = /## Loop Anchor[^\r\n]*\r?\n([\s\S]*?)(?:\r?\n## |$)/.exec(text)
     const what = whatM?.[1]?.trim()
     const loopAnchor = anchorM?.[1]
       ?.split('\n')
@@ -27,12 +31,14 @@ function readVisionWhat(): { what?: string; loopAnchor?: string } {
 }
 
 export function loopBrief(): void {
-  console.log(chalk.bold('\n🔁 루프 브리핑 (1틱 앵커)'))
+  console.log(chalk.bold('\n🔁 ' + t('loopBrief.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
   const lines: string[] = []
   lines.push('# Loop Brief — 1틱 앵커')
   lines.push('')
+  // 블로커·로컬 memory(교훈) 평문이 들어가므로 memory.json 과 동일 보호등급(로컬 전용·커밋 금지).
+  lines.push('> ⚠️ 로컬 전용 — 커밋 금지 (블로커·개인 메모 평문 포함). `.vhk/.gitignore` 로 추적 제외됨.')
   lines.push(`> 생성: ${new Date().toLocaleString('ko-KR')}`)
   lines.push('')
 
@@ -85,7 +91,11 @@ export function loopBrief(): void {
     const recalled = recallForAction(mem, query).slice(0, 2)
     if (recalled.length) {
       recalled
-        .map(r => r.entry.content.split('\n')[0].trim())
+        // content 가 빈 실패교훈(lesson 필드에만 내용)도 렌더 — 다른 렌더러와 동일 폴백.
+        .map(r => {
+          const e = r.entry as FailEntry
+          return (e.content || e.lesson || e.why || e.id || '').split('\n')[0].trim()
+        })
         .filter(text => text.length > 0)
         .forEach(text => lines.push(`- ${text}`))
     } else {
@@ -100,7 +110,7 @@ export function loopBrief(): void {
   lines.push('## STOP 조건')
   lines.push('')
   const hardStop = isHardStopActive()
-  lines.push(`- HARD_STOP: ${hardStop ? '🛑 **활성** — 작업 중단 필수**' : '✅ 비활성'}`)
+  lines.push(`- HARD_STOP: ${hardStop ? '🛑 **활성** — 작업 중단 필수' : '✅ 비활성'}`)
   try {
     const blockers = getActiveBlockers()
     if (blockers.length) {

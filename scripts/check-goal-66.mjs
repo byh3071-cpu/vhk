@@ -64,6 +64,10 @@ must(/## Loop Anchor/.test(vision), 'Loop Anchor 섹션')
 must(/VISION\.md/.test(read('src/commands/init.ts') ?? ''), 'init 이 VISION.md 생성')
 must(existsSync('VISION.md'), '레포 루트 도그푸딩 VISION.md 존재')
 must(/## Loop Anchor/.test(read('VISION.md') ?? ''), '도그푸딩 VISION.md 에 Loop Anchor 섹션')
+// 템플릿↔파서 계약: loop-brief 의 readVisionWhat 정규식이 vision.ts/VISION.md 헤딩을 실제로 파싱하는지 게이트가 고정.
+const PARSER_WHAT = /## What[^\r\n]*\r?\n([^\r\n]+)/
+must(PARSER_WHAT.test(vision), 'vision.ts 의 What 헤딩이 loop-brief 파서와 매칭')
+must(PARSER_WHAT.test(read('VISION.md') ?? ''), '도그푸딩 VISION.md 의 What 헤딩이 loop-brief 파서와 매칭')
 
 if (pass) { console.log('✅ goal 66 gate passes'); process.exit(0) }
 console.log('❌ goal 66 gate failed'); process.exit(1)
