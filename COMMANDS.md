@@ -176,6 +176,7 @@ vhk doctor
 | `vhk brief` | 프로젝트 요약 보고서 생성 |
 | `vhk loop-brief` | 루프 1틱 앵커 생성 (의도+goal1+교훈+STOP → `.vhk/loop-brief.md`) |
 | `vhk remind` | 치명 규칙 재주입 (RULES.md NON-NEGOTIABLE/Forbidden 압축 → `.vhk/remind.md`) |
+| `vhk content` | 콘텐츠 초안 프롬프트 생성 (풀사이클 뒷단 — 콘텐츠/마케팅 → `.vhk/content-prompt.md`) |
 | `vhk work` | AI 작업 시작/이어하기 (+ handoff) |
 | `vhk goal` | Goal 단계별 미션 관리 |
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |

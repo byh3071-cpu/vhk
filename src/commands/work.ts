@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { ko } from '../i18n/ko.js'
@@ -8,7 +8,7 @@ import { isHardStopActive, readHardStopReason } from '../lib/state-files.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
 import { context } from './context.js'
-import { copyToClipboard } from '../lib/clipboard.js'
+import { emitPrompt } from '../lib/emit-prompt.js'
 import { detectDocCandidates, formatDocCandidatesForPrompt, type DocCandidates } from '../lib/doc-suggest.js'
 import { getSessionDiff, getRecentCommits } from '../lib/git.js'
 import { localDate } from '../lib/date.js'
@@ -128,30 +128,6 @@ export function buildHandoffPrompt(
   ].join('\n')
 }
 
-// 프롬프트를 클립보드에 복사 + 항상 .vhk/<fileName> 사본 저장.
-// 클립보드 실패 시 화면에 프롬프트 전문 출력(사용자가 직접 복사).
-function emitPrompt(prompt: string, fileName: string, label: string): void {
-  let savedPath = ''
-  try {
-    mkdirSync(VHK_DIR, { recursive: true })
-    savedPath = join(VHK_DIR, fileName)
-    writeFileSync(savedPath, prompt, 'utf-8')
-  } catch {
-    savedPath = ''
-  }
-
-  const copied = copyToClipboard(prompt)
-  if (copied) {
-    console.log(chalk.green(`\n📋 Claude에게 줄 '${label}'을 클립보드에 복사했습니다! ✅`))
-    if (savedPath) console.log(chalk.dim(`   (사본 저장: ${savedPath})`))
-  } else {
-    console.log(chalk.yellow(`\n⚠️ 클립보드 복사에 실패했어요 — 아래 프롬프트를 직접 복사하세요:`))
-    if (savedPath) console.log(chalk.dim(`   (파일로도 저장됨: ${savedPath} — 열어서 복사 가능)`))
-    console.log(chalk.gray('────────────────────────────────────────'))
-    console.log(prompt)
-    console.log(chalk.gray('────────────────────────────────────────'))
-  }
-}
 
 // .vhk/context.md 를 조용히 갱신한다. context() 자체 콘솔 출력(헤더·printNextStep)이
 // work 흐름 중간에 끼면 비개발자가 혼란하므로 console.log 를 잠시 억제하고 호출.

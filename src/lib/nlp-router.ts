@@ -32,6 +32,7 @@ export type NlpCommand =
   | 'brief'
   | 'loop-brief'
   | 'remind'
+  | 'content'
   | 'goal'
   | 'cloud-push'
   | 'cloud-pull'
@@ -286,6 +287,12 @@ const RULES: NlpRule[] = [
     explanation: '치명 규칙 재주입 (vhk remind)',
     confidence: 'high',
     test: t => /리마인드|remind|치명\s*규칙|규칙\s*재주입|규칙\s*리마인/.test(t),
+  },
+  {
+    command: 'content',
+    explanation: '콘텐츠 초안 프롬프트 생성 (vhk content)',
+    confidence: 'high',
+    test: t => /콘텐츠|content|블로그\s*초안|마케팅\s*글|글\s*초안/.test(t),
   },
   {
     command: 'brief',

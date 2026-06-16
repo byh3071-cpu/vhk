@@ -31,6 +31,7 @@ import { memoryList, memoryMigrate } from '../commands/memory.js'
 import { brief } from '../commands/brief.js'
 import { loopBrief } from '../commands/loop-brief.js'
 import { remind } from '../commands/remind.js'
+import { content } from '../commands/content.js'
 import { work, workHandoff } from '../commands/work.js'
 import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext, goalSync } from '../commands/goal.js'
@@ -123,6 +124,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return loopBrief()
     case 'remind':
       return remind()
+    case 'content':
+      return content()
     case 'cloud-push':
       return cloudPush()
     case 'cloud-pull':

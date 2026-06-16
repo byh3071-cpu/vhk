@@ -100,6 +100,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'brief', desc: '프로젝트 요약 보고서 생성' },
   { name: 'loop-brief', desc: '루프 1틱 앵커 생성 (의도+goal1+교훈+STOP)' },
   { name: 'remind', desc: '치명 규칙 재주입 (RULES.md NON-NEGOTIABLE/Forbidden 압축)' },
+  { name: 'content', desc: '콘텐츠 초안 프롬프트 (풀사이클 뒷단 — 콘텐츠/마케팅)' },
   { name: 'work', desc: 'AI 작업 시작/이어하기 (+ handoff)' },
   { name: 'goal', desc: 'Goal 단계별 미션 관리' },
   { name: 'blocker', desc: '블로커 기록 (3건 누적 시 HARD_STOP)' },
