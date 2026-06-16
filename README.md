@@ -153,7 +153,7 @@ vhk evolve list
 
 `pattern`은 반복되는 실패/성공 신호를 찾고, `evolve`는 사람이 승인할 수 있는 RULES.md 후보를 만듭니다. 자동 적용이 아니라 diff와 확인을 거치는 구조입니다.
 
-## MCP 29 tools
+## MCP 30 tools
 
 `vhk mcp-init`으로 MCP 설정을 만들고, MCP 클라이언트는 `vhk mcp` stdio 서버를 통해 아래 도구를 호출합니다.
 
@@ -162,14 +162,14 @@ vhk mcp-init
 vhk mcp
 ```
 
-현재 등록된 MCP 도구는 29개입니다.
+현재 등록된 MCP 도구는 30개입니다.
 
 | 그룹 | 도구 |
 | --- | --- |
 | Git/세션 | `save`, `undo`, `status`, `diff`, `ship`, `recap` |
 | 진단/품질 | `doctor`, `check`, `secure`, `audit`, `harness` |
 | 환경/규칙 | `env`, `env-check`, `sync`, `mcp-init` |
-| 컨텍스트/기억 | `context`, `context-show`, `brief`, `memory-list`, `learn` |
+| 컨텍스트/기억 | `context`, `context-show`, `brief`, `loop-brief`, `memory-list`, `learn` |
 | 배포/패키지 안내 | `deploy`, `publish`, `migrate`, `update` |
 | 레퍼런스 | `ref-list` |
 | 패턴/진화 | `pattern-detect`, `pattern-list`, `evolve-suggest`, `evolve-list` |

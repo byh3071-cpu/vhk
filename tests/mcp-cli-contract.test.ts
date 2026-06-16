@@ -16,7 +16,7 @@ import { callTool, getRegisteredToolNames } from './helpers/mcp-introspect.js'
  *   · 위임 도구(check 등)는 MCP 가 곧 `vhk <cmd>` 서브프로세스를 돌리므로 출력 비교가 동어반복.
  *   · harness 는 비결정적(벽시계 duration·spinner·실툴 spawn+사이드이펙트)이라 문자열 비교 불가.
  *   대신 *실제 버그를 잡는* 계약을 단언한다:
- *     A. 레지스트리 정확 셋(29)   — 도구 우발 추가/삭제 봉쇄
+ *     A. 레지스트리 정확 셋(30)   — 도구 우발 추가/삭제 봉쇄
  *     B. 위임 매트릭스            — 모든 위임 도구가 올바른 CLI 인자로 위임(재구현 회귀 봉쇄, #161 일반화)
  *     C. 래퍼 충실도(runVhkCli)   — ANSI strip + 한글 본문 보존 + ✅/❌ prefix 유지
  *     D. 공유함수 패리티          — deploy/publish 가 CLI 와 동일한 공유 lib 결과를 표면화(#152 cross-단언)

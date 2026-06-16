@@ -1,7 +1,7 @@
 import type { Diagnostic } from '../types.js'
 
 // VHK 자체 MCP 서버의 등록 도구 수로 무결성 판정(Phase 2). 외부 서버 핑은 환경의존이라 별도.
-export function buildMcpDiag(toolCount: number, expected = 20): Diagnostic {
+export function buildMcpDiag(toolCount: number, expected = 30): Diagnostic {
   if (toolCount <= 0) {
     return { name: 'MCP', status: 'fail', value: '도구 0개', advice: 'MCP 서버 등록 깨짐 — vhk 재설치' }
   }
