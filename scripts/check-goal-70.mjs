@@ -52,9 +52,20 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 70 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 70 고유 검증 ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const srv = read('src/mcp/server.ts') ?? ''
+must(/export const HIGH_RISK_MCP_TOOLS/.test(srv), 'HIGH_RISK_MCP_TOOLS 레지스트리 export (risk_level SoT)')
+must(/'save'[\s\S]*?'undo'|'undo'[\s\S]*?'save'/.test(srv.split('HIGH_RISK_MCP_TOOLS')[1]?.slice(0, 120) ?? ''), '레지스트리에 save·undo')
+// save 가 confirm 옵트인(미리보기 기본) 가지는지 — confirm 파라미터 + 미실행 분기
+must(/async \(\{ message, confirm \}\)/.test(srv), 'save 핸들러 confirm 파라미터')
+must(/if \(!confirm\)[\s\S]*?미리보기/.test(srv), 'save confirm 없으면 미리보기 분기')
+must(/기존 tool API 시그니처 변경 0|message.*optional|optional.*message/.test(srv) || /message: z\.string\(\)\.optional/.test(srv), 'save message 시그니처 불변(additive)')
+// ADR + RULES.md 템플릿
+must(existsSync('docs/adr/ADR-005-mcp-high-risk-optin.md'), 'ADR-005 작성')
+must(/MCP 고위험 도구.*confirm|옵트인/.test(read('src/templates/rules-md.ts') ?? ''), 'RULES.md 템플릿 MCP 옵트인 섹션')
+// 회귀 가드 테스트 존재
+must(existsSync('tests/mcp-optin.test.ts'), 'mcp-optin 회귀 테스트')
 
 if (pass) { console.log('✅ goal 70 gate passes'); process.exit(0) }
 console.log('❌ goal 70 gate failed'); process.exit(1)

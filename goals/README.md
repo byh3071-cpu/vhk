@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 74 goal — DONE 65 · IN_PROGRESS 6 · NOT_STARTED 3
+> 총 74 goal — DONE 66 · IN_PROGRESS 6 · NOT_STARTED 2
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -77,7 +77,7 @@
 | 67 | vhk loop-brief — 토큰-부족 루프 1틱 최소 앵커 (의도+1goal+recall+STOP) -P1 | ✅ DONE | P1 |  |
 | 68 | vhk remind — 긴 세션 치명 규칙 재주입 (Fable 5 리마인더 시스템) | ✅ DONE | P2 |  |
 | 69 | vhk evolve — 부정 예시 자동 수집 (실패 패턴 → RULES.md ❌ 후보) | ✅ DONE | P2 |  |
-| 70 | MCP high-risk 도구 옵트인 정책 명문화 (deploy·publish류 명시 선택 강제) | ⬜ NOT_STARTED | P2 |  |
+| 70 | MCP high-risk 도구 옵트인 정책 명문화 (deploy·publish류 명시 선택 강제) | ✅ DONE | P2 |  |
 | 71 | vhk init — core-ruleset.yaml 마커블록 상속 (goal71) | ✅ DONE | P1 |  |
 | 72 | vhk secure — PAT-001/002/004 LLM 가드레일 검출 (goal72) | ✅ DONE | P1 |  |
 | 74 | vhk content — 풀사이클 뒷단 콘텐츠 트랙 (RFC 0052 첫 구현) | ✅ DONE | P2 |  |

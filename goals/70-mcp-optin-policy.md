@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 70
 title: MCP high-risk 도구 옵트인 정책 명문화 (deploy·publish류 명시 선택 강제)
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-16
 ---
@@ -37,11 +37,11 @@ MCP 도구에 `risk_level: 'high'` 메타데이터 + 호출 전 옵트인 확인
 
 ## Completion Check (착수 후)
 
-- [ ] `_meta` 모든 게이트 통과
-- [ ] `risk_level` 필드 도구 등록 + `confirm: true` gate 패턴
-- [ ] 기존 low-risk 도구 동작 무손상 (GA 안정성)
-- [ ] ADR 작성
-- [ ] init RULES.md 템플릿 MCP 옵트인 섹션
+- [x] `_meta` 모든 게이트 통과
+- [x] `risk_level` SoT(`HIGH_RISK_MCP_TOOLS` export) + `confirm: true` gate 패턴(save, undo 기존)
+- [x] 기존 low-risk 도구 동작 무손상 (GA 안정성 — 1724 pass, `message` 시그니처 불변·confirm additive)
+- [x] ADR 작성 (ADR-005)
+- [x] init RULES.md 템플릿 MCP 옵트인 섹션 (rules-md.ts 안전 규칙)
 
 ## Forbidden Actions (OUT)
 

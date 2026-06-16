@@ -19,6 +19,12 @@ import { resolveVhkCliInvocation, composeInvocation, type VhkCliInvocation } fro
 // dist/index.js 와 dist/mcp/index.js 둘 다 lib/version 의 candidate 경로로 해석됨.
 const SERVER_VERSION = getVhkVersion()
 
+// goal 70: MCP 고위험 도구 옵트인 정책의 단일 SoT(risk_level).
+// 상태변경·바깥행동(save=commit/push, undo=reset)을 하는 네이티브 핸들러는
+// confirm:true 명시 전 실제 실행을 거부하고 미리보기만 반환한다(PAT-003 — 되돌릴 수 없는 작업).
+// runVhkCli 위임 도구는 CLI guardCli 가 별도로 가드하므로 여기 포함하지 않는다.
+export const HIGH_RISK_MCP_TOOLS = new Set<string>(['save', 'undo'])
+
 // Goal 48: 세션 git 동작은 src/lib/git-session 의 함수를 공유한다(인라인 재구현 금지).
 // 레포 감지는 git-repo.isGitRepo(Goal 46 sync SoT)로 위임 — MCP 전용 재정의 제거.
 
@@ -88,12 +94,16 @@ export function createVhkMcpServer(): McpServer {
   server.registerTool(
     'save',
     {
-      description: '변경사항 저장 (git add → commit → push)',
+      description: '변경사항 저장 (git add → commit → push). 기본은 미리보기 — confirm:true 일 때만 실제 실행(고위험 옵트인).',
       inputSchema: {
         message: z.string().optional().describe('커밋 메시지 (비우면 자동 생성)'),
+        confirm: z
+          .boolean()
+          .optional()
+          .describe('true 일 때만 실제 commit/push 실행 (기본 false = 미리보기만 — goal 70 고위험 옵트인)'),
       },
     },
-    async ({ message }) => {
+    async ({ message, confirm }) => {
       const blocked = hardStopBlocked('save') // Goal 41: HARD_STOP 활성 시 commit/push 차단
       if (blocked) return blocked
       if (!isGitRepo()) {
@@ -138,6 +148,24 @@ export function createVhkMcpServer(): McpServer {
       const now = new Date()
       const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
       const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
+
+      // goal 70: 고위험 옵트인 — confirm:true 없으면 commit/push 하지 않고 미리보기만.
+      // 에이전트가 사람 승인 없이 원격에 push 하는 것을 차단(undo 와 동일 패턴, HIGH_RISK_MCP_TOOLS).
+      if (!confirm) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text:
+                `🔎 미리보기 — 저장 예정 ${files.length}개 파일:\n${files.map((f) => `  ${f}`).join('\n')}\n` +
+                `커밋 메시지: ${commitMsg}\n` +
+                `이후 원격 push 까지 진행됩니다.\n\n` +
+                `실제로 저장하려면 confirm: true 로 다시 호출하세요.\n` +
+                `또는 터미널에서 \`vhk save\` (CLI 확인 프롬프트).`,
+            },
+          ],
+        }
+      }
 
       const add = gitSession.stageAll()
       if (!add.ok) {
