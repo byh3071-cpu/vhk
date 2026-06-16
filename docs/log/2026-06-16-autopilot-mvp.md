@@ -32,3 +32,12 @@
 
 **참고 SoT:** 스펙 `docs/superpowers/specs/2026-06-16-vhk-autopilot-mvp-design.md` · 플랜 `docs/superpowers/plans/2026-06-16-vhk-autopilot-mvp.md` · 프로젝트 기억 `vhk-autopilot-dogfooding`(매 세션 자동 로드).
 **미커밋 작업 없음. 블로커 없음.**
+
+### 갱신 (2026-06-17) — 재개 1순위 = 2단계 스펙 작성
+- PR **#291** 생성됨(`feat/autopilot-mvp` → main, docs/skill only). CI 통과 시 머지.
+- **재개하면 가장 먼저 = 2단계 스펙 작성**(`autopilot-issue-pipeline`). 사용자 지시로 독푸딩보다 우선.
+  - 입력 SoT(이미 결정된 것): MVP 스펙 `§11 로드맵 표` + 적대검증 mustFixBeforeSpec —
+    gh safeExecFile·dedupe·rate-limit·undo 승인 패턴·secure 본문 강제·public app-bug 등록 금지·
+    CLI `vhk auto`(등록 7항+MCP 30→31)·MCP `vhk_auto`·`vhk review`/`mission check --json` 신규.
+  - 흐름: brainstorming 가볍게(결정 대부분 끝남) → 스펙 작성 → writing-plans.
+- 그 다음 순서: 독푸딩(Task 4 검증) → 2단계 구현.
