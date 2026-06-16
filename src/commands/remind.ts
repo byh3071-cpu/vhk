@@ -14,14 +14,14 @@ const CRITICAL_HEADER = /non-negotiable|절대\s*규칙|forbidden|전역\s*금�
 
 // 불릿 한 줄 → 치명 규칙 핵심. 선행 '-/*' 와 후행 괄호주석(가드#·이유 등 메타)을 떼어
 // 1번째 턴과 100번째 턴이 같은 무게로 읽히는 최소 포맷으로 압축(원문 보존 아닌 핵심).
-function compressRule(line: string): string {
+export function compressRule(line: string): string {
   return line
     .replace(/^\s*[-*]\s+/, '')
     .replace(/\s*\([^)]*\)\s*$/, '')
     .trim()
 }
 
-function extractCriticalRules(content: string): string[] {
+export function extractCriticalRules(content: string): string[] {
   return parseRulesMd(content)
     .filter((s) => CRITICAL_HEADER.test(s.title))
     .flatMap((s) => s.content.split('\n'))

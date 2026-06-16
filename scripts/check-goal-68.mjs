@@ -64,6 +64,7 @@ must(/non-negotiable|절대\s*규칙|forbidden|전역\s*금지/i.test(rm), '치�
 must(/remind/.test(read('src/index.ts') ?? '') && /리마인드/.test(read('src/index.ts') ?? ''), 'index.ts 등록 + 한글별칭')
 must(/remind/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry 등록')
 must(/'remind'/.test(read('src/lib/nlp-router.ts') ?? ''), 'nlp-router 등록')
+must(/case 'remind'/.test(read('src/lib/nlp-run.ts') ?? ''), 'nlp-run dispatch case 등록')
 const cliArgs = read('src/lib/cli-args.ts') ?? ''
 must(/'remind'/.test(cliArgs) && /'리마인드'/.test(cliArgs), 'cli-args KNOWN_COMMAND_TOKENS + 한글별칭')
 must(/remind/.test(read('src/i18n/ko.ts') ?? ''), 'ko.ts remind 메시지 키')

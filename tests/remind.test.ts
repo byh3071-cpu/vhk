@@ -72,3 +72,36 @@ describe('remind (goal 68)', () => {
     expect(writtenMd()).toContain('치명 규칙 섹션 없음')
   })
 })
+
+// 순수함수 직접 검증 — mock fs 우회. 리뷰 확정(엣지 미검증) 보강 + 현 동작 핀(pin).
+describe('remind 순수함수 — compressRule / extractCriticalRules (goal 68)', () => {
+  it('compressRule: 단일 후행 괄호주석 제거', async () => {
+    const { compressRule } = await import('../src/commands/remind.js')
+    expect(compressRule('- publish 는 main 에서만 (가드 #119)')).toBe('publish 는 main 에서만')
+  })
+
+  it('compressRule: 중첩 괄호로 끝나면 보존(원문 유지 — 안전한 fail-open) [동작 핀]', async () => {
+    const { compressRule } = await import('../src/commands/remind.js')
+    // [^)]* 가 안쪽 ) 에서 멈춰 $ 앵커 불일치 → 후행 통째 보존. 실 RULES.md 엔 중첩괄호 규칙 없음.
+    expect(compressRule('- 토큰 노출 금지 (예: key (sk-...) 평문)')).toBe('토큰 노출 금지 (예: key (sk-...) 평문)')
+  })
+
+  it('extractCriticalRules: CRLF 입력에서도 \\r 잔존 없이 추출', async () => {
+    const { extractCriticalRules } = await import('../src/commands/remind.js')
+    const out = extractCriticalRules('# t\r\n\r\n## Forbidden\r\n\r\n- 규칙A\r\n- 규칙B\r\n')
+    expect(out).toEqual(['규칙A', '규칙B'])
+  })
+
+  it('extractCriticalRules: 여러 치명섹션(Forbidden+절대규칙+전역금지) 동시 추출', async () => {
+    const { extractCriticalRules } = await import('../src/commands/remind.js')
+    const md = '# t\n\n## Forbidden\n- A\n\n## 절대 규칙\n- B\n\n## 전역 금지\n- C\n'
+    expect(extractCriticalRules(md)).toEqual(['A', 'B', 'C'])
+  })
+
+  it('extractCriticalRules: 치명섹션 내 레벨3(###) 하위 불릿도 흡수됨 [동작 핀 — parseRulesMd 가 ## 만 분할]', async () => {
+    const { extractCriticalRules } = await import('../src/commands/remind.js')
+    // 향후 의도 변경 시 이 핀이 깨져 결정을 강제한다(현재는 흡수 = 과다포함 가능성 인지).
+    const md = '# t\n\n## Forbidden\n- A\n\n### 하위메모\n- B\n\n## 코딩 규칙\n- 비치명\n'
+    expect(extractCriticalRules(md)).toEqual(['A', 'B'])
+  })
+})
