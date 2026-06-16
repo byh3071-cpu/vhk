@@ -52,9 +52,21 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 67 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 67 고유 검증 ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const lb = read('src/commands/loop-brief.ts') ?? ''
+must(existsSync('src/commands/loop-brief.ts'), 'loop-brief.ts 존재')
+must(/export function loopBrief/.test(lb), 'loopBrief export')
+must(/LOOP_BRIEF_PATH/.test(lb), '.vhk/loop-brief.md 경로 상수')
+must(/readVisionWhat/.test(lb), 'VISION.md 파싱 함수')
+must(/isHardStopActive/.test(lb), 'HARD_STOP 체크')
+must(/getActiveBlockers/.test(lb), '블로커 체크')
+must(/recallForAction/.test(lb), 'recall 교훈 주입')
+must(/(loop-brief)/.test(read('src/index.ts') ?? ''), 'index.ts 등록')
+must(/(loop-brief)/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry 등록')
+must(/(loop-brief)/.test(read('src/lib/nlp-router.ts') ?? ''), 'nlp-router 등록')
+must(/(loop-brief)/.test(read('COMMANDS.md') ?? ''), 'COMMANDS.md 문서화')
+must(/(loop-brief)/.test(read('src/mcp/server.ts') ?? ''), 'MCP server 등록')
 
 if (pass) { console.log('✅ goal 67 gate passes'); process.exit(0) }
 console.log('❌ goal 67 gate failed'); process.exit(1)

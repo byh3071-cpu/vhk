@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 67
 title: vhk loop-brief — 토큰-부족 루프 1틱 최소 앵커 (의도+1goal+recall+STOP) -P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-13
 depends_on: [66]
