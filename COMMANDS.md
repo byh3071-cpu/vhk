@@ -173,6 +173,7 @@ vhk doctor
 | `vhk memory` | 기억 관리 v2 (decisions/failures/successes) |
 | `vhk recall` | 기억 회상 (자연어 키워드 검색 — RFC 0049) |
 | `vhk brief` | 프로젝트 요약 보고서 생성 |
+| `vhk loop-brief` | 루프 1틱 앵커 생성 (의도+goal1+교훈+STOP → `.vhk/loop-brief.md`) |
 | `vhk work` | AI 작업 시작/이어하기 (+ handoff) |
 | `vhk goal` | Goal 단계별 미션 관리 |
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |

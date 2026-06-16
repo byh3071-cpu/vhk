@@ -40,13 +40,14 @@ const EXPECTED_TOOLS = [
   'sync', 'secure', 'audit', 'harness', 'context', 'brief', 'deploy', 'publish', 'migrate', 'update',
   'ref-list', 'memory-list', 'learn', 'context-show', 'mcp-init',
   'pattern-detect', 'pattern-list', 'evolve-suggest', 'evolve-list',
+  'loop-brief',
 ].slice().sort()
 
 describe('MCP↔CLI 계약 — A. 레지스트리 정확 셋', () => {
-  it('등록 도구가 정확히 29개이며 기대 셋과 일치 (우발 추가/삭제 봉쇄)', async () => {
+  it('등록 도구가 정확히 30개이며 기대 셋과 일치 (우발 추가/삭제 봉쇄)', async () => {
     const names = (await getRegisteredToolNames()).slice().sort()
     expect(names).toEqual(EXPECTED_TOOLS)
-    expect(names.length).toBe(29)
+    expect(names.length).toBe(30)
   })
 })
 
@@ -62,6 +63,7 @@ const DELEGATIONS: Array<{ tool: string; args?: Record<string, unknown>; cli: st
   { tool: 'harness', cli: ['harness'] },
   { tool: 'context', cli: ['context'] },
   { tool: 'brief', cli: ['brief'] },
+  { tool: 'loop-brief', cli: ['loop-brief'] },
   { tool: 'ref-list', cli: ['ref', 'list'] },
   { tool: 'memory-list', cli: ['memory', 'list'] },
   { tool: 'context-show', cli: ['context-show'] },

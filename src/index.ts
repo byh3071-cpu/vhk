@@ -37,6 +37,7 @@ import { context, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, memoryRecall } from './commands/memory.js'
 import { memoryEval } from './commands/memory-eval.js'
 import { brief } from './commands/brief.js'
+import { loopBrief } from './commands/loop-brief.js'
 import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
 import { QUICK_ACTIONS } from './commands/help.js'
@@ -699,6 +700,12 @@ program
   .alias('브리핑')
   .description('프로젝트 상태 요약 보고서 생성 (.vhk/brief.md)')
   .action(async () => { await brief() })
+
+program
+  .command('loop-brief')
+  .alias('루프브리핑')
+  .description('루프 1틱 앵커 생성 (.vhk/loop-brief.md) — 의도+goal1+교훈+STOP')
+  .action(() => { loopBrief() })
 
 // AI 작업 세션 이어받기/인수인계 — 상태 수집 + Claude 에게 줄 프롬프트를 클립보드에 복사.
 const workCmd = program

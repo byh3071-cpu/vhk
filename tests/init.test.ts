@@ -12,6 +12,7 @@ const EXPECTED_FILES = [
   '.cursorrules',
   'RULES.md',
   'docs/PRD.md',
+  'VISION.md',
   'docs/ARCHITECTURE.md',
   'docs/adr/ADR-000-template.md',
   'docs/log/.gitkeep',

@@ -555,6 +555,13 @@ export function createVhkMcpServer(): McpServer {
     async () => runVhkCli(['brief'], 'brief')
   )
 
+  // ─── loop-brief ─────────────────────────────────────────
+  server.registerTool(
+    'loop-brief',
+    { description: '루프 1틱 앵커(.vhk/loop-brief.md) 생성 — 의도(VISION)+활성goal+관련교훈+STOP조건' },
+    async () => runVhkCli(['loop-brief'], 'loop-brief')
+  )
+
   // ─── deploy ─────────────────────────────────────────────
   // 실제 배포는 inquirer 프롬프트가 필수이므로 MCP 모드에서는 정보 조회만 제공.
   server.registerTool(
