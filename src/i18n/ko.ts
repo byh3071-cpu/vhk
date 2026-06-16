@@ -508,6 +508,7 @@ export const ko = {
   },
   evolve: {
     suggestTitle: '진화 제안 생성',
+    negativesTitle: '부정 예시 수집 (❌ 후보)',
     listTitle: '진화 후보 목록',
     applyTitle: '룰 반영',
     rejectTitle: '후보 기각',

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { atomicWriteFile } from '../lib/atomic-write.js'
@@ -7,7 +7,7 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureInteractive } from '../lib/interactive.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
-import { readMemory, loadForMutation, writeMemory } from './memory.js'
+import { readMemory, loadForMutation, writeMemory, type FailEntry } from './memory.js'
 import { sync } from './sync.js'
 import type { PatternEntryV19 } from './pattern.js'
 
@@ -249,7 +249,100 @@ export function checkApplyRef(
   return hasApplied ? 'already-applied' : 'dismissed'
 }
 
+// ── goal 69: 부정 예시 수집(❌ 후보) — 순수 함수 ─────────────────────────────────
+// 출처: Fable5 "부정 예시 설계" — 실패가 자산. ✅/❌ 쌍에서 ❌(하지 마라) 쪽을 실패 기록에서 자동 수집.
+
+const NEGATIVES_PATH = join('.vhk', 'negative-candidates.md')
+
+/** 실패 교훈 1건 → "❌ 하지 마라: <행동> — 이유: <원인>". content 비면 lesson→id 폴백. */
+export function buildNegativeFromFailure(e: FailEntry): string {
+  const action = (e.content || e.lesson || e.id || '').split('\n')[0].trim()
+  const why = (e.why || '').split('\n')[0].trim()
+  return why ? `❌ 하지 마라: ${action} — 이유: ${why}` : `❌ 하지 마라: ${action}`
+}
+
+/** 트러블슈팅 문서 본문에서 첫 H1 제목 추출(없으면 null). */
+export function extractTsTitle(content: string): string | null {
+  const m = /^#\s+(.+)$/m.exec(content)
+  return m ? m[1].trim() : null
+}
+
+export interface TsNegative {
+  id: string
+  title: string
+}
+
+/** failures + troubleshooting → ❌ 후보 마크다운 본문(순수·결정적, 타임스탬프는 핸들러가 주입). */
+export function renderNegativeCandidates(failures: FailEntry[], ts: TsNegative[]): string {
+  const lines: string[] = []
+  lines.push('## memory failures 버킷')
+  lines.push('')
+  if (failures.length) failures.forEach((f) => lines.push(`- ${buildNegativeFromFailure(f)}`))
+  else lines.push('- (수집된 실패 교훈 없음 — `vhk learn` 으로 실패 기록 시 채워짐)')
+  lines.push('')
+  lines.push('## docs/troubleshooting')
+  lines.push('')
+  if (ts.length) ts.forEach((t) => lines.push(`- ❌ 반복 금지: ${t.title} (출처: ${t.id})`))
+  else lines.push('- (트러블슈팅 기록 없음)')
+  return lines.join('\n')
+}
+
 // ── 커맨드 핸들러 ──────────────────────────────────────────────────────────────
+
+/**
+ * goal 69: vhk evolve negatives — 실패 패턴 → RULES.md ❌ 예시 후보 제안.
+ * 수집원: memory failures 버킷 + docs/troubleshooting/TS-NNN. 출력: .vhk/negative-candidates.md.
+ * **RULES.md 자동 편집 0** — 후보 제안만(사람 검토 후 직접 추가). 빈 입력도 graceful.
+ */
+export function evolveNegatives(): void {
+  const cwd = process.cwd()
+  const failures = readMemory(cwd).failures
+
+  const ts: TsNegative[] = []
+  const tsDir = join(cwd, 'docs', 'troubleshooting')
+  try {
+    if (existsSync(tsDir)) {
+      for (const f of readdirSync(tsDir)) {
+        if (!/^TS-\d+.*\.md$/i.test(f)) continue
+        try {
+          const title = extractTsTitle(readFileSync(join(tsDir, f), 'utf-8'))
+          const id = /^(TS-\d+)/i.exec(f)?.[1] ?? f
+          if (title) ts.push({ id, title })
+        } catch {
+          /* 개별 파일 읽기 실패 — 건너뜀 */
+        }
+      }
+    }
+  } catch {
+    /* 디렉토리 읽기 실패 — graceful(빈 ts) */
+  }
+
+  const header = [
+    '# Negative Candidates — ❌ 예시 후보',
+    '',
+    '> ⚠️ 자동 제안일 뿐 — RULES.md 를 자동 편집하지 않는다. 사람이 검토 후 직접 추가.',
+    `> 생성: ${new Date().toLocaleString('ko-KR')}`,
+    '',
+  ].join('\n')
+  const content = header + renderNegativeCandidates(failures, ts) + '\n'
+
+  try {
+    if (!existsSync(join(cwd, '.vhk'))) mkdirSync(join(cwd, '.vhk'), { recursive: true })
+    writeFileSync(join(cwd, NEGATIVES_PATH), content, 'utf-8')
+  } catch {
+    /* 쓰기 실패 → stdout 만 */
+  }
+
+  console.log(chalk.bold('\n🚫 ' + t('evolve.negativesTitle')))
+  console.log(chalk.gray('─'.repeat(40)))
+  console.log(content)
+  console.log(chalk.gray(`\n📄 저장: ${NEGATIVES_PATH}`))
+  printNextStep({
+    message: '검토 후 유효한 ❌ 예시만 RULES.md 에 직접 추가하세요 (자동 편집 안 함).',
+    command: 'vhk sync',
+    cursorHint: 'RULES.md 에 부정 예시 추가해줘',
+  })
+}
 
 export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void> {
   const cwd = process.cwd()
