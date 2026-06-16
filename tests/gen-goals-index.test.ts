@@ -90,8 +90,11 @@ describe('gen-goals-index e2e', () => {
   // stale 봉쇄(#6): 커밋된 goals/README.md 가 재생성 결과와 동일해야 한다.
   // 깨지면 `node scripts/gen-goals-index.mjs` 재실행 후 커밋.
   it('커밋된 goals/README.md == 재생성 결과 (드리프트 0)', () => {
+    // 줄바꿈 정규화: Windows autocrlf 가 작업트리를 CRLF 로 체크아웃 → 스크립트의 LF 출력과
+    // 내부 줄바꿈이 어긋난다(.trim 은 내부 \r 못 지움). 비교 전 \r 제거로 크로스플랫폼 견고.
+    const norm = (s: string) => s.replace(/\r\n/g, '\n').trim()
     const committed = fs.readFileSync(path.join(process.cwd(), 'goals', 'README.md'), 'utf-8')
     const fresh = buildGoalsIndex(collectGoals('goals'))
-    expect(committed.trim()).toBe(fresh.trim())
+    expect(norm(committed)).toBe(norm(fresh))
   })
 })
