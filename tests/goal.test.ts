@@ -530,13 +530,16 @@ describe('NL goal sync 라우팅+디스패치 (Codex #1 회귀)', () => {
     expect(r?.args).toEqual(['check'])
   })
 
+  // 이 테스트가 파일 내에서 nlp-run.js 를 첫 import → 콜드 transform/import 비용이
+  // 이 테스트의 타임아웃에 전가된다. Windows+node22 느린 러너에서 기본 5s 초과(flaky,
+  // PR #291 CI 발견). 로직 자체는 순수·즉시이므로 콜드 import 여유만 부여(원인=타임아웃 과소).
   it('goal sync 자연어는 파일 쓰기 전에 confirmation 대상', async () => {
     const { routeNaturalLanguage } = await import('../src/lib/nlp-router.js')
     const { requiresConfirmation } = await import('../src/lib/nlp-run.js')
     const r = routeNaturalLanguage('게이트 스크립트 동기화')
     expect(r).not.toBeNull()
     expect(requiresConfirmation(r!)).toBe(true)
-  })
+  }, 20000)
 
   it('dispatchNlpRoute goal/sync → goalSync 실행(스크립트 생성), goalList 아님', async () => {
     const dir = tmpProject('nl-sync')

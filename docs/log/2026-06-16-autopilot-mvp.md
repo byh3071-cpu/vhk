@@ -41,3 +41,9 @@
     CLI `vhk auto`(등록 7항+MCP 30→31)·MCP `vhk_auto`·`vhk review`/`mission check --json` 신규.
   - 흐름: brainstorming 가볍게(결정 대부분 끝남) → 스펙 작성 → writing-plans.
 - 그 다음 순서: 독푸딩(Task 4 검증) → 2단계 구현.
+
+## 독푸딩 첫 발견 (2026-06-17) — flaky 테스트 (tool-gap)
+- PR #291 CI(windows-latest, node22)에서 `tests/goal.test.ts:533 "goal sync 자연어는 파일 쓰기 전에 confirmation 대상"` **5초 타임아웃 flaky** 발견(win-22 2회 연속, win-24·ubuntu 통과).
+- **근본원인:** 이 테스트가 파일 내 `nlp-run.js` 첫 import → 콜드 transform/import 비용(파일 import 24s)이 5초 타임아웃 테스트에 전가, 느린 win-22에서 초과. 로직 자체는 순수·즉시.
+- **fix:** 해당 테스트 타임아웃 20000ms + why-comment. 로컬 통과(1.04s). (증상패치 아님 — 원인=타임아웃 과소)
+- **분류:** VHK 본체 tool-gap(테스트 인프라). autopilot docs PR과 무관, main에도 있던 기존 결함. **독푸딩이 잡은 첫 실제 버그.**
