@@ -18,3 +18,17 @@
 ## 다음
 - 독푸딩: POS 프로젝트에서 `/vhk-auto` 1회 호출 → 수용기준(스펙 §10) 검증.
 - 검증되면 2단계 스펙(`...-issue-pipeline-design.md`) 착수.
+
+## 핸드오프 (2026-06-17 — 독푸딩 보류, 나중에 재개)
+**상태:** 1단계 MVP 구현·커밋 완료. 브랜치 `feat/autopilot-mvp` (main +5, 미푸시·미머지, 작업트리 클린).
+독푸딩은 사용자가 나중에 하기로 → 이번엔 미실행.
+
+**재개 순서 (다음 세션):**
+1. `git checkout feat/autopilot-mvp` → `/vhk-auto` 가 글로벌(`~/.claude/skills/vhk-auto/`)에 설치돼 있음(확인: `Test-Path $env:USERPROFILE\.claude\skills\vhk-auto\SKILL.md`).
+2. **Task 4 독푸딩** — POS 프로젝트에서 `/vhk-auto` 1회 호출 → INV 준수 4개 관찰(플랜 Task 4 Step 3):
+   ① verify red인데 commit 0  ② `gh issue create` 호출 0  ③ critical 시 `.vhk/HARD_STOP` 생성  ④ commit이 check-records에 안 막힘.
+3. 검증 OK → `feat/autopilot-mvp` PR 머지(PR 경유, 사람 승인). 위반 발견 → SKILL.md 수정 후 재검증.
+4. 그 다음 → 2단계 스펙 착수.
+
+**참고 SoT:** 스펙 `docs/superpowers/specs/2026-06-16-vhk-autopilot-mvp-design.md` · 플랜 `docs/superpowers/plans/2026-06-16-vhk-autopilot-mvp.md` · 프로젝트 기억 `vhk-autopilot-dogfooding`(매 세션 자동 로드).
+**미커밋 작업 없음. 블로커 없음.**
