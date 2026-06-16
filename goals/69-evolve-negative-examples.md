@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 69
 title: vhk evolve — 부정 예시 자동 수집 (실패 패턴 → RULES.md ❌ 후보)
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-16
 ---
@@ -29,11 +29,11 @@ created: 2026-06-16
 
 ## Completion Check (착수 후)
 
-- [ ] `_meta` 모든 게이트 통과
-- [ ] `vhk evolve` 기존 동작 무손상
-- [ ] failures 버킷 + troubleshooting/ 추출 → `.vhk/negative-candidates.md` 생성
-- [ ] RULES.md 자동 편집 0 (후보만, 사람 확인)
-- [ ] 빈 failures 버킷 시 graceful
+- [x] `_meta` 모든 게이트 통과
+- [x] `vhk evolve` 기존 동작 무손상 (신규 `negatives` 서브커맨드만 추가, 기존 API 불변)
+- [x] failures 버킷 + troubleshooting/ 추출 → `.vhk/negative-candidates.md` 생성
+- [x] RULES.md 자동 편집 0 (후보만, 사람 확인 — `vhk evolve negatives` 는 write 안 함)
+- [x] 빈 failures 버킷 시 graceful (renderNegativeCandidates 빈 입력 안내)
 
 ## Forbidden Actions (OUT)
 

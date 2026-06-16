@@ -52,9 +52,23 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 69 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 69 고유 검증 ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const ev = read('src/commands/evolve.ts') ?? ''
+must(/export function evolveNegatives/.test(ev), 'evolveNegatives export')
+must(/export function buildNegativeFromFailure/.test(ev), 'buildNegativeFromFailure 순수함수')
+must(/export function renderNegativeCandidates/.test(ev), 'renderNegativeCandidates 순수함수')
+must(/export function extractTsTitle/.test(ev), 'extractTsTitle 순수함수')
+must(/NEGATIVES_PATH/.test(ev), '.vhk/negative-candidates.md 경로 상수')
+must(/readMemory\(cwd\)\.failures/.test(ev), 'memory failures 버킷 수집')
+must(/troubleshooting/.test(ev), 'docs/troubleshooting 수집원')
+// RULES.md 자동 편집 0 — negatives 핸들러는 후보만 제안(RULES.md write 금지). 카드 Forbidden.
+must(!/evolveNegatives[\s\S]*?writeFileSync\([^)]*RULES\.md/.test(ev), 'negatives 가 RULES.md 자동편집 안 함')
+// 등록 — index(서브커맨드+한글별칭)·command-registry(컨테이너 서브)·ko.ts·COMMANDS
+must(/negatives/.test(read('src/index.ts') ?? '') && /부정예시/.test(read('src/index.ts') ?? ''), 'index.ts 서브커맨드 + 한글별칭')
+must(/'negatives'/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry evolve 서브커맨드 등록')
+must(/negativesTitle/.test(read('src/i18n/ko.ts') ?? ''), 'ko.ts negativesTitle 메시지 키')
+must(/vhk evolve negatives/.test(read('COMMANDS.md') ?? ''), 'COMMANDS.md 문서화')
 
 if (pass) { console.log('✅ goal 69 gate passes'); process.exit(0) }
 console.log('❌ goal 69 gate failed'); process.exit(1)
