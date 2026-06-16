@@ -147,12 +147,12 @@ export function renderCoreRuleset(loaded: LoadedCoreRuleset): string {
 
   // 4. 판단·라우팅
   if (data.judgment_routing) {
-    sections.push(`## 4. 판단·라우팅\n\n${kvItems(data.judgment_routing as Record<string, string>)}`)
+    sections.push(`## 4. 판단·라우팅\n\n${kvItems(data.judgment_routing)}`)
   }
 
   // 5. 안전
   if (data.safety) {
-    sections.push(`## 5. 안전\n\n${kvItems(data.safety as Record<string, string>)}`)
+    sections.push(`## 5. 안전\n\n${kvItems(data.safety)}`)
   }
 
   // 6. 비용·효율
