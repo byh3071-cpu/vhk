@@ -53,8 +53,17 @@ if (!skipDeep) {
 }
 
 // ─── goal 66 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => (existsSync(p) ? readFileSync(p, 'utf-8') : null)
+const vision = read('src/templates/vision.ts') ?? ''
+must(existsSync('src/templates/vision.ts'), 'vision.ts 존재')
+must(/export function VISION_TEMPLATE/.test(vision), 'VISION_TEMPLATE export')
+must(/## What/.test(vision), 'What 섹션')
+must(/## Definition of Done/.test(vision), 'Definition of Done 섹션')
+must(/## Non-goals/.test(vision), 'Non-goals 섹션')
+must(/## Loop Anchor/.test(vision), 'Loop Anchor 섹션')
+must(/VISION\.md/.test(read('src/commands/init.ts') ?? ''), 'init 이 VISION.md 생성')
+must(existsSync('VISION.md'), '레포 루트 도그푸딩 VISION.md 존재')
+must(/## Loop Anchor/.test(read('VISION.md') ?? ''), '도그푸딩 VISION.md 에 Loop Anchor 섹션')
 
 if (pass) { console.log('✅ goal 66 gate passes'); process.exit(0) }
 console.log('❌ goal 66 gate failed'); process.exit(1)

@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 66
 title: VISION.md 북극성 앵커 — 루프 매-틱 의도 고정 (init 템플릿 + 도그푸딩) -P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-13
 leads_to: 67
