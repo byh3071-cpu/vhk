@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 68 goal — DONE 58 · IN_PROGRESS 6 · NOT_STARTED 4
+> 총 70 goal — DONE 62 · IN_PROGRESS 6 · NOT_STARTED 2
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -73,5 +73,7 @@
 | 63 | vhk sync --check — 8개 sync 타겟 전체 drift 검사 모드 (쓰기 0) — P1 | ✅ DONE | P1 | 규칙 단일소스 무탐지 붕괴 차단 · check-rules-sync(CLAUDE.md 1타겟 한정) 대체/보완 |
 | 64 | COMMANDS.md 전 명령 문서화 + registry 기반 게이트 --strict 승격 — P1 | ✅ DONE | P1 | 만들어놓고 사용자가 모르는 명령 0 · 신규 명령 문서 누락 CI 차단 |
 | 65 | pre-commit L2 기록 집행 — 조건부(우회 실측 시에만 착수) — P2 | ⬜ NOT_STARTED | P2 | 기록 집행 우회 경로 0 (ADR-001 L2 트리거 이행) |
-| 66 | VISION.md 북극성 앵커 — 루프 매-틱 의도 고정 (init 템플릿 + 도그푸딩) -P1 | ⬜ NOT_STARTED | P1 | 67 |
-| 67 | vhk loop-brief — 토큰-부족 루프 1틱 최소 앵커 (의도+1goal+recall+STOP) -P1 | ⬜ NOT_STARTED | P1 |  |
+| 66 | VISION.md 북극성 앵커 — 루프 매-틱 의도 고정 (init 템플릿 + 도그푸딩) -P1 | ✅ DONE | P1 | 67 |
+| 67 | vhk loop-brief — 토큰-부족 루프 1틱 최소 앵커 (의도+1goal+recall+STOP) -P1 | ✅ DONE | P1 |  |
+| 71 | vhk init — core-ruleset.yaml 마커블록 상속 (goal71) | ✅ DONE | P1 |  |
+| 72 | vhk secure — PAT-001/002/004 LLM 가드레일 검출 (goal72) | ✅ DONE | P1 |  |

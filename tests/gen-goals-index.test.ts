@@ -86,4 +86,12 @@ describe('gen-goals-index e2e', () => {
     expect(rows.length).toBeGreaterThanOrEqual(60)
     fs.rmSync(tmpOut, { force: true })
   })
+
+  // stale 봉쇄(#6): 커밋된 goals/README.md 가 재생성 결과와 동일해야 한다.
+  // 깨지면 `node scripts/gen-goals-index.mjs` 재실행 후 커밋.
+  it('커밋된 goals/README.md == 재생성 결과 (드리프트 0)', () => {
+    const committed = fs.readFileSync(path.join(process.cwd(), 'goals', 'README.md'), 'utf-8')
+    const fresh = buildGoalsIndex(collectGoals('goals'))
+    expect(committed.trim()).toBe(fresh.trim())
+  })
 })

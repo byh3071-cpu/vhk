@@ -181,7 +181,7 @@ vhk mcp
 | 영역 | 명령 | 용도 |
 | --- | --- | --- |
 | 시작 | `vhk`, `vhk gate`, `vhk start`, `vhk init` | 메뉴, 아이디어 검증, 새 프로젝트 마법사, 하네스 초기화 |
-| 규칙/맥락 | `vhk sync`, `vhk context`, `vhk context-show`, `vhk brief`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, 세션 시작/인수인계 |
+| 규칙/맥락 | `vhk sync`, `vhk context`, `vhk context-show`, `vhk brief`, `vhk loop-brief`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, 루프 1틱 의도 앵커, 세션 시작/인수인계 |
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 드리프트 관리 |
 | Trust | `vhk verify`, `vhk review`, `vhk preflight`, `vhk testmap`, `vhk mission set/check/clear` | 증거 생성, 거짓완료 탐지, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
 | 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan` | HARD_STOP, safety mode, 시크릿 스캔 |
