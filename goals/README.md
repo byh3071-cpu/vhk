@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 70 goal — DONE 62 · IN_PROGRESS 6 · NOT_STARTED 2
+> 총 73 goal — DONE 62 · IN_PROGRESS 6 · NOT_STARTED 5
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -75,5 +75,8 @@
 | 65 | pre-commit L2 기록 집행 — 조건부(우회 실측 시에만 착수) — P2 | ⬜ NOT_STARTED | P2 | 기록 집행 우회 경로 0 (ADR-001 L2 트리거 이행) |
 | 66 | VISION.md 북극성 앵커 — 루프 매-틱 의도 고정 (init 템플릿 + 도그푸딩) -P1 | ✅ DONE | P1 | 67 |
 | 67 | vhk loop-brief — 토큰-부족 루프 1틱 최소 앵커 (의도+1goal+recall+STOP) -P1 | ✅ DONE | P1 |  |
+| 68 | vhk remind — 긴 세션 치명 규칙 재주입 (Fable 5 리마인더 시스템) | ⬜ NOT_STARTED | P2 |  |
+| 69 | vhk evolve — 부정 예시 자동 수집 (실패 패턴 → RULES.md ❌ 후보) | ⬜ NOT_STARTED | P2 |  |
+| 70 | MCP high-risk 도구 옵트인 정책 명문화 (deploy·publish류 명시 선택 강제) | ⬜ NOT_STARTED | P2 |  |
 | 71 | vhk init — core-ruleset.yaml 마커블록 상속 (goal71) | ✅ DONE | P1 |  |
 | 72 | vhk secure — PAT-001/002/004 LLM 가드레일 검출 (goal72) | ✅ DONE | P1 |  |

@@ -150,9 +150,9 @@ tags: [process, constitution]
 
 **마지막 갱신:** 2026-06-16
 - **버전:** v2.6.0 (npm 발행 대기 — 사용자 직접 publish 필요) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 1691 pass(feat/goal-66-67) · **MCP tools:** 30 — 사실값은 package.json·CHANGELOG
-- **Phase:** 루프 엔지니어링 스프린트 완료(goal66+67). goal71·72(core-ruleset+LLM가드) 노트북→집컴 동기화·백필 완료. enforce_admins=true 브랜치 보호 강화.
+- **테스트:** 1708 pass(main) · **MCP tools:** 30 — 사실값은 package.json·CHANGELOG
+- **Phase:** goal66+67(루프 엔지니어링) 머지 완료(#273) — 적대 리뷰 14건 수정 동반. goal71·72 머지(#277). PR #280(PRD 풀사이클 하네스) 머지됨.
 - **블로커:** 없음
-- **진행 중(미완):** PR #273(goal66+67) CI 확인 후 squash merge 필요 — 사용자 직접. PR #278(goal68~70 번호 구멍 백필) 병행 확인.
-- **다음 할 일:** PR #273 머지 → v2.6.0 main 발행(사용자 직접 npm publish 2FA). measure-first 사람 게이트: `vhk recall` 며칠 실사용 → recall@5 측정. 미완 goal: 린트 25/27(#128)·SEO 21~26. goal 73(#276, check --evals LLM-judge) 다음 세션.
+- **진행 중(미완):** PR #278(goal68~70 번호 구멍 백필) CI 확인 후 머지 — rebase+README 재생성 완료, CI 대기.
+- **다음 할 일:** v2.6.0 main 발행(사용자 직접 npm publish 2FA). measure-first 사람 게이트: `vhk recall` 며칠 실사용 → recall@5 측정. 미완 goal: 68~70 착수 대기·린트 25/27(#128)·SEO 21~26·goal 73(#276, check --evals LLM-judge).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유
