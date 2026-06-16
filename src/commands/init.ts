@@ -17,6 +17,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
+import { generateCoreRulesContent } from '../lib/core-rules.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
 import { readJsonFile } from '../lib/read-json.js'
@@ -336,6 +337,8 @@ export function generateFiles(
     '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack),
     '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),
     '.vhkignore': VHK_IGNORE_TEMPLATE(),
+    // core-ruleset 마커블록 상속 — PRIVATE_RULES_ROOT 있으면 라이브, 없으면 번들 스냅샷
+    '.agents/CORE-RULES.md': generateCoreRulesContent(null),
   }
 }
 
