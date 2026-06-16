@@ -153,6 +153,20 @@ vhk evolve list
 
 `pattern`은 반복되는 실패/성공 신호를 찾고, `evolve`는 사람이 승인할 수 있는 RULES.md 후보를 만듭니다. 자동 적용이 아니라 diff와 확인을 거치는 구조입니다.
 
+## 🤖 오토파일럿 스킬 `/vhk-auto` (1단계 MVP)
+
+VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 보고**하는 클로드 코드 스킬입니다.
+
+- 호출: 클로드 코드에서 `/vhk-auto` (또는 "오토파일럿으로 한 바퀴 돌려").
+- 하는 일: 앵커 재주입(`loop-brief`+`remind`) → 개발(TDD) → `vhk verify` 결정론 게이트
+  → `/code-review` 적대검증 → 합격 시 작은 commit → 끝나면 핵심 보고.
+- **안전(1단계 한계)**: 외부 발송·이슈 등록·`gh` 호출을 **하지 않습니다.** commit만 자동(push·PR·publish 금지).
+  문제는 "이슈 초안 텍스트"로만 보고하고, 실제 GitHub 등록은 2단계 `vhk auto` 명령(예정)이 맡습니다.
+- 설치: 다른 프로젝트에서 쓰려면 글로벌 `~/.claude/skills/vhk-auto/`에 이 스킬이 복제돼 있어야 합니다.
+
+> 2단계 로드맵: CLI `vhk auto` + MCP `vhk_auto`로 승격 시 이슈 자동등록(safeExecFile gh·dedupe·
+> undo 승인 패턴·secure 강제)이 결정론 코드로 추가됩니다.
+
 ## MCP 30 tools
 
 `vhk mcp-init`으로 MCP 설정을 만들고, MCP 클라이언트는 `vhk mcp` stdio 서버를 통해 아래 도구를 호출합니다.
