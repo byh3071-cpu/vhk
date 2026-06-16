@@ -150,9 +150,9 @@ tags: [process, constitution]
 
 **마지막 갱신:** 2026-06-16
 - **버전:** v2.6.0 (npm 발행 대기 — 사용자 직접 publish 필요) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 1708 pass(main) · **MCP tools:** 30 — 사실값은 package.json·CHANGELOG
-- **Phase:** goal66+67(루프 엔지니어링) 머지 완료(#273) — 적대 리뷰 14건 수정 동반. goal71·72 머지(#277). PR #280(PRD 풀사이클 하네스) 머지됨.
+- **테스트:** 1737 pass(main) · **MCP tools:** 32 — 사실값은 package.json·CHANGELOG
+- **Phase:** Fable5 배치3 완료 — goal68(remind)·69(evolve negatives)·70(MCP 옵트인) 머지(#282·#283·#285, 각 적대 리뷰 동반). 풀사이클 뒷단 첫 트랙 goal74(vhk content)+RFC 0052(뒷단 4트랙 설계) 머지(#284).
 - **블로커:** 없음
-- **진행 중(미완):** PR #278(goal68~70 번호 구멍 백필) CI 확인 후 머지 — rebase+README 재생성 완료, CI 대기.
-- **다음 할 일:** v2.6.0 main 발행(사용자 직접 npm publish 2FA). measure-first 사람 게이트: `vhk recall` 며칠 실사용 → recall@5 측정. 미완 goal: 68~70 착수 대기·린트 25/27(#128)·SEO 21~26·goal 73(#276, check --evals LLM-judge).
+- **진행 중(미완):** 없음 — 열린 PR 0. goal 75~77(뒷단 launch/ops/sell)·73은 카드/설계만, 착수 대기.
+- **다음 할 일:** ① v2.6.0 main 발행(사용자 직접 npm publish 2FA). ② 풀사이클 뒷단 나머지 트랙 — `vhk launch`(75)·`ops`(76)·`sell`(77), RFC 0052 §4·§5 예약, 자문형. ③ goal 73(#276, `vhk check --evals` LLM-judge) — Fable5 위생 golden-set. ④ measure-first: `vhk recall` 실사용→recall@5·`diff-cover` 실측. 미완 goal: 린트 25/27(#128)·SEO 21~26. 핸드오프: `C:\Users\user\.claude\plans\handoff-fullcycle-2026-06-16.md`
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유
