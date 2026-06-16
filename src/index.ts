@@ -38,6 +38,7 @@ import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memo
 import { memoryEval } from './commands/memory-eval.js'
 import { brief } from './commands/brief.js'
 import { loopBrief } from './commands/loop-brief.js'
+import { remind } from './commands/remind.js'
 import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
 import { QUICK_ACTIONS } from './commands/help.js'
@@ -706,6 +707,12 @@ program
   .alias('루프브리핑')
   .description('루프 1틱 앵커 생성 (.vhk/loop-brief.md) — 의도+goal1+교훈+STOP')
   .action(() => { loopBrief() })
+
+program
+  .command('remind')
+  .alias('리마인드')
+  .description('치명 규칙 재주입 (.vhk/remind.md) — RULES.md NON-NEGOTIABLE/Forbidden 압축')
+  .action(() => { remind() })
 
 // AI 작업 세션 이어받기/인수인계 — 상태 수집 + Claude 에게 줄 프롬프트를 클립보드에 복사.
 const workCmd = program

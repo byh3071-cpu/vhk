@@ -31,6 +31,7 @@ export type NlpCommand =
   | 'memory'
   | 'brief'
   | 'loop-brief'
+  | 'remind'
   | 'goal'
   | 'cloud-push'
   | 'cloud-pull'
@@ -279,6 +280,12 @@ const RULES: NlpRule[] = [
     explanation: '루프 1틱 앵커 생성 (vhk loop-brief)',
     confidence: 'high',
     test: t => /루프\s*브리핑|loop.?brief|1틱\s*앵커|매\s*틱\s*앵커/.test(t),
+  },
+  {
+    command: 'remind',
+    explanation: '치명 규칙 재주입 (vhk remind)',
+    confidence: 'high',
+    test: t => /리마인드|remind|치명\s*규칙|규칙\s*재주입|규칙\s*리마인/.test(t),
   },
   {
     command: 'brief',

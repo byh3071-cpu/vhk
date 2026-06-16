@@ -562,6 +562,13 @@ export function createVhkMcpServer(): McpServer {
     async () => runVhkCli(['loop-brief'], 'loop-brief')
   )
 
+  // ─── remind ─────────────────────────────────────────────
+  server.registerTool(
+    'remind',
+    { description: '치명 규칙 재주입(.vhk/remind.md) 생성 — RULES.md NON-NEGOTIABLE/Forbidden 섹션 압축(긴 세션 컴팩션 대비)' },
+    async () => runVhkCli(['remind'], 'remind')
+  )
+
   // ─── deploy ─────────────────────────────────────────────
   // 실제 배포는 inquirer 프롬프트가 필수이므로 MCP 모드에서는 정보 조회만 제공.
   server.registerTool(
