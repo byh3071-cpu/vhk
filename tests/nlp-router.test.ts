@@ -80,6 +80,12 @@ describe('자연어 라우팅', () => {
     it('"세션 정리해줘" → recap (동반어 의도는 유지)', () => {
       expect(routeNaturalLanguage('세션 정리해줘')?.command).toBe('recap')
     })
+    it('"루프 브리핑 만들어줘" → loop-brief (brief 로 누수 안 됨 — goal67 카드 명시 리스크)', () => {
+      expect(routeNaturalLanguage('루프 브리핑 만들어줘')?.command).toBe('loop-brief')
+    })
+    it('"브리핑 보여줘" → brief (loop-brief 가 가로채지 않음)', () => {
+      expect(routeNaturalLanguage('브리핑 보여줘')?.command).toBe('brief')
+    })
   })
 
   it('"오늘 한 일 정리" → recap', () => {

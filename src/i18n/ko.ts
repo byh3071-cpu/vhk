@@ -469,6 +469,9 @@ export const ko = {
   brief: {
     title: '프로젝트 브리핑',
   },
+  loopBrief: {
+    title: '루프 브리핑 (1틱 앵커)',
+  },
   goal: {
     listTitle: '🎯 Goal 목록',
     nextTitle: '➡️  다음 Goal',

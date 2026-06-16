@@ -29,8 +29,10 @@ const DIRECT_JSON_PARSE =
 const PY_DIRECT_PARSE =
   /json\.loads\s*\(\s*(?:raw|content|output|result|response|text|message)/i
 
+// 우발 매칭 토큰(`fenced`·`indexOf.*{`·`replace.*```)은 정상 코드에서도 흔해 파일 전역에서
+// false-negative 우회를 만들었다 → 추출기 식별자에 한정.
 const JSON_EXTRACT_GUARD =
-  /extractJson|extractObject|parseJsonFrom|fenced|indexOf.*\{|slice.*indexOf|replace.*```/i
+  /extractJson|extractObject|parseJsonFrom|extractFromFence|stripFence/i
 
 const LLM_CALL =
   /completions\.create|chat\.completions|messages\.create|generate_content|generateContent|create\s*\(\s*\{[^}]*model\s*:/i
@@ -75,6 +77,18 @@ function anyMatch(lines: string[], pattern: RegExp): boolean {
   return lines.some((l) => pattern.test(l))
 }
 
+// 가드는 문제 라인 인접 범위(±window)에서만 인정한다. 파일 전역 any 는 무관한 위치의
+// 방어 흔적/주석 한 줄로 탐지가 통째로 꺼지는 false-negative 우회를 만든다(같은 함수 근사).
+const GUARD_WINDOW = 20
+function nearMatch(lines: string[], centerLine1: number, pattern: RegExp): boolean {
+  const lo = Math.max(0, centerLine1 - 1 - GUARD_WINDOW)
+  const hi = Math.min(lines.length, centerLine1 + GUARD_WINDOW)
+  for (let i = lo; i < hi; i++) {
+    if (pattern.test(lines[i])) return true
+  }
+  return false
+}
+
 // ---------------------------------------------------------------------------
 // Per-file checks
 // ---------------------------------------------------------------------------
@@ -90,7 +104,7 @@ function checkFile(absPath: string, relPath: string, findings: LlmGuardrailFindi
 
   // --- PAT-001: 닫힌어휘 select/multi_select 쓰기 + allowlist 누락 ---
   const closedWrite = firstMatch(lines, CLOSED_VOCAB_WRITE)
-  if (closedWrite && !anyMatch(lines, ALLOWLIST_GUARD)) {
+  if (closedWrite && !nearMatch(lines, closedWrite.line, ALLOWLIST_GUARD)) {
     findings.push({
       pat: 'PAT-001',
       file: relPath,
@@ -103,7 +117,7 @@ function checkFile(absPath: string, relPath: string, findings: LlmGuardrailFindi
   // --- PAT-002: JSON 직접 파싱 + 추출 게이트 없음 ---
   const parsePattern = isPython ? PY_DIRECT_PARSE : DIRECT_JSON_PARSE
   const directParse = firstMatch(lines, parsePattern)
-  if (directParse && !anyMatch(lines, JSON_EXTRACT_GUARD)) {
+  if (directParse && !nearMatch(lines, directParse.line, JSON_EXTRACT_GUARD)) {
     findings.push({
       pat: 'PAT-002',
       file: relPath,
@@ -118,7 +132,7 @@ function checkFile(absPath: string, relPath: string, findings: LlmGuardrailFindi
     EXPOSED_PATH.test(relPath) || anyMatch(lines.slice(0, MAX_LINES_CONTEXT), EXPOSED_PATH)
   if (isExposedPath) {
     const llmCall = firstMatch(lines, LLM_CALL)
-    if (llmCall && !anyMatch(lines, INPUT_CLAMP_GUARD)) {
+    if (llmCall && !nearMatch(lines, llmCall.line, INPUT_CLAMP_GUARD)) {
       findings.push({
         pat: 'PAT-004',
         file: relPath,

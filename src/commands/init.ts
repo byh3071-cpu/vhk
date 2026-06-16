@@ -18,6 +18,7 @@ import { printSecurityWarnings } from '../lib/check-secure.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
 import { generateCoreRulesContent } from '../lib/core-rules.js'
+import { VISION_TEMPLATE } from '../templates/vision.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
 import { readJsonFile } from '../lib/read-json.js'
@@ -326,6 +327,7 @@ export function generateFiles(
     // RULES.md — 규칙 SoT. init 이 항상 생성해 sync 와 흐름을 연결한다.
     'RULES.md': RULES_MD_TEMPLATE(name, description, stackStr),
     'docs/PRD.md': PRD_TEMPLATE(name, description, prd),
+    'VISION.md': VISION_TEMPLATE(name, description),
     'docs/ARCHITECTURE.md': ARCHITECTURE_TEMPLATE(name, stackStr),
     'docs/adr/ADR-000-template.md': ADR_TEMPLATE(),
     'docs/log/.gitkeep': '',

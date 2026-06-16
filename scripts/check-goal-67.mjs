@@ -1,0 +1,78 @@
+#!/usr/bin/env node
+// scripts/check-goal-67.mjs — 자동 생성 (vhk goal sync).
+// 기본 게이트 = typecheck + (lint) + test + build. goal 고유 검증은 아래 구역에 추가.
+// sync 재실행해도 기존 파일은 덮어쓰지 않습니다 (idempotent).
+//
+// Env: VHK_GATES_SKIP_DEEP=1  → test + build 스킵 (빠른 typecheck-only 패스)
+
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+
+const SHIM = new Set(['pnpm', 'npm', 'npx', 'yarn'])
+function run(cmd, args) {
+  let bin = cmd, argv = args
+  if (process.platform === 'win32' && SHIM.has(cmd)) {
+    // Windows: .cmd shim 직접 spawn 은 Node CVE-2024-27980 으로 EINVAL → cmd.exe 래핑.
+    bin = 'cmd.exe'; argv = ['/d', '/s', '/c', cmd + '.cmd', ...args]
+  }
+  try {
+    // maxBuffer 상향: 큰 빌드/테스트 로그(>1MB)에서 성공해도 ENOBUFS 거짓실패 방지.
+    execFileSync(bin, argv, { stdio: ['pipe', 'pipe', 'pipe'], encoding: 'utf-8', maxBuffer: 64 * 1024 * 1024 })
+    return true
+  } catch (e) {
+    const out = (e?.stdout?.toString() ?? '') + (e?.stderr?.toString() ?? '')
+    if (out.trim()) console.log(out.split('\n').slice(-25).join('\n'))
+    return false
+  }
+}
+
+if (existsSync('.vhk/HARD_STOP')) {
+  console.log('🛑 .vhk/HARD_STOP detected — refusing to run goal 67 gate.')
+  process.exit(1)
+}
+
+// BOM-safe 읽기: PowerShell Set-Content -Encoding utf8 의 UTF-8 BOM 제거(없으면 throw).
+const readJson = (p) => { const t = readFileSync(p, 'utf-8'); return JSON.parse(t.charCodeAt(0) === 0xfeff ? t.slice(1) : t) }
+const pkg = existsSync('package.json') ? readJson('package.json') : {}
+const scripts = pkg.scripts ?? {}
+const pm = existsSync('pnpm-lock.yaml') ? 'pnpm' : existsSync('yarn.lock') ? 'yarn' : 'npm'
+const skipDeep = process.env.VHK_GATES_SKIP_DEEP === '1'
+let pass = true
+const gate = (label, ok) => { console.log('[goal 67] ' + label + ': ' + (ok ? '✓' : '✗')); if (!ok) pass = false }
+const must = (cond, label) => { console.log((cond ? '    ✓ ' : '    ✗ ') + label); if (!cond) pass = false }
+
+// typecheck (스크립트 우선, 없으면 tsc --noEmit)
+if (scripts.typecheck) gate('typecheck', run(pm, ['run', 'typecheck']))
+else if (existsSync('tsconfig.json')) gate('tsc --noEmit', run(pm, pm === 'npm' ? ['exec', '--', 'tsc', '--noEmit'] : ['exec', 'tsc', '--noEmit']))
+if (scripts.lint) gate('lint', run(pm, ['run', 'lint']))
+if (!skipDeep) {
+  if (scripts['test:run']) gate('test', run(pm, ['run', 'test:run']))
+  else if (scripts.test && /vitest/.test(scripts.test)) gate('test', run(pm, ['run', 'test', '--', '--run']))
+  else if (scripts.test) gate('test', run(pm, ['run', 'test']))
+  if (scripts.build) gate('build', run(pm, ['run', 'build']))
+}
+
+// ─── goal 67 고유 검증 ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const lb = read('src/commands/loop-brief.ts') ?? ''
+must(existsSync('src/commands/loop-brief.ts'), 'loop-brief.ts 존재')
+must(/export function loopBrief/.test(lb), 'loopBrief export')
+must(/LOOP_BRIEF_PATH/.test(lb), '.vhk/loop-brief.md 경로 상수')
+must(/readVisionWhat/.test(lb), 'VISION.md 파싱 함수')
+must(/isHardStopActive/.test(lb), 'HARD_STOP 체크')
+must(/getActiveBlockers/.test(lb), '블로커 체크')
+must(/recallForAction/.test(lb), 'recall 교훈 주입')
+must(/(loop-brief)/.test(read('src/index.ts') ?? ''), 'index.ts 등록')
+must(/(loop-brief)/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry 등록')
+must(/(loop-brief)/.test(read('src/lib/nlp-router.ts') ?? ''), 'nlp-router 등록')
+must(/(loop-brief)/.test(read('COMMANDS.md') ?? ''), 'COMMANDS.md 문서화')
+must(/(loop-brief)/.test(read('src/mcp/server.ts') ?? ''), 'MCP server 등록')
+// 4지점 완전성 — cli-args(KNOWN_COMMAND_TOKENS)·한글별칭·ko.ts 까지 게이트가 강제(누락이 CI 통과한 근본 원인 봉쇄).
+const cliArgs = read('src/lib/cli-args.ts') ?? ''
+must(/'loop-brief'/.test(cliArgs), 'cli-args KNOWN_COMMAND_TOKENS 에 loop-brief 등록')
+must(/'루프브리핑'/.test(cliArgs), 'cli-args 에 한글별칭 루프브리핑 등록')
+must(/루프브리핑/.test(read('src/index.ts') ?? ''), 'index.ts 한글별칭 alias')
+must(/loopBrief/.test(read('src/i18n/ko.ts') ?? ''), 'ko.ts loopBrief 메시지 키')
+
+if (pass) { console.log('✅ goal 67 gate passes'); process.exit(0) }
+console.log('❌ goal 67 gate failed'); process.exit(1)

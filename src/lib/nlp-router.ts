@@ -30,6 +30,7 @@ export type NlpCommand =
   | 'context-show'
   | 'memory'
   | 'brief'
+  | 'loop-brief'
   | 'goal'
   | 'cloud-push'
   | 'cloud-pull'
@@ -272,6 +273,12 @@ const RULES: NlpRule[] = [
     test: t =>
       (/^기억$|기억\s*(목록|보|확인|뭐)|memory.*list|결정사항\s*(목록|확인|보여)/.test(t))
       && !/(추가|add|삭제|remove|저장|기록해|보관|아카이브|archive|마이그레이|migrat|해결|복구)/.test(t),
+  },
+  {
+    command: 'loop-brief',
+    explanation: '루프 1틱 앵커 생성 (vhk loop-brief)',
+    confidence: 'high',
+    test: t => /루프\s*브리핑|loop.?brief|1틱\s*앵커|매\s*틱\s*앵커/.test(t),
   },
   {
     command: 'brief',
