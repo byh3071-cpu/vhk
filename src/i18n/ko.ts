@@ -475,6 +475,9 @@ export const ko = {
   remind: {
     title: '치명 규칙 재주입 (리마인더)',
   },
+  content: {
+    title: '콘텐츠 초안 프롬프트 (풀사이클 뒷단 — 콘텐츠/마케팅)',
+  },
   goal: {
     listTitle: '🎯 Goal 목록',
     nextTitle: '➡️  다음 Goal',

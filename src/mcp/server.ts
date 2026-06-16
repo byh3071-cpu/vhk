@@ -569,6 +569,13 @@ export function createVhkMcpServer(): McpServer {
     async () => runVhkCli(['remind'], 'remind')
   )
 
+  // ─── content ────────────────────────────────────────────
+  server.registerTool(
+    'content',
+    { description: '콘텐츠 초안 프롬프트(.vhk/content-prompt.md) 생성 — 풀사이클 뒷단(콘텐츠/마케팅), 초안만(게시·발송 0)' },
+    async () => runVhkCli(['content'], 'content')
+  )
+
   // ─── deploy ─────────────────────────────────────────────
   // 실제 배포는 inquirer 프롬프트가 필수이므로 MCP 모드에서는 정보 조회만 제공.
   server.registerTool(
