@@ -118,7 +118,7 @@ import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalSync } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
-import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo } from './commands/evolve.js'
+import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives } from './commands/evolve.js'
 import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './commands/seo/index.js'
 
 const program = new Command()
@@ -841,6 +841,12 @@ evolveCmd
   .option('--json', 'JSON 출력 (CI/MCP용)')
   .description('active avoid 패턴 → 룰 초안 후보 생성·큐 적재')
   .action(async (opts: { json?: boolean }) => { await evolveSuggest(opts) })
+
+evolveCmd
+  .command('negatives')
+  .alias('부정예시')
+  .description('실패 패턴 → RULES.md ❌ 예시 후보 (.vhk/negative-candidates.md) — 자동 편집 0, 후보 제안만')
+  .action(() => { evolveNegatives() })
 
 evolveCmd
   .command('list')
