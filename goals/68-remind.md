@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 68
 title: vhk remind — 긴 세션 치명 규칙 재주입 (Fable 5 리마인더 시스템)
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-06-16
 ---

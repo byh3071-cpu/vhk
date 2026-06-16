@@ -472,6 +472,9 @@ export const ko = {
   loopBrief: {
     title: '루프 브리핑 (1틱 앵커)',
   },
+  remind: {
+    title: '치명 규칙 재주입 (리마인더)',
+  },
   goal: {
     listTitle: '🎯 Goal 목록',
     nextTitle: '➡️  다음 Goal',

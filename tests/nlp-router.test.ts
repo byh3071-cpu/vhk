@@ -86,6 +86,15 @@ describe('자연어 라우팅', () => {
     it('"브리핑 보여줘" → brief (loop-brief 가 가로채지 않음)', () => {
       expect(routeNaturalLanguage('브리핑 보여줘')?.command).toBe('brief')
     })
+    it('"규칙 재주입해줘" → remind (sync 로 누수 안 됨 — goal68 순서의존 회귀 가드)', () => {
+      expect(routeNaturalLanguage('규칙 재주입해줘')?.command).toBe('remind')
+    })
+    it('"치명 규칙 리마인드" → remind', () => {
+      expect(routeNaturalLanguage('치명 규칙 리마인드')?.command).toBe('remind')
+    })
+    it('"규칙 동기화해줘" → sync (remind 가 가로채지 않음)', () => {
+      expect(routeNaturalLanguage('규칙 동기화해줘')?.command).toBe('sync')
+    })
   })
 
   it('"오늘 한 일 정리" → recap', () => {

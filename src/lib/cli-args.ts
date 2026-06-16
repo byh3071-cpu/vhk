@@ -40,6 +40,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'recall', '회상',
   'brief', '브리핑',
   'loop-brief', '루프브리핑',
+  'remind', '리마인드',
   'cloud', '클라우드',
   'goal', '목표',
   'blocker', '블로커',

@@ -52,9 +52,24 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 68 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// ─── goal 68 고유 검증 ───────────────────────────────
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const rm = read('src/commands/remind.ts') ?? ''
+must(existsSync('src/commands/remind.ts'), 'remind.ts 존재')
+must(/export function remind/.test(rm), 'remind export')
+must(/REMIND_PATH/.test(rm), '.vhk/remind.md 경로 상수')
+must(/parseRulesMd/.test(rm), 'RULES.md 파서 재사용(sync.ts)')
+must(/non-negotiable|절대\s*규칙|forbidden|전역\s*금지/i.test(rm), '치명 섹션 헤더 다중 매칭')
+// 5지점 등록 — index·command-registry·nlp-router·cli-args(KNOWN_COMMAND_TOKENS)·ko.ts + MCP + COMMANDS
+must(/remind/.test(read('src/index.ts') ?? '') && /리마인드/.test(read('src/index.ts') ?? ''), 'index.ts 등록 + 한글별칭')
+must(/remind/.test(read('src/lib/command-registry.ts') ?? ''), 'command-registry 등록')
+must(/'remind'/.test(read('src/lib/nlp-router.ts') ?? ''), 'nlp-router 등록')
+must(/case 'remind'/.test(read('src/lib/nlp-run.ts') ?? ''), 'nlp-run dispatch case 등록')
+const cliArgs = read('src/lib/cli-args.ts') ?? ''
+must(/'remind'/.test(cliArgs) && /'리마인드'/.test(cliArgs), 'cli-args KNOWN_COMMAND_TOKENS + 한글별칭')
+must(/remind/.test(read('src/i18n/ko.ts') ?? ''), 'ko.ts remind 메시지 키')
+must(/remind/.test(read('src/mcp/server.ts') ?? ''), 'MCP server 등록')
+must(/vhk remind/.test(read('COMMANDS.md') ?? ''), 'COMMANDS.md 문서화')
 
 if (pass) { console.log('✅ goal 68 gate passes'); process.exit(0) }
 console.log('❌ goal 68 gate failed'); process.exit(1)
