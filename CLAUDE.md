@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-16
+**마지막 갱신:** 2026-06-19
 - **버전:** v2.6.0 (npm 발행 대기 — 사용자 직접 publish 필요) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 1737 pass(main) · **MCP tools:** 32 — 사실값은 package.json·CHANGELOG
-- **Phase:** Fable5 배치3 완료 — goal68(remind)·69(evolve negatives)·70(MCP 옵트인) 머지(#282·#283·#285, 각 적대 리뷰 동반). 풀사이클 뒷단 첫 트랙 goal74(vhk content)+RFC 0052(뒷단 4트랙 설계) 머지(#284).
+- **테스트:** ~1758 pass(CI) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
+- **Phase:** 풀사이클 뒷단 4트랙(content→launch→ops→sell) **완성** — goal 74·75·76·77 전부 머지(#284·#293·#294·#295, RFC 0052 마감). 사용자 정의 업그레이드 우선순위 4(뒷단 확장) 완료.
 - **블로커:** 없음
-- **진행 중(미완):** 없음 — 열린 PR 0. goal 75~77(뒷단 launch/ops/sell)·73은 카드/설계만, 착수 대기.
-- **다음 할 일:** ① v2.6.0 main 발행(사용자 직접 npm publish 2FA). ② 풀사이클 뒷단 나머지 트랙 — `vhk launch`(75)·`ops`(76)·`sell`(77), RFC 0052 §4·§5 예약, 자문형. ③ goal 73(#276, `vhk check --evals` LLM-judge) — Fable5 위생 golden-set. ④ measure-first: `vhk recall` 실사용→recall@5·`diff-cover` 실측. 미완 goal: 린트 25/27(#128)·SEO 21~26. 핸드오프: `<HOME>\.claude\plans\handoff-fullcycle-2026-06-16.md`
+- **진행 중(미완):** 없음 — 열린 PR 0. 원격 = main + 미머지 브랜치 2개(goal-sync-backfill-21-33·soul-injection, 살릴지/버릴지 판단 대기).
+- **다음 할 일:** ① [최우선] 우선순위 3 — 품질 천장 ~4.7 (RFC 0048 P2): G51 출력계층 단일화·G53 가드 behavior 이전(정규식 shape 350/381)·G54 제품 메타 SoT, 개별 PR. ② 우선순위 2 — measure-first 실측(`vhk recall`→recall@5·`vhk diff-cover`). ③ 우선순위 1 — 출시: v2.6.0 npm 발행(2FA)+topics 완료. ④ goal 73(#276 `vhk check --evals` LLM-judge). 미완 goal: 린트 25/27(#128)·SEO 21~26.
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유
