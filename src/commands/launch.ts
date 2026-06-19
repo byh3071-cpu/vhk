@@ -66,11 +66,11 @@ export function launch(): void {
   const prompt = buildLaunchPrompt({ what: readVisionWhat() })
   emitPrompt(prompt, 'launch-prompt.md', '런칭 게시물 프롬프트')
 
-  // 다음 터미널 명령은 비워둠 — 후속 트랙 vhk ops(goal 76)·sell(77)은 미구현이라
-  // command 힌트로 노출하면 비개발자가 복붙 시 unknown command 에러(댕글링 전방참조 금지).
-  // 런칭 직후 실제 다음 행동은 "초안을 Claude 에 받아 사람이 직접 게시" 뿐.
+  // 후속 트랙 vhk sell(goal 77)은 미구현 — command 힌트는 구현된 ops(76)까지만(댕글링 전방참조 금지).
+  // 런칭 직후 실제 다음 행동은 "초안을 Claude 에 받아 사람이 직접 게시 → 운영 회고(vhk ops)" 흐름.
   printNextStep({
     message: '클립보드의 프롬프트를 Claude/Cursor 에 붙여 런칭 게시물 초안을 받으세요. 게시는 사람이 직접.',
+    command: 'vhk ops',
     cursorHint: '런칭 게시물 초안 만들어줘',
   })
 }

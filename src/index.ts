@@ -41,6 +41,7 @@ import { loopBrief } from './commands/loop-brief.js'
 import { remind } from './commands/remind.js'
 import { content } from './commands/content.js'
 import { launch } from './commands/launch.js'
+import { ops } from './commands/ops.js'
 import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
 import { QUICK_ACTIONS } from './commands/help.js'
@@ -727,6 +728,12 @@ program
   .alias('런칭')
   .description('런칭 게시물 프롬프트 생성 (.vhk/launch-prompt.md) — 풀사이클 뒷단(런칭), 초안만(게시·발송 0)')
   .action(() => { launch() })
+
+program
+  .command('ops')
+  .alias('운영')
+  .description('운영 회고 프롬프트 생성 (.vhk/ops-prompt.md) — 풀사이클 뒷단(운영), 초안만(중단·삭제 0)')
+  .action(() => { ops() })
 
 // AI 작업 세션 이어받기/인수인계 — 상태 수집 + Claude 에게 줄 프롬프트를 클립보드에 복사.
 const workCmd = program

@@ -43,6 +43,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'remind', '리마인드',
   'content', '콘텐츠',
   'launch', '런칭',
+  'ops', '운영',
   'cloud', '클라우드',
   'goal', '목표',
   'blocker', '블로커',
