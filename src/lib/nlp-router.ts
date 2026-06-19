@@ -35,6 +35,7 @@ export type NlpCommand =
   | 'content'
   | 'launch'
   | 'ops'
+  | 'sell'
   | 'goal'
   | 'cloud-push'
   | 'cloud-pull'
@@ -307,6 +308,12 @@ const RULES: NlpRule[] = [
     explanation: '운영 회고 프롬프트 생성 (vhk ops)',
     confidence: 'high',
     test: t => /운영\s*회고|운영\s*점검|운영\s*결정|운영\s*현황|\bops\b|오퍼레이션/.test(t),
+  },
+  {
+    command: 'sell',
+    explanation: '판매 카피 프롬프트 생성 (vhk sell)',
+    confidence: 'high',
+    test: t => /판매\s*카피|판매\s*페이지|가격\s*페이지|가격\s*카피|가격\s*문구|\bsell\b/.test(t),
   },
   {
     command: 'brief',

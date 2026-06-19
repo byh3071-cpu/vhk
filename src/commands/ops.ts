@@ -64,11 +64,11 @@ export function ops(): void {
   const prompt = buildOpsPrompt({ what: readVisionWhat() })
   emitPrompt(prompt, 'ops-prompt.md', '운영 회고 프롬프트')
 
-  // 후속 트랙 vhk sell(goal 77)은 미구현 — command 힌트는 구현된 트랙까지만(댕글링 전방참조 금지, launch.ts 패턴).
-  // 운영 회고 직후 실제 다음 행동은 "초안을 Claude 에 받아 사람이 유지/피벗/아카이브를 직접 결정" 뿐.
+  // sell(goal 77)로 체인 — content→launch→ops→sell 흐름 완성. 제품 중단·피벗·결제는 사람이 직접(헌법).
   printNextStep({
     message:
       '클립보드의 프롬프트를 Claude/Cursor 에 붙여 운영 회고·다음 결정 초안을 받으세요. 제품 중단·피벗은 사람이 직접 결정.',
+    command: 'vhk sell',
     cursorHint: '운영 회고 만들어줘',
   })
 }
