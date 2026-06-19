@@ -6,6 +6,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- **풀사이클 뒷단 4트랙 `vhk content`·`launch`·`ops`·`sell`** (Goal 74~77, RFC 0052, #284·#293·#294·#295) — 바이브코딩 뒷단(콘텐츠·런칭·운영·판매)을 앞단과 동일한 "상태수집 + 체크리스트 + 프롬프트 생성" 자문 패턴으로 채움. 전부 초안만 — 발송·결제·삭제 0(헌법 실패비용 high 배제). `src/lib/emit-prompt.ts` 공유 헬퍼 단일 SoT + Fable5 프롬프트 위생(✅/❌ 예시쌍·수치 하드리밋·"승인 전 발송·결제 금지") 상속. MCP 읽기전용 32→35. `ship`(코드 npm 배포)≠`launch`(제품 공개) 구분 명시.
 - **`vhk init` 기타(other) 프로젝트 타입 + 스택 직접 입력/건너뛰기** — OS·게임·임베디드 등 5개 프리셋 밖 프로젝트 지원. ① 타입 선택지에 `🧩 기타 — 직접 입력` 추가 ② 기타 선택 시 스택 자유 입력(쉼표 구분 — 전각 ，·모점 、 포함, Enter=미정으로 건너뛰기) ③ 추천 스택 거절 시 즉시 취소 대신 직접 입력 기회(Enter=기존처럼 취소) ④ 비-JS 매니페스트 언어 감지 `detectManifestLangs`(Cargo.toml→Rust, go.mod→Go, pyproject.toml/requirements.txt→Python, Gemfile→Ruby, build.zig→Zig, CMakeLists.txt→C/C++) — init 전용 소비(`resolveInitStack`): JS deps 감지 시 병합(Tauri 류), 프리셋 타입에선 떠돌이 매니페스트가 명시적 `--type` 을 대체하지 않음, 프리셋 없는 other 만 매니페스트 사용. `detectProjectStack` 은 JS-only 유지(theme #158 src/ 오염 비회귀). `-y --type other` 비대화형은 프롬프트 0 + 미정 폴백.
 
 ## [2.6.0] - 2026-06-12
