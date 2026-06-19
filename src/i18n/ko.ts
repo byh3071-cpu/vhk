@@ -484,6 +484,9 @@ export const ko = {
   ops: {
     title: '운영 회고 프롬프트 (풀사이클 뒷단 — 운영)',
   },
+  sell: {
+    title: '판매 카피 프롬프트 (풀사이클 뒷단 — 판매)',
+  },
   goal: {
     listTitle: '🎯 Goal 목록',
     nextTitle: '➡️  다음 Goal',

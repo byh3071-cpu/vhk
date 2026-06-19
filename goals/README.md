@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 76 goal — DONE 68 · IN_PROGRESS 6 · NOT_STARTED 2
+> 총 77 goal — DONE 69 · IN_PROGRESS 6 · NOT_STARTED 2
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -83,3 +83,4 @@
 | 74 | vhk content — 풀사이클 뒷단 콘텐츠 트랙 (RFC 0052 첫 구현) | ✅ DONE | P2 |  |
 | 75 | vhk launch — 풀사이클 뒷단 런칭 트랙 (RFC 0052 둘째 구현) | ✅ DONE | P2 |  |
 | 76 | vhk ops — 풀사이클 뒷단 운영 트랙 (RFC 0052 셋째 구현) | ✅ DONE | P2 |  |
+| 77 | vhk sell — 풀사이클 뒷단 판매 트랙 (RFC 0052 넷째·마지막 구현) | ✅ DONE | P2 |  |

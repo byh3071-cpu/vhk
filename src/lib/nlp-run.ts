@@ -34,6 +34,7 @@ import { remind } from '../commands/remind.js'
 import { content } from '../commands/content.js'
 import { launch } from '../commands/launch.js'
 import { ops } from '../commands/ops.js'
+import { sell } from '../commands/sell.js'
 import { work, workHandoff } from '../commands/work.js'
 import { start } from '../commands/start.js'
 import { goalCheck, goalDone, goalList, goalNext, goalSync } from '../commands/goal.js'
@@ -132,6 +133,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return launch()
     case 'ops':
       return ops()
+    case 'sell':
+      return sell()
     case 'cloud-push':
       return cloudPush()
     case 'cloud-pull':
