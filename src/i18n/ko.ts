@@ -481,6 +481,9 @@ export const ko = {
   launch: {
     title: '런칭 게시물 프롬프트 (풀사이클 뒷단 — 런칭)',
   },
+  ops: {
+    title: '운영 회고 프롬프트 (풀사이클 뒷단 — 운영)',
+  },
   goal: {
     listTitle: '🎯 Goal 목록',
     nextTitle: '➡️  다음 Goal',

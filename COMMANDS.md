@@ -178,6 +178,7 @@ vhk doctor
 | `vhk remind` | 치명 규칙 재주입 (RULES.md NON-NEGOTIABLE/Forbidden 압축 → `.vhk/remind.md`) |
 | `vhk content` | 콘텐츠 초안 프롬프트 생성 (풀사이클 뒷단 — 콘텐츠/마케팅 → `.vhk/content-prompt.md`) |
 | `vhk launch` | 런칭 게시물 프롬프트 생성 (풀사이클 뒷단 — 런칭 → `.vhk/launch-prompt.md`) · `ship`=코드 npm 배포와 구분 |
+| `vhk ops` | 운영 회고 프롬프트 생성 (풀사이클 뒷단 — 운영 → `.vhk/ops-prompt.md`) · 유지/피벗/아카이브 회고, 중단·삭제는 사람이 |
 | `vhk work` | AI 작업 시작/이어하기 (+ handoff) |
 | `vhk goal` | Goal 단계별 미션 관리 |
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |
