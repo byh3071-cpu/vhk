@@ -102,6 +102,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'remind', desc: '치명 규칙 재주입 (RULES.md NON-NEGOTIABLE/Forbidden 압축)' },
   { name: 'content', desc: '콘텐츠 초안 프롬프트 (풀사이클 뒷단 — 콘텐츠/마케팅)' },
   { name: 'launch', desc: '런칭 게시물 프롬프트 (풀사이클 뒷단 — 런칭)' },
+  { name: 'ops', desc: '운영 회고 프롬프트 (풀사이클 뒷단 — 운영)' },
   { name: 'work', desc: 'AI 작업 시작/이어하기 (+ handoff)' },
   { name: 'goal', desc: 'Goal 단계별 미션 관리' },
   { name: 'blocker', desc: '블로커 기록 (3건 누적 시 HARD_STOP)' },
