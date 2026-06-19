@@ -8,7 +8,7 @@
 **Phase:** Fable5 배치3(goal68 remind·69 evolve negatives·70 MCP 옵트인) + 풀사이클 뒷단 첫 트랙(goal74 vhk content)+RFC 0052(뒷단 4트랙 설계) 머지(#282·#283·#284·#285). measure-first 2종(recall·diff-coverage)은 **여전히 실측 누적 대기**(게이트/ML은 숫자가 정당화한 뒤). 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
-- **풀사이클 뒷단 나머지 트랙 (RFC 0052)** → `vhk launch`(goal 75) → `ops`(76) → `sell`(77). content(74)·RFC 0052 머지됨. 전부 자문형(상태수집+프롬프트 생성, 발송·결제·삭제 0 — 헌법). `src/commands/content.ts` + `src/lib/emit-prompt.ts` 패턴 복제, 개별 goal·개별 PR(동시 착수 금지). 핸드오프: `C:\Users\user\.claude\plans\handoff-fullcycle-2026-06-16.md`.
+- **풀사이클 뒷단 나머지 트랙 (RFC 0052)** → ~~`vhk launch`(goal 75)~~ 구현 완료(feat/fullcycle-launch) → **다음 `vhk ops`(76)** → `sell`(77). content(74)·launch(75)·RFC 0052 머지/구현됨. 전부 자문형(상태수집+프롬프트 생성, 발송·결제·삭제 0 — 헌법). `src/commands/launch.ts`(또는 content.ts) + `src/lib/emit-prompt.ts` 패턴 복제, 개별 goal·개별 PR(동시 착수 금지). 핸드오프: `C:\Users\user\.claude\plans\handoff-fullcycle-2026-06-16.md`.
 - **goal 73 (#276 `vhk check --evals` LLM-judge)** → Fable5 프롬프트 위생 golden-set. L1(결정적 검사) 먼저, L2(LLM-judge) 나중.
 - **diff-coverage 실측 누적** → `vhk diff-cover`를 실제 코드 작업 **diff ≥5건(며칠)** 돌려 미검증 변경분 분포 수집(RFC 0050 §5 관찰 프로토콜). 유의미>0 → PR2(review line-40 제거 + verify 증거 + CI). ≈0 → "이론적 구멍" 문서화 후 중단(YAGNI). ※ diff-hunks `+++` 파서 엣지는 #239에서 이미 강화 완료(상태머신).
 - **recall 실측** → 며칠 `vhk recall` 실사용 → `vhk memory eval --init` 실쿼리 라벨 → 진짜 Recall@5. <70 반복이면 2차 ML(bge-m3, RFC 0049 §2 결정 잠금됨). **실사용 시나리오 추가(2026-06-11): "리뷰 기준 추출"** — PR 리뷰 전 diff 요약을 쿼리로 `vhk recall` 실행 → 관련 ADR·패턴만 뽑아 리뷰 기준으로 주입(외부 사례 gen-criteria 패턴: 메타데이터 1차 필터 + 의미 2차 판단 + "이 작업에 어떻게 적용되는지" 서술 강제). 실쿼리 라벨 축적과 직결.
