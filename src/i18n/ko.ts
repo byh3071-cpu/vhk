@@ -478,6 +478,9 @@ export const ko = {
   content: {
     title: '콘텐츠 초안 프롬프트 (풀사이클 뒷단 — 콘텐츠/마케팅)',
   },
+  launch: {
+    title: '런칭 게시물 프롬프트 (풀사이클 뒷단 — 런칭)',
+  },
   goal: {
     listTitle: '🎯 Goal 목록',
     nextTitle: '➡️  다음 Goal',
