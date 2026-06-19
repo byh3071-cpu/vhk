@@ -618,6 +618,13 @@ export function createVhkMcpServer(): McpServer {
     async () => runVhkCli(['ops'], 'ops')
   )
 
+  // ─── sell ───────────────────────────────────────────────
+  server.registerTool(
+    'sell',
+    { description: '판매 카피 프롬프트(.vhk/sell-prompt.md) 생성 — 풀사이클 뒷단(판매), 초안만(결제·과금 0)' },
+    async () => runVhkCli(['sell'], 'sell')
+  )
+
   // ─── deploy ─────────────────────────────────────────────
   // 실제 배포는 inquirer 프롬프트가 필수이므로 MCP 모드에서는 정보 조회만 제공.
   server.registerTool(
