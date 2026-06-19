@@ -4,8 +4,8 @@
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-06-16
-**Phase:** Fable5 배치3(goal68 remind·69 evolve negatives·70 MCP 옵트인) + 풀사이클 뒷단 첫 트랙(goal74 vhk content)+RFC 0052(뒷단 4트랙 설계) 머지(#282·#283·#284·#285). measure-first 2종(recall·diff-coverage)은 **여전히 실측 누적 대기**(게이트/ML은 숫자가 정당화한 뒤). 사실값(버전·테스트수)은 package.json·CHANGELOG.
+**갱신:** 2026-06-19
+**Phase:** 풀사이클 뒷단 4트랙(content→launch→ops→sell) **완성** — goal 74·75·76·77 전부 머지(#284·#293·#294·#295, RFC 0052 마감). 사용자 정의 업그레이드 우선순위 4(뒷단 확장) 완료 → 다음 3(품질 천장 RFC 0048 P2). measure-first 2종(recall·diff-coverage)은 **여전히 실측 누적 대기**. 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
 - **풀사이클 뒷단 나머지 트랙 (RFC 0052)** → ~~`vhk launch`(goal 75)~~ 구현 완료(feat/fullcycle-launch) → **다음 `vhk ops`(76)** → `sell`(77). content(74)·launch(75)·RFC 0052 머지/구현됨. 전부 자문형(상태수집+프롬프트 생성, 발송·결제·삭제 0 — 헌법). `src/commands/launch.ts`(또는 content.ts) + `src/lib/emit-prompt.ts` 패턴 복제, 개별 goal·개별 PR(동시 착수 금지). 핸드오프: `C:\Users\user\.claude\plans\handoff-fullcycle-2026-06-16.md`.
