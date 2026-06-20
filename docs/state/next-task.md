@@ -5,9 +5,15 @@
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
 **갱신:** 2026-06-20
-**Phase:** 뒷단 4트랙 완성(RFC 0052) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 이미 done 확인(2026-06-20, 과거 문서의 "G51 착수"는 오기였음).** 현재 우선순위 2 measure-first 가동 중: 도구 3종 작동 확인, Recall@5는 사용자 라벨링 선결·diff-cover는 실작업 누적 대기. 사실값(버전·테스트수)은 package.json·CHANGELOG.
+**Phase:** 뒷단 4트랙 완성(RFC 0052) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 이미 done 확인(2026-06-20, 과거 문서의 "G51 착수"는 오기였음).** 현재 우선순위 2 measure-first 가동 중: 도구 3종 작동 확인, Recall@5는 사용자 라벨링 선결·diff-cover는 실작업 누적 대기. **+ 실 사용자 도그푸딩 전수 감사 완료(2026-06-20) → RFC 0053 + goals 78~84 발행, P0 지뢰 2개(goal next 상태파일 파괴·로컬 verify 환경의존 상시 빨강) 최우선.** 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
+- **[최우선·신규] 도그푸딩 하드닝 (RFC 0053 · goals 78~84)** → 실 사용자 전수 감사(`docs/log/2026-06-20-dogfood-audit.md`)에서 일상 신뢰성 결함 도출. 재활용 프롬프트 = `/dogfood` 스킬(`.claude/commands/dogfood.md`).
+  - **P0 (매일 지뢰)**: `goal 78`(goal next 비파괴화 + `vhk goal peek` — 조회/변경 분리) · `goal 79`(verify 로컬 환경의존 7개 분리 — 게이트 신뢰 회복). **각 개별 PR. goal 79는 7개 실패가 환경/회귀 중 무엇인지 분류 조사 선결.**
+  - **P1**: `goal 80`(증거 SHA→review 신선도 연결, goal 44 소비측) · `goal 81`(제품 설명 단일 SoT, G54 사각지대).
+  - **P2**: `goal 82`(.vhk 산출물 gitignore) · `goal 83`(보안 scan 픽스처 false positive) · `goal 84`(doctor/status 맥락 next-step).
+  - **연계(새 goal 없음)**: D4 recall 키워드 오매칭 → RFC 0049 추진 · D5 검증 집행력(check 2규칙·mission scope) → Goal 53.
+  - ⚠️ 각 goal은 `vhk goal next` 대신 **수동으로** 꺼낼 것(D1 — next-task 덮어쓰기 회피).
 - **[현재] measure-first 가동 (2026-06-20 착수)** → 도구 3종 작동 확인(`vhk recall`·`vhk diff-cover`·`vhk memory eval`, 로컬 dist v2.6.0). **Recall@5 측정 = 평가셋 필요 → `vhk memory eval --init` 대화형 라벨링(사용자가 실쿼리에 정답 표시)이 선결** — 내가 비대화형으로 못 함. 실쿼리는 `.vhk/recall-log.jsonl`에 3개 누적(리뷰 기준·커버리지 게이트), 며칠 더 다양한 쿼리 쌓여야 의미. diff-cover는 실작업 기능소스(src/commands·src/lib) diff가 쌓일 때 자동 측정 — 현재 작업트리 변경 0이라 "측정 대상 없음". ※ 풀사이클 뒷단 4트랙(RFC 0052)·SOUL 상속(#297)은 **완료**.
 - **goal 73 (#276 `vhk check --evals` LLM-judge)** → Fable5 프롬프트 위생 golden-set. L1(결정적 검사) 먼저, L2(LLM-judge) 나중.
 - **diff-coverage 실측 누적** → `vhk diff-cover`를 실제 코드 작업 **diff ≥5건(며칠)** 돌려 미검증 변경분 분포 수집(RFC 0050 §5 관찰 프로토콜). 유의미>0 → PR2(review line-40 제거 + verify 증거 + CI). ≈0 → "이론적 구멍" 문서화 후 중단(YAGNI). ※ diff-hunks `+++` 파서 엣지는 #239에서 이미 강화 완료(상태머신).
