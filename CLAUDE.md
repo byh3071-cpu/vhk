@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-19
+**마지막 갱신:** 2026-06-20
 - **버전:** v2.6.0 (npm 발행 대기 — 사용자 직접 publish 필요) — 사실 확인은 package.json·CHANGELOG
 - **테스트:** ~1758 pass(CI) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
-- **Phase:** 풀사이클 뒷단 4트랙(content→launch→ops→sell) **완성** — goal 74·75·76·77 전부 머지(#284·#293·#294·#295, RFC 0052 마감). 사용자 정의 업그레이드 우선순위 4(뒷단 확장) 완료.
+- **Phase:** 풀사이클 뒷단 4트랙(content→launch→ops→sell) **완성**(goal 74~77, RFC 0052 마감) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). 우선순위 4(뒷단) 완료. **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 기완료 확인(2026-06-20, LIVE 오기 정정).**
 - **블로커:** 없음
-- **진행 중(미완):** 없음 — 열린 PR 0. 원격 = main + 미머지 브랜치 2개(goal-sync-backfill-21-33·soul-injection, 살릴지/버릴지 판단 대기).
-- **다음 할 일:** ① [최우선] 우선순위 3 — 품질 천장 ~4.7 (RFC 0048 P2): G51 출력계층 단일화·G53 가드 behavior 이전(정규식 shape 350/381)·G54 제품 메타 SoT, 개별 PR. ② 우선순위 2 — measure-first 실측(`vhk recall`→recall@5·`vhk diff-cover`). ③ 우선순위 1 — 출시: v2.6.0 npm 발행(2FA)+topics 완료. ④ goal 73(#276 `vhk check --evals` LLM-judge). 미완 goal: 린트 25/27(#128)·SEO 21~26.
+- **진행 중(미완):** 없음 — 열린 PR 0. 원격 = main 단독(미머지 2개 정리: soul-injection→#297 머지 · backfill→폐기).
+- **다음 할 일:** ① 우선순위 3 품질천장: **G50(diff-coverage) 1개만 잔여**, 그것도 measure-first와 동일 지점(G51·53·54 이미 done). ② [현재] 우선순위 2 measure-first — 도구 3종(recall·diff-cover·memory eval) 작동 확인(2026-06-20). **Recall@5는 `vhk memory eval --init` 사용자 대화형 라벨링 선결**(실쿼리 3개 누적, 며칠 더 필요) · diff-cover는 실작업 코드 diff 누적 시 측정. ③ 우선순위 1 출시 — v2.6.0 npm 발행(2FA·사용자)+topics 완료. ④ 미완 goal: SEO 22~26(P2·외부키)·62 docs-diff·65 precommit-l2·73(#276 `vhk check --evals` 미기안).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유
