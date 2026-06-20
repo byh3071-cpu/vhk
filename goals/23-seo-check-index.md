@@ -3,7 +3,8 @@ vhk_format: 1
 type: goal
 id: 23
 title: vhk seo check 색인+트래픽 (GSC + GA4) — P2
-status: IN_PROGRESS
+status: DONE
+completed: 2026-06-20
 priority: P2
 version: v2.4.2
 ---

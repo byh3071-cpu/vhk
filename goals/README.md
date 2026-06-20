@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 84 goal — DONE 70 · IN_PROGRESS 7 · NOT_STARTED 7
+> 총 84 goal — DONE 75 · IN_PROGRESS 2 · NOT_STARTED 7
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -29,11 +29,11 @@
 | 19 | 패턴 감지 — pattern detection v0 (반복 실패·성공 → avoid/reinforce 후보) — P1 | ✅ DONE | P1 |  |
 | 20 | vhk evolve — Evolution Loop 도미노 4 (패턴→룰 후보→사람 승인→반영) | ✅ DONE | P1 | v3-vhk-hub |
 | 21 | vhk seo init (스캐폴드 + 사이트등록 + 키보관) — P2 | ✅ DONE | P2 |  |
-| 22 | vhk seo submit (사이트맵 + IndexNow) — P2 | 🔄 IN_PROGRESS | P2 |  |
-| 23 | vhk seo check 색인+트래픽 (GSC + GA4) — P2 | 🔄 IN_PROGRESS | P2 |  |
-| 24 | vhk seo check 수익+빙 (AdSense v2 + Bing) — P2 | 🔄 IN_PROGRESS | P2 |  |
-| 25 | vhk seo report (무빌드 HTML 대시보드) — P2 | 🔄 IN_PROGRESS | P2 |  |
-| 26 | vhk seo 자동화 (Notion 적재 + 스케줄러 + 확장슬롯) — P2 | 🔄 IN_PROGRESS | P2 |  |
+| 22 | vhk seo submit (사이트맵 + IndexNow) — P2 | ✅ DONE | P2 |  |
+| 23 | vhk seo check 색인+트래픽 (GSC + GA4) — P2 | ✅ DONE | P2 |  |
+| 24 | vhk seo check 수익+빙 (AdSense v2 + Bing) — P2 | ✅ DONE | P2 |  |
+| 25 | vhk seo report (무빌드 HTML 대시보드) — P2 | ✅ DONE | P2 |  |
+| 26 | vhk seo 자동화 (Notion 적재 + 스케줄러 + 확장슬롯) — P2 | ✅ DONE | P2 |  |
 | 27 | silent fallback 안티패턴 린트 (check-no-silent-fallback) — P2 | ✅ DONE | P2 |  |
 | 28 | test-first 게이트 (신규 기능 ↔ 테스트 매핑 + red→green 증거) — P2 | ✅ DONE | P2 |  |
 | 29 | vhk preflight — 출고 전 안전점검 (publish/PR 직전 일괄 점검) — P1 | ✅ DONE | P1 | goal-30-worktree |
