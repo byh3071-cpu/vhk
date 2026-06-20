@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 84 goal — DONE 69 · IN_PROGRESS 6 · NOT_STARTED 9
+> 총 84 goal — DONE 69 · IN_PROGRESS 7 · NOT_STARTED 8
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -84,7 +84,7 @@
 | 75 | vhk launch — 풀사이클 뒷단 런칭 트랙 (RFC 0052 둘째 구현) | ✅ DONE | P2 |  |
 | 76 | vhk ops — 풀사이클 뒷단 운영 트랙 (RFC 0052 셋째 구현) | ✅ DONE | P2 |  |
 | 77 | vhk sell — 풀사이클 뒷단 판매 트랙 (RFC 0052 넷째·마지막 구현) | ✅ DONE | P2 |  |
-| 78 | goal next 비파괴화 + vhk goal peek — 조회/변경 분리 — P0 | ⬜ NOT_STARTED | P0 | 읽기 안전성 — 조회 의도가 상태파일을 파괴하지 않음 |
+| 78 | goal next 비파괴화 + vhk goal peek — 조회/변경 분리 — P0 | 🔄 IN_PROGRESS | P0 | 읽기 안전성 — 조회 의도가 상태파일을 파괴하지 않음 |
 | 79 | verify 로컬 환경의존 테스트 분리 — 게이트 신뢰 회복 — P0 | ⬜ NOT_STARTED | P0 | 로컬 verify가 다시 초록 — 게이트가 신호로서 기능 |
 | 80 | 증거 신선도 review 연결 — SHA≠HEAD 시 강등 — P1 | ⬜ NOT_STARTED | P1 | 낡은 PASS 증거로 거짓완료 차단(기록→소비 완결) |
 | 81 | 제품 설명 단일 SoT — package.json.description 주입 — P1 | ⬜ NOT_STARTED | P1 | 제품 설명 드리프트 0 (G54 버전 SoT의 설명판 보완) |
