@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 78
 title: goal next 비파괴화 + vhk goal peek — 조회/변경 분리 — P0
-status: IN_PROGRESS
+status: DONE
 priority: P0
 created: 2026-06-20
+completed: 2026-06-20
 leads_to: 읽기 안전성 — 조회 의도가 상태파일을 파괴하지 않음
 ---
 
@@ -34,9 +35,10 @@ leads_to: 읽기 안전성 — 조회 의도가 상태파일을 파괴하지 않
 - [x] 회귀 테스트 `tests/goal-peek.test.ts`(peek 무변경 + next 백업 5건) — `goalNext/goalPeek` 에 cwd 인자 도입해 chdir 없이 격리(chdir 은 fork worker 충돌)
 - [x] COMMANDS.md·README 사용법 갱신
 - [x] check-goal-78.mjs (goalPeek export + saveBackup + 등록 가드)
-- [ ] 공통 게이트(_meta): typecheck ✓ · build ✓ · **test 는 로컬 vitest 환경 불안정(D2/goal 79)으로 CI 검증 대기** — 동작은 tsx 직접검증 5/5 통과(peek 불변·next 백업보존·스텁덮어씀·신규생성·백업없음)
+- [x] 공통 게이트(_meta): typecheck ✓ · build ✓ · **test CI green**(#300 ubuntu/windows × Node 22·24 전부 pass) · check-goal-78 ✓ — 로컬 vitest forks 불안정(D2/goal 79)은 tsx 직접검증 5/5로 보완(peek 불변·next 백업보존·스텁덮어씀·신규생성·백업없음)
 
-> 상태 IN_PROGRESS 유지 사유: 구현·문서·고유게이트 완료. test 게이트는 로컬 환경(goal 79 대상)으로 미실행 — 헌법 "게이트 실패 시 done 금지" 준수, CI green 확인 후 DONE 전이.
+## ✅ Completion (2026-06-20)
+구현·문서·고유게이트 + **CI green(#300, ubuntu/windows × Node 22·24)** 확인 → DONE 전이. 로컬 vitest forks 환경 한계(goal 79 대상)는 CI 매트릭스 + tsx 직접검증으로 보완. D1(조회 의도가 상태파일 파괴) 봉인 완료.
 
 ## Forbidden Actions (OUT)
 - 기존 `goal next` 시그니처 breaking change 0 (백업은 추가 동작 — GA 정책)
