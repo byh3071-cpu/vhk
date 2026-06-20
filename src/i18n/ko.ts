@@ -490,6 +490,7 @@ export const ko = {
   goal: {
     listTitle: '🎯 Goal 목록',
     nextTitle: '➡️  다음 Goal',
+    peekTitle: '👀 다음 Goal 미리보기 (읽기 전용)',
     initTitle: '🏗️  goals/ 구조 스캐폴딩',
     checkTitle: '✅ Goal 게이트 검증',
     doneTitle: '🏁 Goal 완료 처리',
