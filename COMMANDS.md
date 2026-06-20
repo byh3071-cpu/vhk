@@ -25,6 +25,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | goals/ 스캐폴딩 | `vhk goal init` | (대상 프로젝트에서 직접) |
 | goal 목록 | `vhk goal list` | "목표 목록" |
 | 다음 goal | `vhk goal next` | "다음 목표" |
+| 다음 goal 미리보기(읽기전용) | `vhk goal peek` | "목표 미리보기" |
 | 게이트 검증 | `vhk goal check --id 0` 또는 `vhk check --goal 0` | "목표 점검" |
 | 완료 처리 | `vhk goal done --id 0` | "목표 완료" |
 

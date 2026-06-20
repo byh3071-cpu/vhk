@@ -119,7 +119,7 @@ async function guardCliDefer(
   )
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
-import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalSync } from './commands/goal.js'
+import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek, goalSync } from './commands/goal.js'
 import { blocker, learn, resume } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives } from './commands/evolve.js'
@@ -770,8 +770,14 @@ goalCmd
 goalCmd
   .command('next')
   .alias('다음')
-  .description('active goal 자동 선택 → docs/state/next-task.md 갱신')
+  .description('active goal 자동 선택 → docs/state/next-task.md 갱신 (덮어쓰기 전 자동 백업)')
   .action(async () => { await goalNext() })
+
+goalCmd
+  .command('peek')
+  .alias('미리보기')
+  .description('active goal 조회만 — next-task.md 미변경 (읽기 전용)')
+  .action(async () => { await goalPeek() })
 
 goalCmd
   .command('init')
