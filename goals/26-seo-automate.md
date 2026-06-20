@@ -3,7 +3,8 @@ vhk_format: 1
 type: goal
 id: 26
 title: vhk seo 자동화 (Notion 적재 + 스케줄러 + 확장슬롯) — P2
-status: IN_PROGRESS
+status: DONE
+completed: 2026-06-20
 priority: P2
 version: v2.5.1
 ---
