@@ -5,7 +5,7 @@
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
 **갱신:** 2026-06-20
-**Phase:** 뒷단 4트랙 완성(RFC 0052) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 이미 done 확인(2026-06-20, 과거 문서의 "G51 착수"는 오기였음).** 현재 우선순위 2 measure-first 가동 중: 도구 3종 작동 확인, Recall@5는 사용자 라벨링 선결·diff-cover는 실작업 누적 대기. **+ 실 사용자 도그푸딩 전수 감사 완료(2026-06-20) → RFC 0053 + goals 78~84 발행, P0 2개 완료 — goal 78(DONE, #303)·goal 79(1차 머지 + 환경분리 YAGNI 관찰, #304). 다음 P1 goal 80·81.** 사실값(버전·테스트수)은 package.json·CHANGELOG.
+**Phase:** 뒷단 4트랙 완성(RFC 0052) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 이미 done 확인(2026-06-20, 과거 문서의 "G51 착수"는 오기였음).** 현재 우선순위 2 measure-first 가동 중: 도구 3종 작동 확인, Recall@5는 사용자 라벨링 선결·diff-cover는 실작업 누적 대기. **+ 실 사용자 도그푸딩 전수 감사 완료(2026-06-20) → RFC 0053 + goals 78~84 발행, P0 2개 완료 — goal 78(DONE, #303)·goal 79(1차 머지 + 환경분리 YAGNI 관찰, #304). 다음 P1 goal 80·81. **+ SEO goal 22~26 무인범위 DONE·RFC 0054 자율형 진화 로드맵 머지(#307) — 실 외부 API는 D2 이관.** 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
 - **[진행중] 도그푸딩 하드닝 (RFC 0053 · goals 78~84)** → 실 사용자 전수 감사(`docs/log/2026-06-20-dogfood-audit.md`). 재활용 = `/dogfood` 스킬.
