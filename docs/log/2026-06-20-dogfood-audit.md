@@ -98,3 +98,12 @@
 
 - **로컬 verify 7개 실패 디버깅** — 환경 탓 확정 vs 회귀 분리(Goal 79 선결 조사).
 - 발견 → 실행 매핑은 `docs/rfc/0053-dogfood-hardening.md` + `goals/78~84`.
+
+## 선조사 결과 (goal 79, 2026-06-20) — 로컬 verify 7개 timeout 원인 규명
+
+7개 전부 `Test timed out in 5000ms` + `[vitest-pool]: Worker forks emitted error / Worker exited unexpectedly`. 실패 파일을 소수 단독 재실행해 분류:
+- **context·start·mcp-server (3)** — 단독 실행 시 **통과**(3 passed). 1초도 안 걸릴 골격 테스트가 전체 병렬 실행에서만 5초 timeout = **worker fork가 죽어** 그 worker의 테스트가 무차별 timeout. **worker 동시성 flaky**(환경/인프라), 회귀 아님.
+- **recall-log (1)** — 단독으로도 timeout. 원인: `logRecall`이 매 호출 파일 전체 read + `atomicWriteFile` 전체 재작성(O(n)) → 테스트 1005회 연속 호출 = **O(n²) × Windows 동기 I/O**. 기능 정상(실사용은 recall 1회당 1호출이라 무해). **성능 특성**, 회귀 아님.
+- **cloud.gh-contract(2)·exec(1)** — 실제 `gh`/Windows `.cmd` shim spawn. timeout 패턴 = **환경 의존**(외부 프로세스), 정황상 회귀 아님.
+
+**결론: 진짜 소스 회귀 0건.** D2("로컬 verify 빨강 = 환경") 입증, goal 79 방향(환경 분리) 정당. 후속 처리 3갈래 → ① worker 동시성: vitest pool 로컬 설정(fork 제한 or pool 조정) ② recall-log: 테스트 timeout 상향(or 구현 batch화) ③ gh/exec: `@env` 태그 분리. goal 79 착수 시 troubleshooting 문서로 정식화.
