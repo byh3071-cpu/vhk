@@ -7,6 +7,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { safeExecFile } from '../lib/exec.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { atomicWriteFile } from '../lib/atomic-write.js'
+import { saveBackup, pruneBackups } from '../lib/backup.js'
 import {
   listGoals,
   findDuplicateIds,
@@ -92,10 +93,10 @@ function printSkippedGoalWarnings(skipped: ReturnType<typeof findSkippedGoalFile
   }
 }
 
-export async function goalNext(): Promise<void> {
+export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   if (!ensureNotHardStopped('goal next')) return // HARD_STOP 활성 시 next-task.md 변경 차단
   console.log(chalk.bold(`\n${ko.goal.nextTitle}\n`))
-  const goals = listGoals(GOALS_DIR)
+  const goals = listGoals(join(cwd, GOALS_DIR))
   // VHK-017: goal 0개와 '전부 완료'를 구분(같은 상태를 정반대로 묘사하던 오보 제거).
   if (goals.length === 0) {
     console.log(chalk.yellow('  📭 정의된 goal 이 없습니다.'))
@@ -123,13 +124,58 @@ export async function goalNext(): Promise<void> {
     '```',
     '',
   ].join('\n')
-  mkdirSync(STATE_DIR, { recursive: true })
-  atomicWriteFile(join(STATE_DIR, 'next-task.md'), text) // Goal 40: 쓰기 중 kill 시 next-task.md 손상 방지
+  mkdirSync(join(cwd, STATE_DIR), { recursive: true })
+  // Goal 78: 덮어쓰기 전 기존 next-task.md 백업 — 조회 의도로 next 를 눌러도 수동 편집 복구 가능.
+  // best-effort(백업 실패가 next 본기능을 막지 않음). 수동 편집 여부는 auto-update 마커 부재로 휴리스틱 판정.
+  const nextTaskRel = join(STATE_DIR, 'next-task.md')
+  const nextTaskAbs = join(cwd, nextTaskRel)
+  if (existsSync(nextTaskAbs)) {
+    const isManual = !readFileSync(nextTaskAbs, 'utf-8').includes('via `vhk goal next`')
+    try {
+      const b = saveBackup([nextTaskRel], cwd)
+      pruneBackups(20, cwd)
+      if (b.files.length > 0) console.log(chalk.dim(`  💾 백업: .vhk/backups/${b.id}/`))
+    } catch {
+      /* best-effort — 백업 실패해도 next 진행 */
+    }
+    if (isManual) {
+      console.log(
+        chalk.yellow('  ⚠️  기존 next-task.md 가 수동 편집본으로 보입니다 — 위 백업에서 복구 가능 (조회만 하려면 vhk goal peek)')
+      )
+    }
+  }
+  atomicWriteFile(nextTaskAbs, text) // Goal 40: 쓰기 중 kill 시 next-task.md 손상 방지
   console.log(
     chalk.green(
       `  ✅ next-task.md 갱신 — Goal ${activeId}: ${active.frontmatter.title ?? ''}`
     )
   )
+}
+
+/** Goal 78: 읽기 전용 다음 goal 조회 — next-task.md 를 건드리지 않는다(쓰기 0). 조회/변경 분리로 D1(파괴적 덮어쓰기) 회피. */
+export async function goalPeek(cwd: string = process.cwd()): Promise<void> {
+  console.log(chalk.bold(`\n${ko.goal.peekTitle}\n`))
+  const goals = listGoals(join(cwd, GOALS_DIR))
+  if (goals.length === 0) {
+    console.log(chalk.yellow('  📭 정의된 goal 이 없습니다.'))
+    console.log(chalk.dim('  vhk goal init 으로 시작하세요.'))
+    return
+  }
+  const activeId = selectActiveId(goals)
+  if (activeId === null) {
+    console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
+    return
+  }
+  const active = goals.find((g) => g.frontmatter.id === activeId)
+  if (!active) return
+  console.log(`  ➡️  Goal ${activeId} — ${active.frontmatter.title ?? ''}`)
+  console.log(
+    chalk.dim(
+      `     status: ${active.frontmatter.status ?? 'NOT_STARTED'}  ·  priority: ${active.frontmatter.priority ?? '--'}`
+    )
+  )
+  console.log(chalk.dim(`     file: ${active.filePath}`))
+  console.log(chalk.dim('\n  (읽기 전용 — next-task.md 미변경. 갱신하려면 vhk goal next)'))
 }
 
 const META_TEMPLATE = `---

@@ -107,3 +107,11 @@
 - **cloud.gh-contract(2)·exec(1)** — 실제 `gh`/Windows `.cmd` shim spawn. timeout 패턴 = **환경 의존**(외부 프로세스), 정황상 회귀 아님.
 
 **결론: 진짜 소스 회귀 0건.** D2("로컬 verify 빨강 = 환경") 입증, goal 79 방향(환경 분리) 정당. 후속 처리 3갈래 → ① worker 동시성: vitest pool 로컬 설정(fork 제한 or pool 조정) ② recall-log: 테스트 timeout 상향(or 구현 batch화) ③ gh/exec: `@env` 태그 분리. goal 79 착수 시 troubleshooting 문서로 정식화.
+
+## goal 78 구현 (2026-06-20, feat/goal-78 worktree → PR)
+
+D1 봉인: `goal next` 비파괴화 + `vhk goal peek` 신설(조회/변경 분리).
+- **goalNext**: next-task.md 덮어쓰기 전 `saveBackup`(.vhk/backups, 보존 20·`pruneBackups`) + 수동편집 휴리스틱(auto-update 마커 부재) 경고.
+- **goalPeek**: 읽기전용 조회(쓰기 0). `goalNext/goalPeek` 에 `cwd` 인자 도입 → chdir 없이 테스트 격리(chdir 이 vitest fork worker 와 충돌함을 디버깅에서 확인 — 선조사 worker 죽음 관측과 일치).
+- 등록: index(`.command('peek')`+미리보기)·command-registry(`goal.peek`)·ko(`peekTitle`). 회귀 `tests/goal-peek.test.ts`(5건) + `check-goal-78.mjs`(고유검증 9).
+- **검증**: typecheck ✓ · lint ✓ · build ✓ · check-goal-78 ✓ · tsx 직접검증 5/5(peek 불변·next 백업보존·스텁덮어씀·신규생성·백업없음). **로컬 vitest forks/threads 불안정(D2)으로 vitest 게이트만 CI 대기** → goal 78 IN_PROGRESS(거짓 DONE 금지, CI green 후 DONE 전이).
