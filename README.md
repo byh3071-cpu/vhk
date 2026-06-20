@@ -109,6 +109,7 @@ Goal은 `goals/*.md`와 `scripts/check-goal-<id>.mjs`를 연결합니다. `vhk g
 vhk goal init
 vhk goal list
 vhk goal next
+vhk goal peek          # 다음 goal 조회만 (next-task.md 미변경, 읽기 전용)
 vhk goal check --id 42
 vhk goal done --id 42
 vhk goal drift
