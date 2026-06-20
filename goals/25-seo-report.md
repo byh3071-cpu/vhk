@@ -3,7 +3,8 @@ vhk_format: 1
 type: goal
 id: 25
 title: vhk seo report (무빌드 HTML 대시보드) — P2
-status: IN_PROGRESS
+status: DONE
+completed: 2026-06-20
 priority: P2
 version: v2.5.0
 ---
