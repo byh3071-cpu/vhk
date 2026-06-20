@@ -4,11 +4,11 @@
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-06-19
-**Phase:** 풀사이클 뒷단 4트랙(content→launch→ops→sell) **완성** — goal 74·75·76·77 전부 머지(#284·#293·#294·#295, RFC 0052 마감). 사용자 정의 업그레이드 우선순위 4(뒷단 확장) 완료 → 다음 3(품질 천장 RFC 0048 P2). measure-first 2종(recall·diff-coverage)은 **여전히 실측 누적 대기**. 사실값(버전·테스트수)은 package.json·CHANGELOG.
+**갱신:** 2026-06-20
+**Phase:** 뒷단 4트랙 완성(RFC 0052) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 이미 done 확인(2026-06-20, 과거 문서의 "G51 착수"는 오기였음).** 현재 우선순위 2 measure-first 가동 중: 도구 3종 작동 확인, Recall@5는 사용자 라벨링 선결·diff-cover는 실작업 누적 대기. 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
-- **풀사이클 뒷단 나머지 트랙 (RFC 0052)** → ~~`vhk launch`(goal 75)~~ 구현 완료(feat/fullcycle-launch) → **다음 `vhk ops`(76)** → `sell`(77). content(74)·launch(75)·RFC 0052 머지/구현됨. 전부 자문형(상태수집+프롬프트 생성, 발송·결제·삭제 0 — 헌법). `src/commands/launch.ts`(또는 content.ts) + `src/lib/emit-prompt.ts` 패턴 복제, 개별 goal·개별 PR(동시 착수 금지). 핸드오프: `C:\Users\user\.claude\plans\handoff-fullcycle-2026-06-16.md`.
+- **[현재] measure-first 가동 (2026-06-20 착수)** → 도구 3종 작동 확인(`vhk recall`·`vhk diff-cover`·`vhk memory eval`, 로컬 dist v2.6.0). **Recall@5 측정 = 평가셋 필요 → `vhk memory eval --init` 대화형 라벨링(사용자가 실쿼리에 정답 표시)이 선결** — 내가 비대화형으로 못 함. 실쿼리는 `.vhk/recall-log.jsonl`에 3개 누적(리뷰 기준·커버리지 게이트), 며칠 더 다양한 쿼리 쌓여야 의미. diff-cover는 실작업 기능소스(src/commands·src/lib) diff가 쌓일 때 자동 측정 — 현재 작업트리 변경 0이라 "측정 대상 없음". ※ 풀사이클 뒷단 4트랙(RFC 0052)·SOUL 상속(#297)은 **완료**.
 - **goal 73 (#276 `vhk check --evals` LLM-judge)** → Fable5 프롬프트 위생 golden-set. L1(결정적 검사) 먼저, L2(LLM-judge) 나중.
 - **diff-coverage 실측 누적** → `vhk diff-cover`를 실제 코드 작업 **diff ≥5건(며칠)** 돌려 미검증 변경분 분포 수집(RFC 0050 §5 관찰 프로토콜). 유의미>0 → PR2(review line-40 제거 + verify 증거 + CI). ≈0 → "이론적 구멍" 문서화 후 중단(YAGNI). ※ diff-hunks `+++` 파서 엣지는 #239에서 이미 강화 완료(상태머신).
 - **recall 실측** → 며칠 `vhk recall` 실사용 → `vhk memory eval --init` 실쿼리 라벨 → 진짜 Recall@5. <70 반복이면 2차 ML(bge-m3, RFC 0049 §2 결정 잠금됨). **실사용 시나리오 추가(2026-06-11): "리뷰 기준 추출"** — PR 리뷰 전 diff 요약을 쿼리로 `vhk recall` 실행 → 관련 ADR·패턴만 뽑아 리뷰 기준으로 주입(외부 사례 gen-criteria 패턴: 메타데이터 1차 필터 + 의미 2차 판단 + "이 작업에 어떻게 적용되는지" 서술 강제). 실쿼리 라벨 축적과 직결.
