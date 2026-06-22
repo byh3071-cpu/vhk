@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-20
+**마지막 갱신:** 2026-06-22
 - **버전:** v2.6.0 (npm 발행 대기 — 사용자 직접 publish 필요) — 사실 확인은 package.json·CHANGELOG
-- **테스트:** ~1758 pass(CI) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
-- **Phase:** 풀사이클 뒷단 4트랙(content→launch→ops→sell) **완성**(goal 74~77, RFC 0052 마감) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). 우선순위 4(뒷단) 완료. **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 기완료 확인(2026-06-20, LIVE 오기 정정).** **+ SEO goal 22~26 무인범위 DONE·RFC 0054 자율형 진화 로드맵 머지(#307) — 실 외부 API는 D2 이관.**
+- **테스트:** ~1791 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
+- **Phase:** **도그푸딩 하드닝(RFC 0053) P1·P2 완료** — goal 80(증거 신선도 SHA 강등·#310)·81(제품설명 단일 SoT·#311)·82(.vhk ledger 추적 정합·#312)·83(secure 픽스처 MEDIUM→INFO·#332)·84(doctor/status 맥락 next-step·#348) **전부 머지**. 각 goal TDD+다각 적대리뷰(반증). 81·82·84는 선조사로 범위 재조정("확실한 것만"). + 뒷단 4트랙(goal 74~77)·SEO 22~26·SOUL 상속 기완료.
 - **블로커:** 없음
-- **진행 중(미완):** 없음 — 열린 PR 0. 원격 = main 단독(미머지 2개 정리: soul-injection→#297 머지 · backfill→폐기).
-- **다음 할 일:** ① 우선순위 3 품질천장: **G50(diff-coverage) 1개만 잔여**, 그것도 measure-first와 동일 지점(G51·53·54 이미 done). ② [현재] 우선순위 2 measure-first — 도구 3종(recall·diff-cover·memory eval) 작동 확인(2026-06-20). **Recall@5는 `vhk memory eval --init` 사용자 대화형 라벨링 선결**(실쿼리 3개 누적, 며칠 더 필요) · diff-cover는 실작업 코드 diff 누적 시 측정. ③ 우선순위 1 출시 — v2.6.0 npm 발행(2FA·사용자)+topics 완료. ④ 미완 goal: 62 docs-diff·65 precommit-l2·73(#276 `vhk check --evals` 미기안). 도그푸딩 P1 goal 80·81(다른 세션).
-- **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유
+- **진행 중(미완):** 없음 — 열린 PR 0. ⚠️ **다른 Claude 세션이 같은 폴더 동시 작업 중**(measure-first/proof — `docs/rfc/0055`·`docs/log/2026-06-22-dogfood-measure-first.md`·`docs/state/research-backlog.md` untracked). 충돌 주의(worktree 분리 권장).
+- **다음 할 일:** ① **우선순위 2 measure-first**(현재 최우선) — Recall@5는 `vhk memory eval --init` 사용자 대화형 라벨링 선결(며칠 누적) · diff-cover는 실작업 diff 누적 시 측정 · G50(diff-coverage)도 동일 지점. ② **우선순위 1 출시** — v2.6.0 npm 발행(2FA·사용자). ③ **미완 P2 goal**: 62(docs-diff)·65(precommit-l2 조건부)·73(#276 `vhk check --evals` 미기안). ④ 작은 갭: `.vhk/ops-prompt.md`·`sell-prompt.md` gitignore 미등록(goal 82가 ledger만 다룸) → `.vhk/.gitignore`+`templates/vhk-dir.ts` 보강.
+- **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유 / 적대리뷰 워크플로 에이전트는 read-only 명시(과거 `vhk save` 정크커밋 사고) / 동시세션 docs/state 충돌 주의
