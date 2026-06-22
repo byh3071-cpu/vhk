@@ -9,10 +9,12 @@ import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { printNextStep } from '../lib/next-step.js'
 import {
   REPORT_PATH_REL,
+  checkEvidenceFreshness,
   type GateResult,
   type ReportStatus,
   type VerifyReport,
 } from './verify.js'
+import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
 
 /**
  * Goal 15: vhk review — 적대적 자기검증 v0.
@@ -36,7 +38,8 @@ export const STALE_AGE_MS = 6 * 60 * 60 * 1000 // 6시간
 export const REVIEW_DISCLAIMER = [
   '⚠️  이 판정은 보장이 아니라 신뢰도 신호입니다 — 통과해도 거짓완료 가능성은 남습니다.',
   '   · 기능 고유 완료조건은 게이트 키워드(tsc/test/build/secure)에 매핑되지 않으면 "미검증"으로 남습니다.',
-  '   · 증거(latest.json)는 commit/goal 바인딩이 없어 신선도는 생성시각으로만 추정합니다 — 코드 변경 후엔 vhk verify 재실행 필요.',
+  '   · 증거 신선도는 커밋 SHA로 판정합니다(SHA≠HEAD/dirty면 "낡음" 강등) — 구버전 리포트(SHA 없음)는 생성시각 폴백. 코드 변경 후엔 vhk verify 재실행 필요.',
+  '   · 미커밋 변경(working tree dirty)이 있으면 신뢰도 상한은 medium 입니다 — 증거가 그 변경을 아직 반영 못 하기 때문(커밋 후 vhk verify 재실행 시 high 가능).',
   '   · git diff 미사용(v0) — 기존 테스트가 green 이어도 이번 변경을 커버하지 못했을 수 있습니다.',
 ].join('\n')
 
@@ -48,10 +51,14 @@ export interface CompletionCheck {
 export interface EvidenceFreshness {
   generatedAt: string | null
   ageMs: number | null
-  /** 오래됨(>STALE_AGE_MS) 또는 생성시각 파싱 불가. */
+  /** 낡음 — SHA≠HEAD/dirty(basis=sha) 또는 생성시각 오래됨·파싱불가(basis=time). */
   stale: boolean
-  /** 신선도 판정 자체가 가능했는지(generatedAt 유효). */
+  /** 신선도 판정 자체가 가능했는지(SHA 비교 가능 또는 generatedAt 유효). */
   confirmed: boolean
+  /** 판정 근거 — 'sha'(증거에 커밋 SHA 있음, Goal 44/80) 또는 'time'(구버전 폴백). */
+  basis: 'sha' | 'time'
+  /** 낡음 사유들(없으면 신선). */
+  reasons: string[]
   note: string
 }
 
@@ -110,14 +117,48 @@ function impliedGates(text: string): GateResult['id'][] {
   return gates
 }
 
-/** report.generatedAt 으로 증거 신선도 판정 (now 는 주입 — 순수성 유지). */
-function assessFreshness(report: VerifyReport | null, nowMs: number): EvidenceFreshness {
+/**
+ * 증거 신선도 판정 (now·current 는 주입 — 순수성 유지).
+ * Goal 80: 증거에 커밋 SHA(Goal 44 기록)가 있으면 **SHA 기반**으로 판정한다 — 현재 HEAD 와 비교해
+ *   SHA≠HEAD 또는 dirty 면 "낡음"으로 강등(생성시각 추정보다 강한 신호). SHA 기록이 없는 구(舊)증거는
+ *   생성시각 폴백(하위호환). 강등은 confidence 캡까지만 — review 는 권고 신호라 fail 격상은 안 한다.
+ */
+function assessFreshness(
+  report: VerifyReport | null,
+  current: CommitInfo | null,
+  nowMs: number
+): EvidenceFreshness {
   const generatedAt = report?.generatedAt ?? null
   const parsed = generatedAt ? Date.parse(generatedAt) : NaN
-  if (!Number.isFinite(parsed)) {
-    return { generatedAt, ageMs: null, stale: true, confirmed: false, note: '생성시각 불명 — 신선도 미확인' }
+  const ageMs = Number.isFinite(parsed) ? nowMs - parsed : null
+
+  // SHA 기반 (증거에 커밋 바인딩 있음) — Goal 44 의 소비 측 완결.
+  if (report?.commit) {
+    const { reasons } = checkEvidenceFreshness(report, current)
+    const stale = reasons.length > 0
+    return {
+      generatedAt,
+      ageMs,
+      stale,
+      confirmed: true, // SHA 비교가 가능 = 신선도 판정 자체는 확정
+      basis: 'sha',
+      reasons,
+      note: stale ? `SHA 기반 신선도: ${reasons[0]}` : `SHA 일치(${report.commit.shortSha}) — 신선`,
+    }
   }
-  const ageMs = nowMs - parsed
+
+  // 폴백: 구(舊)증거(commit 필드 없음, v1) → 생성시각으로만 추정.
+  if (ageMs === null) {
+    return {
+      generatedAt,
+      ageMs: null,
+      stale: true,
+      confirmed: false,
+      basis: 'time',
+      reasons: ['생성시각 불명 — 신선도 미확인'],
+      note: '생성시각 불명 — 신선도 미확인',
+    }
+  }
   const stale = ageMs > STALE_AGE_MS || ageMs < 0
   const mins = Math.round(ageMs / 60000)
   const human = mins >= 120 ? `${Math.round(mins / 60)}시간` : `${mins}분`
@@ -126,9 +167,11 @@ function assessFreshness(report: VerifyReport | null, nowMs: number): EvidenceFr
     ageMs,
     stale,
     confirmed: true,
+    basis: 'time',
+    reasons: stale ? [`증거가 ${human} 전 생성(또는 미래시각)`] : [],
     note: stale
-      ? `증거가 ${human} 전 생성(또는 미래시각) — 코드 변경 시 무효, vhk verify 재실행 권장`
-      : `증거 ${human} 전 생성`,
+      ? `증거가 ${human} 전 생성(또는 미래시각) — 커밋 SHA 없음(구버전), vhk verify 재실행 권장`
+      : `증거 ${human} 전 생성(커밋 SHA 없음 — 생성시각 추정)`,
   }
 }
 
@@ -140,13 +183,14 @@ export function crossCheck(
   checks: CompletionCheck[],
   goalStatus: string,
   report: VerifyReport | null,
-  nowMs: number
+  nowMs: number,
+  current: CommitInfo | null = null
 ): ReviewAnalysis {
   const suspicions: ReviewAnalysis['suspicions'] = []
   const gaps: ReviewAnalysis['gaps'] = []
   const gateById = new Map<string, GateResult>()
   if (report) for (const g of report.gates) gateById.set(g.id, g)
-  const freshness = assessFreshness(report, nowMs)
+  const freshness = assessFreshness(report, current, nowMs)
 
   if (goalStatus === 'DONE' && report && report.status === 'FAIL') {
     suspicions.push({
@@ -293,7 +337,9 @@ export async function review(opts: { id?: string; strict?: boolean } = {}): Prom
     return
   }
 
-  const analysis = crossCheck(checks, goalStatus, report, Date.now())
+  // Goal 80: 현재 HEAD SHA·dirty 를 읽어 증거 SHA(Goal 44 기록)와 비교 — 낡은 증거 신선도 강등.
+  const current = getCommitInfo(cwd)
+  const analysis = crossCheck(checks, goalStatus, report, Date.now(), current)
   const result: ReviewResult = {
     ...analysis,
     reviewedAt: new Date().toISOString(),
