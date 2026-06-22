@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { printNextStep } from '../lib/next-step.js'
 import { ko } from '../i18n/ko.js'
+import { projectMaturity } from '../lib/project-maturity.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
 import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
@@ -25,6 +26,30 @@ import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
 import { fetchLatestNpmVersion, compareSemver, recordLatest } from '../lib/version-check.js'
 export { fetchLatestNpmVersion, compareSemver }
+
+/**
+ * Goal 84: doctor 통과 시 next-step — 신규/기존 레포 맥락 분기(D9).
+ *   established: "이제 프로젝트를 시작하세요(vhk 시작)" 대신 이어서 작업(vhk work).
+ *   new: 기존 온보딩 멘트 유지(퇴행 0 — Forbidden). 진단 항목 자체는 불변.
+ */
+export function selectDoctorOkNextStep(maturity: 'new' | 'established'): {
+  message: string
+  command: string
+  cursorHint: string
+} {
+  if (maturity === 'established') {
+    return {
+      message: ko.doctor.nextEstablishedMessage,
+      command: 'vhk work',
+      cursorHint: ko.doctor.nextEstablishedCursor,
+    }
+  }
+  return {
+    message: ko.doctor.nextOkMessage,
+    command: 'vhk 시작',
+    cursorHint: '프로젝트 만들어줘',
+  }
+}
 
 export interface CheckResult {
   name: string
@@ -182,11 +207,8 @@ export async function doctor(opts: DoctorOptions = {}) {
     })
   } else {
     console.log(chalk.green.bold(`  ${ko.doctor.allOk}`))
-    printNextStep({
-      message: ko.doctor.nextOkMessage,
-      command: 'vhk 시작',
-      cursorHint: '프로젝트 만들어줘',
-    })
+    // Goal 84: 활성(기존) 레포면 "프로젝트를 시작하세요" 대신 맥락 맞는 다음 행동(D9).
+    printNextStep(selectDoctorOkNextStep(projectMaturity(cwd)))
   }
 
   // SoT(3층) CI 게이트: --strict 면 규칙 드리프트를 실패로 승격(exit 1). 기본 호출은 경고만 유지.
