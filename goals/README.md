@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 84 goal — DONE 77 · IN_PROGRESS 2 · NOT_STARTED 5
+> 총 84 goal — DONE 78 · IN_PROGRESS 2 · NOT_STARTED 4
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -88,6 +88,6 @@
 | 79 | verify 로컬 환경의존 테스트 분리 — 선조사 후 범위 재조정(확실한 것만) — P0 | 🔄 IN_PROGRESS | P0 | 로컬 verify 신뢰 — 선조사로 회귀 0 확인, 확실한 조치만 적용 |
 | 80 | 증거 신선도 review 연결 — SHA≠HEAD 시 강등 — P1 | ✅ DONE | P1 | 낡은 PASS 증거로 거짓완료 차단(기록→소비 완결) |
 | 81 | 제품 설명 단일 SoT — package.json.description 주입 — P1 | ✅ DONE | P1 | 제품 설명 드리프트 0 (G54 버전 SoT의 설명판 보완) |
-| 82 | .vhk 런타임 산출물 gitignore 정합 — git status 청결 — P2 | ⬜ NOT_STARTED | P2 | vhk 명령 사용 후 git status 노이즈 0 |
+| 82 | .vhk 런타임 산출물 gitignore 정합 — git status 청결 — P2 | ✅ DONE | P2 | vhk 명령 사용 후 git status 노이즈 0 |
 | 83 | 보안 scan 테스트 픽스처 false positive allowlist — P2 | ⬜ NOT_STARTED | P2 | secure scan 노이즈 ↓ (진짜 시크릿 신호 보존) |
 | 84 | doctor/status next-step 맥락 인지 — 신규 vs 기존 레포 분기 — P2 | ⬜ NOT_STARTED | P2 | "다음에 이것만 하세요"가 현재 상태에 맞음 |
