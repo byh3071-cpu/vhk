@@ -8,6 +8,7 @@
 **Phase:** **도그푸딩 하드닝(RFC 0053 · goals 78~84) 완료** — 78(#303)·79(#304)·80(#310)·81(#311)·82(#312)·83(#332)·84(#348) 전부 머지. 우선순위 2 measure-first가 현재 최우선(Recall@5 라벨링·diff-cover 누적 대기). 뒷단 4트랙(74~77)·SEO 22~26·SOUL 상속 기완료. 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
+- **⓪ [새 전략 최우선 · 2026-06-22 · RFC 0056] `vhk receipt` MVP** → 진입점 [docs/log/2026-06-22-rfc0056-evidence-receipt.md](../log/2026-06-22-rfc0056-evidence-receipt.md). VHK 정체성을 "멀티툴 솔로용 거짓완료 탐지기(Evidence Receipt)"로 재정의([RFC 0056](../rfc/0056-vhk-evidence-receipt.md)·[ADR-006](../adr/ADR-006-vhk-identity-evidence-receipt.md)). **선결**: vhk가 추적파일(`.vhk/events/*.jsonl`) 갱신→작업트리 늘 dirty→receipt 늘 block 봉인(세션시작 `git status M .vhk/events/ai-actions.jsonl` 관찰). **T1** `vhk receipt`(4대 기계증거→`.vhk/receipts/<id>.{json,md}`, decision 기계만, 등록 4지점+드리프트 테스트 수용기준) → T2 위조방어+.md → T3 거짓완료 적발 1건 입증(현 0/8). **90일 단일 성공기준=적발 1건, 0건이면 가설 폐기.** ※ RFC 0055 §8/§7 폐기, §3·§4·§9는 결함 정정 후 재사용. measure-first와 같은 방향(거짓완료 측정).
 - **[완료] 도그푸딩 하드닝 (RFC 0053 · goals 78~84)** → 실 사용자 전수 감사(`docs/log/2026-06-20-dogfood-audit.md`) 기반 전 goal 머지.
   - ✅ **78**(#303): `goal next` 비파괴화 + `vhk goal peek`. ✅ **79**(#304): recall-log timeout 30s + TS-004(환경분리는 YAGNI 관찰).
   - ✅ **80**(#310): 증거 신선도 SHA 강등(review가 SHA≠HEAD/dirty 감지, goal 44 소비측 완결).
