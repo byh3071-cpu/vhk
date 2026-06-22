@@ -12,6 +12,7 @@ import {
   type CompletionCheck,
 } from '../src/commands/review.js'
 import type { GateResult, ReportStatus, VerifyReport } from '../src/commands/verify.js'
+import type { CommitInfo } from '../src/lib/git-repo.js'
 import { routeNaturalLanguage } from '../src/lib/nlp-router.js'
 import { dispatchNlpRoute } from '../src/lib/nlp-run.js'
 
@@ -32,9 +33,14 @@ function gate(id: GateResult['id'], status: GateResult['status'], exitCode: numb
   return { id, label: id, status, exitCode, skipped: status === 'skip' }
 }
 
-function report(status: ReportStatus, gates: GateResult[], generatedAt: string = GEN_AT): VerifyReport {
+function report(
+  status: ReportStatus,
+  gates: GateResult[],
+  generatedAt: string = GEN_AT,
+  commit: CommitInfo | null = null
+): VerifyReport {
   return {
-    schemaVersion: 1,
+    schemaVersion: commit ? 2 : 1,
     generatedAt,
     date: '2026-06-02',
     status,
@@ -47,10 +53,12 @@ function report(status: ReportStatus, gates: GateResult[], generatedAt: string =
     },
     gates,
     nextActions: [],
+    commit,
   }
 }
 
 const checked = (text: string): CompletionCheck => ({ text, checked: true })
+const ci = (sha: string, dirty = false): CommitInfo => ({ sha, shortSha: sha.slice(0, 7), dirty })
 
 describe('review — parseCompletionChecks', () => {
   const body = `# Goal
@@ -153,6 +161,76 @@ describe('review — crossCheck (순수)', () => {
   it('미체크 항목은 의심 대상 아님', () => {
     const r = crossCheck([{ text: '테스트 통과', checked: false }], 'IN_PROGRESS', report('FAIL', [gate('test', 'fail', 1)]), FRESH)
     expect(r.suspicions).toHaveLength(0)
+  })
+})
+
+describe('review — crossCheck SHA 신선도 (Goal 80)', () => {
+  const NOW = () => new Date().toISOString()
+
+  it('증거 SHA == 현재 HEAD + 신선 + 게이트 pass → 신선(강등 없음) + basis=sha + high', () => {
+    const rep = report('PASS', [gate('typecheck', 'pass'), gate('test', 'pass')], NOW(), ci('abc1234def'))
+    const r = crossCheck([checked('tsc 통과'), checked('테스트 통과')], 'IN_PROGRESS', rep, Date.parse(rep.generatedAt), ci('abc1234def'))
+    expect(r.freshness.basis).toBe('sha')
+    expect(r.freshness.stale).toBe(false)
+    expect(r.confidence).toBe('high')
+  })
+
+  it('증거 SHA != 현재 HEAD → 신선도 낡음 강등(high 금지, 사유에 SHA)', () => {
+    const rep = report('PASS', [gate('typecheck', 'pass'), gate('test', 'pass')], NOW(), ci('aaaaaaa1'))
+    const r = crossCheck([checked('tsc 통과'), checked('테스트 통과')], 'IN_PROGRESS', rep, Date.parse(rep.generatedAt), ci('bbbbbbb2'))
+    expect(r.freshness.basis).toBe('sha')
+    expect(r.freshness.stale).toBe(true)
+    expect(r.freshness.reasons.some((x) => /SHA/.test(x))).toBe(true)
+    // 의심 0 · 미검증 0 · coverage 1 이지만 SHA 불일치(stale) → high 금지(medium 캡)
+    expect(r.confidence).toBe('medium')
+  })
+
+  it('증거 생성 시점 dirty → 낡음 강등', () => {
+    const rep = report('PASS', [gate('typecheck', 'pass')], NOW(), ci('abc1234', true))
+    const r = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', rep, Date.parse(rep.generatedAt), ci('abc1234', false))
+    expect(r.freshness.stale).toBe(true)
+  })
+
+  it('현재 working tree dirty → 낡음 강등', () => {
+    const rep = report('PASS', [gate('typecheck', 'pass')], NOW(), ci('abc1234', false))
+    const r = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', rep, Date.parse(rep.generatedAt), ci('abc1234', true))
+    expect(r.freshness.stale).toBe(true)
+  })
+
+  it('구(舊)증거(commit 필드 없음) → 생성시각 폴백(graceful) + basis=time + 크래시 0', () => {
+    const rep = report('PASS', [gate('typecheck', 'pass')], NOW()) // commit null = v1
+    const r = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', rep, Date.parse(rep.generatedAt), ci('abc1234'))
+    expect(r.freshness.basis).toBe('time')
+    expect(r.freshness.confirmed).toBe(true)
+    expect(r.freshness.stale).toBe(false)
+  })
+
+  it('현재 커밋 미상(current=null) + 증거 SHA 있음 → 낡음(신선도 증명 불가)', () => {
+    const rep = report('PASS', [gate('typecheck', 'pass')], NOW(), ci('abc1234'))
+    const r = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', rep, Date.parse(rep.generatedAt), null)
+    expect(r.freshness.basis).toBe('sha')
+    expect(r.freshness.stale).toBe(true)
+  })
+
+  it('generatedAt 파싱불가 + commit 있음 → SHA 분기(basis=sha) 진입 + ageMs null 이 사람용 출력에 안 샘(크래시 0)', () => {
+    // SHA 분기는 시각(ageMs)을 안 쓰고 note 는 shortSha 만 쓴다 → 'not-a-date' 여도 NaN/null 누출·크래시 없음.
+    const rep = report('PASS', [gate('typecheck', 'pass')], 'not-a-date', ci('abc1234'))
+    const r = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', rep, Date.parse(GEN_AT), ci('abc1234'))
+    expect(r.freshness.basis).toBe('sha')
+    expect(r.freshness.stale).toBe(false) // SHA 일치 + clean
+    expect(r.freshness.ageMs).toBeNull()
+    expect(r.freshness.note).toContain('abc1234')
+    expect(r.freshness.note).not.toMatch(/NaN|null|undefined/)
+  })
+
+  it('disclaimer 가 SHA 기반 신선도 명시(생성시각 단독 추정 문구 제거)', () => {
+    expect(REVIEW_DISCLAIMER).toMatch(/SHA/)
+    expect(REVIEW_DISCLAIMER).not.toMatch(/생성시각으로만 추정/)
+  })
+
+  it('disclaimer 가 dirty→신뢰도 상한 medium 을 설명(비개발자 "왜 항상 medium?" 오해 방지)', () => {
+    expect(REVIEW_DISCLAIMER).toMatch(/미커밋|dirty/)
+    expect(REVIEW_DISCLAIMER).toMatch(/medium/)
   })
 })
 
@@ -349,6 +427,21 @@ ${checks.map((c) => `- [x] ${c}`).join('\n')}
     await dispatchNlpRoute({ command: 'review', explanation: '', confidence: 'high' }, '거짓완료 없는지 검토해')
     const merged = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'reports', 'latest.json'), 'utf-8'))
     expect(merged.review).toBeTruthy()
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('Goal 80: 증거에 SHA 있고 현재 HEAD 미상(비-git tmpdir) → review 가 신선도 낡음 강등', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    seedGoal(d, 9, 'IN_PROGRESS', ['tsc 통과'])
+    // 증거엔 커밋 SHA 가 박혀 있지만 tmpdir 는 git 레포가 아님 → getCommitInfo=null → 신선도 증명 불가(낡음).
+    seedReport(d, report('PASS', [gate('typecheck', 'pass')], new Date().toISOString(), ci('deadbeef0')))
+    process.chdir(d)
+    await review({ id: '9' })
+    const merged = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'reports', 'latest.json'), 'utf-8'))
+    expect(merged.review.freshness.stale).toBe(true)
+    expect(merged.review.freshness.basis).toBe('sha')
+    expect(merged.review.confidence).not.toBe('high')
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
   })

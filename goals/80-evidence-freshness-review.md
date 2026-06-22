@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 80
 title: 증거 신선도 review 연결 — SHA≠HEAD 시 강등 — P1
-status: NOT_STARTED
+status: DONE
 priority: P1
 created: 2026-06-20
 leads_to: 낡은 PASS 증거로 거짓완료 차단(기록→소비 완결)
@@ -28,13 +28,13 @@ leads_to: 낡은 PASS 증거로 거짓완료 차단(기록→소비 완결)
 - 코드 변경(HEAD 이동) 후 낡은 증거로 review하면 "증거 낡음"으로 신선도가 강등된다.
 
 ## Completion Check (작은 단위)
-- [ ] review가 latest.json HEAD SHA·dirty 필드 읽음(Goal 44 스키마)
-- [ ] `SHA≠HEAD` or dirty → 신선도 "낡음" 강등 + 신뢰도 반영
-- [ ] review 출력 메시지 "생성시각 추정" → "SHA 기반"으로 정정
-- [ ] SHA 필드 없는 구증거 graceful 폴백(크래시 0)
-- [ ] 회귀 테스트 `tests/review.test.ts`: SHA 일치=신선 / 불일치=강등 / 필드없음=폴백
-- [ ] check-goal-80.mjs
-- [ ] 공통 게이트 통과, 회귀 0
+- [x] review가 latest.json HEAD SHA·dirty 필드 읽음(Goal 44 스키마 — checkEvidenceFreshness 재사용)
+- [x] `SHA≠HEAD` or dirty → 신선도 "낡음" 강등 + 신뢰도 반영(basis=sha, stale→confidence medium 캡)
+- [x] review 출력 메시지 "생성시각 추정" → "SHA 기반"으로 정정(disclaimer + freshness.note)
+- [x] SHA 필드 없는 구증거 graceful 폴백(basis=time, 크래시 0)
+- [x] 회귀 테스트 `tests/review.test.ts`: SHA 일치=신선 / 불일치=강등 / 필드없음=폴백
+- [x] check-goal-80.mjs
+- [x] 공통 게이트 통과, 회귀 0
 
 ## Forbidden Actions (OUT)
 - verify/verify-report 시그니처 변경 0 (읽기 측만 추가 — GA 안정성)
