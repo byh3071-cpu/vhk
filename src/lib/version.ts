@@ -24,3 +24,23 @@ export function getVhkVersion(): string {
   }
   return '0.0.0'
 }
+
+// Goal 81: 제품 설명 단일 SoT — package.json.description 을 런타임 주입(index.ts .description 하드코딩 복제 제거).
+//   getVhkVersion 과 동형(같은 폴백 경로 + BOM 안전). description 부재 시 빈 문자열(commander 가 무시).
+export function getVhkDescription(): string {
+  const dir = dirname(fileURLToPath(import.meta.url))
+  for (const pkgPath of [
+    join(dir, '../../package.json'),
+    join(dir, '../package.json'),
+  ]) {
+    try {
+      if (existsSync(pkgPath)) {
+        const pkg = readJsonFile<{ description?: string }>(pkgPath)
+        if (pkg.description) return pkg.description
+      }
+    } catch {
+      continue
+    }
+  }
+  return ''
+}

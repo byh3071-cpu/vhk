@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import { prompt } from './lib/prompt.js'
 import { detectNaturalLanguageInput } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
-import { getVhkVersion } from './lib/version.js'
+import { getVhkVersion, getVhkDescription } from './lib/version.js'
 import { gate } from './commands/gate.js'
 import { init } from './commands/init.js'
 import { recap } from './commands/recap.js'
@@ -178,7 +178,8 @@ const KO_ALIASES: Record<string, string> = {
 
 program
   .name('vhk')
-  .description('VHK — AI 코딩 세션을 목표·증거·기억·규칙으로 묶는 한국어 CLI')
+  // Goal 81: 제품 설명 SoT = package.json.description (런타임 주입 — 하드코딩 복제·드리프트 제거).
+  .description(getVhkDescription())
   .version(getVhkVersion())
 
 program.configureHelp({
@@ -959,6 +960,8 @@ program.on('command:*', (operands: string[]) => {
 program.action(async () => {
   // 헤더: 현재 버전(즉시·네트워크 0) + 업데이트 알림(캐시 기반 "가끔 자동 확인") + 직접입력 안내.
   const info = getUpdateInfo()
+  // 메뉴 헤더는 브랜드 태그라인(짧은 별칭) — npm 제품 설명(package.json.description, --help 노출)과
+  // 의도적으로 다른 층위다(Goal 81). 태그라인은 여기 단일 표기, 제품 설명은 getVhkDescription() 주입.
   console.log('\n🎯 VHK — 바이브코딩 프로젝트 코치  ' + chalk.dim(`v${info.current}`))
   if (info.updateAvailable && info.latest) {
     console.log(chalk.yellow(`🆕 업데이트 가능: v${info.latest}`) + chalk.dim('  →  vhk update'))
