@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {
   scanProjectForSecrets,
+  downgradeTestFixtureFindings,
   MAX_SECRET_FINDINGS,
 } from '../lib/scan-secrets.js'
 import { MAX_SCAN_FILE_BYTES } from '../lib/scan-files.js'
@@ -31,7 +32,10 @@ export async function secure() {
   console.log(chalk.dim(`  ${ko.secure.scanning}\n`))
 
   // 두 스캔 모두 실행 후 각 섹션 출력 (early return 제거 → LLM 스캔 항상 실행)
-  const { findings, scannedFiles, truncated, truncationReasons } = scanProjectForSecrets(cwd)
+  const scan = scanProjectForSecrets(cwd)
+  const { scannedFiles, truncated, truncationReasons } = scan
+  // Goal 83: 테스트 픽스처(가짜 토큰)의 MEDIUM 을 INFO 로 강등 — false positive 노이즈↓(critical/high 불변).
+  const findings = downgradeTestFixtureFindings(scan.findings)
   const llmScan = scanLlmGuardrails(cwd)
 
   // --- 시크릿 스캔 결과 ---
@@ -60,6 +64,7 @@ export async function secure() {
     const critical = findings.filter(f => f.severity === 'critical')
     const high = findings.filter(f => f.severity === 'high')
     const medium = findings.filter(f => f.severity === 'medium')
+    const info = findings.filter(f => f.severity === 'info') // Goal 83: 테스트 픽스처 강등분
 
     if (critical.length > 0) {
       console.log(chalk.red.bold(`  🚨 CRITICAL — ${critical.length}건`))
@@ -88,13 +93,32 @@ export async function secure() {
       console.log('')
     }
 
+    // Goal 83: 테스트 픽스처(가짜 토큰)로 강등된 INFO — 표시는 하되 "유출 아님"을 분명히(false positive 안심).
+    if (info.length > 0) {
+      console.log(chalk.gray.bold(`  · INFO — ${info.length}건 (테스트 픽스처/예시 토큰 — 유출 아님)`))
+      info.forEach(f => {
+        console.log(chalk.gray(`    · ${f.patternName} (테스트 픽스처)`))
+        console.log(chalk.dim(`      ${f.file}:${f.line} → ${f.match}`))
+      })
+      console.log('')
+    }
+
+    // Goal 83: 진짜 신호(강등 안 된 critical/high/medium) 개수. 전부 INFO(픽스처)면 빨간 총계·유출 조치
+    //          안내를 띄우지 않는다 — 카드가 없애려던 "유출됐나?" 놀람이 색·문구로 잔존하던 것 제거.
+    const realCount = critical.length + high.length + medium.length
+    const totalColor = realCount > 0 ? chalk.red : chalk.gray
     console.log(chalk.bold(`  ${ko.secure.summary}`))
-    console.log(`  총 ${chalk.red(String(findings.length))}건 감지 | CRITICAL: ${critical.length} | HIGH: ${high.length} | MEDIUM: ${medium.length}`)
+    console.log(`  총 ${totalColor(String(findings.length))}건 감지 | CRITICAL: ${critical.length} | HIGH: ${high.length} | MEDIUM: ${medium.length} | INFO: ${info.length}`)
     console.log('')
-    console.log(chalk.dim('  💡 조치 방법:'))
-    console.log(chalk.dim('    1. 해당 파일에서 시크릿을 제거하고 환경변수로 이동'))
-    console.log(chalk.dim('    2. git history에서도 제거: git filter-branch 또는 BFG Repo-Cleaner'))
-    console.log(chalk.dim('    3. 유출된 키는 즉시 폐기하고 재발급\n'))
+    if (realCount > 0) {
+      console.log(chalk.dim('  💡 조치 방법:'))
+      console.log(chalk.dim('    1. 해당 파일에서 시크릿을 제거하고 환경변수로 이동'))
+      console.log(chalk.dim('    2. git history에서도 제거: git filter-branch 또는 BFG Repo-Cleaner'))
+      console.log(chalk.dim('    3. 유출된 키는 즉시 폐기하고 재발급\n'))
+    } else {
+      // info 만 — 실제 유출 신호 없음(테스트 픽스처). 조치 불필요.
+      console.log(chalk.green('  ✅ 실제 유출 신호 없음 — 위 INFO 는 테스트 픽스처(가짜 토큰)입니다.\n'))
+    }
 
     if (critical.length > 0 || high.length > 0) {
       process.exitCode = 1

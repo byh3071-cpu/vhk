@@ -122,3 +122,26 @@ export function scanProjectForSecrets(cwd: string): ProjectSecretScan {
 export function filterSevereFindings(findings: SecretFinding[]): SecretFinding[] {
   return findings.filter(f => f.severity === 'critical' || f.severity === 'high')
 }
+
+// Goal 83: 테스트 픽스처/예시 토큰이 정상적으로 들어가는 경로(가짜 토큰 = 유출 아님).
+//   tests/·test/·__tests__/·__mocks__/·fixtures?/·__fixtures__/ 디렉터리 또는 *.test.*·*.spec.* 파일.
+//   보수적으로 좁힌다 — 'latest.ts' 처럼 'test' 부분문자열만 있는 경로는 제외(경계 필수).
+const TEST_FIXTURE_PATH =
+  /(?:^|\/)(?:tests?|__tests__|__mocks__|fixtures?|__fixtures__)\/|\.(?:test|spec)\.[cm]?[jt]sx?$/i
+
+/** 경로가 테스트 픽스처 컨텍스트인가(Windows 역슬래시 정규화). */
+export function isTestFixturePath(file: string): boolean {
+  return TEST_FIXTURE_PATH.test(file.replace(/\\/g, '/'))
+}
+
+/**
+ * Goal 83: 테스트 픽스처(가짜 토큰)의 MEDIUM 발견을 INFO 로 강등 — secure 리포트 false positive 노이즈↓.
+ *   - 픽스처 경로 + severity 'medium' 만 강등(현재 medium 패턴은 JWT 단 하나 — generic-api-key 등은 high 라 미강등).
+ *   - CRITICAL/HIGH 는 위치 무관 유지(약화 금지 — 실제 자격증명 포맷은 픽스처여도 두면 안 됨, Forbidden).
+ *   - 강등은 제거가 아니다(INFO 로 여전히 노출) → 신호 보존, filterSevereFindings(critical/high)도 불변.
+ */
+export function downgradeTestFixtureFindings(findings: SecretFinding[]): SecretFinding[] {
+  return findings.map((f) =>
+    f.severity === 'medium' && isTestFixturePath(f.file) ? { ...f, severity: 'info' as const } : f
+  )
+}
