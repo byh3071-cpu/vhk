@@ -9,6 +9,7 @@ import { okOut, currentBranch, statusPorcelain, recentCommits } from '../lib/git
 import { readJsonFile } from '../lib/read-json.js'
 import { printNextStep, printContextResumeHint } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
+import { projectMaturity } from '../lib/project-maturity.js'
 
 export interface FileChangeCounts {
   staged: number
@@ -102,13 +103,24 @@ export interface StatusNextStep {
  * status 다음 액션 — 변경사항이 있어도 곧장 `vhk save` 를 권하지 않는다(데이터 안전).
  * 먼저 `vhk diff`("뭐 바뀌었어")로 확인 → 저장은 그 다음(alternative)으로 안내. (배치3 §2)
  */
-export function selectStatusNextStep(hasChanges: boolean): StatusNextStep {
+export function selectStatusNextStep(
+  hasChanges: boolean,
+  maturity: 'new' | 'established' = 'established'
+): StatusNextStep {
   if (hasChanges) {
     return {
       message: t('status.nextWithChangesMessage'),
       command: 'vhk diff',
       cursorHint: t('status.nextWithChangesCursor'),
       alternative: t('status.nextWithChangesAlt'),
+    }
+  }
+  // Goal 84: 신규(초기) 레포는 온보딩, 기존(활성) 레포는 다음 미션(vhk goal next) — 맥락 분기.
+  if (maturity === 'new') {
+    return {
+      message: t('status.nextNewRepoMessage'),
+      command: 'vhk 시작',
+      cursorHint: t('status.nextNewRepoCursor'),
     }
   }
   return {
@@ -182,7 +194,9 @@ export async function status(): Promise<void> {
   }
 
   const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0
-  printNextStep(selectStatusNextStep(hasChanges))
+  // Goal 84: maturity 앵커는 cwd — .vhk/context.md 가 cwd 기준으로 쓰이므로(doctor 와 동일 앵커로 통일,
+  //          gitRoot 사용 시 서브디렉터리에서 doctor 와 분류 불일치). commitCount 는 git 이 루트 해석.
+  printNextStep(selectStatusNextStep(hasChanges, projectMaturity(process.cwd())))
   // Goal 10: 세션 진입 명령에서 `vhk context` 발견성 노출 (복원/생성/갱신 안내).
   // context 는 cwd 기준 .vhk/context.md 에 쓰므로 cwd(인자 생략)로 점검 — gitRoot 와 앵커 불일치 방지.
   printContextResumeHint()

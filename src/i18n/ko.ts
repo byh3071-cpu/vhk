@@ -29,6 +29,9 @@ export const ko = {
     nextWithChangesAlt: '확인했으면 vhk save 로 저장하세요',
     nextCleanMessage: '클린 상태! 다음 미션으로 넘어가세요.',
     nextCleanCursor: '다음 목표 알려줘',
+    // Goal 84: 신규(초기) 레포 — 활성 레포의 "다음 미션" 대신 온보딩 안내.
+    nextNewRepoMessage: '환경 준비됐어요. 새 프로젝트를 시작해보세요.',
+    nextNewRepoCursor: '프로젝트 만들어줘',
   },
   save: {
     title: '저장하기',
@@ -220,6 +223,9 @@ export const ko = {
     projectFiles: '📁 프로젝트 파일 확인:',
     envNotIgnored: '⚠️ .env가 .gitignore에 없음! 추가하세요',
     nextOkMessage: '환경 점검 통과! 이제 프로젝트를 시작하세요.',
+    // Goal 84: 기존(활성) 레포 — 온보딩 대신 이어서 작업 안내(D9).
+    nextEstablishedMessage: '환경 점검 통과 — 이어서 작업하세요.',
+    nextEstablishedCursor: '이어서 작업할래',
     nextRetryMessage: '위 도구를 설치한 후 다시 점검하세요.',
     updateAvailable: (latest: string) =>
       `🆕 v${latest} 사용 가능 — npm i -g @byh3071/vhk`,
