@@ -4,17 +4,22 @@
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-06-20
-**Phase:** 뒷단 4트랙 완성(RFC 0052) + SOUL 상속 `.agents/SOUL.md` 머지(#297, 노션 배선 핸드오프 구현). **우선순위 3 품질천장(RFC 0048 G47~54)은 G50(diff-coverage)만 잔여 — G51·53·54 이미 done 확인(2026-06-20, 과거 문서의 "G51 착수"는 오기였음).** 현재 우선순위 2 measure-first 가동 중: 도구 3종 작동 확인, Recall@5는 사용자 라벨링 선결·diff-cover는 실작업 누적 대기. **+ 실 사용자 도그푸딩 전수 감사 완료(2026-06-20) → RFC 0053 + goals 78~84 발행, P0 2개 완료 — goal 78(DONE, #303)·goal 79(1차 머지 + 환경분리 YAGNI 관찰, #304). 다음 P1 goal 80·81. **+ SEO goal 22~26 무인범위 DONE·RFC 0054 자율형 진화 로드맵 머지(#307) — 실 외부 API는 D2 이관.** 사실값(버전·테스트수)은 package.json·CHANGELOG.
+**갱신:** 2026-06-22
+**Phase:** **도그푸딩 하드닝(RFC 0053 · goals 78~84) 완료** — 78(#303)·79(#304)·80(#310)·81(#311)·82(#312)·83(#332)·84(#348) 전부 머지. 우선순위 2 measure-first가 현재 최우선(Recall@5 라벨링·diff-cover 누적 대기). 뒷단 4트랙(74~77)·SEO 22~26·SOUL 상속 기완료. 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
-- **[진행중] 도그푸딩 하드닝 (RFC 0053 · goals 78~84)** → 실 사용자 전수 감사(`docs/log/2026-06-20-dogfood-audit.md`). 재활용 = `/dogfood` 스킬.
-  - ✅ **goal 78 DONE**(#303): `goal next` 비파괴화(덮어쓰기 전 `.vhk/backups` 백업 + 수동편집 경고) + `vhk goal peek`(읽기전용 조회). D1 봉인.
-  - 🔄 **goal 79 1차 머지**(#304, IN_PROGRESS): recall-log timeout 30s + TS-004. **환경분리(@env/pool)는 CI green이라 YAGNI 관찰** — 로컬 빨강이 DX 비용으로 누적되면 재개(전역 pool 변경은 CI 리스크).
-  - **[다음 P1]**: `goal 80`(증거 SHA→review 신선도, goal 44 소비측) · `goal 81`(제품 설명 단일 SoT, brief↔package, G54 사각지대).
-  - **P2**: `goal 82`(.vhk gitignore) · `goal 83`(보안 scan 픽스처 false positive) · `goal 84`(doctor/status 맥락 next-step).
+- **[완료] 도그푸딩 하드닝 (RFC 0053 · goals 78~84)** → 실 사용자 전수 감사(`docs/log/2026-06-20-dogfood-audit.md`) 기반 전 goal 머지.
+  - ✅ **78**(#303): `goal next` 비파괴화 + `vhk goal peek`. ✅ **79**(#304): recall-log timeout 30s + TS-004(환경분리는 YAGNI 관찰).
+  - ✅ **80**(#310): 증거 신선도 SHA 강등(review가 SHA≠HEAD/dirty 감지, goal 44 소비측 완결).
+  - ✅ **81**(#311): 제품 설명 단일 SoT(index.ts `.description` → `getVhkDescription()` 런타임 주입). brief는 VHK-004 의도로 미변경.
+  - ✅ **82**(#312): `.vhk/ledger.jsonl` 추적 정합(카드 "gitignore"는 정책과 반대 — spec 1.1이 ✅추적). 정책 가드 vitest.
+  - ✅ **83**(#332): secure 픽스처 MEDIUM→INFO 강등(`isTestFixturePath`+`downgradeTestFixtureFindings`). critical/high·게이팅 불변.
+  - ✅ **84**(#348): doctor/status next-step 맥락 분기(`classifyMaturity` — established→work, new→온보딩). D9 해소.
+  - 각 goal: TDD + 다각 적대리뷰(7~12 에이전트, 반증). **81·82·84는 선조사로 범위 재조정**("확실한 것만" — 카드 전제가 코드와 어긋남).
   - **연계(새 goal 없음)**: D4 recall 오매칭 → RFC 0049 · D5 검증 집행력 → Goal 53.
-  - ⚠️ goal 은 `vhk goal next`(이제 백업함) 대신 `vhk goal peek` 권장(D1). PR 은 `--base main` 직접 생성(retarget 함정 회피 — base 브랜치 안 지우면 의존 PR 이 main 으로 안 감).
+  - ⚠️ goal 은 `vhk goal next` 대신 `vhk goal peek` 권장(D1). PR 은 `--base main` 직접 생성. **적대리뷰 워크플로 에이전트는 read-only 명시**(과거 `vhk save` 정크커밋 사고).
+  - 🔧 **작은 갭(미착수)**: `.vhk/ops-prompt.md`·`sell-prompt.md` gitignore 미등록(82가 ledger만 다룸) → `.vhk/.gitignore`+`templates/vhk-dir.ts` 보강.
+  - ⚠️ **동시 세션 주의**: 다른 Claude 세션이 같은 폴더에서 measure-first/proof 작업 중(`docs/rfc/0055`·`docs/log/2026-06-22-dogfood-measure-first.md`·`docs/state/research-backlog.md` untracked) — git 충돌 주의, worktree 분리 권장.
 - **[현재] measure-first 가동 (2026-06-20 착수)** → 도구 3종 작동 확인(`vhk recall`·`vhk diff-cover`·`vhk memory eval`, 로컬 dist v2.6.0). **Recall@5 측정 = 평가셋 필요 → `vhk memory eval --init` 대화형 라벨링(사용자가 실쿼리에 정답 표시)이 선결** — 내가 비대화형으로 못 함. 실쿼리는 `.vhk/recall-log.jsonl`에 3개 누적(리뷰 기준·커버리지 게이트), 며칠 더 다양한 쿼리 쌓여야 의미. diff-cover는 실작업 기능소스(src/commands·src/lib) diff가 쌓일 때 자동 측정 — 현재 작업트리 변경 0이라 "측정 대상 없음". ※ 풀사이클 뒷단 4트랙(RFC 0052)·SOUL 상속(#297)은 **완료**.
 - **goal 73 (#276 `vhk check --evals` LLM-judge)** → Fable5 프롬프트 위생 golden-set. L1(결정적 검사) 먼저, L2(LLM-judge) 나중.
 - **diff-coverage 실측 누적** → `vhk diff-cover`를 실제 코드 작업 **diff ≥5건(며칠)** 돌려 미검증 변경분 분포 수집(RFC 0050 §5 관찰 프로토콜). 유의미>0 → PR2(review line-40 제거 + verify 증거 + CI). ≈0 → "이론적 구멍" 문서화 후 중단(YAGNI). ※ diff-hunks `+++` 파서 엣지는 #239에서 이미 강화 완료(상태머신).
