@@ -1,4 +1,5 @@
-export type SecretSeverity = 'critical' | 'high' | 'medium'
+// 'info': Goal 83 — 테스트 픽스처(가짜 토큰) 등 컨텍스트로 강등된 신호. 표시는 하되 경보 아님.
+export type SecretSeverity = 'critical' | 'high' | 'medium' | 'info'
 
 export interface SecretPattern {
   id: string

@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { findSecretsInLine, scanProjectForSecrets, filterSevereFindings } from '../src/lib/scan-secrets.js'
+import {
+  findSecretsInLine,
+  scanProjectForSecrets,
+  filterSevereFindings,
+  downgradeTestFixtureFindings,
+  isTestFixturePath,
+} from '../src/lib/scan-secrets.js'
 import { MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
 
 // fake AWS key — 자기 레포 secure 스캔에 걸리지 않게 조각 합성.
@@ -198,5 +204,65 @@ describe('scan-secrets', () => {
         fs.rmSync(d, { recursive: true, force: true })
       }
     })
+  })
+})
+
+// Goal 83: 테스트 픽스처(가짜 토큰) false positive — tests/** 의 MEDIUM 만 INFO 로 강등.
+//   critical/high 는 위치 무관 유지(Forbidden — 약화 금지). 강등은 제거가 아님(INFO 로 여전히 노출 = 신호 보존).
+describe('Goal 83 — 테스트 픽스처 false positive 강등', () => {
+  // split 합성 — 자기 레포 secure 스캔이 이 테스트 파일을 자기탐지하지 않도록(런타임엔 합쳐짐).
+  const FAKE_JWT = 'eyJ' + 'h'.repeat(8) + '.eyJ' + 's'.repeat(8) + '.' + 'x'.repeat(8)
+
+  it('isTestFixturePath: tests/·*.test.·*.spec.·fixtures/·__mocks__ 식별, 소스/.env 는 아님', () => {
+    expect(isTestFixturePath('tests/property-parsers.test.ts')).toBe(true)
+    expect(isTestFixturePath('src/foo.test.ts')).toBe(true)
+    expect(isTestFixturePath('src/bar.spec.tsx')).toBe(true)
+    expect(isTestFixturePath('src/__mocks__/x.ts')).toBe(true)
+    expect(isTestFixturePath('test/fixtures/token.json')).toBe(true)
+    expect(isTestFixturePath('app/__fixtures__/a.ts')).toBe(true)
+    // Windows 역슬래시도 정규화.
+    expect(isTestFixturePath('tests\\a.test.ts')).toBe(true)
+    expect(isTestFixturePath('src/commands/secure.ts')).toBe(false)
+    expect(isTestFixturePath('.env')).toBe(false)
+    expect(isTestFixturePath('src/lib/latest.ts')).toBe(false) // 'test' 부분문자열 오탐 방지
+  })
+
+  it('tests/** 의 MEDIUM(JWT 픽스처) → INFO 강등', () => {
+    const findings = findSecretsInLine(`const t = "${FAKE_JWT}"`, 'tests/property-parsers.test.ts', 31)
+    const jwt = findings.filter((f) => f.patternId === 'jwt')
+    expect(jwt).toHaveLength(1)
+    expect(jwt[0].severity).toBe('medium') // 원시 탐지는 medium
+    const downgraded = downgradeTestFixtureFindings(findings)
+    expect(downgraded.find((f) => f.patternId === 'jwt')?.severity).toBe('info')
+  })
+
+  it('소스(.ts)의 MEDIUM 은 강등 안 됨(유지)', () => {
+    const findings = findSecretsInLine(`const t = "${FAKE_JWT}"`, 'src/auth.ts', 10)
+    const downgraded = downgradeTestFixtureFindings(findings)
+    expect(downgraded.find((f) => f.patternId === 'jwt')?.severity).toBe('medium')
+  })
+
+  it('tests/** 의 CRITICAL 은 위치 무관 유지(약화 금지 — Forbidden)', () => {
+    const realAws = 'AKIA' + '1234567890ABCDEF'
+    const findings = findSecretsInLine(`const k = "${realAws}"`, 'tests/leak.test.ts', 5)
+    const downgraded = downgradeTestFixtureFindings(findings)
+    expect(downgraded.find((f) => f.patternId === 'aws-access-key')?.severity).toBe('critical')
+  })
+
+  it('강등은 finding 을 제거하지 않음(INFO 로 여전히 노출 — 신호 보존, 숨김 0)', () => {
+    const findings = findSecretsInLine(`const t = "${FAKE_JWT}"`, 'tests/x.test.ts', 1)
+    const downgraded = downgradeTestFixtureFindings(findings)
+    expect(downgraded).toHaveLength(findings.length)
+  })
+
+  it('filterSevereFindings 는 강등 후에도 critical/high 만(info 미포함 — 게이팅 불변)', () => {
+    const realAws = 'AKIA' + '1234567890ABCDEF'
+    const findings = [
+      ...findSecretsInLine(`const t = "${FAKE_JWT}"`, 'tests/x.test.ts', 1),
+      ...findSecretsInLine(`const k = "${realAws}"`, 'src/real.ts', 2),
+    ]
+    const severe = filterSevereFindings(downgradeTestFixtureFindings(findings))
+    expect(severe.every((f) => f.severity === 'critical' || f.severity === 'high')).toBe(true)
+    expect(severe.some((f) => f.patternId === 'aws-access-key')).toBe(true)
   })
 })
