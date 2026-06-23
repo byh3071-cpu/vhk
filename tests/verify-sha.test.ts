@@ -44,6 +44,45 @@ describe('getCommitInfo (Goal 44 — 기존 git-access 통로)', () => {
     expect(getCommitInfo(d)).toBeNull()
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  // ── Goal 85 (#315): 자기참조 봉인 — 자기 산출 추적파일은 dirty 판정에서 제외 ──
+  it('자기 ledger(.vhk/ledger.jsonl)만 변경 → dirty=false (clean 취급)', () => {
+    const d = makeRepo()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    // 추적되는 파일이어야 함(커밋 후 수정) — verify 가 append 하는 상황 모사.
+    fs.writeFileSync(path.join(d, '.vhk', 'ledger.jsonl'), '{"v":1}\n')
+    execFileSync('git', ['add', '.'], { cwd: d, stdio: 'pipe' })
+    execFileSync('git', ['commit', '-m', 'seed ledger'], { cwd: d, stdio: 'pipe' })
+    // 이제 ledger 만 append(수정) → working tree 는 ledger 한 줄만 dirty.
+    fs.appendFileSync(path.join(d, '.vhk', 'ledger.jsonl'), '{"v":2}\n')
+    expect(getCommitInfo(d)!.dirty).toBe(false) // 자기파일만 → clean
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('자기 events(.vhk/events/ai-actions.jsonl) untracked 만 → dirty=false', () => {
+    const d = makeRepo()
+    fs.mkdirSync(path.join(d, '.vhk', 'events'), { recursive: true })
+    fs.writeFileSync(path.join(d, '.vhk', 'events', 'ai-actions.jsonl'), '{"a":1}\n')
+    expect(getCommitInfo(d)!.dirty).toBe(false)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('퇴행 0: 자기 ledger + 진짜 소스 변경 → dirty=true (소스 미커밋은 여전히 잡힘)', () => {
+    const d = makeRepo()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, '.vhk', 'ledger.jsonl'), '{"v":1}\n') // 자기파일(제외 대상)
+    fs.writeFileSync(path.join(d, 'src.ts'), 'export const x = 1\n') // 진짜 소스(untracked)
+    expect(getCommitInfo(d)!.dirty).toBe(true)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('과확장 0: 그 외 .vhk 파일(config.json) 변경은 여전히 dirty=true', () => {
+    const d = makeRepo()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, '.vhk', 'config.json'), '{}\n') // 자기 ledger 아님 → 제외 안 됨
+    expect(getCommitInfo(d)!.dirty).toBe(true)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })
 
 describe('buildReport — commit 바인딩', () => {

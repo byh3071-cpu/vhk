@@ -1,4 +1,6 @@
 import { safeExecFile } from './exec.js'
+import { parsePorcelainLines } from './git-porcelain.js'
+import { filterSelfTrackedLines } from './self-tracked.js'
 
 // Goal 46: git 접근 단일 통로화 — 직접 execFileSync 대신 safeExecFile 경유.
 // 얻는 것: timeout 백스톱 + 일관된 에러(실제 git stderr) + cwd 지원. 기존 throw 계약은 보존.
@@ -88,7 +90,16 @@ export function getCommitInfo(cwd: string = process.cwd()): CommitInfo | null {
     const sha = gitOut(['rev-parse', 'HEAD'], cwd).trim()
     if (!sha) return null
     // --porcelain: 추적/미추적 변경이 한 줄이라도 있으면 dirty.
-    const dirty = gitOut(['status', '--porcelain'], cwd).trim().length > 0
+    // Goal 85 (#315) 자기참조 봉인: vhk verify 가 종료 시 스스로 append 하는 자기 산출
+    // 추적파일(.vhk/ledger.jsonl·.vhk/events/*.jsonl)은 dirty 판정에서 제외한다. 안 그러면
+    // verify 직후 늘 dirty → freshness/receipt 가 자기 ledger 한 줄 때문에 영원히 block(자기모순).
+    // ★한계(정직): 이 제외로 vhk 가 자기 ledger 를 위조해도 dirty 로 못 잡는다 → self-tracked.ts 주석 참조.
+    // 그 외 모든 변경(진짜 소스 미커밋·다른 .vhk 파일)은 그대로 dirty 로 잡힌다(과확장 0).
+    // --untracked-files=all: 기본 porcelain 은 미추적 디렉터리를 "?? .vhk/" 로 접어(collapse) 개별
+    //   파일 경로를 안 준다. 그러면 자기파일만 골라낼 수 없고(접힌 .vhk/ 안에 config.json 등이 섞일 수 있어
+    //   통째 제외하면 과확장) → -uall 로 개별 파일을 펴서 정확히 자기파일만 필터한다(testmap.ts 동일 이유).
+    const lines = parsePorcelainLines(gitOut(['status', '--porcelain', '--untracked-files=all'], cwd))
+    const dirty = filterSelfTrackedLines(lines).length > 0
     return { sha, shortSha: sha.slice(0, 7), dirty }
   } catch {
     return null
