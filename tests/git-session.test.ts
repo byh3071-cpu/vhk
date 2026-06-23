@@ -117,6 +117,62 @@ describe('git-session — cwd 통과 + 기본값', () => {
   })
 })
 
+// commitPaths — 명시 경로만 stage·commit 하는 저소음 커밋(멀티PC dirty-block B축).
+// stageAll(git add .) 금지 — 의도치 않은 파일 휩쓸기 방지. 변경 없으면 commit skip(잡음 0).
+describe('git-session — commitPaths (명시 경로 저소음 커밋)', () => {
+  const PATHS = ['.vhk/events/ai-actions.jsonl', '.vhk/ledger.jsonl']
+
+  it('명시 경로만 stage (git add -- ...paths, "." 금지)', () => {
+    // add ok → diff --cached --quiet 변경 있음(ok:false) → commit
+    mockExec
+      .mockReturnValueOnce({ ok: true, out: '' }) // add
+      .mockReturnValueOnce({ ok: false, err: '', out: '' }) // diff --cached --quiet → 변경 있음
+      .mockReturnValueOnce({ ok: true, out: '' }) // commit
+    session.commitPaths('msg', PATHS, '/repo')
+    expect(mockExec.mock.calls[0][1]).toEqual(['add', '--', ...PATHS])
+    expect(mockExec.mock.calls[0][1]).not.toContain('.')
+  })
+
+  it('staged 변경 없으면 commit skip (diff --cached --quiet ok → 잡음 0)', () => {
+    mockExec
+      .mockReturnValueOnce({ ok: true, out: '' }) // add
+      .mockReturnValueOnce({ ok: true, out: '' }) // diff --cached --quiet ok=변경 없음
+    const r = session.commitPaths('msg', PATHS, '/repo')
+    // commit 은 호출되지 않음 (add + diff 만 = 2회).
+    expect(mockExec).toHaveBeenCalledTimes(2)
+    expect(mockExec.mock.calls.some((c) => c[1][0] === 'commit')).toBe(false)
+    expect(r.ok).toBe(true) // 변경 없음도 정상(비치명).
+  })
+
+  it('staged 변경 있으면 명시 경로로 commit (git commit -m <msg> -- ...paths)', () => {
+    mockExec
+      .mockReturnValueOnce({ ok: true, out: '' }) // add
+      .mockReturnValueOnce({ ok: false, err: '', out: '' }) // diff --cached --quiet → 변경 있음
+      .mockReturnValueOnce({ ok: true, out: '' }) // commit
+    session.commitPaths('chore: ledger', PATHS, '/repo')
+    const commitCall = mockExec.mock.calls.find((c) => c[1][0] === 'commit')
+    expect(commitCall?.[1]).toEqual(['commit', '-m', 'chore: ledger', '--', ...PATHS])
+  })
+
+  it('add 실패 시 즉시 반환 (diff/commit 호출 안 함, 비치명)', () => {
+    mockExec.mockReturnValueOnce({ ok: false, err: 'add boom', out: '' }) // add 실패
+    const r = session.commitPaths('msg', PATHS, '/repo')
+    expect(mockExec).toHaveBeenCalledTimes(1) // add 만.
+    expect(r.ok).toBe(false)
+  })
+
+  it('cwd 를 모든 git 호출에 통과', () => {
+    mockExec
+      .mockReturnValueOnce({ ok: true, out: '' })
+      .mockReturnValueOnce({ ok: false, err: '', out: '' })
+      .mockReturnValueOnce({ ok: true, out: '' })
+    session.commitPaths('msg', PATHS, '/some/root')
+    for (const call of mockExec.mock.calls) {
+      expect(call[2]).toMatchObject({ cwd: '/some/root' })
+    }
+  })
+})
+
 describe('git-session — ExecResult 통과 + okOut swallow', () => {
   it('ExecResult 를 그대로 반환 (호출부가 .ok/.out/.err 검사)', () => {
     mockExec.mockReturnValue({ ok: false, err: 'boom', out: '', stderr: 'fatal' })
