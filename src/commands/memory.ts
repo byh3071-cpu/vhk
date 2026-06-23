@@ -613,12 +613,17 @@ function buildIdf(entries: MemEntry[]): Map<string, number> {
   return idf
 }
 
-/** 생성시점 기반 약한 최근성 보너스(주신호 아님) — 90일 반감기. 파싱 실패 시 0. */
+/**
+ * 생성시점 기반 약한 최근성 보너스(주신호 아님) — 90일 반감기. 파싱 실패 시 0.
+ * #324: createdAt 미래(clock skew·수동편집·복원)면 days<0 → exp(양수)가 1.0 을 무한 초과(e+127)해
+ *       '약한 보너스(상한 1.0)' 설계를 무력화하고 과학표기가 사용자에게 노출됨 →
+ *       미래 날짜는 '최신'으로 간주해 1.0 으로 clamp.
+ */
 function recencyScore(createdAt: string, nowMs: number): number {
   const ts = Date.parse(createdAt)
   if (Number.isNaN(ts)) return 0
   const days = (nowMs - ts) / 86_400_000
-  return Math.exp(-days / 90)
+  return Math.min(1, Math.exp(-days / 90))
 }
 
 /**
