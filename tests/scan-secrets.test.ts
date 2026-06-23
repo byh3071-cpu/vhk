@@ -2,12 +2,14 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   findSecretsInLine,
   scanProjectForSecrets,
   filterSevereFindings,
   downgradeTestFixtureFindings,
   isTestFixturePath,
+  isEnvTemplateFile,
 } from '../src/lib/scan-secrets.js'
 import { MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
 
@@ -264,5 +266,144 @@ describe('Goal 83 — 테스트 픽스처 false positive 강등', () => {
     const severe = filterSevereFindings(downgradeTestFixtureFindings(findings))
     expect(severe.every((f) => f.severity === 'critical' || f.severity === 'high')).toBe(true)
     expect(severe.some((f) => f.patternId === 'aws-access-key')).toBe(true)
+  })
+})
+
+// #316: .env.example/.sample/.template 의 비주석 KEY=value placeholder(ghp_xxxx·secret_xxxx 등)를
+//   진짜 CRITICAL 시크릿으로 오탐 → secure scan FAIL → verify 게이트 통째 FAIL.
+//   기존 isComment 게이트는 주석에 묶여 비주석 KEY=value 라인엔 placeholder 검사가 적용 안 됐다.
+//   수정: env 템플릿 파일에 한해(risk-policy 의 .env.example|.sample|.template 예외와 정합)
+//         값-기반 PLACEHOLDER_MARKER 를 주석 게이트 없이 적용 — 단 "명백한 placeholder 값"만.
+//   ⚠️ false-negative 0: 진짜처럼 보이는 토큰은 여전히 CRITICAL. 주석 진짜 토큰(#218/#250)도 불변.
+describe('#316 — .env.example placeholder 토큰 오탐 차단', () => {
+  // split 합성 — 자기 레포 secure 스캔이 이 테스트 파일을 자기탐지하지 않게(런타임엔 합쳐짐).
+  // 진짜처럼 보이는(랜덤 영숫자, x 반복 아님) 36자+ 토큰. placeholder 표식 없음 → 여전히 잡혀야.
+  const REAL_GHP = 'ghp_' + 'aB3kZ9mQ1rT7wX2pL5nC8vD4fG6hJ0sKbCdE'
+  const REAL_NOTION = 'secret_' + 'aB3kZ9mQ1rT7wX2pL5nC8vD4fG6hJ0sKbCdE9pQ2'
+
+  it('isEnvTemplateFile: .env.example/.sample/.template 만 true, .env/소스 는 false', () => {
+    expect(isEnvTemplateFile('.env.example')).toBe(true)
+    expect(isEnvTemplateFile('.env.sample')).toBe(true)
+    expect(isEnvTemplateFile('.env.template')).toBe(true)
+    expect(isEnvTemplateFile('config/.env.example')).toBe(true)
+    // Windows 역슬래시 정규화.
+    expect(isEnvTemplateFile('config\\.env.example')).toBe(true)
+    expect(isEnvTemplateFile('.env')).toBe(false)
+    expect(isEnvTemplateFile('.env.local')).toBe(false)
+    expect(isEnvTemplateFile('.env.production')).toBe(false)
+    expect(isEnvTemplateFile('src/commands/secure.ts')).toBe(false)
+  })
+
+  it('.env.example 의 비주석 GITHUB_TOKEN=ghp_xxxx placeholder → 미탐(CRITICAL 0)', () => {
+    const line = 'GITHUB_TOKEN=ghp_' + 'x'.repeat(36)
+    expect(findSecretsInLine(line, '.env.example', 1)).toHaveLength(0)
+  })
+
+  it('.env.example 의 비주석 NOTION_TOKEN=secret_xxxx placeholder → 미탐', () => {
+    const line = 'NOTION_TOKEN=secret_' + 'x'.repeat(40)
+    expect(findSecretsInLine(line, '.env.example', 1)).toHaveLength(0)
+  })
+
+  // split 합성 — 자기 레포 secure self-scan 이 이 테스트 파일을 자기탐지하지 않게(런타임엔 합쳐짐).
+  const SLACK_PLACEHOLDER = 'xoxb-' + 'your-bot-token-goes-here'
+
+  it('.env.example 의 xoxb-your-... slack placeholder → 미탐', () => {
+    const line = `SLACK_TOKEN=${SLACK_PLACEHOLDER}`
+    expect(findSecretsInLine(line, '.env.example', 1)).toHaveLength(0)
+  })
+
+  it('.env.sample / .env.template 에도 동일 완화 적용', () => {
+    const line = 'GITHUB_TOKEN=ghp_' + 'x'.repeat(36)
+    expect(findSecretsInLine(line, '.env.sample', 1)).toHaveLength(0)
+    expect(findSecretsInLine(line, '.env.template', 1)).toHaveLength(0)
+  })
+
+  // ── false-negative 가드 (필수) ─────────────────────────────────────────
+  it('가드: .env.example 라도 진짜처럼 보이는 토큰(x 반복 아님)은 여전히 CRITICAL', () => {
+    const line = `GITHUB_TOKEN=${REAL_GHP}`
+    const findings = findSecretsInLine(line, '.env.example', 1)
+    expect(findings.filter((f) => f.patternId === 'github-token')).toHaveLength(1)
+    expect(findings.find((f) => f.patternId === 'github-token')?.severity).toBe('critical')
+  })
+
+  it('가드: .env.example 의 진짜 notion 토큰도 여전히 CRITICAL', () => {
+    const line = `NOTION_TOKEN=${REAL_NOTION}`
+    const findings = findSecretsInLine(line, '.env.example', 1)
+    expect(findings.filter((f) => f.patternId === 'notion-token')).toHaveLength(1)
+  })
+
+  it('가드: 일반 .env(템플릿 아님)의 placeholder 는 완화 대상 아님 — 여전히 탐지', () => {
+    // .env(템플릿 아님)은 실제 시크릿 파일 → placeholder 라도 비주석이면 완화 안 함(보수적).
+    const line = 'GITHUB_TOKEN=ghp_' + 'x'.repeat(36)
+    expect(
+      findSecretsInLine(line, '.env', 1).filter((f) => f.patternId === 'github-token'),
+    ).toHaveLength(1)
+  })
+
+  it('가드: 일반 소스(.ts)의 placeholder 토큰은 완화 안 함(env 템플릿 아님)', () => {
+    const line = 'const t = "ghp_' + 'x'.repeat(36) + '"'
+    expect(
+      findSecretsInLine(line, 'src/config.ts', 1).filter((f) => f.patternId === 'github-token'),
+    ).toHaveLength(1)
+  })
+
+  it('가드: 주석 진짜 토큰(#218/#250)은 env 템플릿 완화와 무관하게 여전히 탐지', () => {
+    const line = `# see example: ${REAL_GHP}`
+    expect(
+      findSecretsInLine(line, 'src/x.ts', 1).filter((f) => f.patternId === 'github-token'),
+    ).toHaveLength(1)
+  })
+
+  it('회귀: .env.example placeholder 만 있는 파일을 프로젝트 스캔이 깨끗하게(severe 0) 처리', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-scan-316-'))
+    try {
+      const body = [
+        'GITHUB_TOKEN=ghp_' + 'x'.repeat(36),
+        'NOTION_TOKEN=secret_' + 'x'.repeat(40),
+        `SLACK_TOKEN=${SLACK_PLACEHOLDER}`,
+        '# 주석 placeholder',
+        '# GITHUB_TOKEN=ghp_' + 'x'.repeat(36),
+      ].join('\n')
+      fs.writeFileSync(path.join(d, '.env.example'), body + '\n', 'utf-8')
+      const { findings } = scanProjectForSecrets(d)
+      expect(filterSevereFindings(findings)).toHaveLength(0)
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  it('회귀: .env.example 에 진짜 토큰이 섞이면 프로젝트 스캔이 여전히 CRITICAL 검출', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-scan-316-real-'))
+    try {
+      const body = [
+        'GITHUB_TOKEN=ghp_' + 'x'.repeat(36), // placeholder → 무시
+        `LEAKED_TOKEN=${REAL_GHP}`, // 진짜 → 검출
+      ].join('\n')
+      fs.writeFileSync(path.join(d, '.env.example'), body + '\n', 'utf-8')
+      const { findings } = scanProjectForSecrets(d)
+      expect(filterSevereFindings(findings).some((f) => f.patternId === 'github-token')).toBe(true)
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+})
+
+// #316 회귀(self-scan 사각): 단위 test 가 self-scan 회귀를 못 잡은 게 이번 사각이었다.
+//   dogfood CI = repo 루트 `secure scan`(scanProjectForSecrets → downgradeTestFixtureFindings → critical/high).
+//   이 레포 자신을 스캔했을 때 severe(critical/high) 가 0 이어야 한다 —
+//   누군가 테스트 픽스처에 '연속(split 안 한) 시크릿 리터럴'을 넣으면 self-scan 이 CRITICAL 로 새고
+//   dogfood 가 깨진다. 이 가드가 그 순간 단위 test 단계에서 잡는다(split 합성 컨벤션 강제).
+describe('#316 self-scan 회귀 가드 — 레포 자기탐지 0 (dogfood 사각 폐쇄)', () => {
+  // 이 테스트 파일 위치에서 레포 루트 추정(tests/ 의 부모).
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+  it('레포 self-scan 의 severe(critical/high) 는 0 (dogfood 와 동일 파이프라인)', () => {
+    const scan = scanProjectForSecrets(repoRoot)
+    // secure scan 과 동일: 픽스처 MEDIUM→INFO 강등 후 critical/high 만 게이팅.
+    const findings = downgradeTestFixtureFindings(scan.findings)
+    const severe = filterSevereFindings(findings)
+    // 실패 시 어느 파일/라인이 새는지 즉시 보이도록 메시지에 노출.
+    const detail = severe.map((f) => `${f.file}:${f.line} [${f.patternId}/${f.severity}]`).join(', ')
+    expect(severe, `self-scan severe leak: ${detail}`).toHaveLength(0)
   })
 })
