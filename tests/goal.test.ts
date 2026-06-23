@@ -671,6 +671,79 @@ describe('goal 엣지케이스 보강 (roadmap §4)', () => {
     }
   })
 
+  // #317: 빈/공백/소수/문자 --id 는 Number() 강제변환으로 goal 0 을 조용히 건드리면 안 됨.
+  //        (Number('')===0, Number('   ')===0, Number(' 1')===1 모두 finite 라 옛 코드는 통과시켰다.)
+  describe('#317 goalDone — 파괴적 --id 강제변환 차단 (goal 0 오염 방지)', () => {
+    // goal 0 + 통과하는 게이트를 깔아두고, 잘못된 --id 가 goal 0 을 DONE 으로 바꾸지 않음을 확인.
+    function setupGoalZero(label: string): string {
+      const dir = tmpProject(label)
+      makeGoalFile(dir, 0, 'NOT_STARTED')
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'scripts/check-goal-0.sh'), '#!/usr/bin/env bash\nexit 0\n', 'utf-8')
+      mockSafeExecFile.mockReturnValue({ ok: true, out: 'ok', err: '' })
+      return dir
+    }
+
+    for (const bad of ['', '   ', ' 1', 'abc', '1.5', '2zzz', '-1', '0x1']) {
+      it(`--id ${JSON.stringify(bad)} → 거부 + goal 0 상태 변경 0`, async () => {
+        const dir = setupGoalZero('id-bad')
+        const before = readFileSync(join(dir, 'goals/0-test.md'), 'utf-8')
+        process.chdir(dir)
+        try {
+          const { goalDone } = await import('../src/commands/goal.js')
+          const logSpy = vi.spyOn(console, 'log')
+          await goalDone({ id: bad })
+          const after = readFileSync(join(dir, 'goals/0-test.md'), 'utf-8')
+          // 파괴적 부작용 0: frontmatter 완전 보존
+          expect(after).toBe(before)
+          expect(after).toContain('status: NOT_STARTED')
+          // 친절 메시지로 거부
+          const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+          expect(out).toMatch(/유효하지 않은 goal 번호/)
+        } finally {
+          process.chdir(origCwd)
+          rmSync(dir, { recursive: true, force: true })
+        }
+      })
+    }
+
+    it('정상 --id "1" 회귀 — 게이트 통과 시 DONE 처리됨', async () => {
+      const dir = tmpProject('id-good')
+      makeGoalFile(dir, 1, 'NOT_STARTED')
+      mkdirSync(join(dir, 'scripts'), { recursive: true })
+      writeFileSync(join(dir, 'scripts/check-goal-1.sh'), '#!/usr/bin/env bash\nexit 0\n', 'utf-8')
+      mockSafeExecFile.mockReturnValue({ ok: true, out: 'ok', err: '' })
+      process.chdir(dir)
+      try {
+        const { goalDone } = await import('../src/commands/goal.js')
+        await goalDone({ id: '1' })
+        const after = readFileSync(join(dir, 'goals/1-test.md'), 'utf-8')
+        expect(after).toContain('status: DONE')
+      } finally {
+        process.chdir(origCwd)
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    it('goalCheck 도 동일하게 빈 --id 거부 (게이트 실행 전 차단)', async () => {
+      const dir = tmpProject('check-bad')
+      makeGoalFile(dir, 0, 'NOT_STARTED')
+      process.chdir(dir)
+      try {
+        const { goalCheck } = await import('../src/commands/goal.js')
+        const logSpy = vi.spyOn(console, 'log')
+        await goalCheck({ id: '' })
+        const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+        expect(out).toMatch(/유효하지 않은 goal 번호/)
+        // goal 0 을 "없음"으로 잘못 보고하지 않음 (강제변환 0 으로 새지 않음)
+        expect(out).not.toMatch(/goal id 0 없음/)
+      } finally {
+        process.chdir(origCwd)
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+  })
+
   // ② 없는 --id 메시지 통일 — check 와 done 이 같은 메시지
   it('goalCheck/goalDone — 없는 --id 면 둘 다 "goal id N 없음" 통일', async () => {
     const dir = tmpProject('notfound')

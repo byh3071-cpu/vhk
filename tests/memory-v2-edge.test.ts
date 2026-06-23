@@ -232,15 +232,17 @@ describe('memory v2 엣지 D — id/index 경계', () => {
     rm(d)
   })
 
-  it('[characterization] 소수 index("2.9") → parseInt 절삭 → 2번 항목 archive', async () => {
+  // #318: 소수 index 는 더 이상 parseInt 절삭으로 수용되지 않는다 — 엄격 정수 검증으로 거부.
+  it('소수 index("2.9") → 거부 (parseInt 절삭 금지) + 보관 0 + exit 1', async () => {
     const d = tmp()
     process.chdir(d)
     await memoryAdd('첫째')
     await memoryAdd('둘째')
-    await memoryArchive('2.9') // parseInt('2.9')=2 → idx1
+    await memoryArchive('2.9') // 옛 동작: parseInt('2.9')=2 → idx1 archive. 이제 거부.
     const mem = readMem(d)
     expect(mem.decisions[0].status).toBe('active')
-    expect(mem.decisions[1].status).toBe('archived')
+    expect(mem.decisions[1].status).toBe('active') // 엉뚱한 절삭 보관 없음
+    expect(process.exitCode).toBe(1)
     process.chdir(origCwd)
     rm(d)
   })
