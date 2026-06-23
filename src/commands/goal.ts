@@ -42,11 +42,18 @@ export function selectActiveId(goals: ParsedGoal[]): number | null {
   return null
 }
 
-function resolveGoalId(optId: string | undefined, goals: ParsedGoal[]): number | null {
+// #317: --id 는 양의 정수 문자열만 허용. Number() 강제변환은 ''·'   '→0, ' 1'→1, '1.5'→1.5 처럼
+//        빈/공백/소수/앞뒤공백을 조용히 통과시켜 엉뚱한 goal(특히 goal 0)을 파괴적으로 건드린다.
+//        엄격 정수 정규식 /^\d+$/ 로 거부 → 호출부가 친절 메시지를 띄우도록 sentinel 반환.
+const INVALID_GOAL_ID = Symbol('invalid-goal-id')
+function resolveGoalId(
+  optId: string | undefined,
+  goals: ParsedGoal[]
+): number | null | typeof INVALID_GOAL_ID {
   if (optId !== undefined) {
-    const n = Number(optId)
-    if (!Number.isFinite(n)) return null
-    return n
+    // 앞뒤 공백조차 거부 — ' 1' 은 Number(' 1')===1 로 엉뚱한 goal 을 가리키는 파괴적 입력.
+    if (!/^\d+$/.test(optId)) return INVALID_GOAL_ID
+    return Number(optId)
   }
   return selectActiveId(goals)
 }
@@ -306,6 +313,12 @@ export async function goalCheck(opts: { id?: string; force?: boolean }): Promise
   console.log(chalk.bold(`\n${ko.goal.checkTitle}\n`))
   const goals = listGoals(GOALS_DIR)
   const id = resolveGoalId(opts.id, goals)
+  // #317: 빈/공백/소수/문자 --id 는 강제변환 전에 거부 (goal 0 오염 방지).
+  if (id === INVALID_GOAL_ID) {
+    console.log(chalk.red(`  ❌ ${ko.goal.invalidId(opts.id ?? '')}`))
+    process.exitCode = 1
+    return
+  }
   if (id === null) {
     console.log(
       chalk.yellow('  ⚠ 대상 goal 을 결정할 수 없습니다 (--id 명시 또는 active goal 필요).')
@@ -376,6 +389,12 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   console.log(chalk.bold(`\n${ko.goal.doneTitle}\n`))
   const goals = listGoals(GOALS_DIR)
   const id = resolveGoalId(opts.id, goals)
+  // #317: 잘못된 --id 로 goal 0 을 조용히 DONE 처리하던 데이터 오염 차단.
+  if (id === INVALID_GOAL_ID) {
+    console.log(chalk.red(`  ❌ ${ko.goal.invalidId(opts.id ?? '')}`))
+    process.exitCode = 1
+    return
+  }
   if (id === null) {
     console.log(
       chalk.yellow('  ⚠ 대상 goal 을 결정할 수 없습니다 (--id 명시 또는 active goal 필요).')
