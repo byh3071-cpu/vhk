@@ -9,6 +9,7 @@
 
 ## 다음 할 일 (measure-first 최우선)
 - **⓪ [새 전략 최우선 · 2026-06-22 · RFC 0056] `vhk receipt` MVP** → 진입점 [docs/log/2026-06-22-rfc0056-evidence-receipt.md](../log/2026-06-22-rfc0056-evidence-receipt.md). VHK 정체성을 "멀티툴 솔로용 거짓완료 탐지기(Evidence Receipt)"로 재정의([RFC 0056](../rfc/0056-vhk-evidence-receipt.md)·[ADR-006](../adr/ADR-006-vhk-identity-evidence-receipt.md)). **선결**: vhk가 추적파일(`.vhk/events/*.jsonl`) 갱신→작업트리 늘 dirty→receipt 늘 block 봉인(세션시작 `git status M .vhk/events/ai-actions.jsonl` 관찰). **T1** `vhk receipt`(4대 기계증거→`.vhk/receipts/<id>.{json,md}`, decision 기계만, 등록 4지점+드리프트 테스트 수용기준) → T2 위조방어+.md → T3 거짓완료 적발 1건 입증(현 0/8). **90일 단일 성공기준=적발 1건, 0건이면 가설 폐기.** ※ RFC 0055 §8/§7 폐기, §3·§4·§9는 결함 정정 후 재사용. measure-first와 같은 방향(거짓완료 측정).
+  - **★2026-06-23 적대검증 + goal 등록**: 탐지범위 역설(diff-cover는 "실행됐나"만 잼·정밀화로 안 풀림 → "게으른 거짓완료"로 정직화, 0056 §6·§11)·#315 실재(verify가 추적 ledger append → 자기 dirty) **코드 확정**. → **[Goal 85](../../goals/85-receipt-self-reference-seal.md)(#315 봉인·T1 선결) · [Goal 86](../../goals/86-receipt-mvp.md)(receipt MVP T1)** 신규 등록. 진입점 [docs/log/2026-06-23-rfc0056-adversarial-review.md](../log/2026-06-23-rfc0056-adversarial-review.md). **코드 미착수(등록만)** — T1 선결 = Goal 85.
 - **[완료] 도그푸딩 하드닝 (RFC 0053 · goals 78~84)** → 실 사용자 전수 감사(`docs/log/2026-06-20-dogfood-audit.md`) 기반 전 goal 머지.
   - ✅ **78**(#303): `goal next` 비파괴화 + `vhk goal peek`. ✅ **79**(#304): recall-log timeout 30s + TS-004(환경분리는 YAGNI 관찰).
   - ✅ **80**(#310): 증거 신선도 SHA 강등(review가 SHA≠HEAD/dirty 감지, goal 44 소비측 완결).

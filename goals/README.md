@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 84 goal — DONE 80 · IN_PROGRESS 2 · NOT_STARTED 2
+> 총 86 goal — DONE 80 · IN_PROGRESS 2 · NOT_STARTED 4
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -91,3 +91,5 @@
 | 82 | .vhk 런타임 산출물 gitignore 정합 — git status 청결 — P2 | ✅ DONE | P2 | vhk 명령 사용 후 git status 노이즈 0 |
 | 83 | 보안 scan 테스트 픽스처 false positive allowlist — P2 | ✅ DONE | P2 | secure scan 노이즈 ↓ (진짜 시크릿 신호 보존) |
 | 84 | doctor/status next-step 맥락 인지 — 신규 vs 기존 레포 분기 — P2 | ✅ DONE | P2 | "다음에 이것만 하세요"가 현재 상태에 맞음 |
+| 85 | receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0 | ⬜ NOT_STARTED | P0 | receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결) |
+| 86 | vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0 | ⬜ NOT_STARTED | P0 | 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기 |
