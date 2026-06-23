@@ -56,6 +56,7 @@ import { worktreeAdd, worktreeCheck } from './commands/worktree.js'
 import { standup } from './commands/standup.js'
 import { today } from './commands/today.js'
 import { review } from './commands/review.js'
+import { receipt } from './commands/receipt.js'
 import { missionSet, missionShow, missionCheck, missionClear } from './commands/mission.js'
 import { runGuarded } from './lib/safety-guard.js'
 import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
@@ -589,6 +590,15 @@ program
   .option('--strict', '엄격 모드 — 미검증/커버리지 부족도 실패 (기본 advisory: 강한 모순만 실패) (#157)')
   .description('적대적 자기검증 — latest.json ↔ goal 완료조건 교차검증 (거짓완료 의심 탐지, 보장 아님)')
   .action(async (opts: { id?: string; strict?: boolean }) => { await review(opts) })
+
+program
+  .command('receipt')
+  .alias('증거영수증')
+  .option('--json', '영수증 JSON 을 stdout 으로 출력 (CI/기계용 — block 이면 exit 1)')
+  .option('--mark-start', '현재 HEAD 를 작업시작 기준선으로 기록 (이후 stale 비교 기준)')
+  .option('--since <sha>', 'stale 비교 기준 SHA 를 명시 (.base-sha 무시)')
+  .description('증거 영수증 — 4대 기계증거(종료코드·dirty·stale·diff-cover)로 거짓완료 판정 (.vhk/receipts/)')
+  .action(async (opts: { json?: boolean; markStart?: boolean; since?: string }) => { await receipt(opts) })
 
 // prev 기본 [] — default 미지정이라 옵션 미제공 시 opts 에 키 자체가 없음(undefined = 보존 신호).
 const collectGlob = (v: string, prev: string[] = []): string[] => prev.concat([v])

@@ -43,6 +43,7 @@ import { quickActions } from '../commands/help.js'
 import { mode } from '../commands/mode.js'
 import { verify } from '../commands/verify.js'
 import { review } from '../commands/review.js'
+import { receipt } from '../commands/receipt.js'
 import { missionShow } from '../commands/mission.js'
 import { patternList } from '../commands/pattern.js'
 import { evolveList } from '../commands/evolve.js'
@@ -155,6 +156,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return verify()
     case 'review':
       return review()
+    case 'receipt':
+      return receipt()
     case 'mission':
       return missionShow()
     case 'pattern':
