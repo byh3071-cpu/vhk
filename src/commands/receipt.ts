@@ -12,7 +12,7 @@ import { getCommitInfo } from '../lib/git-repo.js'
 import { verifyEvidence } from './verify.js'
 import { diffUnified0 } from '../lib/git-session.js'
 import { addedLinesByFile } from '../lib/diff-hunks.js'
-import { fileCoverageByFile } from '../lib/coverage-parse.js'
+import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
 import { diffCoverage } from '../lib/diff-coverage.js'
 import {
   buildReceipt,
@@ -81,7 +81,8 @@ export function collectDiffCover(cwd: string): ReceiptDiffCover {
     const added = addedLinesByFile(diffRes.ok ? diffRes.out : '')
     if (added.size === 0) return empty // 변경된 기능소스 없음 — 측정 대상 없음(advisory 부재).
     const covered = fileCoverageByFile(join(cwd, COVERAGE_JSON_REL), cwd)
-    if (covered === null) return empty // 커버리지 리포트 없음 — advisory 부재(차단 사유 아님).
+    // #321: 부재(null)·손상(COVERAGE_CORRUPT) 모두 측정 불가 — 영수증은 advisory 부재로 둔다(차단 사유 아님).
+    if (covered === null || covered === COVERAGE_CORRUPT) return empty
     const r = diffCoverage(added, covered)
     return {
       measured: true,

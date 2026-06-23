@@ -86,10 +86,11 @@ describe('git-session — git argv SoT (같은 질문 = 함수 하나)', () => {
     expect(lastArgv()).toEqual(['diff', '--numstat', 'HEAD'])
   })
 
-  it('diffUnified0 → git diff --unified=0 HEAD (raw 보존)', () => {
+  it('diffUnified0 → git -c core.quotepath=false diff --unified=0 HEAD (raw 보존)', () => {
     session.diffUnified0('/repo')
     expect(lastBin()).toBe('git')
-    expect(lastArgv()).toEqual(['diff', '--unified=0', 'HEAD'])
+    // #319: core.quotepath=false 로 비ASCII(한글) 경로를 8진 이스케이프 없이 받는다.
+    expect(lastArgv()).toEqual(['-c', 'core.quotepath=false', 'diff', '--unified=0', 'HEAD'])
     // 헌트 헤더(@@ -a,b +c,d @@) 라인번호 보존 위해 trimOutput:false.
     expect(lastOpts()).toMatchObject({ cwd: '/repo', trimOutput: false })
   })
