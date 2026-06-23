@@ -103,4 +103,34 @@
 
 ---
 
+## 📥 VHK가 필요로 하는 데이터 (수집 명세 · 2026-06-22 도그푸딩 후 정제)
+
+> 도그푸딩으로 **방법은 검증**됐으나(토이 프로젝트), **확정 데이터는 오너 실사용**이 선결. 아래는 "어떤 분석에 어떤 데이터가, 어떤 형태로, 얼마나 필요한가"의 명세.
+
+### 0. 데이터 갭 3종 (먼저 분류)
+- **(a) 스키마 미정의** — 측정 대상 자체가 없음 → **정의가 선결**: 자율성 완주율·진화 효과.
+- **(b) 수집 부족** — 스키마 있고 도구 작동하나 표본 0~소량: recall 실쿼리·diff 실작업·ai-actions.
+- **(c) 영속 차단** — vhk **본체 레포 memory.json 미영속**(in-memory 재마이그레이션) + recall-log gitignore 누락 → **데이터가 안 쌓이거나 증발/노출**. **이거 먼저 안 고치면 (b) 수집이 무의미**.
+
+### 1. 결정별 필요 데이터
+| 막힌 결정 | 필요 데이터 | 스키마/필드 | 표본 | 수집법 | 현재 | 갭 |
+|---|---|---|---|---|---|---|
+| **Recall@5 ML 도입**(RFC0049) | 오너 실쿼리 + 정답라벨 **+ 쿼리유형** | `recall-log{query,hitIds,topScore,ts}` + `eval{query,expectIds}` **+ 신규 `queryType: lexical\|paraphrase`** | ≥30 라벨, 패러프레이즈 비율 고정 | 며칠 `vhk recall` 실사용 → `memory eval --init` | 토이 60→71%(구성취약) | b + **스키마에 queryType 추가**(세션 발견: 구성이 verdict 좌우) |
+| **diff-cov 게이트 승격**(RFC0050) | 실작업 diff별 미검증 라인 **+ 분기커버** | PR별 `{date,files,added,uncoveredLine,uncoveredBranch,classify}` | ≥5 diff, 며칠 분산 | 본체 작업 PR마다 `test --coverage`→`diff-cover` | 토이 3/10(라인만) | b + **branch-cov 추가**(세션: 라인커버는 단일줄 분기 과소계상) |
+| **자율성→실행력 D2**(RFC0054) | vhk-auto 1회전 결과 | `autonomy-run{runId,goal,completed,interventions,hardStop,reviewRejected,ticks}` | ≥N회(임계 미정) | /vhk-auto 실구동 로그 | **0(스키마 없음)** | **a — 스키마·임계 정의가 1순위** |
+| **"진화 먼저" 전제**(RFC0054§4) | evolve 채택률 + 사후 위반감소 | `evolve-log{suggId,applied,rejectReason}` + 전후 `check` 위반수 | 며칠 누적 | evolve 실사용 + 위반 추세 | **0(측정 없음)** | a + b |
+| **JIT 경고 임계 튜닝** | 위험행동별 경보/오경보 | recall-log 재사용 + `{action,alerted,wasFalseAlarm}` | 위험행동 다수 | recall 데이터 파이프 공유 | 0 | b(Recall과 동일 파이프) |
+| **AI 차단율**(goal61) | guarded 행동 결과 | `ai-actions.jsonl{action,blocked}` | 더 많은 운영량 | 평소 운영 누적 | 8줄(0/8) | b(표본 빈약) |
+| **거짓완료 탐지**(RFC0056 receipt) | 거짓완료 사건 1건+ | `{claim,evidence,verdict:false-complete}` | 90일 1건 적발 | receipt MVP + 실작업 | 0/8 | a(receipt 미구현) + b |
+
+### 2. 한 줄 요약 — 지금 "데이터분석"을 막는 진짜 순서
+1. **(c) 영속 고치기** — 본체 memory.json 미영속 + recall-log gitignore. 안 고치면 뭘 쌓아도 샌다.
+2. **(a) 스키마 2개 정의** — 자율성 완주율·진화 효과(측정 대상이 아예 없음).
+3. **스키마 보강 2개** — recall에 `queryType`, diff-cov에 `branch` (세션이 발견한 결함 반영).
+4. **(b) 오너 실사용 며칠** — recall·diff·ai-actions 표본 누적. **이건 사람만**.
+
+→ **핵심: 데이터분석 이전에 "데이터가 쌓이고·정의되고·안 새는" 파이프부터.** 토이 도그푸딩이 (a)(b) 방법은 증명했고, 결함(구성취약·라인커버한계·영속버그)도 드러냄. 남은 건 본체에 파이프 깔고 오너가 며칠 굴리는 것.
+
+---
+
 _갱신 규칙: 테마가 해소되면 취소선 + 해소 근거(PR·측정값) 1줄. 새 미해결 질문은 종류·우선순위 달아 추가._
