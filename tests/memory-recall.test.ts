@@ -143,3 +143,44 @@ describe('recall 명령 NL 라우팅 가드 (RFC 0049)', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '회상', '배포'])).toBeNull()
   })
 })
+
+// #313: 쿼리 본문에 NLP 트리거 단어(어떻게·보안·롤백 등)가 섞여도 recall 은 자유형식 검색이므로
+// NL 라우터에 가로채이지 않고 항상 commander 로 위임돼야 한다 (learn/blocker 와 동일 — #147 패턴).
+describe('recall 명령 자유형식 쿼리 가드 (#313 — 트리거 단어 포함)', () => {
+  it('recall "이거 어떻게 해"(status 트리거)도 NL 라우팅 안 됨 (null)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'recall', '이거', '어떻게', '해'])
+    ).toBeNull()
+  })
+
+  it('recall "보안 이슈"(secure 트리거)도 NL 라우팅 안 됨 (null)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'recall', '보안', '이슈'])
+    ).toBeNull()
+  })
+
+  it('recall "롤백 방법"(undo 트리거)도 NL 라우팅 안 됨 (null)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'recall', '롤백', '방법'])
+    ).toBeNull()
+  })
+
+  it('회상 "어떻게 하지"(한글 별칭 + status 트리거)도 NL 라우팅 안 됨 (null)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', '회상', '어떻게', '하지'])
+    ).toBeNull()
+  })
+
+  it('대조군 recall "publish"(트리거 없음) 회귀 0 (null)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'recall', 'publish'])).toBeNull()
+  })
+
+  it('learn/blocker 자유형식 쿼리 회귀 0 (트리거 단어 포함도 null)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'learn', '보안', '롤백'])
+    ).toBeNull()
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'blocker', '어떻게', '해'])
+    ).toBeNull()
+  })
+})
