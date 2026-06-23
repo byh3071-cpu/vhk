@@ -8,7 +8,7 @@ import { isGitRepo } from '../lib/git-repo.js'
 import { parseEnvKeys } from '../commands/env.js'
 import { resolveDeployTarget } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
-import { detectCurrentPM, parseAuditOutput, runAuditJson } from '../commands/audit.js'
+import { detectCurrentPM, parseAuditOutputDetailed, runAuditJson } from '../commands/audit.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { isHardStopActive, readHardStopReason } from '../lib/state-files.js'
 import { filterSevereFindings, scanProjectForSecrets } from '../lib/scan-secrets.js'
@@ -67,6 +67,12 @@ export function isGuardBlockedOutput(body: string): boolean {
   return /위험 작업\(/.test(body) && body.includes('실행하지 않았습니다')
 }
 
+// #340: NL 라우터 미인식 폴백(nlp-run: '❓ … 무슨 뜻인지 모르겠어요')은 exit 0 으로 끝나
+// runVhkCli 가 ✅ 거짓 성공으로 위장한다 — 미인식 문구를 감지해 실패 신호로 표면화.
+export function isNotMatchedOutput(body: string): boolean {
+  return body.includes('무슨 뜻인지 모르겠어요')
+}
+
 function runVhkCli(
   args: string[],
   headline: string
@@ -79,7 +85,9 @@ function runVhkCli(
   const prefix = result.ok
     ? isGuardBlockedOutput(body)
       ? `⛔ ${headline} 실행 안 됨 (가드 차단 — 승인 필요)`
-      : `✅ ${headline}`
+      : isNotMatchedOutput(body)
+        ? `❓ ${headline} 미인식 — 명령을 인식하지 못했습니다`
+        : `✅ ${headline}`
     : `❌ ${headline} 실패`
   return { content: [{ type: 'text', text: `${prefix}\n${body}`.trim() }] }
 }
@@ -537,7 +545,13 @@ export function createVhkMcpServer(): McpServer {
       // MCP 는 TTY 없어 prompt 가 영구 hang → CLI 위임 금지. 여기서 직접 audit JSON 만 호출.
       const pm = detectCurrentPM()
       const output = runAuditJson(pm)
-      const summary = parseAuditOutput(output, pm)
+      const { summary, indeterminate } = parseAuditOutputDetailed(output, pm)
+      // #341: 감사 불가(ENOLOCK·빈/형식불량 출력)를 0건으로 단정 금지 — CLI 와 동일하게 '결과 불명' 구분.
+      if (indeterminate) {
+        return {
+          content: [{ type: 'text', text: `⚠️ ${pm}: 감사 결과를 해석하지 못했습니다 (결과 불명). \`vhk audit\` 로 확인하세요.` }],
+        }
+      }
       if (summary.total === 0) {
         return {
           content: [{ type: 'text', text: `🎉 ${pm}: 취약점 0건.` }],
