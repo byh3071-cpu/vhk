@@ -60,7 +60,7 @@ import { receipt } from './commands/receipt.js'
 import { missionSet, missionShow, missionCheck, missionClear } from './commands/mission.js'
 import { runGuarded } from './lib/safety-guard.js'
 import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
-import { isPromptAbortError, TTY_REQUIRED_EXIT_CODE } from './lib/interactive.js'
+import { isPromptAbortError, isInteractive, TTY_REQUIRED_EXIT_CODE } from './lib/interactive.js'
 
 /**
  * CLI high-risk 작업 가드 — 단일 chokepoint(runGuarded) 경유.
@@ -980,6 +980,14 @@ program.on('command:*', (operands: string[]) => {
 })
 
 program.action(async () => {
+  // #333: 인자 없는 `vhk` 의 기본 액션은 대화형 inquirer 메뉴다. 비-TTY(파이프/CI/headless)에선
+  //       메뉴를 띄울 수 없으므로(ANSI 잔상·EOF 크래시) --help 로 폴백한다. 다른 대화형 명령이
+  //       쓰는 isInteractive() 와 동일 축(stdin.isTTY + VHK_FORCE_INTERACTIVE 탈출구)으로 판정.
+  //       help 는 정상 안내라 exit 0(미인식 실패 아님).
+  if (!isInteractive()) {
+    program.outputHelp()
+    return
+  }
   // 헤더: 현재 버전(즉시·네트워크 0) + 업데이트 알림(캐시 기반 "가끔 자동 확인") + 직접입력 안내.
   const info = getUpdateInfo()
   // 메뉴 헤더는 브랜드 태그라인(짧은 별칭) — npm 제품 설명(package.json.description, --help 노출)과
