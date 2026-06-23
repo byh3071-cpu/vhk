@@ -8,6 +8,7 @@
 **Phase:** **도그푸딩 하드닝(RFC 0053 · goals 78~84) 완료** — 78(#303)·79(#304)·80(#310)·81(#311)·82(#312)·83(#332)·84(#348) 전부 머지. 우선순위 2 measure-first가 현재 최우선(Recall@5 라벨링·diff-cover 누적 대기). 뒷단 4트랙(74~77)·SEO 22~26·SOUL 상속 기완료. 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
+- **✅ [2026-06-23 완료] v2.7.0 npm 발행** → `@byh3071/vhk` 2.6.0 → 2.7.0 (latest). 집 컴퓨터에서 pull(behind 3)→build·test 1799 pass→`npm publish --ignore-scripts`. 발행 절차(보안키 2FA → 실 터미널 필수) = [docs/log/2026-06-23-vhk-2.7.0-publish.md](../log/2026-06-23-vhk-2.7.0-publish.md). 🔧 잔여 갭: `.vhk/ops-prompt.md`·`sell-prompt.md` gitignore 미등록 → 발행 시 pnpm 막힘(npm은 무관). 보강 PR 권장.
 - **⓪ [새 전략 최우선 · 2026-06-22 · RFC 0056] `vhk receipt` MVP** → 진입점 [docs/log/2026-06-22-rfc0056-evidence-receipt.md](../log/2026-06-22-rfc0056-evidence-receipt.md). VHK 정체성을 "멀티툴 솔로용 거짓완료 탐지기(Evidence Receipt)"로 재정의([RFC 0056](../rfc/0056-vhk-evidence-receipt.md)·[ADR-006](../adr/ADR-006-vhk-identity-evidence-receipt.md)). **선결**: vhk가 추적파일(`.vhk/events/*.jsonl`) 갱신→작업트리 늘 dirty→receipt 늘 block 봉인(세션시작 `git status M .vhk/events/ai-actions.jsonl` 관찰). **T1** `vhk receipt`(4대 기계증거→`.vhk/receipts/<id>.{json,md}`, decision 기계만, 등록 4지점+드리프트 테스트 수용기준) → T2 위조방어+.md → T3 거짓완료 적발 1건 입증(현 0/8). **90일 단일 성공기준=적발 1건, 0건이면 가설 폐기.** ※ RFC 0055 §8/§7 폐기, §3·§4·§9는 결함 정정 후 재사용. measure-first와 같은 방향(거짓완료 측정).
   - **★2026-06-23 적대검증 + goal 등록**: 탐지범위 역설(diff-cover는 "실행됐나"만 잼·정밀화로 안 풀림 → "게으른 거짓완료"로 정직화, 0056 §6·§11)·#315 실재(verify가 추적 ledger append → 자기 dirty) **코드 확정**. → **[Goal 85](../../goals/85-receipt-self-reference-seal.md)(#315 봉인·T1 선결) · [Goal 86](../../goals/86-receipt-mvp.md)(receipt MVP T1)** 신규 등록. 진입점 [docs/log/2026-06-23-rfc0056-adversarial-review.md](../log/2026-06-23-rfc0056-adversarial-review.md). **코드 미착수(등록만)** — T1 선결 = Goal 85.
 - **[2026-06-23 완료] 도그푸딩 버그수색 라운드2 — safety/MCP high 7 + resume 해소** → 6-22 라운드2(#313~347) 중 처리: undo HARD_STOP·non-TTY(#337/#338 → #352) · HARD_STOP 가드 누락 goal sync·seo(#334/#335/#336 → #354) · MCP 거짓보고 NL미인식·audit(#340/#341 → #355) · MCP dist parity 버전스큐(#339 → #356) · resume exit127(#353 → #357, **rmSync(파일) silent exit127 근본 — TS-005**) · 미인식 exit0 위장(#346 → #359) · help 정합(#347 → #351). **남은 = med/low ~29건** (high 잔여: **#313** recall NLP 가로채기 · **#315** verify check-fresh[Goal 85가 봉인]). 착수 시 **worktree 분리 필수**(동시 세션 git 레이스 — 공유 워킹트리서 브랜치 조작·force push 금지). 우선순위: #313(recall) → 파괴적 med(#317/#318 memory id 부분파싱·#316 secure 오탐) → 레지스트리(#345/#344/#314).
@@ -40,7 +41,7 @@
 - 없음
 
 ## 주의
-- publish는 항상 main에서만 (가드 #119) · 사용자가 직접(2FA)
+- publish는 항상 main에서만 (가드 #119) · 사용자가 직접(2FA = Windows 보안키 → 실 터미널 `npm publish --ignore-scripts`, Claude `!`·`--otp` 불가) · v2.7.0 2026-06-23 발행 완료
 - 직접 main push 차단됨(분류기) → 변경은 PR 경유 + `gh pr merge --squash`
 - active goal 은 goals/ 기준 동적 계산 (vhk work / vhk goal next)
 - (2026-06-23) goals/ 완료 80개 → `goals/archive/` 이동 — `vhk goal list`엔 active 6개(50·62·65·79·85·86)만, 완료 이력은 `goals/archive/README.md` 자동 인덱스. listGoals·gen-goals-index·M.4 모두 flat 읽기라 archive 무시(무영향 검증).
