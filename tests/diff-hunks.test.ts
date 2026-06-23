@@ -85,4 +85,31 @@ describe('addedLinesByFile — unified=0 diff → 기능소스별 추가 라인'
     ].join('\n')
     expect([...(addedLinesByFile(diff).get('src/lib/a.ts') ?? [])]).toEqual([6, 30])
   })
+
+  // #319: Git 기본 quotepath 가 비ASCII 경로를 따옴표+8진 이스케이프로 출력(`"b/src/lib/\355...ts"`).
+  // 정규식 `(?:b\/)?` 가 선두 따옴표 매칭 실패 → 한글 소스 통째 누락(거짓 '측정 대상 없음').
+  // 디코드로 방어(quotepath=false 미적용 diff 가 들어와도 견딤).
+  it('#319 따옴표+8진 이스케이프(한글) 경로를 디코드해 인식', () => {
+    // "한글파일.ts" 의 git quotepath 8진 이스케이프(UTF-8 바이트).
+    const quoted = '"b/src/lib/\\355\\225\\234\\352\\270\\200\\355\\214\\214\\354\\235\\274.ts"'
+    const diff = [
+      'diff --git "a/src/lib/\\355\\225\\234\\352\\270\\200\\355\\214\\214\\354\\235\\274.ts" "b/src/lib/\\355\\225\\234\\352\\270\\200\\355\\214\\214\\354\\235\\274.ts"',
+      `+++ ${quoted}`,
+      '@@ -1,0 +2,1 @@',
+      '+x',
+    ].join('\n')
+    const m = addedLinesByFile(diff)
+    expect([...(m.get('src/lib/한글파일.ts') ?? [])]).toEqual([2])
+  })
+
+  it('#319 따옴표 없는 비ASCII 경로(quotepath=false)도 정상 인식', () => {
+    const diff = [
+      'diff --git a/src/lib/한글.ts b/src/lib/한글.ts',
+      '+++ b/src/lib/한글.ts',
+      '@@ -1,0 +1,2 @@',
+      '+a',
+      '+b',
+    ].join('\n')
+    expect([...(addedLinesByFile(diff).get('src/lib/한글.ts') ?? [])]).toEqual([1, 2])
+  })
 })
