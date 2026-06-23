@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   findSecretsInLine,
   scanProjectForSecrets,
@@ -303,8 +304,11 @@ describe('#316 — .env.example placeholder 토큰 오탐 차단', () => {
     expect(findSecretsInLine(line, '.env.example', 1)).toHaveLength(0)
   })
 
+  // split 합성 — 자기 레포 secure self-scan 이 이 테스트 파일을 자기탐지하지 않게(런타임엔 합쳐짐).
+  const SLACK_PLACEHOLDER = 'xoxb-' + 'your-bot-token-goes-here'
+
   it('.env.example 의 xoxb-your-... slack placeholder → 미탐', () => {
-    const line = 'SLACK_TOKEN=xoxb-your-bot-token-goes-here'
+    const line = `SLACK_TOKEN=${SLACK_PLACEHOLDER}`
     expect(findSecretsInLine(line, '.env.example', 1)).toHaveLength(0)
   })
 
@@ -356,7 +360,7 @@ describe('#316 — .env.example placeholder 토큰 오탐 차단', () => {
       const body = [
         'GITHUB_TOKEN=ghp_' + 'x'.repeat(36),
         'NOTION_TOKEN=secret_' + 'x'.repeat(40),
-        'SLACK_TOKEN=xoxb-your-bot-token-goes-here',
+        `SLACK_TOKEN=${SLACK_PLACEHOLDER}`,
         '# 주석 placeholder',
         '# GITHUB_TOKEN=ghp_' + 'x'.repeat(36),
       ].join('\n')
@@ -381,5 +385,25 @@ describe('#316 — .env.example placeholder 토큰 오탐 차단', () => {
     } finally {
       fs.rmSync(d, { recursive: true, force: true })
     }
+  })
+})
+
+// #316 회귀(self-scan 사각): 단위 test 가 self-scan 회귀를 못 잡은 게 이번 사각이었다.
+//   dogfood CI = repo 루트 `secure scan`(scanProjectForSecrets → downgradeTestFixtureFindings → critical/high).
+//   이 레포 자신을 스캔했을 때 severe(critical/high) 가 0 이어야 한다 —
+//   누군가 테스트 픽스처에 '연속(split 안 한) 시크릿 리터럴'을 넣으면 self-scan 이 CRITICAL 로 새고
+//   dogfood 가 깨진다. 이 가드가 그 순간 단위 test 단계에서 잡는다(split 합성 컨벤션 강제).
+describe('#316 self-scan 회귀 가드 — 레포 자기탐지 0 (dogfood 사각 폐쇄)', () => {
+  // 이 테스트 파일 위치에서 레포 루트 추정(tests/ 의 부모).
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+
+  it('레포 self-scan 의 severe(critical/high) 는 0 (dogfood 와 동일 파이프라인)', () => {
+    const scan = scanProjectForSecrets(repoRoot)
+    // secure scan 과 동일: 픽스처 MEDIUM→INFO 강등 후 critical/high 만 게이팅.
+    const findings = downgradeTestFixtureFindings(scan.findings)
+    const severe = filterSevereFindings(findings)
+    // 실패 시 어느 파일/라인이 새는지 즉시 보이도록 메시지에 노출.
+    const detail = severe.map((f) => `${f.file}:${f.line} [${f.patternId}/${f.severity}]`).join(', ')
+    expect(severe, `self-scan severe leak: ${detail}`).toHaveLength(0)
   })
 })
