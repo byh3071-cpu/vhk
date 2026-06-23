@@ -188,7 +188,10 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
   const route = routeNaturalLanguage(input)
 
   if (!route) {
-    console.log(chalk.yellow(`\n  ❓ "${input}" — ${ko.nlp.notMatched}\n`))
+    // #346: 미인식 명령은 실패 — stderr + exit 1 (`vhk <오타> && 다음작업` 이 조용히 통과하지 않게).
+    // commander 가 옵션오류·잘못된 서브커맨드를 exit 1 로 처리하는 것과 일관.
+    console.error(chalk.yellow(`\n  ❓ "${input}" — ${ko.nlp.notMatched}\n`))
+    process.exitCode = 1
     return
   }
 
