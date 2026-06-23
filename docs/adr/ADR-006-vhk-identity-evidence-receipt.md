@@ -47,3 +47,10 @@ RFC 0055는 Codex에게 물어 나온 "VHK Proof Protocol = AI 작업 신뢰 원
 - **마케팅·문서 제약(헌법 정합)**: 보증 톤 단어 금지, 산출물에 "기계증거 기반·비보증 경계" 1줄 고정.
 - **킬 조건 명문화**: 90일에 적발 0건이면 정직하게 가설 폐기(RFC 0056 §8). measure-first 규율과 정합.
 - **미확정(후속)**: receipt JSON 스키마 상세, `.vhk/receipts/` git 추적·마스킹 정책, CI 입주 시점 — RFC 0056 티켓에서 구현 시 결정.
+
+## 정정 노트 (2026-06-23 — 표현 명료화, 결정 불변)
+
+- **"Evidence Receipt"는 전략명·산출물 이름이지 정체성 자체가 아니다.** 정체성 = "인간 의도를 AI에 전달하고, 의도대로 됐나 기계증거로 대조하는 **의도 장갑**"(대화 2026-06-23). `receipt`는 그 검증의 **출력 뷰/영수증**(verify+ledger 조립)이며 이미 #377로 구현됨 — 신규 명령을 정체성으로 거는 게 아니다.
+- **간판 동사 = `vhk verify`/`vhk receipt`** (작동 중). receipt MVP(#377)·#315 봉인(#370) 머지 완료.
+- **코드 감사로 발견한 빈 고리**: verify/review/receipt가 mission(인간 의도: scope/forbidden)을 **0회 참조** → 의도 장갑의 "검증 면"이 자동 루프에서 빠져 있음. **[Goal 87](../../goals/87-mission-verify-intent-check.md)**로 잇는다(= 해자: 남들은 의도를 모르고 VHK만 안다). 진입점 [dev log 2026-06-23 intent-glove-plan](../log/2026-06-23-intent-glove-plan.md).
+- 이 노트는 결정 변경이 아니라 표현 명료화 — 신규 ADR 불필요.
