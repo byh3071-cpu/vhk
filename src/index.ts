@@ -759,7 +759,7 @@ workCmd
 const goalCmd = program
   .command('goal')
   .alias('목표')
-  .description('Goal 단계별 미션 관리 (init / list / next / check / done / sync / drift)')
+  .description('Goal 단계별 미션 관리 (init / list / next / peek / check / done / sync / drift)')
   .action(async () => { await goalList() })
 
 goalCmd
