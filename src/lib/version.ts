@@ -44,3 +44,10 @@ export function getVhkDescription(): string {
   }
   return ''
 }
+
+// #342 #343: 제품 설명 안의 'MCP N tools' 토큰을 실 등록 도구 수(런타임 SoT)로 정규화.
+//   package.json 정적 숫자가 어긋나도 CLI --help 표면은 자가 교정 → 드리프트 0.
+//   MCP 의존(circular import) 회피를 위해 count 를 인자로 받는다(호출부 index.ts 가 getMcpToolCount() 주입).
+export function normalizeMcpToolCount(description: string, count: number): string {
+  return description.replace(/MCP\s+\d+\s+tools/g, `MCP ${count} tools`)
+}

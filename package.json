@@ -2,7 +2,7 @@
   "name": "@byh3071/vhk",
   "version": "2.7.0",
   "packageManager": "pnpm@11.2.2",
-  "description": "VHK — AI 코딩 세션을 목표·증거·기억·규칙으로 묶는 한국어 CLI. 규칙 동기화, MCP 30 tools, verify/review/preflight 게이트.",
+  "description": "VHK — AI 코딩 세션을 목표·증거·기억·규칙으로 묶는 한국어 CLI. 규칙 동기화, MCP 35 tools, verify/review/preflight 게이트.",
   "bin": {
     "vhk": "dist/index.js",
     "vhk-mcp": "dist/mcp/index.js"
