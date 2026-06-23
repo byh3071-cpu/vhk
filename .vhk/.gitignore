@@ -3,6 +3,8 @@ work-prompt.md
 handoff-prompt.md
 content-prompt.md
 launch-prompt.md
+ops-prompt.md
+sell-prompt.md
 context.md
 brief.md
 loop-brief.md
@@ -11,5 +13,7 @@ negative-candidates.md
 backups/
 .synced
 cost.jsonl
+recall-log.jsonl
+eval/recall-eval.json
 evolve/
 receipts/

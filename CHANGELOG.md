@@ -4,6 +4,18 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- **`vhk receipt` — 거짓완료 탐지 영수증 MVP** (Goal 86, RFC 0056 T1, #377) — 에이전트 "완료" 시점에 4대 기계증거(tsc/test/build 종료코드·git dirty[자기파일 제외]·작업시작 SHA≠HEAD stale·변경라인 diff-cover)를 영수증 1장(`.vhk/receipts/<id>.{json,md}`)으로 조립. `decision = block|caution|pass` 는 기계증거 전용(LLM 0)·단조성 불변식(caution→pass 격상 금지)·diff-cover 는 advisory(decision 격하 불가). 등록 4지점 + 한글별칭 `증거영수증` + 드리프트 테스트. 한글별칭/`.md` 정직성 1줄("게으른 거짓완료를 잡지, 미묘한 오류는 못 잡는다"). ※ T1 본체 — 효과 입증(T3=거짓완료 적발 1건)은 후속.
+
+### Fixed
+
+- **verify 자기참조 봉인** (Goal 85, #315, #370) — dirty 판정에서 vhk 자기 산출 추적파일(`.vhk/ledger.jsonl`·`.vhk/events/*.jsonl`)을 제외(`src/lib/self-tracked.ts` 단일 SoT). verify 직후 자기 ledger append 때문에 늘 거짓 "낡은 증거(dirty)"로 done/release 게이트를 막던 자기모순 해소. 과확장 0·퇴행 0 테스트 고정.
+- **recall 자유형식 쿼리 NL 라우터 가로채기 차단** (#313, #365) — `recall`/`회상` 쿼리에 트리거 단어(어떻게·보안·롤백 등)가 섞여도 NL 라우터에 가로채이지 않고 commander 로 위임(`FREEFORM_ARG_COMMANDS` 에 추가). 흔한 한국어 쿼리에서 메모리 검색이 무에러로 불능이던 문제 해소.
+- **goal·memory 파괴적 입력 검증 강화** (#317·#318, #367) — `goal check/done --id` 빈/공백 값(`Number('')===0` 으로 goal 0 오염)과 `memory remove/archive` 부분파싱(`parseInt('2zzz')=2`·`'1.5'=1`)을 정수 정규식으로 거부 — 엉뚱한 항목 DONE/삭제 차단.
+- **secure `.env.example` placeholder 오탐 차단** (#316, #369) — env 템플릿 파일(`.env.example`/`.sample`/`.template`)의 명백한 placeholder 토큰(`ghp_xxxx…`·`xoxb-your-…`)을 진짜 CRITICAL 시크릿으로 오탐해 verify 전체를 FAIL 시키던 문제 해소. false-negative 0 가드(진짜 시크릿·주석 시크릿 검출 불변) + repo self-scan 회귀 가드.
+- **`.vhk` 일회성·사적 산출물 gitignore** (#331, #368) — `recall-log.jsonl`·`recall-eval.json`(사용자 검색어 원문) 등 일회성/사적 산출물이 git 에 노출되던 갭 차단(`ledger.jsonl`·`events/` 추적은 유지).
+
 ## [2.7.0] - 2026-06-23
 
 ### Added
