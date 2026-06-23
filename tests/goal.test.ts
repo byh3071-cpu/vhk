@@ -771,3 +771,200 @@ describe('goal 엣지케이스 보강 (roadmap §4)', () => {
     }
   })
 })
+
+// #328: goal init 직후 첫 goal next 가 init 스캐폴드를 '수동 편집본'으로 오탐하면 안 됨.
+describe('#328 goalNext — init 스캐폴드 오탐 방지', () => {
+  let origCwd: string
+  beforeEach(() => {
+    origCwd = process.cwd()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    vi.restoreAllMocks()
+  })
+
+  it('init 직후 첫 next 는 "수동 편집본" 경고를 내지 않음', async () => {
+    const dir = tmpProject('first-next')
+    process.chdir(dir)
+    try {
+      const { goalInit, goalNext } = await import('../src/commands/goal.js')
+      await goalInit() // init 이 스캐폴드 next-task.md 생성
+      makeGoalFile(dir, 1, 'NOT_STARTED')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalNext() // 스캐폴드 위에서 첫 next
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).not.toMatch(/수동 편집본/)
+      // 정상 갱신은 됐어야 함
+      expect(out).toMatch(/next-task\.md 갱신/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('실제 수동 편집본(마커 없는 임의 내용)은 여전히 경고', async () => {
+    const dir = tmpProject('manual-next')
+    mkdirSync(join(dir, 'docs/state'), { recursive: true })
+    writeFileSync(join(dir, 'docs/state/next-task.md'), '사용자가 손으로 쓴 메모\n', 'utf-8')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalNext()
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).toMatch(/수동 편집본/) // 회귀: 진짜 수동 편집은 계속 잡아야 함
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// #329: 전부 DONE / 0개일 때 check·done 이 next 와 일관된 안내 + exit 0.
+describe('#329 goalCheck/goalDone — 전부완료·0개 일관 안내', () => {
+  let origCwd: string
+  let origExitCode: number | string | undefined
+  beforeEach(() => {
+    origCwd = process.cwd()
+    origExitCode = process.exitCode
+    process.exitCode = 0
+    mockSafeExecFile.mockReset()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    process.exitCode = origExitCode
+    vi.restoreAllMocks()
+  })
+
+  it('전부 DONE 이면 check 가 "모든 goal 완료" 안내 + exit 0 (generic 문구 아님)', async () => {
+    const dir = tmpProject('check-alldone')
+    makeGoalFile(dir, 1, 'DONE')
+    process.chdir(dir)
+    try {
+      const { goalCheck } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalCheck({})
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).toMatch(/모든 goal/)
+      expect(out).not.toMatch(/대상 goal 을 결정할 수 없습니다/)
+      expect(process.exitCode).not.toBe(1)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('전부 DONE 이면 done 이 "모든 goal 완료" 안내 + exit 0', async () => {
+    const dir = tmpProject('done-alldone')
+    makeGoalFile(dir, 1, 'DONE')
+    process.chdir(dir)
+    try {
+      const { goalDone } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalDone({})
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).toMatch(/모든 goal/)
+      expect(out).not.toMatch(/대상 goal 을 결정할 수 없습니다/)
+      expect(process.exitCode).not.toBe(1)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('0개(빈)일 때 check 가 "정의된 goal 없음" 안내 (next 와 일관) + exit 0', async () => {
+    const dir = tmpProject('check-empty')
+    mkdirSync(join(dir, 'goals'), { recursive: true })
+    process.chdir(dir)
+    try {
+      const { goalCheck } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalCheck({})
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).toMatch(/정의된 goal 이 없습니다/)
+      expect(out).not.toMatch(/대상 goal 을 결정할 수 없습니다/)
+      expect(process.exitCode).not.toBe(1)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('0개일 때 done 도 "정의된 goal 없음" 안내 + exit 0', async () => {
+    const dir = tmpProject('done-empty')
+    mkdirSync(join(dir, 'goals'), { recursive: true })
+    process.chdir(dir)
+    try {
+      const { goalDone } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalDone({})
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).toMatch(/정의된 goal 이 없습니다/)
+      expect(out).not.toMatch(/대상 goal 을 결정할 수 없습니다/)
+      expect(process.exitCode).not.toBe(1)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('active goal 이 있는데 --id 없으면 정상 동작(회귀) — generic 차단 메시지 안 뜸', async () => {
+    const dir = tmpProject('check-active')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { goalCheck } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalCheck({}) // 스크립트 없음 → '게이트 스크립트 없음' 으로 진입(대상은 정상 결정)
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).not.toMatch(/대상 goal 을 결정할 수 없습니다/)
+      expect(out).not.toMatch(/모든 goal/)
+      expect(out).not.toMatch(/정의된 goal 이 없습니다/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// #330: 비숫자 --id 는 '유효하지 않은 goal 번호' 로 진짜 원인 지목 (#317 로 이미 해결 — 회귀 가드).
+describe('#330 goalCheck/goalDone — 비숫자 --id 진짜 원인 지목', () => {
+  let origCwd: string
+  let origExitCode: number | string | undefined
+  beforeEach(() => {
+    origCwd = process.cwd()
+    origExitCode = process.exitCode
+    process.exitCode = 0
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    process.exitCode = origExitCode
+    vi.restoreAllMocks()
+  })
+
+  for (const cmd of ['goalCheck', 'goalDone'] as const) {
+    it(`${cmd} --id abc → '유효하지 않은 goal 번호' 지목 + 모순 '대상 결정 불가' 안 뜸`, async () => {
+      const dir = tmpProject(`nonnum-${cmd}`)
+      makeGoalFile(dir, 1, 'NOT_STARTED')
+      process.chdir(dir)
+      try {
+        const goal = await import('../src/commands/goal.js')
+        const logSpy = vi.spyOn(console, 'log')
+        await goal[cmd]({ id: 'abc' })
+        const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+        expect(out).toMatch(/유효하지 않은 goal 번호/)
+        expect(out).toMatch(/abc/)
+        // 모순 메시지(--id 명시 필요)로 새지 않음
+        expect(out).not.toMatch(/대상 goal 을 결정할 수 없습니다/)
+        expect(process.exitCode).toBe(1)
+      } finally {
+        process.chdir(origCwd)
+        rmSync(dir, { recursive: true, force: true })
+      }
+    })
+  }
+})

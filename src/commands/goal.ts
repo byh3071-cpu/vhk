@@ -29,6 +29,19 @@ const STATUS_ICON: Record<GoalStatus, string> = {
   BLOCKED: '🛑',
 }
 
+// #329: --id 없이 active goal 이 null 일 때, goalNext(VHK-017)와 동일하게 0개/전부완료를 구분 안내.
+//        이전엔 둘 다 generic '대상 결정 불가'(exit 1)로 뭉개 '설정 오류'처럼 오해를 줬다.
+//        0개·전부완료는 정상 상태 → 안내만 하고 exit 0. (true 반환 = 정상 종료 신호)
+function reportNoActiveGoal(goals: ParsedGoal[]): boolean {
+  if (goals.length === 0) {
+    console.log(chalk.yellow('  📭 정의된 goal 이 없습니다.'))
+    console.log(chalk.dim('  vhk goal init 으로 시작하세요.'))
+    return true
+  }
+  console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다 — 검사/완료할 대상이 없습니다.'))
+  return true
+}
+
 // active goal 선택: IN_PROGRESS 우선, 없으면 첫 NOT_STARTED.
 // (BLOCKED 는 자동 선택 안 함 — 사람이 풀어야 함.)
 export function selectActiveId(goals: ParsedGoal[]): number | null {
@@ -236,7 +249,10 @@ priority: P0
 게이트 스크립트는 \`vhk goal sync\` 로 \`scripts/check-goal-<id>.mjs\` 를 백필한다.
 `
 
-const STATE_NEXT_TASK_TEMPLATE = '# Next Task\n\n```\nTASK: (vhk goal next 로 자동 갱신)\n```\n'
+// #328: 스캐폴드 본문에 auto-update 마커(`via \`vhk goal next\``)를 포함 — 없으면 첫 goal next 가
+//        이 init 산출물을 '수동 편집본'으로 오탐(goalNext 의 isManual 휴리스틱이 마커 부재로 판정).
+const STATE_NEXT_TASK_TEMPLATE =
+  '# Next Task\n\n_Auto-updated via `vhk goal next`._\n\n```\nTASK: (vhk goal next 로 자동 갱신)\n```\n'
 const STATE_BLOCKERS_TEMPLATE =
   '# Blockers\n\n_Append-only. 해결 항목은 ~~취소선~~으로 표기._\n'
 const STATE_LEARNINGS_TEMPLATE =
@@ -320,10 +336,8 @@ export async function goalCheck(opts: { id?: string; force?: boolean }): Promise
     return
   }
   if (id === null) {
-    console.log(
-      chalk.yellow('  ⚠ 대상 goal 을 결정할 수 없습니다 (--id 명시 또는 active goal 필요).')
-    )
-    process.exitCode = 1
+    // #329: --id 없이 active 없음 = 0개 또는 전부완료(정상). next 와 일관 안내 + exit 0.
+    reportNoActiveGoal(goals)
     return
   }
   // ② 없는 goal id 는 게이트 검사 전에 통일된 메시지로 거부 (done 과 동일).
@@ -396,10 +410,8 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
     return
   }
   if (id === null) {
-    console.log(
-      chalk.yellow('  ⚠ 대상 goal 을 결정할 수 없습니다 (--id 명시 또는 active goal 필요).')
-    )
-    process.exitCode = 1
+    // #329: --id 없이 active 없음 = 0개 또는 전부완료(정상). next 와 일관 안내 + exit 0.
+    reportNoActiveGoal(goals)
     return
   }
   const target = goals.find((g) => g.frontmatter.id === id)
