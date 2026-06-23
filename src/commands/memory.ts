@@ -381,8 +381,13 @@ export async function memoryList(opts: { type?: MemBucket; all?: boolean } = {})
 }
 
 function resolveIndex(indexStr: string, len: number): number | null {
-  const idx = parseInt(indexStr, 10) - 1
-  if (Number.isNaN(idx) || idx < 0 || idx >= len) return null
+  // #318: parseInt 부분파싱('2zzz'→2, '1.5'→1)으로 엉뚱한 항목을 조용히 삭제/보관하던 파괴적 버그.
+  //        엄격 정수 정규식으로 비정수·소수·문자혼입·공백·빈문자를 거부. remove 는 되돌릴 수 없어 특히 엄격.
+  if (!/^\d+$/.test(indexStr)) return null
+  const n = Number(indexStr)
+  if (!Number.isInteger(n)) return null
+  const idx = n - 1
+  if (idx < 0 || idx >= len) return null
   return idx
 }
 

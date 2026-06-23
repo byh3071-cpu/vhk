@@ -281,6 +281,77 @@ describe('memory v2 — 커맨드 (tmp+chdir)', () => {
     fs.rmSync(d, { recursive: true, force: true })
   })
 
+  // #318: parseInt 부분파싱('2zzz'→2, '1.5'→1)으로 엉뚱한 항목을 조용히 삭제/보관하던 파괴적 버그.
+  //        엄격 정수 검증으로 비정수·소수·문자혼입·공백·빈문자 전부 거부 (특히 remove 는 되돌릴 수 없어 엄격).
+  describe('#318 memory remove/archive — 부분파싱 차단 (파괴적 오삭제 방지)', () => {
+    // 2개 항목을 깔고, 잘못된 indexStr 가 어느 것도 건드리지 않음을 확인.
+    function seedTwo(d: string): void {
+      const v2: MemoryFileV2 = {
+        schemaVersion: 2,
+        decisions: [
+          { id: 'd1', content: 'FIRST', tags: [], createdAt: '', status: 'active' },
+          { id: 'd2', content: 'SECOND', tags: [], createdAt: '', status: 'active' },
+        ],
+        failures: [], successes: [], patterns: [],
+      }
+      fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+      fs.writeFileSync(path.join(d, MEMORY_PATH_REL), JSON.stringify(v2, null, 2) + '\n', 'utf-8')
+    }
+
+    for (const bad of ['2zzz', '1.5', ' 2', '', '   ', 'abc', '-1']) {
+      it(`memoryRemove(${JSON.stringify(bad)}) → 거부 + 삭제 0 + exit 1`, async () => {
+        const d = tmp()
+        seedTwo(d)
+        process.chdir(d)
+        await memoryRemove(bad)
+        const mem = read(d)
+        // 파괴적 부작용 0: 두 항목 모두 보존
+        expect(mem.decisions).toHaveLength(2)
+        expect(mem.decisions.map((x) => x.content)).toEqual(['FIRST', 'SECOND'])
+        expect(process.exitCode).toBe(1)
+        process.chdir(origCwd)
+        fs.rmSync(d, { recursive: true, force: true })
+      })
+
+      it(`memoryArchive(${JSON.stringify(bad)}) → 거부 + 보관 0 + exit 1`, async () => {
+        const d = tmp()
+        seedTwo(d)
+        process.chdir(d)
+        await memoryArchive(bad)
+        const mem = read(d)
+        // 어느 항목도 archived 로 바뀌지 않음
+        expect(mem.decisions.every((x) => x.status === 'active')).toBe(true)
+        expect(process.exitCode).toBe(1)
+        process.chdir(origCwd)
+        fs.rmSync(d, { recursive: true, force: true })
+      })
+    }
+
+    it('정상 정수 인덱스 회귀 — remove("2") 는 두 번째만 삭제', async () => {
+      const d = tmp()
+      seedTwo(d)
+      process.chdir(d)
+      await memoryRemove('2')
+      const mem = read(d)
+      expect(mem.decisions).toHaveLength(1)
+      expect(mem.decisions[0].content).toBe('FIRST')
+      process.chdir(origCwd)
+      fs.rmSync(d, { recursive: true, force: true })
+    })
+
+    it('정상 정수 인덱스 회귀 — archive("1") 은 첫 항목만 보관', async () => {
+      const d = tmp()
+      seedTwo(d)
+      process.chdir(d)
+      await memoryArchive('1')
+      const mem = read(d)
+      expect(mem.decisions[0].status).toBe('archived')
+      expect(mem.decisions[1].status).toBe('active')
+      process.chdir(origCwd)
+      fs.rmSync(d, { recursive: true, force: true })
+    })
+  })
+
   it('memoryAdd — 잘못된 --type 거부(exit 1), 저장/입력 유실 없음 (#L)', async () => {
     const d = tmp()
     process.chdir(d)
