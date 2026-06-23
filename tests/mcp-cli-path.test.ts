@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { pickCliInvocation, composeInvocation } from '../src/mcp/cli-path.js'
 
 describe('MCP CLI 경로 resolve fallback (배치3 §5)', () => {
-  it('전역 vhk 가 있으면 vhk 를 그대로 쓴다', () => {
+  it('동봉 dist 가 있으면 전역 vhk 보다 우선 — node 로 로컬 CLI 위임 (parity, #339)', () => {
     const r = pickCliInvocation(true, '/x/dist/index.js', true)
-    expect(r.bin).toBe('vhk')
-    expect(r.prefixArgs).toEqual([])
-    expect(r.fallback).toBe(false)
+    expect(r.bin).toBe(process.execPath)
+    expect(r.prefixArgs).toEqual(['/x/dist/index.js'])
+    expect(r.fallback).toBe(true)
   })
 
   it('전역 vhk 가 없고 로컬 dist/index.js 가 있으면 node 로 로컬 CLI fallback', () => {

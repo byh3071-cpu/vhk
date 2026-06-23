@@ -13,7 +13,7 @@ export interface VhkCliInvocation {
   bin: string
   /** bin 뒤에 먼저 붙는 인자 (node 로 dist/index.js 실행 시 [스크립트경로]) */
   prefixArgs: string[]
-  /** 전역 vhk 대신 로컬 dist/index.js 로 fallback 했는가 */
+  /** 로컬 dist/index.js 위임 여부 (#339: 전역 vhk 버전 스큐 방지 위해 dist 우선) */
   fallback: boolean
 }
 
@@ -26,9 +26,11 @@ export function pickCliInvocation(
   localCli: string,
   localExists: boolean
 ): VhkCliInvocation {
-  if (globalAvailable) return { bin: 'vhk', prefixArgs: [], fallback: false }
+  // #339: 동봉 dist 우선 — MCP 서버와 같은 빌드로 위임해 명령 parity 보장. 전역 vhk 가 한 버전이라도
+  // 뒤처지면 위임 도구(content/launch/ops/sell/remind/loop-brief)가 조용히 깨진다(버전 스큐).
   if (localExists) return { bin: process.execPath, prefixArgs: [localCli], fallback: true }
-  // 마지막 수단: 그래도 vhk 시도 — 실패는 호출부(runVhkCli)가 표면화.
+  if (globalAvailable) return { bin: 'vhk', prefixArgs: [], fallback: false }
+  // 마지막 수단: dist 도 전역도 없으면 vhk 시도 — 실패는 호출부(runVhkCli)가 표면화.
   return { bin: 'vhk', prefixArgs: [], fallback: false }
 }
 
