@@ -162,8 +162,8 @@ vhk doctor
 | `vhk env` | .env → .env.example 동기화 |
 | `vhk env-check` | 필수 환경변수 누락 검사 |
 | `vhk publish` | npm 배포 (버전 범프 → 빌드 → 테스트) |
-| `vhk design` | 디자인 토큰 생성 (`design palette` = 팔레트 선택 서브커맨드) |
-| `vhk design-palette` | 컬러 팔레트 프리셋 선택 (위와 동일 별칭 진입점) |
+| `vhk design` | 디자인 토큰 생성 (팔레트 선택은 별도 `vhk design-palette` 명령) |
+| `vhk design-palette` | 컬러 팔레트 프리셋 선택 (별도 top-level 명령 — `design palette` 아님) |
 | `vhk theme` | 다크/라이트 모드 CSS 생성 |
 | `vhk ref` | 레퍼런스 URL 관리 (add/list/open) |
 | `vhk harness` | 통합 품질 점검 (lint+type+test+build) |

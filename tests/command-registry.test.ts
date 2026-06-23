@@ -17,6 +17,21 @@ describe('R1 드리프트 가드 — command-registry 단일 소스', () => {
     }
   })
 
+  // #344 유령 서브커맨드 가드(역방향): registry 에만 있고 commander 엔 없는 '유령 서브'를 잡는다.
+  // (기존 가드는 commander→registry 방향만 검사해 env:[check]·design:[palette] 같은 유령을 못 잡았다.)
+  it('registry 의 서브커맨드 보유 컨테이너는 commander 서브커맨드 또는 positional 인자를 실제로 가진다 (유령 서브 0)', () => {
+    for (const name of Object.keys(CONTAINER_SUBCOMMANDS)) {
+      const cmd = program.commands.find((c) => c.name() === name)
+      if (!cmd) continue
+      const hasSubs = cmd.commands.length > 0
+      const hasPositional = cmd.registeredArguments.length > 0
+      expect(
+        hasSubs || hasPositional,
+        `'${name}' 는 commander 에 서브커맨드도 positional 인자도 없는 leaf 인데 registry 가 서브커맨드를 선언함 → 유령 서브 → 'vhk ${name} <x>' 가 raw too-many-arguments`
+      ).toBe(true)
+    }
+  })
+
   it('레지스트리가 cli-args R1 가드를 실제로 작동시킴', () => {
     // goal check / mode strict 가 commander 로 가야 함(자연어 라우터 가로채기 금지)
     expect(detectNaturalLanguageInput(['node', 'vhk', 'goal', 'check'])).toBeNull()

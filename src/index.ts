@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
 import chalk from 'chalk'
 import { prompt } from './lib/prompt.js'
-import { detectNaturalLanguageInput } from './lib/cli-args.js'
+import { detectNaturalLanguageInput, detectInvalidCommandUsage } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
 import { getVhkVersion, getVhkDescription } from './lib/version.js'
 import { gate } from './commands/gate.js'
@@ -1065,11 +1065,19 @@ if (isMainModule) {
   // VHK-014: parseAsync 를 try/catch 로 감싸 unsettled top-level await 경고 제거 +
   // 비-TTY/EOF 프롬프트 크래시(ERR_USE_AFTER_CLOSE)를 friendly 종료로 처리.
   try {
-    const nlInput = detectNaturalLanguageInput(process.argv)
-    if (nlInput !== null) {
-      await runNaturalLanguageRoute(nlInput)
+    // 드리프트 3종(#314·#344·#345): 등록 명령에 잘못된 인자 조합 → raw 영어 에러/cross-misroute 대신
+    // 한국어 친절 안내 + exit 1(미인식과 동일 실패 신호 — 조용한 성공 위장 차단).
+    const usageMsg = detectInvalidCommandUsage(process.argv)
+    if (usageMsg !== null) {
+      console.error(chalk.yellow(`\n  ❓ ${usageMsg}\n`))
+      process.exitCode = 1
     } else {
-      await program.parseAsync(process.argv)
+      const nlInput = detectNaturalLanguageInput(process.argv)
+      if (nlInput !== null) {
+        await runNaturalLanguageRoute(nlInput)
+      } else {
+        await program.parseAsync(process.argv)
+      }
     }
   } catch (err) {
     if (isPromptAbortError(err)) {

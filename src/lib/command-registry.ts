@@ -13,8 +13,10 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate', 'eval'],
   cloud: ['push', 'pull'],
   secure: ['scan'],
-  design: ['palette'],
-  env: ['check'],
+  // #344: env·design 은 서브커맨드 없는 leaf 다(env-check·design-palette 는 별도 top-level 명령).
+  // 여기 env:['check']·design:['palette'] 를 두면 R1 가드가 'env check' 를 "실제 서브 경로"로 오판 →
+  // commander 가 leaf 에 추가 인자를 거부해 raw 'too many arguments'. leaf+추가인자는 cli-args 의
+  // LEAF_ARG_SUGGEST 로 친절 안내(env-check/design-palette 유도). (drift 가드: registry-drift-usage 테스트)
   mode: ['lite', 'standard', 'strict'],
   mission: ['set', 'check', 'clear'],
   pattern: ['detect', 'list', 'dismiss'],
@@ -32,8 +34,9 @@ export const CONTAINER_ALIASES: Record<string, string> = {
   기억: 'memory',
   클라우드: 'cloud',
   보안: 'secure',
-  디자인: 'design',
-  환경변수: 'env',
+  // #344: env·design 은 컨테이너가 아닌 leaf 라 CONTAINER_SUBCOMMANDS 에서 제거됨 →
+  // 그 한글 별칭(환경변수·디자인)도 컨테이너 별칭에서 제거(별칭이 무효 컨테이너를 가리키지 않게).
+  // 한글 별칭의 leaf+추가인자 유도는 cli-args 의 LEAF_ARG_SUGGEST 가 직접 처리한다.
   모드: 'mode',
   미션: 'mission',
   패턴: 'pattern',
