@@ -162,6 +162,29 @@ describe('MCP↔CLI 계약 — C. 래퍼 충실도 (ANSI strip · 한글 보존 
     expect(isGuardBlockedOutput('✅ 동기화 완료 — 7개 파일 갱신')).toBe(false)
     expect(isGuardBlockedOutput('🔎 위험 작업(undo) 미리보기\n실행하지 않았습니다 — 승인 후 재시도')).toBe(true)
   })
+
+  it('NL 미인식(exit 0): ✅ 거짓 성공 대신 ❓ 미인식 prefix (#340)', async () => {
+    // nlp-run 미인식 폴백 흉내 — exit 0 으로 끝나 과거엔 ✅ 로 위장됐다.
+    execFileSync.mockReturnValue(
+      Buffer.from('❓ "remind" — 무슨 뜻인지 모르겠어요. vhk를 입력하면 메뉴에서 선택할 수 있습니다.')
+    )
+    const out = text(await callTool('remind'))
+    expect(out.startsWith('❓ remind 미인식')).toBe(true)
+    expect(out.startsWith('✅')).toBe(false)
+  })
+
+  it('isNotMatchedOutput: 미인식 문구 감지, 일반 출력은 false (#340)', async () => {
+    const { isNotMatchedOutput } = await import('../src/mcp/server.js')
+    expect(isNotMatchedOutput('❓ "x" — 무슨 뜻인지 모르겠어요.')).toBe(true)
+    expect(isNotMatchedOutput('✅ 정상 완료')).toBe(false)
+  })
+
+  it('audit: 감사 불가(빈 출력) → 취약점 0건 단정 대신 결과 불명 (#341)', async () => {
+    execFileSync.mockReturnValue(Buffer.from('')) // ENOLOCK·빈/형식불량 → indeterminate
+    const out = text(await callTool('audit'))
+    expect(out).toContain('결과 불명')
+    expect(out).not.toContain('취약점 0건')
+  })
 })
 
 // ─── D. 공유함수 패리티 (#152 cross-단언) ────────────────────────────────
