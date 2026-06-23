@@ -267,6 +267,31 @@ describe('vhk init — 루트 .gitignore 보장', () => {
     expect(ensureRootGitignore(dir)).toBe('unchanged')
     fs.rmSync(dir, { recursive: true })
   })
+
+  // #326: 슬래시 유무만 다른 동치 항목을 중복 추가하던 결함
+  it('슬래시 없는 변형(node_modules)이 이미 있으면 슬래시 버전(node_modules/)을 중복 추가 안 함', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-gi-'))
+    fs.writeFileSync(path.join(dir, '.gitignore'), 'node_modules\ndist\n', 'utf-8')
+    ensureRootGitignore(dir)
+    const content = fs.readFileSync(path.join(dir, '.gitignore'), 'utf-8')
+    const lines = content.split('\n').map(l => l.trim())
+    // node_modules 와 node_modules/ 가 공존하면 안 됨 (동치 = 1개)
+    expect(lines.filter(l => l.replace(/\/$/, '') === 'node_modules').length).toBe(1)
+    expect(lines.filter(l => l.replace(/\/$/, '') === 'dist').length).toBe(1)
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('슬래시 없는 변형만 있으면 정규화로 추가 없음 → unchanged 분기 (멱등)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-gi-'))
+    // ROOT_GITIGNORE_ENTRIES 전부를 슬래시 없는 변형으로 미리 채움
+    fs.writeFileSync(
+      path.join(dir, '.gitignore'),
+      '.env\n.env.local\n.env.*.local\nnode_modules\ndist\n*.tsbuildinfo\n.DS_Store\n',
+      'utf-8'
+    )
+    expect(ensureRootGitignore(dir)).toBe('unchanged')
+    fs.rmSync(dir, { recursive: true })
+  })
 })
 
 describe('docs/spec.md 규격', () => {
