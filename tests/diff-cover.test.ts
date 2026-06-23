@@ -11,12 +11,19 @@ vi.mock('../src/lib/coverage-parse.js', async (orig) => {
   return { ...actual, fileCoverageByFile: vi.fn() }
 })
 vi.mock('../src/lib/hard-stop-guard.js', () => ({ ensureNotHardStopped: vi.fn(() => true) }))
+// #371: 영속화 부수효과 격리 — 실제 git/fs 를 안 건드리도록 mock. persist 호출 여부만 검증.
+vi.mock('../src/lib/git-repo.js', () => ({ getCommitInfo: vi.fn(() => null) }))
+vi.mock('../src/lib/diff-cover-log.js', () => ({
+  buildDiffCoverEntries: vi.fn(() => []),
+  appendDiffCoverLog: vi.fn(() => 0),
+}))
 
 import { formatReport, diffCover, untrackedFeatureSources } from '../src/commands/diff-cover.js'
 import { safeExecFile } from '../src/lib/exec.js'
 import { diffUnified0, untrackedFiles } from '../src/lib/git-session.js'
 import { addedLinesByFile } from '../src/lib/diff-hunks.js'
 import { fileCoverageByFile, COVERAGE_CORRUPT } from '../src/lib/coverage-parse.js'
+import { buildDiffCoverEntries, appendDiffCoverLog } from '../src/lib/diff-cover-log.js'
 import type { DiffCoverageResult } from '../src/lib/diff-coverage.js'
 import type { FileCoverage } from '../src/lib/coverage-parse.js'
 
@@ -138,6 +145,34 @@ describe('diffCover — 오케스트레이션 분기(자문형·차단 0)', () =
     expect(out).toContain('미검증 변경분')
     expect(out).toContain('11') // 미커버 라인
     expect(out).toContain('자문형')
+  })
+
+  // #371: 측정 후 결과를 영속(append)한다 — 추세 분석 토대.
+  it('#371 정상 측정 시 diff-cover 로그에 append 한다(영속화)', async () => {
+    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]) }
+    mockCov.mockReturnValue(new Map([['src/lib/a.ts', fc]]))
+    await diffCover()
+    expect(vi.mocked(buildDiffCoverEntries)).toHaveBeenCalledOnce()
+    expect(vi.mocked(appendDiffCoverLog)).toHaveBeenCalledOnce()
+  })
+
+  // #371: 영속 실패는 본 측정/출력/exit 0 을 절대 막지 않는다(best-effort).
+  it('#371 영속화 throw 해도 측정 출력·exit 0 불변(best-effort)', async () => {
+    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]) }
+    mockCov.mockReturnValue(new Map([['src/lib/a.ts', fc]]))
+    vi.mocked(appendDiffCoverLog).mockImplementationOnce(() => {
+      throw new Error('disk full')
+    })
+    await diffCover()
+    expect(process.exitCode).not.toBe(1)
+    expect(logs.join('\n')).toContain('미검증 변경분')
+  })
+
+  // #371: 측정 대상 없을 때(변경 0)는 영속 호출이 그 전에 return 되어 일어나지 않는다(churn 0).
+  it('#371 측정 대상 없으면 영속 호출 안 함', async () => {
+    mockAdded.mockReturnValue(new Map())
+    await diffCover()
+    expect(vi.mocked(appendDiffCoverLog)).not.toHaveBeenCalled()
   })
 })
 
