@@ -872,6 +872,24 @@ export function createVhkMcpServer(): McpServer {
   return server
 }
 
+// #342 #343: MCP 도구 수 단일 SoT — 실 등록 도구를 런타임에 읽어 length 파생.
+//   과거엔 도구 수가 surface 마다(help 'MCP N tools'·mcp 명령 설명) 따로 하드코딩돼 드리프트.
+//   registerTool 은 명령형 호출이라 선언적 배열이 없으므로, 빌드된 서버의 등록 맵에서 셋을 읽는다.
+//   SDK 는 public introspection API 가 없어 _registeredTools(private) 접근이 불가피 →
+//   접근 지점을 이 한 곳에 격리(SDK 메이저 업그레이드 시 여기만 패치). tests/helpers/mcp-introspect 와 동일 형태.
+interface ToolRegistryShape {
+  _registeredTools: Record<string, unknown>
+}
+
+export function getMcpToolNames(): string[] {
+  const server = createVhkMcpServer() as unknown as ToolRegistryShape
+  return Object.keys(server._registeredTools)
+}
+
+export function getMcpToolCount(): number {
+  return getMcpToolNames().length
+}
+
 export async function startMcpServer(): Promise<void> {
   const server = createVhkMcpServer()
   const transport = new StdioServerTransport()

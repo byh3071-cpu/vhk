@@ -57,7 +57,9 @@ describe('제품 설명 정합 — package.json ↔ index.ts (Goal 81)', () => {
   })
 
   it('index.ts 프로그램 설명이 getVhkDescription() 주입(하드코딩 복제 제거)', () => {
-    expect(idx).toMatch(/\.name\('vhk'\)[\s\S]*?\.description\(getVhkDescription\(\)\)/)
+    // #342 #343: getVhkDescription() 이 설명 SoT 인 점은 유지하되, 'MCP N tools' 토큰은
+    //   normalizeMcpToolCount() 로 실 등록 수에 맞춰 정규화해 주입한다(getVhkDescription() 직접 또는 래핑 허용).
+    expect(idx).toMatch(/\.name\('vhk'\)[\s\S]*?\.description\([\s\S]*?getVhkDescription\(\)[\s\S]*?\)/)
     // 제품 설명을 index.ts 에 통째 하드코딩 금지(드리프트 원천 차단).
     expect(idx).not.toMatch(/\.description\('VHK — AI 코딩 세션을/)
   })
