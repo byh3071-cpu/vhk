@@ -107,6 +107,35 @@ describe('recallMemories (순수)', () => {
     const b = recallMemories(m, 'publish', 5, NOW).map((h) => h.entry.id)
     expect(a).toEqual(b)
   })
+
+  // #324: 미래 날짜 createdAt 이 recency 점수를 무한 증폭(e+127) → '약한 보너스(상한 1.0)' 무력화.
+  //        미래 날짜는 '최신'으로 간주해 recency 를 1.0 으로 clamp 해야 한다.
+  it('미래 날짜 createdAt → recency 1.0 으로 clamp (무한증폭·과학표기 차단)', () => {
+    const m = mem([
+      fail('f1', '배포 파이프라인 설정', ['publish'], { createdAt: '2099-01-01T00:00:00Z' }),
+    ])
+    const [hit] = recallMemories(m, '배포 파이프라인 설정', 5, NOW)
+    expect(hit.signals.recency).toBeLessThanOrEqual(1)
+    // 점수도 e+127 같은 폭증값이 아니어야 한다(과학표기 노출 차단).
+    expect(hit.score).toBeLessThan(100)
+    expect(Number.isFinite(hit.score)).toBe(true)
+  })
+
+  it('가벼운 미래 날짜(+5일)도 recency ≤ 1.0 (설계 상한 초과 금지)', () => {
+    const future = new Date(NOW + 5 * 86_400_000).toISOString()
+    const m = mem([fail('f1', 'publish 차단', ['publish'], { createdAt: future })])
+    const [hit] = recallMemories(m, 'publish', 5, NOW)
+    expect(hit.signals.recency).toBeLessThanOrEqual(1)
+  })
+
+  it('과거 날짜 recency 회귀 — 정상 반감기 유지 (0<recency≤1)', () => {
+    const m = mem([
+      fail('f1', 'publish 차단', ['publish'], { createdAt: '2025-01-01T00:00:00Z' }),
+    ])
+    const [hit] = recallMemories(m, 'publish', 5, NOW)
+    expect(hit.signals.recency).toBeGreaterThan(0)
+    expect(hit.signals.recency).toBeLessThanOrEqual(1)
+  })
 })
 
 describe('recallForAction (just-in-time · precision 우선)', () => {

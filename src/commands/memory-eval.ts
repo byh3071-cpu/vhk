@@ -3,7 +3,13 @@ import { join, dirname } from 'node:path'
 import chalk from 'chalk'
 import { prompt } from '../lib/prompt.js'
 import { readMemory, recallMemories, type FailEntry } from './memory.js'
-import { scoreEval, RECALL_EVAL_THRESHOLD, type EvalLabel } from '../lib/recall-eval.js'
+import {
+  scoreEval,
+  validateEvalLabels,
+  EvalFormatError,
+  RECALL_EVAL_THRESHOLD,
+  type EvalLabel,
+} from '../lib/recall-eval.js'
 import { readRecallLog } from '../lib/recall-log.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { atomicWriteFile } from '../lib/atomic-write.js'
@@ -40,9 +46,13 @@ export async function memoryEval(opts: { init?: boolean } = {}): Promise<void> {
   }
   let labels: EvalLabel[]
   try {
-    labels = readJsonFile<EvalFile>(p).labels ?? []
-  } catch {
-    console.log(chalk.red(`❌ ${EVAL_PATH_REL} 읽기/파싱 실패 (손상 의심).`))
+    // raw JSON 을 TS 캐스트로만 받지 않고 형식검증 통과시킨다 (#322 expectIds 정확매칭 · #323 구조검증).
+    labels = validateEvalLabels(readJsonFile<unknown>(p))
+  } catch (e) {
+    // 깨진 JSON(파싱 실패)·구조 형식 불량(EvalFormatError) 모두 동일한 친절 메시지로 흡수 — 내부 스택 미노출.
+    const detail = e instanceof EvalFormatError ? ` ${e.message}` : ''
+    console.log(chalk.red(`❌ ${EVAL_PATH_REL} 읽기/형식 검증 실패 (손상 의심).${detail}`))
+    console.log(chalk.gray('   vhk memory eval --init 으로 평가셋을 다시 만드세요.'))
     process.exitCode = 1
     return
   }
