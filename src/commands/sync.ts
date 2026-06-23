@@ -204,16 +204,36 @@ function buildVhkBlock(managedSections: RulesSection[]): string {
 }
 
 /**
+ * 문자열에서 완결된 vhk 마커블록(START…END)을 전부 제거. 마커쌍이 여러 개일 때(#325 병합/복붙
+ * 사고) 첫 쌍 밖에 남은 다른 관리 블록들을 사용자영역에서 지워 중복을 수렴시킨다.
+ * 각 블록 = START 위치부터 그 뒤 첫 END 끝까지(비중첩, non-greedy). 짝 없는 잔존 START/END 는
+ * stripLegacyAutogen 처럼 폴백 경로에서 정리되므로 여기선 완결 쌍만 다룬다.
+ */
+function stripAllVhkBlocks(s: string): string {
+  let out = s
+  for (;;) {
+    const start = out.indexOf(VHK_BLOCK_START)
+    if (start === -1) break
+    const end = out.indexOf(VHK_BLOCK_END, start + VHK_BLOCK_START.length)
+    if (end === -1) break // 완결 쌍 없음 → 잔존 START 는 그대로 (폴백서 처리)
+    out = out.slice(0, start) + out.slice(end + VHK_BLOCK_END.length)
+  }
+  return out
+}
+
+/**
  * 마커 쌍을 찾아 바깥(before/after = 사용자 영역)을 분리. 마커 없거나 훼손(start/end 누락·역전)이면
  * null → 호출부가 마이그레이션 경로(stripLegacyAutogen)로 폴백.
+ * 첫 쌍 기준으로 분리하되, before/after 에 남은 **다른 완결 마커블록**은 stripAllVhkBlocks 로
+ * 제거된다 — 마커쌍이 2개 이상이어도(병합/복붙 사고) 관리 블록은 항상 1개로 수렴 (#325 자기치유).
  */
 function splitVhkBlock(existing: string): { before: string; after: string } | null {
   const start = existing.indexOf(VHK_BLOCK_START)
   const end = existing.indexOf(VHK_BLOCK_END)
   if (start === -1 || end === -1 || end < start) return null
   return {
-    before: existing.slice(0, start),
-    after: existing.slice(end + VHK_BLOCK_END.length),
+    before: stripAllVhkBlocks(existing.slice(0, start)),
+    after: stripAllVhkBlocks(existing.slice(end + VHK_BLOCK_END.length)),
   }
 }
 

@@ -278,6 +278,54 @@ describe('toClaudeMd — 마커 기반 사용자 섹션 보존 (배치1: 사용�
   })
 })
 
+// #325: 마커쌍이 2개면 splitVhkBlock 이 첫 쌍만 잡고 둘째 vhk 블록을 사용자영역(after)으로
+// verbatim 보존 → 관리 블록 통째 중복. 추가 sync 해도 2개로 고착(자기치유 실패).
+describe('toClaudeMd — 마커쌍 중복 정규화 (#325 자기치유)', () => {
+  const sections = parseRulesMd(RULES)
+  const name = deriveProjectName(RULES)
+  const startCount = (s: string) => (s.match(/<!-- vhk:rules:start -->/g) || []).length
+  const endCount = (s: string) => (s.match(/<!-- vhk:rules:end -->/g) || []).length
+  const bannerCount = (s: string) => (s.match(/⚡ 아래 규칙 섹션은/g) || []).length
+
+  it('마커쌍 2개(병합/복붙 사고) → sync 시 1쌍으로 수렴 (중복 블록 0)', () => {
+    // 정상 마커 블록을 먼저 생성한 뒤, 그 앞에 가짜 마커쌍을 덧대 2쌍 상태를 만든다.
+    const single = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- **Phase:** P5\n`)
+    const doubled = `<!-- vhk:rules:start -->\n가짜내용\n<!-- vhk:rules:end -->\n\n${single}`
+    expect(startCount(doubled)).toBe(2) // 사전조건: 정말 2쌍
+    const out = toClaudeMd(sections, doubled)
+    expect(startCount(out)).toBe(1)
+    expect(endCount(out)).toBe(1)
+    expect(bannerCount(out)).toBe(1) // 관리 블록 중복 없음
+  })
+
+  it('마커쌍 2개 정규화 후 멱등 (재 sync 시 바이트 동일 + 2쌍 재발 없음)', () => {
+    const single = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- P5\n`)
+    const doubled = `<!-- vhk:rules:start -->\n가짜\n<!-- vhk:rules:end -->\n\n${single}`
+    const a = toClaudeMd(sections, doubled)
+    expect(startCount(a)).toBe(1)
+    expect(toClaudeMd(sections, a)).toBe(a)
+  })
+
+  it('마커쌍 2개여도 마커 밖 진짜 사용자 섹션은 보존', () => {
+    const single = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 프로젝트 정보\n- repo: x\n\n## 현재 상태\n- P5\n`)
+    const doubled = `<!-- vhk:rules:start -->\n중복관리블록\n<!-- vhk:rules:end -->\n\n${single}`
+    const out = toClaudeMd(sections, doubled)
+    expect(startCount(out)).toBe(1)
+    expect(out).toContain('## 프로젝트 정보') // 진짜 사용자 섹션 보존
+    expect(out).toContain('repo: x')
+    expect(out).toContain('## 기록 규칙') // RULES 유래 record 재생성
+  })
+
+  it('마커쌍 3개도 1쌍으로 수렴', () => {
+    const single = toClaudeMd(sections, `# 기록 규칙 (${name})\n\n## 현재 상태\n- P5\n`)
+    const tripled = `<!-- vhk:rules:start -->\nA\n<!-- vhk:rules:end -->\n\n<!-- vhk:rules:start -->\nB\n<!-- vhk:rules:end -->\n\n${single}`
+    expect(startCount(tripled)).toBe(3)
+    const out = toClaudeMd(sections, tripled)
+    expect(startCount(out)).toBe(1)
+    expect(endCount(out)).toBe(1)
+  })
+})
+
 describe('claudeMdMigration — 마이그레이션 보존/제거 집계 (경고용)', () => {
   const name = deriveProjectName(RULES)
 
