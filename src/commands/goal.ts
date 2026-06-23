@@ -513,6 +513,7 @@ export interface GoalSyncResult {
 }
 
 export async function goalSync(): Promise<GoalSyncResult> {
+  if (!ensureNotHardStopped('goal sync')) return { created: [], skipped: [] } // #334: HARD_STOP 활성 시 게이트 스크립트 생성 차단
   console.log(chalk.bold(`\n${ko.goal.syncTitle}\n`))
   const goals = listGoals(GOALS_DIR)
   const result: GoalSyncResult = { created: [], skipped: [] }
