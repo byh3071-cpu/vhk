@@ -74,9 +74,11 @@ describe('gen-goals-index e2e', () => {
     fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('레포 실물 goals/ 에 대해 61+ goal 행 생성 (한국어 제목 포함)', () => {
+  // 완료 goal 80개는 goals/archive/ 로 이동(2026-06-23) — 60+ 실물 데이터의 소재지가
+  // archive 다. e2e 의도(gen 스크립트가 다수 goal 을 한국어 제목으로 인덱싱)는 archive 대상으로 보존.
+  it('레포 실물 goals/archive/ 에 대해 60+ goal 행 생성 (한국어 제목 포함)', () => {
     const tmpOut = path.join(os.tmpdir(), `vhk-goalsidx-${process.pid}.md`)
-    execFileSync('node', [SCRIPT, 'goals', tmpOut], {
+    execFileSync('node', [SCRIPT, 'goals/archive', tmpOut], {
       cwd: process.cwd(),
       encoding: 'utf-8',
       stdio: 'pipe',
@@ -84,6 +86,7 @@ describe('gen-goals-index e2e', () => {
     const md = fs.readFileSync(tmpOut, 'utf-8')
     const rows = md.split('\n').filter((l) => /^\| \d+ \|/.test(l))
     expect(rows.length).toBeGreaterThanOrEqual(60)
+    expect(/[가-힣]/.test(md)).toBe(true)
     fs.rmSync(tmpOut, { force: true })
   })
 

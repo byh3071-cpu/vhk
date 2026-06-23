@@ -2,94 +2,14 @@
 
 # goals/ 인덱스
 
-> 총 86 goal — DONE 80 · IN_PROGRESS 2 · NOT_STARTED 4
+> 총 6 goal — IN_PROGRESS 2 · NOT_STARTED 4
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
 |--:|------|:----:|:--------:|-----------|
-| 0 | MCP 풀 커버리지 — 10 tool → 24 tool 확장 | ✅ DONE | P0 |  |
-| 1 | vhk goal 명령어 — goals/ 체계를 CLI 로 노출 | ✅ DONE | P0 |  |
-| 2 | 자율 루프 — context → goal → check 사이클 + 안전장치 | ✅ DONE | P1 |  |
-| 3 | 배치1 — init adopt + RULES.md 항상 생성 + 5-tool sync 검증 | ✅ DONE | P1 |  |
-| 4 | 배치2 — 토큰 절감형 컨텍스트(최근 N개 + compact + 참조 로딩) | ✅ DONE | P2 |  |
-| 5 | 배치3 — 채팅 UX 안전 마감 + AGENTS.md 6번째 타겟 + MCP/도움말 | ✅ DONE | P3 |  |
-| 6 | 배치4 — Safety Mode + 위험 작업 가드 (lite/standard/strict) | ✅ DONE | P1 |  |
-| 7 | 모든 goal에 게이트 스크립트 자동 생성 | ✅ DONE | P0 |  |
-| 8 | vhk init -y 완전 비대화형 | ✅ DONE | P0 |  |
-| 9 | Windows/PowerShell 1급 지원 | ✅ DONE | P0 |  |
-| 10 | vhk context 발견성·실행유도 (next-step + MCP 자동호출) | ✅ DONE | P1 |  |
-| 11 | 대화형/비대화형 통합 가드 (MCP·CI 안전) — P1 | ✅ DONE | P1 |  |
-| 12 | 비대화형 가드 P2 — 잔여 명령 마이그 + save push 검토 | ✅ DONE | P2 |  |
-| 13 | vhk verify 증거화 (Evidence Ledger v0) — P1 | ✅ DONE | P1 |  |
-| 14 | vhk verify --report (Human Panel HTML v0) — P2 | ✅ DONE | P2 |  |
-| 15 | vhk review (적대적 자기검증 v0) — P1 | ✅ DONE | P1 |  |
-| 16 | vhk sync 확대 — Gemini CLI + Cline (P2) | ✅ DONE | P2 |  |
-| 17 | vhk mission — Mission Contract (scope/intent 층) — P3 | ✅ DONE | P3 |  |
-| 18 | 기억 구조화 — memory schema v2 (4버킷 + learn 통합) — P1 | ✅ DONE | P1 |  |
-| 19 | 패턴 감지 — pattern detection v0 (반복 실패·성공 → avoid/reinforce 후보) — P1 | ✅ DONE | P1 |  |
-| 20 | vhk evolve — Evolution Loop 도미노 4 (패턴→룰 후보→사람 승인→반영) | ✅ DONE | P1 | v3-vhk-hub |
-| 21 | vhk seo init (스캐폴드 + 사이트등록 + 키보관) — P2 | ✅ DONE | P2 |  |
-| 22 | vhk seo submit (사이트맵 + IndexNow) — P2 | ✅ DONE | P2 |  |
-| 23 | vhk seo check 색인+트래픽 (GSC + GA4) — P2 | ✅ DONE | P2 |  |
-| 24 | vhk seo check 수익+빙 (AdSense v2 + Bing) — P2 | ✅ DONE | P2 |  |
-| 25 | vhk seo report (무빌드 HTML 대시보드) — P2 | ✅ DONE | P2 |  |
-| 26 | vhk seo 자동화 (Notion 적재 + 스케줄러 + 확장슬롯) — P2 | ✅ DONE | P2 |  |
-| 27 | silent fallback 안티패턴 린트 (check-no-silent-fallback) — P2 | ✅ DONE | P2 |  |
-| 28 | test-first 게이트 (신규 기능 ↔ 테스트 매핑 + red→green 증거) — P2 | ✅ DONE | P2 |  |
-| 29 | vhk preflight — 출고 전 안전점검 (publish/PR 직전 일괄 점검) — P1 | ✅ DONE | P1 | goal-30-worktree |
-| 30 | vhk worktree 가드 — worktree 생성 시 env 누락 방지(자동복사/차단) — P2 | ✅ DONE | P2 |  |
-| 31 | vhk doctor — 개발 환경 정기검진(Node·pnpm·git·OS·VHK·MCP·audit) — P2 | ✅ DONE | P2 |  |
-| 32 | vhk standup — 아침 브리핑(어제 한 일 + 오늘 할 일) — P2 | ✅ DONE | P2 | goal-33-today |
-| 33 | vhk today — 저녁 자축·회고(오늘 해낸 것 담백 요약) — P2 | ✅ DONE | P2 |  |
-| 34 | HARD_STOP 가드 — goal 명령군 (next/done/init) — P1 | ✅ DONE | P1 | goal-35-hardstop-memory |
-| 35 | HARD_STOP 가드 — memory 명령군 (add/remove/archive/resolve/unarchive) — P1 | ✅ DONE | P1 | goal-36-hardstop-evolve-pattern-mission |
-| 36 | HARD_STOP 가드 — evolve/pattern/mission mutate 명령 — P1 | ✅ DONE | P1 | goal-37-atomic-writes |
-| 37 | 원자적 쓰기 헬퍼 — 상태/리포트 파일 (ref/sync/review) — P2 | ✅ DONE | P2 |  |
-| 38 | 원자적 쓰기 확대 — mission.json + state-files (HARD_STOP/blockers) — P2 | ✅ DONE | P2 |  |
-| 39 | HARD_STOP 가드 완성 — 나머지 상태쓰기 명령 (design/theme/env/ref/cloud) — P2 | ✅ DONE | P2 | goal-40-atomic-completion |
-| 40 | 원자적 쓰기 완성 — goal.ts (next-task/scaffold/frontmatter) — P2 | ✅ DONE | P2 |  |
-| 41 | HARD_STOP 가드 — MCP 서버 surface (직접쓰기 우회 차단) — P2 | ✅ DONE | P2 |  |
-| 42 | 릴리즈 준비 게이트 자동화 — CHANGELOG 본문/Unreleased 모순 차단 — P0 | ✅ DONE | P0 | 빈 본문 릴리즈 차단 (자기게이트 자동화) |
-| 43 | goal 상태↔코드 현실 드리프트 게이트 — shipped인데 NOT_STARTED 차단 — P1 | ✅ DONE | P1 | goal 상태 신뢰성 (Goal 19 정정 포함) |
-| 44 | 증거↔커밋 SHA 바인딩 — verify 리포트에 HEAD SHA·dirty 기록 — P1 | ✅ DONE | P1 | 증거 신선도 검증 (낡은 PASS 차단) |
-| 45 | 증거 원장 커밋 — reports 요약(ledger.jsonl) git 추적 — P1 | ✅ DONE | P1 | 릴리즈 증거 영속화 (레포만 보고 확인) |
-| 46 | git-access 레이어 단일 통로화 — safeExecFile 통일 + 중복 함수 통합 — P2 | ✅ DONE | P2 | git 호출 SoT 단일화 (회귀 0) |
-| 47 | 멀티 OS/Node CI 매트릭스 — win32(주 환경)+Node20(하한) 검증 — P0 | ✅ DONE | P0 | 툴링 3→4 · 주 사용환경 회귀 봉쇄 |
-| 48 | MCP↔CLI 단일 진실원 — git 인라인 재구현 제거, lib 순수함수 공유 — P0 | ✅ DONE | P0 | 아키텍처 3→4 · 드리프트 버그(#150/#152/#161) 원천 제거 |
-| 49 | 정적 린트 게이트 — eslint type-aware 결함룰 확대 + CI 블로킹 — P1 | ✅ DONE | P1 | 툴링 4→5 · 린트 고유 결함 자동 차단 |
 | 50 | 커버리지 측정 + diff-coverage 게이트 — 미검증 경로 가시화 — P1 | 🔄 IN_PROGRESS | P1 | 테스트 4→5 · 1162 pass에 분모 부여 |
-| 51 | 출력 계층 단일화 — logger SoT 승격 + raw console 차단 가드 — P2 | ✅ DONE | P2 | 코드 4→5 · 출력 일관성·테스트 캡처 단일 지점 |
-| 52 | 테스트 사정거리 보강 — Notion 실API 경로 + restore 커맨드 — P2 | ✅ DONE | P2 | 테스트 4→5 · 미커버 핵심경로 봉쇄 |
-| 53 | 가드 신뢰도 — 정규식 shape를 behavior 테스트로 이전 + 가드 CI 자동실행 — P2 | ✅ DONE | P2 | 거버넌스 4→4.5 · 거짓양성/음성 가드 제거 |
-| 54 | 제품 메타 SoT — README 버전 빌드주입 + version-sync README 확장 — P2 | ✅ DONE | P2 | 제품 3→4 · README 버전 드리프트 0 |
-| 55 | AI 행동 원장(agent-action-ledger) — P1 | ✅ DONE | P1 | 61 (stats 집계 소스) |
-| 56 | 비용·예산 가드(cost-guard) — P0 | ✅ DONE | P0 | 61 (stats 집계 소스) |
-| 57 | 위험 정책 글롭 확장·통합(risk-policy-glob) — P1 | ✅ DONE | P1 | 60 |
-| 58 | 진화 제안 스키마 v2(evolve-schema-v2) — P2 | ✅ DONE | P2 | 61 |
-| 59 | secure 불완전 신호(secure-incomplete-signal) — P1 | ✅ DONE | P1 | 55 |
-| 60 | 빈 스텁·누락 게이트 채움(stub-gate-fill) — P1 | ✅ DONE | P1 | 61 |
-| 61 | 통계·대시보드 집계(stats-blocks) — P2 | ✅ DONE | P2 | 0 (대시보드 종착) |
 | 62 | docs-first 작업 의례 — 문서 선행 갱신 + docs-diff 산출물 (자문형) — P2 | ⬜ NOT_STARTED | P2 | 스펙-코드 드리프트 사전 차단 · RFC 0051(사후 감지)의 사전 보완 |
-| 63 | vhk sync --check — 8개 sync 타겟 전체 drift 검사 모드 (쓰기 0) — P1 | ✅ DONE | P1 | 규칙 단일소스 무탐지 붕괴 차단 · check-rules-sync(CLAUDE.md 1타겟 한정) 대체/보완 |
-| 64 | COMMANDS.md 전 명령 문서화 + registry 기반 게이트 --strict 승격 — P1 | ✅ DONE | P1 | 만들어놓고 사용자가 모르는 명령 0 · 신규 명령 문서 누락 CI 차단 |
 | 65 | pre-commit L2 기록 집행 — 조건부(우회 실측 시에만 착수) — P2 | ⬜ NOT_STARTED | P2 | 기록 집행 우회 경로 0 (ADR-001 L2 트리거 이행) |
-| 66 | VISION.md 북극성 앵커 — 루프 매-틱 의도 고정 (init 템플릿 + 도그푸딩) -P1 | ✅ DONE | P1 | 67 |
-| 67 | vhk loop-brief — 토큰-부족 루프 1틱 최소 앵커 (의도+1goal+recall+STOP) -P1 | ✅ DONE | P1 |  |
-| 68 | vhk remind — 긴 세션 치명 규칙 재주입 (Fable 5 리마인더 시스템) | ✅ DONE | P2 |  |
-| 69 | vhk evolve — 부정 예시 자동 수집 (실패 패턴 → RULES.md ❌ 후보) | ✅ DONE | P2 |  |
-| 70 | MCP high-risk 도구 옵트인 정책 명문화 (deploy·publish류 명시 선택 강제) | ✅ DONE | P2 |  |
-| 71 | vhk init — core-ruleset.yaml 마커블록 상속 (goal71) | ✅ DONE | P1 |  |
-| 72 | vhk secure — PAT-001/002/004 LLM 가드레일 검출 (goal72) | ✅ DONE | P1 |  |
-| 74 | vhk content — 풀사이클 뒷단 콘텐츠 트랙 (RFC 0052 첫 구현) | ✅ DONE | P2 |  |
-| 75 | vhk launch — 풀사이클 뒷단 런칭 트랙 (RFC 0052 둘째 구현) | ✅ DONE | P2 |  |
-| 76 | vhk ops — 풀사이클 뒷단 운영 트랙 (RFC 0052 셋째 구현) | ✅ DONE | P2 |  |
-| 77 | vhk sell — 풀사이클 뒷단 판매 트랙 (RFC 0052 넷째·마지막 구현) | ✅ DONE | P2 |  |
-| 78 | goal next 비파괴화 + vhk goal peek — 조회/변경 분리 — P0 | ✅ DONE | P0 | 읽기 안전성 — 조회 의도가 상태파일을 파괴하지 않음 |
 | 79 | verify 로컬 환경의존 테스트 분리 — 선조사 후 범위 재조정(확실한 것만) — P0 | 🔄 IN_PROGRESS | P0 | 로컬 verify 신뢰 — 선조사로 회귀 0 확인, 확실한 조치만 적용 |
-| 80 | 증거 신선도 review 연결 — SHA≠HEAD 시 강등 — P1 | ✅ DONE | P1 | 낡은 PASS 증거로 거짓완료 차단(기록→소비 완결) |
-| 81 | 제품 설명 단일 SoT — package.json.description 주입 — P1 | ✅ DONE | P1 | 제품 설명 드리프트 0 (G54 버전 SoT의 설명판 보완) |
-| 82 | .vhk 런타임 산출물 gitignore 정합 — git status 청결 — P2 | ✅ DONE | P2 | vhk 명령 사용 후 git status 노이즈 0 |
-| 83 | 보안 scan 테스트 픽스처 false positive allowlist — P2 | ✅ DONE | P2 | secure scan 노이즈 ↓ (진짜 시크릿 신호 보존) |
-| 84 | doctor/status next-step 맥락 인지 — 신규 vs 기존 레포 분기 — P2 | ✅ DONE | P2 | "다음에 이것만 하세요"가 현재 상태에 맞음 |
 | 85 | receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0 | ⬜ NOT_STARTED | P0 | receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결) |
 | 86 | vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0 | ⬜ NOT_STARTED | P0 | 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기 |
