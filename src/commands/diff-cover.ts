@@ -7,6 +7,8 @@ import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
 import { diffCoverage, type DiffCoverageResult } from '../lib/diff-coverage.js'
 import { isFeatureSource, toPosix } from '../lib/test-mapping.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { getCommitInfo } from '../lib/git-repo.js'
+import { buildDiffCoverEntries, appendDiffCoverLog } from '../lib/diff-cover-log.js'
 
 const COVERAGE_JSON_REL = 'coverage/coverage-final.json'
 
@@ -99,5 +101,15 @@ export async function diffCover(): Promise<void> {
   console.log(
     chalk.dim('\n  ℹ️  자문형(advisory) — 차단하지 않습니다. 미검증 변경분은 테스트 보강을 권장하는 신호입니다.')
   )
+
+  // #371: 측정 결과를 .vhk/events/diff-cover.jsonl 에 영속(추세 분석 토대). best-effort —
+  // 기록 실패는 본 측정/출력/exit 0 을 절대 막지 않는다(advisory 도구). 자기 산출 추적파일이라
+  // dirty 판정에서 제외(self-tracked.ts) → diff-cover 가 스스로 append 해도 freshness 봉인 안 깨짐.
+  try {
+    const entries = buildDiffCoverEntries(result, getCommitInfo(cwd), new Date().toISOString())
+    appendDiffCoverLog(cwd, entries)
+  } catch {
+    /* best-effort — 영속 실패가 측정 본 기능을 막지 않음 */
+  }
   // 측정 결과로는 exit 0 유지(advisory).
 }

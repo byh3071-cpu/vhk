@@ -5,7 +5,7 @@ import chalk from 'chalk'
 import { prompt } from './lib/prompt.js'
 import { detectNaturalLanguageInput, detectInvalidCommandUsage } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
-import { getVhkVersion, getVhkDescription } from './lib/version.js'
+import { getVhkVersion, getVhkDescription, normalizeMcpToolCount } from './lib/version.js'
 import { gate } from './commands/gate.js'
 import { init } from './commands/init.js'
 import { recap } from './commands/recap.js'
@@ -21,7 +21,7 @@ import { diff } from './commands/diff.js'
 import { diffCover } from './commands/diff-cover.js'
 import { status } from './commands/status.js'
 import { stats } from './commands/stats.js'
-import { startMcpServer } from './mcp/server.js'
+import { startMcpServer, getMcpToolCount } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
 import { deploy } from './commands/deploy.js'
 import { env, envCheck } from './commands/env.js'
@@ -183,7 +183,8 @@ const KO_ALIASES: Record<string, string> = {
 program
   .name('vhk')
   // Goal 81: 제품 설명 SoT = package.json.description (런타임 주입 — 하드코딩 복제·드리프트 제거).
-  .description(getVhkDescription())
+  // #342 #343: 설명 안 'MCP N tools' 는 실 등록 도구 수(런타임 SoT)로 정규화해 표면 정합.
+  .description(normalizeMcpToolCount(getVhkDescription(), getMcpToolCount()))
   .version(getVhkVersion())
 
 program.configureHelp({
@@ -374,7 +375,8 @@ program
 
 program
   .command('mcp')
-  .description('MCP 서버 시작 (29 tool stdio — Cursor·Claude Desktop 등)')
+  // #342 #343: 도구 수를 하드코딩하지 않고 실 등록 수(런타임 SoT)에서 도출 — 드리프트 0.
+  .description(`MCP 서버 시작 (${getMcpToolCount()} tool stdio — Cursor·Claude Desktop 등)`)
   .action(async () => {
     await startMcpServer()
   })
