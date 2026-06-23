@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 6 goal — IN_PROGRESS 2 · NOT_STARTED 4
+> 총 6 goal — IN_PROGRESS 2 · NOT_STARTED 3 · DONE 1
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -11,5 +11,5 @@
 | 62 | docs-first 작업 의례 — 문서 선행 갱신 + docs-diff 산출물 (자문형) — P2 | ⬜ NOT_STARTED | P2 | 스펙-코드 드리프트 사전 차단 · RFC 0051(사후 감지)의 사전 보완 |
 | 65 | pre-commit L2 기록 집행 — 조건부(우회 실측 시에만 착수) — P2 | ⬜ NOT_STARTED | P2 | 기록 집행 우회 경로 0 (ADR-001 L2 트리거 이행) |
 | 79 | verify 로컬 환경의존 테스트 분리 — 선조사 후 범위 재조정(확실한 것만) — P0 | 🔄 IN_PROGRESS | P0 | 로컬 verify 신뢰 — 선조사로 회귀 0 확인, 확실한 조치만 적용 |
-| 85 | receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0 | ⬜ NOT_STARTED | P0 | receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결) |
+| 85 | receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0 | ✅ DONE | P0 | receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결) |
 | 86 | vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0 | ⬜ NOT_STARTED | P0 | 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기 |

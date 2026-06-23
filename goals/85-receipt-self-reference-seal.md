@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 85
 title: receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0
-status: NOT_STARTED
+status: DONE
 priority: P0
 created: 2026-06-23
 leads_to: receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결)
@@ -27,13 +27,13 @@ leads_to: receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거
 - **퇴행 0**: 진짜 소스 변경(미커밋)은 여전히 dirty/block. 제외 범위 과확장 0.
 - 화이트리스트는 한 곳(SoT) — 분산 금지.
 
-## Completion Check (작은 단위 — 미착수)
-- [ ] 자기파일 화이트리스트 상수 (SoT 한 곳, glob/경로)
-- [ ] dirty 판정에 필터 적용 (checkEvidenceFreshness/receipt decision 경로)
-- [ ] 사각지대 방지 테스트 — 자기파일은 제외하되 그 외 `.vhk` 파일·소스 변경은 여전히 dirty로 잡힘(과확장 0)
-- [ ] 한계 명시 — "제외 = vhk가 자기 ledger를 위조해도 receipt가 못 잡는다"는 ②자기참조 사각지대를 주석/문서에 정직하게 박음
-- [ ] 공통 게이트 통과(_meta), 회귀 0
-- [ ] check-goal-85.mjs (vhk goal sync 자동생성)
+## Completion Check (작은 단위 — 완료)
+- [x] 자기파일 화이트리스트 상수 (SoT 한 곳, glob/경로) — `src/lib/self-tracked.ts` `SELF_TRACKED_FILES` + `isSelfTrackedPath`/`filterSelfTrackedLines`(receipt decision 경로 재사용 가능)
+- [x] dirty 판정에 필터 적용 — `src/lib/git-repo.ts` `getCommitInfo` 가 porcelain 라인을 `filterSelfTrackedLines` 로 거른 뒤 dirty 판정. 이 단일 통로가 verify 증거·`checkEvidenceFreshness`(현재/증거 dirty)·review 신선도 전부에 반영됨.
+- [x] 사각지대 방지 테스트 — `tests/self-tracked.test.ts`(과확장 0: 그 외 .vhk·.jsonl 아닌 파일·이름만 비슷한 경로 모두 false) + `tests/verify-sha.test.ts`(자기 ledger만 → dirty=false / 자기 ledger+소스 → dirty=true / .vhk/config.json → dirty=true)
+- [x] 한계 명시 — `src/lib/self-tracked.ts` 헤더 주석 + `git-repo.ts` 인라인 주석에 "이 제외로 vhk 가 자기 ledger 를 위조해도 dirty 로 못 잡는다"는 ②자기참조 사각지대를 정직하게 박음
+- [x] 공통 게이트 통과(_meta), 회귀 0 — `pnpm build` ✓ · 전체 테스트 1819 pass(자기파일 e2e 1건 타임아웃 플레이크, 격리 재실행 green)
+- [x] check-goal-85.mjs (vhk goal sync 자동생성 + goal 고유 검증 손추가) — 게이트 통과
 
 ## 구현 노트 (선조사)
 - goal 82(.vhk gitignore 정합)와 **다른 층위**: 82는 추적 *제외*, 85는 "추적하되 dirty 판정에서 제외". ledger/events는 0056 핵심("repo 영속 증거")이라 추적 유지가 **전제** — gitignore로 빼면 안 됨.
