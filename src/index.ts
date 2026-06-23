@@ -106,6 +106,9 @@ async function guardCliDefer(
   approved: boolean,
   run: () => Promise<void> | void,
 ): Promise<void> {
+  // #338: undo 등 high-risk 는 HARD_STOP 활성 시 차단. resume 만 예외 — resume 은 HARD_STOP
+  // *해제* 명령이라 가드하면 자기 자신을 막는 역설(resume --confirm 이 유일한 트립와이어 해제 통로).
+  if (action !== 'resume' && !ensureNotHardStopped(action)) return
   await runGuarded(
     action,
     {

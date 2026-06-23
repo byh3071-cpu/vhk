@@ -75,6 +75,12 @@ export async function undo(): Promise<void> {
   })
 
   const maxUndo = commits.length
+  // #337: 비대화형(파이프/CI/에이전트 하네스)에서 number/confirm 프롬프트는 ERR_USE_AFTER_CLOSE 로
+  // 크래시한다 → restore 패턴처럼 graceful 안내 후 종료(high-risk git reset 을 무인 default 로 실행 안 함).
+  if (!process.stdout.isTTY) {
+    console.log(chalk.yellow(`\n${t('undo.nonTtyHint')}`))
+    return
+  }
   const { count } = await prompt<{ count: number }>([{
     type: 'number',
     name: 'count',
