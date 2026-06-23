@@ -21,7 +21,7 @@ import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evi
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
  * Goal 13(Evidence Ledger v0): lite 안내층을 **실제 실행 + 증거 기록**으로 승격.
- * 게이트(typecheck/test/build/secure)를 실제로 돌리고 결과를 `.vhk/reports/latest.json` 으로 남긴다.
+ * 게이트(typecheck/lint/test/build/secure)를 실제로 돌리고 결과를 `.vhk/reports/latest.json` 으로 남긴다.
  * 철학: ① 결과는 실제 종료코드에서만(거짓 PASS 금지) ② 성공·실패 무관 항상 증거 ③ Windows 1급
  *      ④ 기존 verify 시그니처 호환(옵션 추가만).
  */
@@ -30,6 +30,7 @@ import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evi
 export function verificationChecklist(): string[] {
   return [
     '타입 체크 — pnpm exec tsc --noEmit',
+    '린트 — pnpm run lint',
     '테스트 — pnpm run test:run',
     '빌드 — pnpm run build',
     '보안 스캔 — vhk secure scan',
@@ -50,7 +51,7 @@ export type ReportStatus = 'PASS' | 'WARN' | 'FAIL'
 
 export interface GateResult {
   /** 안정 식별자 (기계용) */
-  id: 'typecheck' | 'test' | 'build' | 'secure'
+  id: 'typecheck' | 'lint' | 'test' | 'build' | 'secure'
   /** 사람용 라벨 */
   label: string
   status: GateRunStatus
@@ -116,9 +117,9 @@ export function execGate(cmd: string, args: string[], cwd: string): { exitCode: 
   }
 }
 
-/** typecheck/test/build 외부 게이트 1종 실행. 스크립트/설정 없으면 skip(WARN) — 거짓 PASS 금지. */
+/** typecheck/lint/test/build 외부 게이트 1종 실행. 스크립트/설정 없으면 skip(WARN) — 거짓 PASS 금지. */
 function runScriptGate(
-  id: 'typecheck' | 'test' | 'build',
+  id: 'typecheck' | 'lint' | 'test' | 'build',
   label: string,
   cwd: string,
   pm: 'pnpm' | 'yarn' | 'npm',
@@ -158,7 +159,7 @@ export function readPackageScripts(cwd: string): Record<string, string> {
 }
 
 /**
- * 게이트 4종 실행 → 결과 배열. tsc/test/build 는 외부 프로세스(실제 종료코드),
+ * 게이트 5종 실행 → 결과 배열. tsc/lint/test/build 는 외부 프로세스(실제 종료코드),
  * secure 는 in-process 스캐너(시크릿 본문 미수집 — count 만).
  */
 export function runGates(cwd: string): GateResult[] {
@@ -173,6 +174,13 @@ export function runGates(cwd: string): GateResult[] {
       if (existsSync(join(cwd, 'tsconfig.json'))) return pm === 'npm' ? ['exec', '--', 'tsc', '--noEmit'] : ['exec', 'tsc', '--noEmit']
       return null
     })
+  )
+
+  // lint — scripts.lint 있으면 그걸 실행(실종료코드), 없으면 skip. typecheck 바로 뒤(정적검사 묶음).
+  // #381: receipt 가 소비하는 게이트에 lint 가 들어가야 eslint 거짓완료가 영수증 red 로 잡힌다.
+  // 비-lint 프로젝트(eslint/biome 없음)는 scripts.lint 부재 → skip(fail 아님 — typecheck/test 와 동일 패턴).
+  gates.push(
+    runScriptGate('lint', 'lint', cwd, pm, () => (scripts.lint ? ['run', 'lint'] : null))
   )
 
   // test — test:run 우선, vitest test 면 --run, 그 외 test, 없으면 skip
