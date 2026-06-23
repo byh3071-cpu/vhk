@@ -8,6 +8,7 @@ import { readRecallLog } from '../lib/recall-log.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { atomicWriteFile } from '../lib/atomic-write.js'
 import { ensureInteractive } from '../lib/interactive.js'
+import { ensureVhkIgnored } from '../lib/backup.js'
 
 /**
  * recall 검증 명령 (RFC 0049 ③). 별도 파일 = memory↔recall-eval 순환 의존 회피.
@@ -107,6 +108,12 @@ async function memoryEvalInit(): Promise<void> {
   }
   const p = join(cwd, EVAL_PATH_REL)
   mkdirSync(dirname(p), { recursive: true })
+  // #331: 라벨셋은 검색어 원문을 담아 프라이버시 → 저장과 동시에 .vhk/.gitignore 로 자기방어(멱등).
+  try {
+    ensureVhkIgnored(cwd, 'eval/recall-eval.json')
+  } catch {
+    /* gitignore 갱신 실패는 치명적 아님 — 평가셋은 이미 저장됨 */
+  }
   atomicWriteFile(p, JSON.stringify({ labels } satisfies EvalFile, null, 2) + '\n')
   console.log(chalk.green(`\n✅ 평가셋 저장됨 (${labels.length}개 라벨) → ${EVAL_PATH_REL}`))
   console.log(chalk.gray('   점수 보기: vhk memory eval'))
