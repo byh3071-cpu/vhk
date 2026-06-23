@@ -379,8 +379,11 @@ export function ensureRootGitignore(projectDir: string): 'created' | 'updated' |
   }
 
   const content = fs.readFileSync(gitignorePath, 'utf-8')
-  const existing = new Set(content.split('\n').map(l => l.trim()))
-  const missing = ROOT_GITIGNORE_ENTRIES.filter(e => !existing.has(e))
+  // 트레일링 슬래시 정규화 — git 은 디렉터리에서 `node_modules` 와 `node_modules/` 를 동치로
+  // 취급한다. ensureVhkIgnored 와 동일 정규화로 슬래시 변형만 다른 중복 추가를 막는다 (#326).
+  const norm = (s: string): string => s.trim().replace(/\/$/, '')
+  const existing = new Set(content.split('\n').map(norm))
+  const missing = ROOT_GITIGNORE_ENTRIES.filter(e => !existing.has(norm(e)))
   if (missing.length === 0) return 'unchanged'
 
   const prefix = content.endsWith('\n') ? '' : '\n'
