@@ -23,6 +23,20 @@ function isGenericApiKeyFalsePositive(matchText: string): boolean {
   return PLACEHOLDER_MARKER.test(value)
 }
 
+// #316: .env.example/.sample/.template 은 '시크릿 값 없는 커밋용 템플릿'(risk-policy.ts 의
+//   RISKY_TARGET_PATTERNS 예외·check-secure.ts 의 isSensitiveName(.example/.sample 제외)와 정합). 이 파일들의
+//   비주석 KEY=value placeholder(ghp_xxxx· secret_xxxx 등)는 진짜 시크릿이 아니라 예시값이다.
+//   → 값-기반 PLACEHOLDER_MARKER 검사를 주석 게이트 없이도 허용(아래 findSecretsInLine).
+//   ⚠️ 완화 범위는 '명백한 placeholder 값'(marker 매칭)에 한정 — 진짜처럼 보이는 토큰은 여전히 CRITICAL.
+const ENV_TEMPLATE_SUFFIX = /\.(?:example|sample|template)$/i
+
+/** 파일이 env 템플릿(.env.example/.sample/.template)인가(Windows 역슬래시 정규화). */
+export function isEnvTemplateFile(file: string): boolean {
+  const norm = file.replace(/\\/g, '/')
+  const base = norm.slice(norm.lastIndexOf('/') + 1)
+  return base.startsWith('.env') && ENV_TEMPLATE_SUFFIX.test(base)
+}
+
 /** 한 줄에서 시크릿 패턴 검색 (global regex 중복 버그 방지) */
 export function findSecretsInLine(
   line: string,
@@ -41,6 +55,10 @@ export function findSecretsInLine(
     trimmed.startsWith('#') ||
     trimmed.startsWith('*') ||
     trimmed.startsWith('/*')
+  // #316: env 템플릿(.env.example/.sample/.template)은 placeholder 값-기반 무시를 주석 게이트
+  //       없이도 허용 — 비주석 KEY=value 예시값(ghp_xxxx 등)이 진짜 시크릿으로 오탐되던 버그.
+  //       isComment 게이트 자체는 #218/#250 보호라 유지 — 템플릿 파일에서만 추가로 푼다(보수적).
+  const allowValuePlaceholder = isComment || isEnvTemplateFile(relPath)
 
   for (const pattern of SECRET_PATTERNS) {
     const regex = globalPattern(pattern.pattern)
@@ -48,8 +66,9 @@ export function findSecretsInLine(
       // Generic 패턴은 실제 토큰 형식을 모르는 보조 탐지다. 예제 env 값과
       // missing_api_key 같은 상태 식별자는 값처럼 보여도 자격증명이 아니다.
       if (pattern.id === 'generic-api-key' && isGenericApiKeyFalsePositive(match[0])) continue
-      // placeholder 표식이 매칭값에 있으면(주석 한정) 무시 — your_·fake_·dummy·redacted·changeme·xxxx·<...>
-      if (isComment && PLACEHOLDER_MARKER.test(match[0]))
+      // placeholder 표식이 매칭값에 있으면(주석 또는 env 템플릿 한정) 무시
+      //   — your_·fake_·dummy·redacted·changeme·xxxx·<...>. 명백한 placeholder 값만, false-negative 0.
+      if (allowValuePlaceholder && PLACEHOLDER_MARKER.test(match[0]))
         continue // placeholder 시크릿만 무시
       found.push({
         patternId: pattern.id,
