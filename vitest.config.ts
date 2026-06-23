@@ -6,6 +6,10 @@ import { defineConfig } from 'vitest/config'
 // node_modules / dist 는 vitest 기본 exclude 이지만 명시.
 export default defineConfig({
   test: {
+    // spawnSync 기반 e2e 테스트가 Windows CI 병렬 부하에서 5s 기본 타임아웃을 간헐 초과 → 머지 차단 flaky.
+    // (실측: 30s 면 전건 green. CLI 콜드스타트+spawn 지연이지 코드 결함 아님 — 매 머지 재실행 세금 제거.)
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
