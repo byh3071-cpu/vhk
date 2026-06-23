@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, appendFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, appendFileSync, unlinkSync } from 'node:fs'
 import { atomicWriteFile } from './atomic-write.js'
 import { join } from 'node:path'
 import { localDate } from './date.js'
@@ -112,6 +112,6 @@ export function readHardStopReason(): string | null {
 // 명시적 해제. 자동 호출 금지 (Forbidden) — 호출자가 사용자 의도 (--confirm) 확인 책임.
 export function clearHardStop(): boolean {
   if (!existsSync(HARD_STOP_PATH)) return false
-  rmSync(HARD_STOP_PATH, { force: true })
+  unlinkSync(HARD_STOP_PATH) // #353: rmSync(파일)이 이 Node 환경에서 silent exit 127 → unlinkSync (존재는 위 existsSync 로 확인). 상세 TS-005.
   return true
 }
