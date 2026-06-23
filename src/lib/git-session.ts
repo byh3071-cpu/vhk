@@ -95,9 +95,16 @@ export function numstatHead(cwd: string = process.cwd()): ExecResult {
   return safeExecFile('git', ['diff', '--numstat', 'HEAD'], { cwd })
 }
 
-/** git diff --unified=0 HEAD — 헌트 헤더(@@ -a,b +c,d @@)로 추가 라인번호 추출용. raw 보존. */
+// #319: core.quotepath=false 로 비ASCII(한글) 경로를 8진 이스케이프 없이 raw UTF-8 로 받는다.
+// Git 기본(quotepath=true)은 `"b/src/lib/\355...ts"`(따옴표+8진)로 출력 → diff-hunks 의 +++ 정규식이
+// 선두 따옴표에 막혀 한글 소스를 통째 누락(거짓 '측정 대상 없음'). `-c key=val`은 git 글로벌 옵션이라
+// 서브커맨드(diff) 앞에 와야 한다. diff-hunks 도 디코드로 belt-and-suspenders 방어.
+/** git -c core.quotepath=false diff --unified=0 HEAD — 헌트 헤더로 추가 라인번호 추출용. raw 보존. */
 export function diffUnified0(cwd: string = process.cwd()): ExecResult {
-  return safeExecFile('git', ['diff', '--unified=0', 'HEAD'], { cwd, trimOutput: false })
+  return safeExecFile('git', ['-c', 'core.quotepath=false', 'diff', '--unified=0', 'HEAD'], {
+    cwd,
+    trimOutput: false,
+  })
 }
 
 /** git log --format=%h %ad %s --date=short -n — recap 용 날짜 포함 히스토리. */
