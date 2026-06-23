@@ -149,7 +149,7 @@ tags: [process, constitution]
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
 **마지막 갱신:** 2026-06-23
-- **버전:** v2.6.0 (npm 발행 대기 — 사용자 직접 publish 필요) — 사실 확인은 package.json·CHANGELOG
+- **버전:** v2.7.0 — 사실 확인은 package.json·CHANGELOG
 - **테스트:** ~1791 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
 - **Phase:** **도그푸딩 하드닝(RFC 0053) P1·P2 완료** — goal 80(증거 신선도 SHA 강등·#310)·81(제품설명 단일 SoT·#311)·82(.vhk ledger 추적 정합·#312)·83(secure 픽스처 MEDIUM→INFO·#332)·84(doctor/status 맥락 next-step·#348) **전부 머지**. 각 goal TDD+다각 적대리뷰(반증). 81·82·84는 선조사로 범위 재조정("확실한 것만"). + 뒷단 4트랙(goal 74~77)·SEO 22~26·SOUL 상속 기완료. **+ [전략 재정의 2026-06-22] Codex 제안 RFC 0055(proof) 검증→결함 다수 → [RFC 0056 'Evidence Receipt'](docs/rfc/0056-vhk-evidence-receipt.md)+[ADR-006](docs/adr/ADR-006-vhk-identity-evidence-receipt.md)로 정체성 확정. VHK = 멀티툴 솔로용 거짓완료 탐지기(`vhk receipt`). 0055 §8/§7 폐기.** **+ [2026-06-23] Goal 85·86 등록(#360 — RFC 0056 T1, 코드 미착수). goals/ 완료 80개 → `goals/archive/` 정리(active 6만 직속·인덱스 자동 축소, `vhk goal`/게이트 무영향).**
 - **블로커:** 없음
