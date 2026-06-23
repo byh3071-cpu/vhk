@@ -15,6 +15,18 @@ describe('자연어 라우팅', () => {
     expect(result?.command).toBe('start')
   })
 
+  // Goal 86 (RFC 0056 T1): vhk receipt — 자연어 라우팅(증거영수증/영수증).
+  describe('receipt 라우팅 — 증거 영수증 (Goal 86)', () => {
+    for (const phrase of ['증거 영수증', '영수증 만들어줘', 'receipt', '거짓완료 영수증']) {
+      it(`"${phrase}" → receipt`, () => {
+        expect(routeNaturalLanguage(phrase)?.command).toBe('receipt')
+      })
+    }
+    it('"적대 검증" 은 여전히 review (receipt 가 가로채지 않음)', () => {
+      expect(routeNaturalLanguage('적대 검증')?.command).toBe('review')
+    })
+  })
+
   it('"기획 끝났고 바로 시작" → start (마법사 한 방에 git+문서+MCP+context)', () => {
     const result = routeNaturalLanguage('기획 끝났고 바로 시작')
     expect(result?.command).toBe('start')

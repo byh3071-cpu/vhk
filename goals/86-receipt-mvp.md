@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 86
 title: vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P0
 created: 2026-06-23
 leads_to: 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기
@@ -29,13 +29,13 @@ leads_to: 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완
 - **④ diff-cover는 advisory(약신호)로 분리** — decision을 block으로 격하시키지 못함(0056 §6 정직 경계). 실차단 = 종료코드·dirty·stale 3개.
 - `.md`에 정직성 1줄: "게으른 거짓완료를 잡지, 미묘한 오류는 못 잡는다."
 
-## Completion Check (작은 단위 — 미착수)
-- [ ] receipt 수집기 — 4대 증거 기존자산 병합 (순수 + fs 경계 분리)
-- [ ] decision 판정 — 기계증거만, 단조성 불변식 테스트
-- [ ] `.json` + `.md` 산출 — .md는 PR/대화 붙여넣기 1블록(decision 배지+게이트표+사유+정직성 1줄)
-- [ ] 등록 4지점 + nlp-router + 한글별칭 + 드리프트 테스트 green
-- [ ] diff-cover advisory 분리(decision 미격하) 테스트
-- [ ] 공통 게이트(_meta), check-goal-86.mjs
+## Completion Check (작은 단위 — 완료)
+- [x] receipt 수집기 — 4대 증거 기존자산 병합 (순수 + fs 경계 분리) — `src/lib/receipt.ts`(순수 decideReceipt/buildReceipt/render) + `src/commands/receipt.ts`(verifyEvidence·getCommitInfo·diffCoverage 글루)
+- [x] decision 판정 — 기계증거만(LLM 0), 단조성 불변식 테스트 — `tests/receipt.test.ts`(caution→pass 금지 + pass≤caution≤block 단조 고정)
+- [x] `.json` + `.md` 산출 — .md는 PR/대화 붙여넣기 1블록(decision 배지+게이트표+사유+정직성 1줄, HONESTY_LINE)
+- [x] 등록 4지점(index·command-registry·cli-args·ko.ts) + nlp-router + 한글별칭(증거영수증) + 드리프트 테스트 green — `tests/receipt-registration.test.ts` + 기존 `tests/command-registry.test.ts` 자동 커버
+- [x] diff-cover advisory 분리(decision 미격하) 테스트 — `tests/receipt.test.ts`(0% 미커버여도 block 아님, 실차단 3종만)
+- [x] 공통 게이트(_meta), check-goal-86.mjs — `vhk goal sync` 생성 + goal 고유 검증 손추가, 게이트 통과
 
 ## 구현 노트
 - T1 본체. **선결 Goal 85**(blockedBy). T2(자기보고 위조방어 + 붙여넣기 .md)·T3(거짓완료 적발 1건 공개입증, 사람 율속)는 후속 — RFC 0056 §6.

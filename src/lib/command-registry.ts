@@ -93,6 +93,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'standup', desc: '아침 브리핑 (어제 한 일 + 오늘 추천 goal + 미해결)' },
   { name: 'today', desc: '저녁 자축·회고 (오늘 커밋·완료 goal 카운트 + 격려)' },
   { name: 'review', desc: '적대적 자기검증 (거짓완료 의심 탐지)' },
+  { name: 'receipt', desc: '증거 영수증 — 4대 기계증거로 거짓완료 판정 (block/caution/pass)' },
   { name: 'mission', desc: '미션 계약 — 작업 목표·허용/금지 범위 선언·검증' },
   { name: 'context-show', desc: '컨텍스트 파일 내용 출력' },
   { name: 'memory', desc: '기억 관리 v2 (decisions/failures/successes)' },

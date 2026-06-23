@@ -73,6 +73,11 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
     'cloud.json',
     '# sync 덮어쓰기 전 자동 백업 (로컬 복구용 — vhk restore). 추적/클라우드 제외.',
     'backups/',
+    // Goal 86 (RFC 0056 T1): 증거 영수증은 로컬 산출물. 추적하면 영수증 자신이 작업트리를
+    // dirty 만들어 다음 receipt 의 증거 ②(dirty)를 오염(자기모순=늘 block). ledger/events 와 달리
+    // repo 영속 증거가 아니므로 제외한다(.base-sha 기준선도 함께).
+    '# 증거 영수증 — 로컬 산출물(추적하면 자기 dirty 증거 오염). vhk receipt.',
+    'receipts/',
     '',
   ].join('\n')
 }

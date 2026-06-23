@@ -43,6 +43,7 @@ export type NlpCommand =
   | 'mode'
   | 'verify'
   | 'review'
+  | 'receipt'
   | 'mission'
   | 'pattern'
   | 'evolve'
@@ -154,6 +155,14 @@ const RULES: NlpRule[] = [
     // '검증 실행/돌려'·bare '검증해줘' 는 verify 의도 — gate(아이디어 검증)가 가로채지 않게 먼저 흡수.
     test: t =>
       /검증\s*(묶음|실행|돌려|돌리)|사전\s*검증|저장\s*전\s*(검증|확인)|^verify$|^검증\s*(해줘|해)?$/.test(t),
+  },
+  // receipt 는 review 보다 **먼저** 평가 — '영수증/receipt' 한정이라 '거짓완료' 만으로는 review 가
+  // 가져간다('영수증' 동반 시에만 receipt). bare '영수증'·'증거 영수증'·'receipt' 도 흡수.
+  {
+    command: 'receipt',
+    explanation: '증거 영수증 — 4대 기계증거로 거짓완료 판정 (vhk receipt)',
+    confidence: 'high',
+    test: t => /증거\s*영수증|^영수증$|영수증\s*(만들|떼|발급|뽑|생성)|^receipt$|거짓\s*완료\s*영수증/.test(t),
   },
   {
     command: 'review',
