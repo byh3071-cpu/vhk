@@ -76,7 +76,13 @@ function isOptionToken(token: string): boolean {
  * 라우터가 문장 전체를 가로채 엉뚱한 명령(sync 등)이 실행되므로, 이 명령들은 NL 가로채기를
  * 건너뛰고 항상 commander 가 인자 그대로 처리한다. (영문 + 한글 별칭 모두 포함)
  */
-const FREEFORM_ARG_COMMANDS = new Set(['learn', '교훈', 'blocker', '블로커'])
+const FREEFORM_ARG_COMMANDS = new Set([
+  'learn', '교훈',
+  'blocker', '블로커',
+  // #313: recall 은 자유형식 검색 쿼리라 '어떻게·보안·롤백' 등 트리거 단어가 본문에 와도
+  // 항상 commander 로 위임돼야 한다(NL 라우터 가로채기 금지 — learn/blocker 와 동일).
+  'recall', '회상',
+])
 
 /**
  * 서브커맨드를 갖는 컨테이너 명령 → 실제 서브커맨드 이름 목록.
