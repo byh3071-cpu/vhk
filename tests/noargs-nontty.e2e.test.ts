@@ -36,7 +36,8 @@ describe('no-args vhk — 비-TTY 폴백 (#333)', () => {
       // 합리적 종료 코드(크래시 아님). help 폴백은 정상 종료(0).
       expect(r.status).toBe(0)
     } finally {
-      fs.rmSync(tmp, { recursive: true, force: true })
+      // Windows: spawnSync 자식이 cwd 핸들을 늦게 풀어 rmdir 가 일시 EBUSY → 재시도로 흡수.
+      fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
     }
   })
 
@@ -50,7 +51,8 @@ describe('no-args vhk — 비-TTY 폴백 (#333)', () => {
       // 대화형 메뉴 진입 마커가 그대로 떠야 한다(폴백 미적용).
       expect(out).toMatch(/뭘 도와드릴까요/)
     } finally {
-      fs.rmSync(tmp, { recursive: true, force: true })
+      // Windows: spawnSync 자식이 cwd 핸들을 늦게 풀어 rmdir 가 일시 EBUSY → 재시도로 흡수.
+      fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
     }
   })
 })
