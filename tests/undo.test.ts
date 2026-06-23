@@ -43,6 +43,24 @@ describe('undo', () => {
       expect.objectContaining({ encoding: 'utf-8' }),
     )
   })
+
+  it('비대화형(non-TTY) 에서 프롬프트 없이 graceful 종료 — #337', async () => {
+    const orig = process.stdout.isTTY
+    // @ts-expect-error 테스트에서 TTY 상태 강제
+    process.stdout.isTTY = false
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
+      if (Array.isArray(args) && args[0] === 'log') return 'abc1234 c2\ndef5678 c1'
+      return ''
+    })
+    const logSpy = vi.spyOn(console, 'log')
+    const { undo } = await import('../src/commands/undo.js')
+    // ERR_USE_AFTER_CLOSE 크래시 없이 graceful 종료 + 안내 출력
+    await expect(undo()).resolves.not.toThrow()
+    expect(logSpy.mock.calls.flat().join(' ')).toContain('비대화형')
+    // @ts-expect-error 복원
+    process.stdout.isTTY = orig
+  })
 })
 
 describe('vhk undo helpers', () => {

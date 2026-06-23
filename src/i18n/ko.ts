@@ -66,6 +66,7 @@ export const ko = {
     noCommits: '되돌릴 커밋이 없습니다.',
     recentHeader: '📋 최근 커밋:',
     howMany: '몇 개의 커밋을 되돌릴까요?',
+    nonTtyHint: '비대화형 모드 — 되돌릴 커밋 수 선택이 필요합니다. TTY 터미널에서 vhk undo 를 실행하세요.',
     alreadyPushed: '이 커밋은 이미 원격에 올라갔습니다. 되돌리면 충돌이 생길 수 있어요.',
     noUpstreamWarning:
       'upstream 브랜치가 없습니다. 이미 push한 커밋일 수 있어요. 되돌린 뒤 force push가 필요할 수 있습니다.',
