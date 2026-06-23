@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -175,6 +176,64 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     const ignore = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitignore']
     expect(ignore).not.toMatch(/(^|\n)\s*ledger\.jsonl\s*(\n|$)/)
     expect(ignore).not.toMatch(/(^|\n)\s*events\/?\s*(\n|$)/)
+  })
+
+  // 멀티PC dirty-block 해소(A축): 증거 원장(events·ledger)은 추적된 채로 두되,
+  // .gitattributes 의 merge=union 으로 양쪽 PC append 분기를 양쪽 줄 보존 자동 병합.
+  it('.vhk/.gitattributes 씨앗이 events/ledger 만 merge=union 으로 등록한다', () => {
+    const attrs = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitattributes']
+    expect(attrs).toBeDefined()
+    expect(attrs).toContain('events/*.jsonl merge=union')
+    expect(attrs).toContain('ledger.jsonl merge=union')
+    // 과확장 0: 그 외 .vhk 파일(context.md 등)에는 union 을 걸지 않는다.
+    expect(attrs).not.toMatch(/context\.md/)
+    // untrack 금지 의도(RFC0056·#315)가 주석으로 박혀 있어야 한다(merge=union 은 추적 전제).
+    expect(attrs).toContain('untrack 금지')
+  })
+
+  // 불변 가드: .gitattributes 추가가 .gitignore 의 ledger/events 비등록(추적 유지)을 바꾸면 안 됨.
+  it('.gitignore 는 불변 — events/ledger 가 여전히 비등록(추적 유지)', () => {
+    const ignore = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitignore']
+    expect(ignore).not.toMatch(/(^|\n)\s*ledger\.jsonl\s*(\n|$)/)
+    expect(ignore).not.toMatch(/(^|\n)\s*events\/?\s*(\n|$)/)
+  })
+})
+
+// 멀티PC dirty-block(A축) — 실 git 레포에서 .gitattributes 가 events/ledger 에만
+// merge 속성 union 을 부여하고, 다른 .vhk 파일에는 과확장하지 않음을 git check-attr 로 확정.
+describe('vhk init — .vhk/.gitattributes (git check-attr 검증)', () => {
+  function makeRepoWithVhkDir(): string {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-attr-'))
+    const g = (args: string[]): void => {
+      execFileSync('git', args, { cwd: d, stdio: 'pipe' })
+    }
+    g(['init'])
+    g(['config', 'user.email', 't@t'])
+    g(['config', 'user.name', 't'])
+    const files = generateFiles('p', 'd', ['Node.js'], {}, 'cli')
+    // .vhk/.gitattributes + 비교 대상 파일(events·ledger·context) 디스크에 배치.
+    writeFile(path.join(d, '.vhk/.gitattributes'), files['.vhk/.gitattributes'])
+    writeFile(path.join(d, '.vhk/context.md'), files['.vhk/context.md'])
+    writeFile(path.join(d, '.vhk/events/ai-actions.jsonl'), '')
+    writeFile(path.join(d, '.vhk/ledger.jsonl'), '')
+    return d
+  }
+
+  // git check-attr 출력은 "<path>: merge: <value>" 형식 → value 만 추출.
+  function attrMerge(dir: string, relPath: string): string {
+    const out = execFileSync('git', ['check-attr', 'merge', '--', relPath], {
+      cwd: dir,
+      encoding: 'utf-8',
+    }).trim()
+    return out.replace(/^.*: merge: /, '')
+  }
+
+  it('events/*.jsonl·ledger.jsonl → union, context.md → unspecified (과확장 0)', () => {
+    const d = makeRepoWithVhkDir()
+    expect(attrMerge(d, '.vhk/events/ai-actions.jsonl')).toBe('union')
+    expect(attrMerge(d, '.vhk/ledger.jsonl')).toBe('union')
+    expect(attrMerge(d, '.vhk/context.md')).toBe('unspecified')
+    fs.rmSync(d, { recursive: true, force: true })
   })
 })
 

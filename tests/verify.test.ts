@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -257,4 +258,99 @@ describe('verify — Goal 59: 스캔 불완전 → secure WARN (거짓 PASS 차�
     expect(r.status).toBe('WARN')
     expect(buildLedgerEntry(r, '1.2.3').status).toBe('WARN')
   })
+})
+
+// 멀티PC dirty-block(B축) — verify 가 events/ledger append 로 만든 dirty 를 저소음 단일 커밋으로
+// 정리한다. 단, 커밋은 verify 명령 본체에만(verifyEvidence 본체는 HEAD 불변 — receipt stale 보호).
+describe('verify — 증거 원장 저소음 커밋 (멀티PC dirty-block B축)', () => {
+  let origCwd: string
+
+  // 커밋 1개 있는 임시 git 레포(전역 identity 없는 CI 대비 -c 주입은 config 로 처리).
+  function makeRepo(): string {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-verify-commit-'))
+    const g = (args: string[]): void => {
+      execFileSync('git', args, { cwd: d, stdio: 'pipe' })
+    }
+    g(['init'])
+    g(['config', 'user.email', 't@t'])
+    g(['config', 'user.name', 't'])
+    // 추적되는 events/ledger 씨앗(이미 추적 상태여야 verify append 가 modified=dirty 가 됨).
+    fs.mkdirSync(path.join(d, '.vhk', 'events'), { recursive: true })
+    fs.writeFileSync(path.join(d, '.vhk', 'events', 'ai-actions.jsonl'), '')
+    fs.writeFileSync(path.join(d, '.vhk', 'ledger.jsonl'), '')
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+    g(['add', '.'])
+    g(['commit', '-m', 'seed'])
+    return d
+  }
+
+  const headSha = (d: string): string =>
+    execFileSync('git', ['rev-parse', 'HEAD'], { cwd: d, encoding: 'utf-8' }).trim()
+
+  // .vhk/events·ledger 만 본 porcelain (raw). clean 이면 빈 문자열.
+  const ledgerStatus = (d: string): string =>
+    execFileSync('git', ['status', '--porcelain', '--', '.vhk/events', '.vhk/ledger.jsonl'], {
+      cwd: d,
+      encoding: 'utf-8',
+    }).trim()
+
+  beforeEach(() => {
+    origCwd = process.cwd()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    process.exitCode = 0
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    vi.restoreAllMocks()
+    process.exitCode = 0
+  })
+
+  it('verify 1회 → events/ledger 변경이 단일 커밋으로 정리되고 직후 clean', async () => {
+    const d = makeRepo()
+    const before = headSha(d)
+    process.chdir(d)
+    await verify()
+    process.chdir(origCwd)
+    // events/ledger 가 clean (저소음 커밋이 정리).
+    expect(ledgerStatus(d)).toBe('')
+    // 커밋 정확히 1개 추가(저소음).
+    const after = headSha(d)
+    expect(after).not.toBe(before)
+    const count = execFileSync('git', ['rev-list', '--count', `${before}..${after}`], {
+      cwd: d,
+      encoding: 'utf-8',
+    }).trim()
+    expect(count).toBe('1')
+    fs.rmSync(d, { recursive: true, force: true })
+  }, 30_000)
+
+  it('재실행 시 추가 커밋 0 (diff-cached 가드 — 변경 없으면 commit skip)', async () => {
+    const d = makeRepo()
+    process.chdir(d)
+    await verify() // 1회: 정리 커밋
+    const afterFirst = headSha(d)
+    await verify() // 2회: events/ledger append 후 정리 — 커밋이 새로 생기긴 함(append 가 dirty 유발)
+    process.chdir(origCwd)
+    // 핵심 가드: 매 실행이 정확히 1커밋씩(휩쓸기/중복 커밋 0). 정리 후 항상 clean.
+    expect(ledgerStatus(d)).toBe('')
+    const secondHead = headSha(d)
+    const count = execFileSync('git', ['rev-list', '--count', `${afterFirst}..${secondHead}`], {
+      cwd: d,
+      encoding: 'utf-8',
+    }).trim()
+    expect(Number(count)).toBeLessThanOrEqual(1)
+    fs.rmSync(d, { recursive: true, force: true })
+  }, 30_000)
+
+  // ★receipt 무회귀(치명)★ — verifyEvidence 본체는 HEAD 를 움직이지 않는다.
+  // (커밋은 verify 명령 본체에만. verifyEvidence 가 HEAD 를 옮기면 collectReceipt 가
+  //  verifyEvidence 직후 읽는 stale 판정이 거짓 true 가 됨 → 거짓 CAUTION/BLOCK.)
+  it('verifyEvidence 는 HEAD 를 이동시키지 않는다 (receipt stale 보호)', () => {
+    const d = makeRepo()
+    const before = headSha(d)
+    verifyEvidence(d) // 게이트+증거기록만 — 커밋 없음
+    expect(headSha(d)).toBe(before)
+    fs.rmSync(d, { recursive: true, force: true })
+  }, 30_000)
 })

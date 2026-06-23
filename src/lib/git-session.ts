@@ -41,6 +41,35 @@ export function push(cwd: string = process.cwd()): ExecResult {
   return safeExecFile('git', ['push'], { cwd })
 }
 
+/**
+ * 명시 경로만 stage·commit 하는 저소음 커밋(멀티PC dirty-block B축).
+ *
+ * stageAll(git add .) 을 쓰지 않는다 — verify 가 의도치 않은 작업트리 파일을 휩쓸어 커밋하면
+ * 안 되므로 events/ledger 같은 명시 경로만 다룬다. 흐름:
+ *   ① git add -- <paths>           (실패면 즉시 반환 — 비치명)
+ *   ② git diff --cached --quiet -- <paths>
+ *        ok(=종료0=staged 변경 없음) → commit skip(잡음 0)
+ *        ok:false(=종료1=staged 변경 있음) → ③
+ *   ③ git commit -m <message> -- <paths>
+ *
+ * 절대 throw 하지 않는다(ExecResult 반환). detached HEAD·커밋 식별 미설정 등으로 commit 이
+ * 실패해도 호출부(verify)는 try/catch 로 무시 — 증거(latest.json)는 이미 기록됐다.
+ */
+export function commitPaths(
+  message: string,
+  paths: string[],
+  cwd: string = process.cwd()
+): ExecResult {
+  const added = safeExecFile('git', ['add', '--', ...paths], { cwd })
+  if (!added.ok) return added
+
+  // diff --cached --quiet: staged 변경 있으면 종료1(ok:false), 없으면 종료0(ok:true).
+  const diff = safeExecFile('git', ['diff', '--cached', '--quiet', '--', ...paths], { cwd })
+  if (diff.ok) return diff // staged 변경 없음 → commit skip(중복 빈 커밋 방지).
+
+  return safeExecFile('git', ['commit', '-m', message, '--', ...paths], { cwd })
+}
+
 /** git reset --soft HEAD~n — 최근 n개 커밋 되돌리기(변경은 스테이징 보존). */
 export function softReset(n: number, cwd: string = process.cwd()): ExecResult {
   return safeExecFile('git', ['reset', '--soft', `HEAD~${n}`], { cwd })

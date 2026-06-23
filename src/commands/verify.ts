@@ -14,6 +14,7 @@ import { scanProjectForSecrets, filterSevereFindings } from '../lib/scan-secrets
 import { renderReportHtml } from './verify-report.js'
 import { isInteractive } from '../lib/interactive.js'
 import { safeExecFile } from '../lib/exec.js'
+import { commitPaths } from '../lib/git-session.js'
 import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
 import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evidence-ledger.js'
 
@@ -507,6 +508,21 @@ export async function verify(
   }
 
   const { report, path } = verifyEvidence(cwd)
+
+  // 멀티PC dirty-block(B축): verify 가 방금 append 한 증거 원장(events·ledger)을 저소음 단일
+  // 커밋으로 정리한다. 멀티PC 에서 미커밋 증거가 외부 pull 의 fast-forward 를 막던 문제 해소.
+  // ★커밋은 반드시 verifyEvidence 밖(여기 명령 본체)에 둔다★ — verifyEvidence 안에서 커밋하면
+  // HEAD 가 이동해, 직후 receipt(collectReceipt)가 읽는 stale 판정(작업시작 SHA≠HEAD)이 거짓
+  // true 가 되어 거짓 CAUTION/BLOCK 을 낸다. 비치명: 실패해도 증거는 이미 기록됐다.
+  try {
+    commitPaths(
+      'chore(vhk): evidence ledger [skip ci]',
+      [join('.vhk', 'events', 'ai-actions.jsonl'), LEDGER_PATH_REL],
+      cwd
+    )
+  } catch {
+    /* 저소음 커밋 실패는 치명적 아님 — detached HEAD·identity 미설정 등. 증거는 이미 기록됨. */
+  }
 
   // --json: 경로 대신 stdout 으로 리포트 JSON (CI 용). 다른 콘솔 출력 없음.
   if (opts.json) {
