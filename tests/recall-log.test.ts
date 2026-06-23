@@ -51,4 +51,25 @@ describe('recall-log (사용 로그)', () => {
   it('파일 없으면 빈 배열', () => {
     expect(readRecallLog(tmp())).toEqual([])
   })
+
+  // #331: 사용자 검색어 원문(recall-log.jsonl)은 프라이버시 → 기록과 동시에 .vhk/.gitignore 로
+  // 자기방어해야 한다(이미 init 된 기존 프로젝트도 첫 recall 시 자동 보호). 템플릿만으론 누락.
+  it('#331: logRecall 이 recall-log.jsonl 을 .vhk/.gitignore 에 자동 등록한다', () => {
+    const dir = tmp()
+    logRecall(dir, { source: 'recall', query: '사적 검색어', hitIds: [], topScore: 0 })
+    const gi = fs.readFileSync(path.join(dir, '.vhk', '.gitignore'), 'utf-8')
+    expect(gi).toMatch(/(^|\n)recall-log\.jsonl(\n|$)/)
+  })
+
+  it('#331: 멱등 — 여러 번 logRecall 해도 recall-log.jsonl 라인은 1개', () => {
+    const dir = tmp()
+    logRecall(dir, { source: 'recall', query: 'a', hitIds: [], topScore: 0 })
+    logRecall(dir, { source: 'recall', query: 'b', hitIds: [], topScore: 0 })
+    logRecall(dir, { source: 'jit', query: 'c', hitIds: [], topScore: 0 })
+    const count = fs
+      .readFileSync(path.join(dir, '.vhk', '.gitignore'), 'utf-8')
+      .split('\n')
+      .filter((l) => l.trim() === 'recall-log.jsonl').length
+    expect(count).toBe(1)
+  })
 })

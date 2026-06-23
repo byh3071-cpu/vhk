@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
+import { ensureVhkIgnored } from './backup.js'
 
 /**
  * recall 사용 로그 (RFC 0049 ④) — 실쿼리 축적으로 정직한 검증(eval) 가능케 + 미래 데이터 씨앗.
@@ -23,6 +24,9 @@ export function logRecall(cwd: string, entry: Omit<RecallLogEntry, 'ts'>): void 
   try {
     const p = join(cwd, RECALL_LOG_REL)
     mkdirSync(join(cwd, '.vhk'), { recursive: true })
+    // #331: 검색어 원문은 프라이버시 → 기록과 동시에 .vhk/.gitignore 로 자기방어(멱등).
+    // 이미 init 된 기존 프로젝트(템플릿 미적용)도 첫 recall 시 자동 보호된다.
+    ensureVhkIgnored(cwd, 'recall-log.jsonl')
     const lines = existsSync(p) ? readFileSync(p, 'utf-8').split('\n').filter((l) => l.trim()) : []
     lines.push(JSON.stringify({ ts: new Date().toISOString(), ...entry }))
     atomicWriteFile(p, lines.slice(-RECALL_LOG_MAX).join('\n') + '\n')

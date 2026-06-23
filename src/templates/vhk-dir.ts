@@ -27,6 +27,8 @@ export function VHK_README_TEMPLATE(): string {
     '| `launch-prompt.md` | ❌ 로컬 전용 | 런칭 게시물 프롬프트 — 재생성물 (`vhk launch`) |',
     '| `ops-prompt.md` | ❌ 로컬 전용 | 운영 회고 프롬프트 — 재생성물 (`vhk ops`) |',
     '| `sell-prompt.md` | ❌ 로컬 전용 | 판매 카피 프롬프트 — 재생성물 (`vhk sell`) |',
+    '| `recall-log.jsonl` | ❌ 로컬 전용 | recall 사용 로그 — 검색어 원문(프라이버시) (`vhk recall`) |',
+    '| `eval/recall-eval.json` | ❌ 로컬 전용 | recall 평가셋 — 라벨 쿼리(프라이버시) (`vhk memory eval --init`) |',
     '| `memory.json` | ❌ 로컬 전용 | 의사결정 메모 (`vhk memory add`) |',
     '| `refs.json` | ❌ 로컬 전용 | 참고 URL (`vhk ref add`) |',
     '| `HARD_STOP` | ❌ 로컬 전용 | 존재하면 모든 자동화 즉시 중단 |',
@@ -61,6 +63,12 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
     'ops-prompt.md',
     '# 판매 카피 프롬프트 — 재생성물(매 실행 갱신, 추적 불필요).',
     'sell-prompt.md',
+    // #331: 사용자 검색어 원문 = 프라이버시. 공개 repo 에 커밋되면 개인 쿼리가 노출된다.
+    // ⚠️ ledger.jsonl·events/ 는 의도적으로 추적(repo 영속 증거 — goal 45/82/85)이라 절대 여기 넣지 말 것.
+    '# recall 사용 로그 — 사용자 검색어 원문 포함(프라이버시). 추적/유출 방지.',
+    'recall-log.jsonl',
+    '# recall 평가셋 — 라벨 쿼리(검색어) 포함(프라이버시). 추적/유출 방지.',
+    'eval/recall-eval.json',
     '# secret gist 포인터 (gistId). 공개 repo 에 커밋되면 백업 gist 가 노출됨 (VHK-022).',
     'cloud.json',
     '# sync 덮어쓰기 전 자동 백업 (로컬 복구용 — vhk restore). 추적/클라우드 제외.',
