@@ -56,7 +56,7 @@ export function validateEvalLabels(raw: unknown): EvalLabel[] {
     if (!expectIds.every((id) => typeof id === 'string')) {
       throw new EvalFormatError(`평가셋 형식 오류 — ${at} 의 expectIds 원소는 모두 문자열이어야 합니다.`)
     }
-    return { query, expectIds: expectIds as string[] }
+    return { query, expectIds }
   })
 }
 

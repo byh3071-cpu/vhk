@@ -22,3 +22,7 @@
 ## 남은 위험
 - `validateEvalLabels`는 `--init` 정상 경로 라벨도 통과(회귀 0). 수동편집/오타 라벨만 거부 — 의도된 동작.
 - #324 clamp는 미래를 '최신'으로 간주(점수 약간 상위). 미래 날짜는 비정상 데이터라 허용 가능한 트레이드오프(대안: 미래 페널티는 과설계).
+
+## 후속 (CI lint gate)
+- PR #381 CI gate 실패 — 로컬은 `pnpm test`만 돌렸으나 CI는 `pnpm lint`(eslint)도 실행. `src/lib/recall-eval.ts:59` `expectIds as string[]` 단언이 `@typescript-eslint/no-unnecessary-type-assertion` 에러(직전 `.every(typeof id === 'string')`로 이미 `string[]`로 좁혀짐 → 단언 무의미).
+- 단언 제거(`{ query, expectIds }`). 타입·런타임 불변 확인(DTS 빌드·1913 test green). 교훈: 로컬 게이트에 `pnpm lint` 포함 필수.
