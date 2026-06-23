@@ -16,7 +16,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   design: ['palette'],
   env: ['check'],
   mode: ['lite', 'standard', 'strict'],
-  mission: ['set', 'check', 'clear'],
+  mission: ['set', 'show', 'check', 'clear'],
   pattern: ['detect', 'list', 'dismiss'],
   evolve: ['suggest', 'negatives', 'list', 'apply', 'reject', 'undo'],
   work: ['handoff'],
