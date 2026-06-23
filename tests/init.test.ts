@@ -158,6 +158,24 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     expect(ignore).toContain('refs.json')
     expect(ignore).toContain('HARD_STOP')
   })
+
+  // #331 + 갭⑤: 일회성 프롬프트 산출물(ops/sell)·사용자 검색어 원문(recall-log/recall-eval)이
+  // git 추적으로 새어 프라이버시 노출되던 갭. 4개 모두 .vhk/.gitignore 씨앗에 등록돼야 한다.
+  it('일회성/사적 산출물 4종이 .vhk/.gitignore 씨앗에 등록된다 (#331·갭⑤)', () => {
+    const ignore = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitignore']
+    expect(ignore).toContain('ops-prompt.md')      // 운영 회고 프롬프트(재생성물)
+    expect(ignore).toContain('sell-prompt.md')     // 판매 카피 프롬프트(재생성물)
+    expect(ignore).toContain('recall-log.jsonl')   // 사용자 검색어 원문 = 프라이버시
+    expect(ignore).toContain('eval/recall-eval.json') // 라벨셋(검색어 포함) = 프라이버시
+  })
+
+  // 경계 회귀 가드: ledger.jsonl·events/ 는 repo 영속 증거(goal 45/82/85)라 의도적으로 git 추적.
+  // gitignore 씨앗에 절대 들어가면 안 됨 — 들어가면 증거가 추적에서 빠져 거짓완료 탐지가 무력화.
+  it('ledger.jsonl·events/ 는 gitignore 씨앗에 들어가지 않는다 (추적 유지 — goal 45/82/85)', () => {
+    const ignore = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitignore']
+    expect(ignore).not.toMatch(/(^|\n)\s*ledger\.jsonl\s*(\n|$)/)
+    expect(ignore).not.toMatch(/(^|\n)\s*events\/?\s*(\n|$)/)
+  })
 })
 
 describe('vhk init — 루트 .gitignore 보장', () => {
