@@ -161,8 +161,66 @@ describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
     expect(fs.existsSync(path.join(d, REPORT_PATH_REL))).toBe(true)
     // scripts 파싱 실패 → 외부 게이트 전부 skip(추측 PASS 금지)
     expect(report.gates.find((g) => g.id === 'typecheck')?.status).toBe('skip')
+    expect(report.gates.find((g) => g.id === 'lint')?.status).toBe('skip')
     expect(report.gates.find((g) => g.id === 'test')?.status).toBe('skip')
     expect(report.gates.find((g) => g.id === 'build')?.status).toBe('skip')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+})
+
+// Goal: verify lint 게이트 — receipt(verify 게이트 소비)가 eslint 거짓완료(#381 류)를 못 잡던 갭 봉합.
+// 패턴은 typecheck/test/build 와 동일(scripts.lint 있으면 실행→실종료코드, 없으면 skip — 거짓 PASS 금지).
+describe('verify — lint 게이트 (#381 거짓완료 클래스 포획)', () => {
+  it('lint 스크립트 + eslint 에러 → lint 게이트 fail(실종료코드) → 종합 status FAIL', () => {
+    const d = tmp()
+    // 실제 종료코드 1로 끝나는 lint 스탠드인(node 스크립트 — eslint 미설치 의존 회피, 종료코드만 관건).
+    fs.writeFileSync(path.join(d, 'lint-fail.js'), 'process.exit(1)\n', 'utf-8')
+    fs.writeFileSync(
+      path.join(d, 'package.json'),
+      JSON.stringify({ name: 'tp', version: '0.0.0', scripts: { lint: 'node lint-fail.js' } }),
+      'utf-8'
+    )
+    const { report } = verifyEvidence(d)
+    const lintGate = report.gates.find((g) => g.id === 'lint')
+    expect(lintGate?.status).toBe('fail')
+    expect(lintGate?.exitCode).toBe(1)
+    expect(lintGate?.skipped).toBe(false)
+    expect(report.status).toBe('FAIL')
+    fs.rmSync(d, { recursive: true, force: true })
+  }, 30_000)
+
+  it('lint 스크립트 없는 프로젝트 → lint 게이트 skip(fail 아님 — 비-lint 프로젝트 회귀 0)', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+    const { report } = verifyEvidence(d)
+    const lintGate = report.gates.find((g) => g.id === 'lint')
+    expect(lintGate?.status).toBe('skip')
+    expect(lintGate?.skipped).toBe(true)
+    // skip 은 fail 이 아니다 — 비-lint 프로젝트에서 lint 때문에 FAIL 나면 안 됨.
+    expect(report.status).not.toBe('FAIL')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('lint 스크립트 통과(종료코드 0) → lint 게이트 pass', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'lint-ok.js'), 'process.exit(0)\n', 'utf-8')
+    fs.writeFileSync(
+      path.join(d, 'package.json'),
+      JSON.stringify({ name: 'tp', version: '0.0.0', scripts: { lint: 'node lint-ok.js' } }),
+      'utf-8'
+    )
+    const { report } = verifyEvidence(d)
+    expect(report.gates.find((g) => g.id === 'lint')?.status).toBe('pass')
+    fs.rmSync(d, { recursive: true, force: true })
+  }, 30_000)
+
+  it('게이트 집합 = typecheck/lint/test/build/secure 5종(추가만 — 기존 4종 불변)', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+    const { report } = verifyEvidence(d)
+    const ids = report.gates.map((g) => g.id)
+    expect(ids).toEqual(['typecheck', 'lint', 'test', 'build', 'secure'])
+    expect(report.summary.total).toBe(5)
     fs.rmSync(d, { recursive: true, force: true })
   })
 })

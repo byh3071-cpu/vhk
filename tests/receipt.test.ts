@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { execFileSync } from 'node:child_process'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import {
   decideReceipt,
   buildReceipt,
@@ -7,6 +11,7 @@ import {
   type ReceiptDecision,
   HONESTY_LINE,
 } from '../src/lib/receipt.js'
+import { collectReceipt } from '../src/commands/receipt.js'
 
 // Goal 86 (RFC 0056 T1): vhk receipt — 4대 기계증거 → 영수증 1장.
 // 핵심 불변식(테스트로 고정):
@@ -181,4 +186,41 @@ describe('renderReceiptMarkdown — PR/대화 붙여넣기 1블록', () => {
     expect(md).toMatch(/미커밋|dirty/)
     expect(md).toMatch(/낡|stale|작업\s*시작/)
   })
+})
+
+// lint 게이트 → receipt 합류 확인(수용기준 1): verify lint fail 이 영수증 red 로 자동 합류 → decision=block.
+// receipt 수집부(collectReceipt)는 게이트 id 에 일반적이라 receipt.ts/순수 로직 수정 없이 lint 가 red 에 든다.
+describe('lint 게이트 → receipt block 합류 (#381 거짓완료 포획)', () => {
+  // 커밋 1개 + base-sha 박은 깨끗한 임시 git 레포 — dirty/stale 가 red 를 가리지 않게 격리.
+  function makeRepo(lintScript: string): string {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-receipt-lint-'))
+    const g = (args: string[]): void => {
+      execFileSync('git', args, { cwd: d, stdio: 'pipe' })
+    }
+    g(['init'])
+    g(['config', 'user.email', 't@t'])
+    g(['config', 'user.name', 't'])
+    fs.writeFileSync(path.join(d, 'lint-runner.js'), `process.exit(${lintScript})\n`, 'utf-8')
+    fs.writeFileSync(
+      path.join(d, 'package.json'),
+      JSON.stringify({ name: 'tp', version: '0.0.0', scripts: { lint: 'node lint-runner.js' } }),
+      'utf-8'
+    )
+    g(['add', '.'])
+    g(['commit', '-m', 'seed'])
+    // 작업시작 기준선 = 현재 HEAD (stale 미상/거짓 stale 차단).
+    fs.mkdirSync(path.join(d, '.vhk', 'receipts'), { recursive: true })
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: d, encoding: 'utf-8' }).trim()
+    fs.writeFileSync(path.join(d, '.vhk', 'receipts', '.base-sha'), head + '\n', 'utf-8')
+    return d
+  }
+
+  it('lint 에러(종료코드 1) → 영수증 evidence.gates.red=true · failedGateIds 에 lint · decision=block', () => {
+    const d = makeRepo('1')
+    const r = collectReceipt(d)
+    expect(r.evidence.gates.red).toBe(true)
+    expect(r.evidence.gates.failedGateIds).toContain('lint')
+    expect(r.decision).toBe('block')
+    fs.rmSync(d, { recursive: true, force: true })
+  }, 30_000)
 })

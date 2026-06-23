@@ -134,7 +134,7 @@ vhk preflight --publish
 vhk mission check
 ```
 
-- `verify`: tsc/test/build/secure 게이트 실행 후 `.vhk/reports/latest.json` 저장
+- `verify`: tsc/lint/test/build/secure 게이트 실행 후 `.vhk/reports/latest.json` 저장
 - `review`: 최신 증거와 goal 완료조건을 교차검증
 - `testmap`: 변경된 기능 소스와 대응 테스트 누락을 경고
 - `preflight`: 2FA, shim, env, lint, type, test, git, branch를 출고 전 점검
