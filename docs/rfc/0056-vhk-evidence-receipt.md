@@ -98,6 +98,8 @@ VHK가 파는 것은 "코드 생성"도 "더 똑똑한 리뷰"도 아니다. **"
 
 를 수집해 `.vhk/receipts/<날짜-슬러그>.{json,md}` 영수증 1장으로 굳히고, 기계증거가 모순이면(dirty/stale/red) **decision=block을 LLM 판단 0으로** 낸다.
 
+> **정직 경계(2026-06-23 적대검증 반영 · §11):** ④ diff-cover는 advisory 약신호다 — "테스트 실행 도달"이지 "정확성"이 아니라, 그럴듯하게 틀린 코드(assertion 0·틀린 assert)는 구조적으로 못 잡는다(`diff-coverage.ts:42`·`diff-cover.ts:69`). 따라서 receipt가 실제로 잡는 것은 **"게으른 거짓완료"(빌드 깨짐·미커밋·stale)에 한정**되며, 이는 정밀화로 넓혀지지 않는다(한계가 정밀도가 아니라 "커버리지=실행도달" 정의). 그러므로 4대 증거를 "거짓완료를 전부 잡는다"로 팔지 않고, 산출물 .md 정직성 1줄에 경계를 박는다 — *"이 영수증은 게으른 거짓완료를 잡지, 미묘한 오류는 못 잡는다."*
+
 **기존 자산 재사용(신규 발명 금지):** `verifyEvidence`(실종료코드)·`review`(거짓완료 교차검증)·`checkEvidenceFreshness`(stale 강등)·evidence-ledger·`reports/latest.json` 병합 — 이미 디스크 작동. receipt는 이들을 1장으로 조립하는 글루코드.
 
 **90일 밖(제외):** 표준화·proof 6객체·CI status check·외부발송·무인 머지·history replay·다타겟 sync 전부.
@@ -152,6 +154,15 @@ typecheck/test/build 필드는 `manual:true`/self-report 입력을 **소스 asse
 | 휴대용 두뇌(sync) | 4.5 | 3 | 가장 약한 자산을 쐐기로 격상, 핵심자산 버림, 수익화 0 |
 | 블랙박스(부검) | 4.0 | 3 | history replay 그린필드 + 외부레포 실행 헌법충돌 |
 | 관제탑(무인머지) | 3.8 | 3 | auto-merge 실제 G3·G4가 LLM이라 "기계증거만" 자기모순 |
+
+---
+
+## §11. 구현 전 적대 검증 (2026-06-23)
+
+T1 착수 전 Claude(Opus 4.8)가 정체성의 두 급소를 코드로 검증 → 진입점 [docs/log/2026-06-23-rfc0056-adversarial-review.md](../log/2026-06-23-rfc0056-adversarial-review.md).
+
+- **① 탐지범위 역설** — `diff-coverage.ts:42`의 covered는 "실행 도달"이지 "정확성"이 아니다(assertion 0 테스트도 covered). diff-cover는 advisory라 block도 못 냄(`diff-cover.ts:69`). 킬조건 #4는 *정밀도*가 아니라 "커버리지=실행도달" 정의의 한계 → 정밀화로 안 풀림. 잔존가치 = "테스트 0인 새 코드"는 잡음.
+- **② #315 실재** — `verify.ts:351`이 추적 ledger를 무조건 append → 자기 dirty. `evidence-ledger.ts:60` dedup이 "연속 반복 늘 빨강"은 완화하나, 커밋 직후 첫 검증은 sha 변경으로 append→dirty→자기 block. 근본은 추적(repo 증거) ↔ dirty(자기검증)의 딜레마. T1 선결 "자기파일 제외"는 정답이나 새 사각지대(자기 ledger 위조 미탐).
 
 ---
 
