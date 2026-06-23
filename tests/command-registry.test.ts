@@ -32,6 +32,17 @@ describe('R1 드리프트 가드 — command-registry 단일 소스', () => {
     }
   })
 
+  // #327: `vhk mission show` 가 commander 서브커맨드로 등록돼야 함.
+  // 미등록이면 'show' 가 mission(0-arity) 위치인자로 처리돼 'too many arguments' cryptic 에러.
+  it('#327 mission 에 show 서브커맨드가 등록돼 있음 (set/check/clear 와 대칭)', () => {
+    const mission = program.commands.find((c) => c.name() === 'mission')
+    expect(mission, 'mission 컨테이너 명령이 commander 에 없음').toBeDefined()
+    const subs = mission!.commands.map((c) => c.name())
+    expect(subs).toContain('show')
+    // 회귀: 기존 서브커맨드도 그대로
+    expect(subs).toEqual(expect.arrayContaining(['set', 'check', 'clear', 'show']))
+  })
+
   it('레지스트리가 cli-args R1 가드를 실제로 작동시킴', () => {
     // goal check / mode strict 가 commander 로 가야 함(자연어 라우터 가로채기 금지)
     expect(detectNaturalLanguageInput(['node', 'vhk', 'goal', 'check'])).toBeNull()

@@ -52,7 +52,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
 | 작업 범위 선언 | `vhk mission set --objective "..." --scope "src/**" --forbidden "**/*.env"` | "미션 정해줘" |
-| 현재 계약 보기 | `vhk mission` | "미션 보여줘" |
+| 현재 계약 보기 | `vhk mission` (또는 `vhk mission show`) | "미션 보여줘" |
 | 변경이 계약 안인지 검증 | `vhk mission check` | "미션 검증해" |
 | 계약 삭제 | `vhk mission clear` | — |
 

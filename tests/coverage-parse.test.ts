@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { writeFileSync, rmSync, mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { fileCoverageByFile } from '../src/lib/coverage-parse.js'
+import { fileCoverageByFile, COVERAGE_CORRUPT } from '../src/lib/coverage-parse.js'
 
 const dirs: string[] = []
 function tmpDir(): string {
@@ -44,11 +44,20 @@ describe('fileCoverageByFile — v8 coverage-final.json → {covered, executable
     expect(fileCoverageByFile('/no/such/coverage-final.json', '/x')).toBeNull()
   })
 
-  it('손상된 json → null', () => {
+  // #321: 손상(파일은 실재, JSON.parse 실패)은 부재(null)와 구분돼야 한다 — 호출부가
+  // '리포트 없음(새로 생성)' 대신 '리포트 손상(재생성 필요)'로 정직 보고하도록.
+  it('#321 손상된 json(파일 실재) → COVERAGE_CORRUPT sentinel (null=부재와 구분)', () => {
     const cwd = tmpDir()
     const p = join(cwd, 'coverage-final.json')
     writeFileSync(p, '{not json', 'utf-8')
-    expect(fileCoverageByFile(p, cwd)).toBeNull()
+    expect(fileCoverageByFile(p, cwd)).toBe(COVERAGE_CORRUPT)
+  })
+
+  it('#321 빈 파일(0바이트, 실재)도 COVERAGE_CORRUPT (부재 아님)', () => {
+    const cwd = tmpDir()
+    const p = join(cwd, 'coverage-final.json')
+    writeFileSync(p, '', 'utf-8')
+    expect(fileCoverageByFile(p, cwd)).toBe(COVERAGE_CORRUPT)
   })
 
   it('기능소스 아닌 파일(tests/)은 제외', () => {

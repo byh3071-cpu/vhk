@@ -620,6 +620,13 @@ missionCmd
   .description('미션 계약 선언/갱신 (옵션 미지정 시 기존 scope/forbidden 보존)')
   .action(async (opts: { objective?: string; scope?: string[]; forbidden?: string[]; clearScope?: boolean; clearForbidden?: boolean; yes?: boolean }) => { await missionSet(opts) })
 
+// #327: bare `vhk mission` 의 default action(missionShow)을 명시 서브커맨드로도 노출.
+//        미등록 시 'show' 가 mission(0-arity)의 위치인자로 처리돼 cryptic 'too many arguments' 에러.
+missionCmd
+  .command('show')
+  .description('현재 미션 계약 출력 (bare `vhk mission` 과 동일)')
+  .action(async () => { await missionShow() })
+
 missionCmd
   .command('check')
   .description('변경 파일이 계약(scope/forbidden) 안인지 검증 — forbidden 위반 시 exit 1')

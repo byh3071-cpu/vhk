@@ -18,7 +18,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   // commander 가 leaf 에 추가 인자를 거부해 raw 'too many arguments'. leaf+추가인자는 cli-args 의
   // LEAF_ARG_SUGGEST 로 친절 안내(env-check/design-palette 유도). (drift 가드: registry-drift-usage 테스트)
   mode: ['lite', 'standard', 'strict'],
-  mission: ['set', 'check', 'clear'],
+  mission: ['set', 'show', 'check', 'clear'],
   pattern: ['detect', 'list', 'dismiss'],
   evolve: ['suggest', 'negatives', 'list', 'apply', 'reject', 'undo'],
   work: ['handoff'],

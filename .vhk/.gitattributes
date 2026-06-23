@@ -1,0 +1,4 @@
+# VHK 증거 원장(events·ledger) — 멀티PC 양쪽 append 분기 커밋 시 양쪽 줄 보존.
+# merge=union 은 git 내장 드라이버(별도 .gitconfig/merge driver 등록 불필요). untrack 금지(RFC0056·#315).
+events/*.jsonl merge=union
+ledger.jsonl merge=union
