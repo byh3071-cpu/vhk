@@ -4,10 +4,26 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-06-23
+
 ### Added
 
 - **풀사이클 뒷단 4트랙 `vhk content`·`launch`·`ops`·`sell`** (Goal 74~77, RFC 0052, #284·#293·#294·#295) — 바이브코딩 뒷단(콘텐츠·런칭·운영·판매)을 앞단과 동일한 "상태수집 + 체크리스트 + 프롬프트 생성" 자문 패턴으로 채움. 전부 초안만 — 발송·결제·삭제 0(헌법 실패비용 high 배제). `src/lib/emit-prompt.ts` 공유 헬퍼 단일 SoT + Fable5 프롬프트 위생(✅/❌ 예시쌍·수치 하드리밋·"승인 전 발송·결제 금지") 상속. MCP 읽기전용 32→35. `ship`(코드 npm 배포)≠`launch`(제품 공개) 구분 명시.
 - **`vhk init` 기타(other) 프로젝트 타입 + 스택 직접 입력/건너뛰기** — OS·게임·임베디드 등 5개 프리셋 밖 프로젝트 지원. ① 타입 선택지에 `🧩 기타 — 직접 입력` 추가 ② 기타 선택 시 스택 자유 입력(쉼표 구분 — 전각 ，·모점 、 포함, Enter=미정으로 건너뛰기) ③ 추천 스택 거절 시 즉시 취소 대신 직접 입력 기회(Enter=기존처럼 취소) ④ 비-JS 매니페스트 언어 감지 `detectManifestLangs`(Cargo.toml→Rust, go.mod→Go, pyproject.toml/requirements.txt→Python, Gemfile→Ruby, build.zig→Zig, CMakeLists.txt→C/C++) — init 전용 소비(`resolveInitStack`): JS deps 감지 시 병합(Tauri 류), 프리셋 타입에선 떠돌이 매니페스트가 명시적 `--type` 을 대체하지 않음, 프리셋 없는 other 만 매니페스트 사용. `detectProjectStack` 은 JS-only 유지(theme #158 src/ 오염 비회귀). `-y --type other` 비대화형은 프롬프트 0 + 미정 폴백.
+
+- **`vhk goal peek` + `goal next` 비파괴 전환** (Goal 78, #303) — `goal next` 가 active goal 을 파괴적으로 넘기던 동작을 비파괴화하고, 상태 변경 없이 다음 goal 을 들여다보는 `vhk goal peek` 추가.
+- **도그푸딩 하드닝 — 증거 신선도·정합 일관성** (Goal 80~84, RFC 0053, #310·#311·#312·#332·#348) — ① `vhk review` 증거 신선도 연결: 기록 SHA≠HEAD 또는 dirty 면 "낡음" 강등 ② 제품 설명 단일 SoT(index.ts `.description` 런타임 주입) ③ `.vhk` 증거 원장 `ledger.jsonl` 추적 정합 + 정책 가드 ④ secure 테스트 픽스처 false positive MEDIUM→INFO 강등 ⑤ doctor/status next-step 맥락 인지(신규 vs 기존 레포 분기).
+- **SEO 무인 자동화 범위 완료** (Goal 22~26, #307) — init·submit·check-index·check-revenue·report 무인 트랙 + RFC 0054 자율형 진화 로드맵.
+- **Fable5 배치3 — 규칙 재주입·부정 예시·high-risk 옵트인·상속·스캔** (Goal 68~72, #282·#283·#285·#277) — `vhk remind`(치명 규칙 재주입), `vhk evolve` 부정 예시 자동 수집, MCP high-risk 도구 옵트인 정책(save confirm 게이트), `vhk init` core-ruleset 마커블록 상속, secure PAT 휴리스틱 스캔.
+- **`vhk-auto` 오토파일럿 1단계 MVP 스킬** (#291) — active goal 1개를 사람 개입 없이 한 바퀴 자율 구동(앵커→개발→검증→적대리뷰→commit). 외부 발송·이슈 등록·코드 집행 0.
+
+### Fixed
+
+- **거짓 성공 위장 차단** (#346·#340·#341·#281) — 미인식 명령을 exit 1 + stderr 로 정정(exit 0 성공 위장 차단), MCP NL 미인식·audit 불명을 성공으로 위장하던 거짓 보고 차단, MCP 도구 수 드리프트 정정.
+- **HARD_STOP 가드 강화** (#334·#335·#336·#337·#338) — goal sync·seo init·seo submit 가드 누락 보강, undo HARD_STOP 우회 + non-TTY 크래시 차단.
+- **`vhk resume` exit 127** (#353) — clearHardStop 의 rmSync→unlinkSync 로 이 환경 silent exit 127 수정.
+- **MCP 위임 CLI 버전 스큐** (#339) — 동봉 dist 우선으로 전역 vhk 버전 스큐 차단.
+- **`vhk goal` 컨테이너 help 정합** (#347) — 컨테이너 description 에 peek 추가.
 
 ## [2.6.0] - 2026-06-12
 
