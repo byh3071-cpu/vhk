@@ -19,6 +19,11 @@ describe('isSelfTrackedPath — vhk 자기 산출 추적파일 화이트리스�
   it('.vhk/events/ 하위 임의 *.jsonl(미래 확장) → true', () => {
     expect(isSelfTrackedPath('.vhk/events/something-new.jsonl')).toBe(true)
   })
+  // #371: diff-cover 측정 로그(.vhk/events/diff-cover.jsonl)도 자기 산출 추적파일 →
+  // diff-cover 실행이 스스로 이 줄을 append 해도 dirty 로 잡히지 않아야 함(자기참조 봉인).
+  it('#371 diff-cover 측정 로그 .vhk/events/diff-cover.jsonl → true', () => {
+    expect(isSelfTrackedPath('.vhk/events/diff-cover.jsonl')).toBe(true)
+  })
   it('Windows 백슬래시 경로도 정규화해서 매칭', () => {
     expect(isSelfTrackedPath('.vhk\\ledger.jsonl')).toBe(true)
     expect(isSelfTrackedPath('.vhk\\events\\ai-actions.jsonl')).toBe(true)
