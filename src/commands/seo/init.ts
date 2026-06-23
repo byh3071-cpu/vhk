@@ -14,6 +14,7 @@ import {
   SEO_SERVICE_KEYS,
   type SeoConfig,
 } from '../../lib/seo-config.js'
+import { ensureNotHardStopped } from '../../lib/hard-stop-guard.js'
 
 export interface SeoInitOptions {
   domain?: string
@@ -30,6 +31,7 @@ export interface SeoInitOptions {
  * @param root 테스트·멀티루트용 작업 디렉터리 (기본 process.cwd()).
  */
 export async function seoInit(opts: SeoInitOptions = {}, root: string = process.cwd()): Promise<void> {
+  if (!ensureNotHardStopped('seo init')) return // #335: HARD_STOP 활성 시 config 기록 차단
   console.log(chalk.bold(`\n${ko.seo.init.title}\n`))
 
   let domain = opts.domain?.trim()

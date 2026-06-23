@@ -5,6 +5,7 @@ import chalk from 'chalk'
 import { log } from '../../utils/logger.js'
 import { atomicWriteFile } from '../../lib/atomic-write.js'
 import { readSeoConfig, resolveSecretPresence } from '../../lib/seo-config.js'
+import { ensureNotHardStopped } from '../../lib/hard-stop-guard.js'
 
 /**
  * Goal 22: `vhk seo submit` — 사이트맵(GSC·Bing) 제출 + IndexNow 한 방 핑(빙·네이버·얀덱스).
@@ -80,6 +81,7 @@ export function ensureIndexNowKey(root: string = process.cwd()): string {
 // ── 커맨드 핸들러 ──────────────────────────────────────────────────────────────
 
 export async function seoSubmit(_opts: { yes?: boolean } = {}, root: string = process.cwd()): Promise<void> {
+  if (!ensureNotHardStopped('seo submit')) return // #336: HARD_STOP 활성 시 IndexNow 키 생성·제출 차단
   log.bold('\n🚀 vhk seo submit — 사이트맵 + IndexNow 제출\n')
 
   const cfg = readSeoConfig(root)

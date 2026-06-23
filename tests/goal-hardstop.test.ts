@@ -81,4 +81,20 @@ describe('goal 명령군 HARD_STOP 가드 (Goal 34)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('HARD_STOP 활성 → goalSync 가 게이트 스크립트를 만들지 않는다 (#334)', async () => {
+    const dir = tmpProject('sync-blocked')
+    makeGoalFile(dir, 0, 'NOT_STARTED')
+    writeHardStop(dir)
+    process.chdir(dir)
+    try {
+      const { goalSync } = await import('../src/commands/goal.js')
+      const res = await goalSync()
+      expect(res).toEqual({ created: [], skipped: [] })
+      expect(existsSync(join(dir, 'scripts', 'check-goal-0.mjs'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
