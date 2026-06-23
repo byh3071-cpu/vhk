@@ -83,6 +83,22 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
 }
 
 /**
+ * `.vhk/.gitattributes` — 증거 원장(events·ledger)에 merge=union 부여.
+ * 멀티PC 에서 양쪽이 각자 append 한 커밋이 분기됐을 때, union 드라이버가 양쪽 줄을 모두
+ * 보존해 자동 병합한다(충돌·줄 손실 0). events/ledger 는 추적 유지(untrack 금지) 전제 —
+ * RFC0056·#315 증거 영속. 이 파일은 dirty-block(외부 pull fast-forward 차단)의 A축 해소.
+ */
+export function VHK_GITATTRIBUTES_TEMPLATE(): string {
+  return [
+    '# VHK 증거 원장(events·ledger) — 멀티PC 양쪽 append 분기 커밋 시 양쪽 줄 보존.',
+    '# merge=union 은 git 내장 드라이버(별도 .gitconfig/merge driver 등록 불필요). untrack 금지(RFC0056·#315).',
+    'events/*.jsonl merge=union',
+    'ledger.jsonl merge=union',
+    '',
+  ].join('\n')
+}
+
+/**
  * 루트 `.vhkignore` 씨앗 — `vhk cloud push` 백업에서 제외할 .vhk/ 파일 지정.
  * 기본 제외(memory.json·refs.json·HARD_STOP·cloud.json·.gitignore)는 코드에 내장되어
  * 있으므로, 이 파일은 사용자가 추가로 제외할 항목을 적는 용도다.

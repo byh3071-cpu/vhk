@@ -11,7 +11,7 @@ import { PRD_TEMPLATE } from '../templates/prd.js'
 import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
-import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE, VHK_IGNORE_TEMPLATE } from '../templates/vhk-dir.js'
+import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE, VHK_GITATTRIBUTES_TEMPLATE, VHK_IGNORE_TEMPLATE } from '../templates/vhk-dir.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
@@ -338,6 +338,8 @@ export function generateFiles(
     '.vhk/README.md': VHK_README_TEMPLATE(),
     '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack),
     '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),
+    // 증거 원장(events·ledger)에 merge=union — 멀티PC append 분기 자동 병합(A축). 추적 유지 전제.
+    '.vhk/.gitattributes': VHK_GITATTRIBUTES_TEMPLATE(),
     '.vhkignore': VHK_IGNORE_TEMPLATE(),
     // core-ruleset 마커블록 상속 — PRIVATE_RULES_ROOT 있으면 라이브, 없으면 번들 스냅샷
     '.agents/CORE-RULES.md': generateCoreRulesContent(null),
