@@ -4,7 +4,7 @@
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-06-22
+**갱신:** 2026-06-23
 **Phase:** **도그푸딩 하드닝(RFC 0053 · goals 78~84) 완료** — 78(#303)·79(#304)·80(#310)·81(#311)·82(#312)·83(#332)·84(#348) 전부 머지. 우선순위 2 measure-first가 현재 최우선(Recall@5 라벨링·diff-cover 누적 대기). 뒷단 4트랙(74~77)·SEO 22~26·SOUL 상속 기완료. 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
@@ -43,5 +43,6 @@
 - publish는 항상 main에서만 (가드 #119) · 사용자가 직접(2FA)
 - 직접 main push 차단됨(분류기) → 변경은 PR 경유 + `gh pr merge --squash`
 - active goal 은 goals/ 기준 동적 계산 (vhk work / vhk goal next)
+- (2026-06-23) goals/ 완료 80개 → `goals/archive/` 이동 — `vhk goal list`엔 active 6개(50·62·65·79·85·86)만, 완료 이력은 `goals/archive/README.md` 자동 인덱스. listGoals·gen-goals-index·M.4 모두 flat 읽기라 archive 무시(무영향 검증).
 - ⚠️ `vhk goal next`/`vhk work`는 이 파일을 **자동 스텁으로 덮어씀**(수동 콘텐츠 소실) — 수동 편집 후엔 goal next 실행 주의, 덮어쓰였으면 git restore.
 - (cosmetic) tag `v2.4.2` → `131e3c3` (npm tarball 정확 일치, goals 30/33 미포함). main release 커밋은 `09e4b88` — 발행 tag 이동 금지라 둠(v2.4.0 동류).
