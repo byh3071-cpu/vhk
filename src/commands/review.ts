@@ -107,10 +107,11 @@ export function parseCompletionChecks(body: string): CompletionCheck[] {
 /** 완료조건 텍스트 → 함의하는 게이트 id 목록. 빈 배열 = 미검증(unmapped). */
 function impliedGates(text: string): GateResult['id'][] {
   if (/게이트|공통\s*게이트|goal\s*check/i.test(text)) {
-    return ['typecheck', 'test', 'build', 'secure']
+    return ['typecheck', 'lint', 'test', 'build', 'secure']
   }
   const gates: GateResult['id'][] = []
   if (/tsc|typecheck|타입\s*체크/i.test(text)) gates.push('typecheck')
+  if (/린트|lint|eslint|biome/i.test(text)) gates.push('lint')
   if (/테스트|test|회귀|vitest/i.test(text)) gates.push('test')
   if (/빌드|build/i.test(text)) gates.push('build')
   if (/시크릿|secret|secure|누출|보안\s*스캔/i.test(text)) gates.push('secure')
