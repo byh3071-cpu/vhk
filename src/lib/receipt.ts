@@ -52,6 +52,11 @@ export interface ReceiptIntentEvidence {
   forbiddenHits: number
   /** scope 밖 변경 파일 수(>0 → caution — advisory). */
   scopeWarnings: number
+  /**
+   * 금지 패턴 중 glob 미지원 문법 개수. >0이면 forbidden 검증이 무효일 수 있음 → caution(advisory).
+   * undefined·0은 무시. GA 동결 — 옵셔널로만 추가(기존 시그니처 불변).
+   */
+  unsupportedForbiddenCount?: number
 }
 
 /** 영수증 입력 — 4대 기계증거 + (옵션) 의도 대조(commands/receipt.ts 가 git/verify/diff-cover/mission 에서 수집). */
@@ -96,7 +101,9 @@ export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
   // 약신호(soft) — 차단은 아니나 "안심"도 금지 → caution. (단조성: pass 로 못 내려감)
   const hasUncoveredChange = e.diffCover.measured && e.diffCover.totalUncovered > 0
   const scopeWarned = intentKnown && e.intent!.scopeWarnings > 0
-  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange || scopeWarned) return 'caution'
+  // intentKnown이 false면 단락평가로 e.intent! 접근 안 됨 — 이 순서 필수(GA 동결, 단조성 불변식 ②·③ 유지).
+  const unsupportedForbidden = intentKnown && (e.intent!.unsupportedForbiddenCount ?? 0) > 0
+  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange || scopeWarned || unsupportedForbidden) return 'caution'
 
   return 'pass'
 }
@@ -122,6 +129,10 @@ export function receiptReasons(e: ReceiptEvidence): string[] {
   }
   if (e.intent?.missionKnown && e.intent.scopeWarnings > 0)
     reasons.push(`scope 밖 변경 ${e.intent.scopeWarnings}건 — 시킨 범위 밖일 수 있음(advisory, 차단 안 함)`)
+  if (e.intent?.missionKnown && (e.intent.unsupportedForbiddenCount ?? 0) > 0)
+    reasons.push(
+      `forbidden 패턴 ${e.intent.unsupportedForbiddenCount}개가 glob 미지원 문법 포함 — forbidden 검증이 무효할 수 있음(!, {}, [], 후행 / — caution)`
+    )
   if (reasons.length === 0) reasons.push('전 게이트 green · clean · 신선 · 변경라인 풀커버')
   return reasons
 }
@@ -246,13 +257,19 @@ export function renderReceiptMarkdown(r: Receipt): string {
   // ⑤ intent(의도 대조, Goal 87) — mission.json 있을 때만 행 추가(없으면 출력 변화 0 = 하위호환).
   if (e.intent?.missionKnown) {
     const it = e.intent
-    const intentCell = it.forbiddenHits > 0 ? '❌' : it.scopeWarnings > 0 ? 'ℹ️' : '✅'
-    const intentNote =
-      it.forbiddenHits > 0
-        ? `forbidden 위반 ${it.forbiddenHits}건 — 시킨 범위(의도) 어김`
-        : it.scopeWarnings > 0
-          ? `scope 밖 변경 ${it.scopeWarnings}건 — advisory(차단 안 함)`
-          : 'scope/forbidden 계약 준수'
+    const unsupportedCount = it.unsupportedForbiddenCount ?? 0
+    const intentCell = it.forbiddenHits > 0 ? '❌' : it.scopeWarnings > 0 || unsupportedCount > 0 ? 'ℹ️' : '✅'
+    let intentNote: string
+    if (it.forbiddenHits > 0) {
+      intentNote = `forbidden 위반 ${it.forbiddenHits}건 — 시킨 범위(의도) 어김`
+    } else if (it.scopeWarnings > 0) {
+      intentNote = `scope 밖 변경 ${it.scopeWarnings}건 — advisory(차단 안 함)`
+    } else if (unsupportedCount > 0) {
+      // forbiddenHits=0 이더라도 미지원 문법으로 인해 검증 자체가 무효일 수 있음 — 정직 표기.
+      intentNote = `forbidden 패턴 미지원 문법 — 검증 무효 가능(caution)`
+    } else {
+      intentNote = 'scope/forbidden 계약 준수'
+    }
     lines.push(`| ⑤ intent(의도 대조) | ${intentCell} | ${intentNote} |`)
   }
   lines.push('')

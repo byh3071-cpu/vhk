@@ -138,8 +138,13 @@ export function collectIntent(cwd: string, baseSha?: string | null): ReceiptInte
     // git 실패 → 변경 목록 미상. 빈 목록(위반 0)으로 둔다 — 거짓 block 금지(정직). 다른 증거가 보완.
   }
   const changed = [...files].filter((f) => !isSelfTrackedPath(f))
-  const { violations, warnings } = checkMission(changed, mission)
-  return { missionKnown: true, forbiddenHits: violations.length, scopeWarnings: warnings.length }
+  const result = checkMission(changed, mission)
+  return {
+    missionKnown: true,
+    forbiddenHits: result.violations.length,
+    scopeWarnings: result.warnings.length,
+    unsupportedForbiddenCount: result.unsupportedForbiddenPatterns.length,
+  }
 }
 
 /**
