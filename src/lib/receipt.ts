@@ -5,9 +5,10 @@
 // .json/.md 영수증을 만든다. fs/git 수집은 commands/receipt.ts(경계)가 담당한다(테스트 용이).
 //
 // ★핵심 불변식(테스트로 고정 — tests/receipt.test.ts):
-//   ① decision 은 기계증거만으로(LLM 추론 0). 실차단 3종(red·dirty·stale) 중 하나라도면 block.
+//   ① decision 은 기계증거만으로(LLM 추론 0). 실차단(red·dirty·stale·forbidden 위반) 중 하나라도면 block.
+//      (Goal 87: forbidden=변경 파일이 mission 금지 glob 매치 = 결정론 사실 → red/dirty/stale 와 동급 차단.)
 //   ② 단조성: caution → pass 격상 절대 금지. 부정 신호가 늘면 결과가 좋아질 수 없다(pass→caution→block).
-//   ③ ④ diff-cover 는 advisory(약신호) — decision 을 block 으로 격하시키지 못한다(차단은 3종만).
+//   ③ ④ diff-cover·scope 경고는 advisory(약신호) — decision 을 block 으로 격하시키지 못한다(차단은 위 4종만).
 //
 // ★정직 경계(RFC 0056 §11 ①): diff-cover 의 covered 는 "테스트 실행 도달"이지 "정확성"이 아니다.
 //   그러므로 영수증이 잡는 것은 **게으른 거짓완료**(빌드 깨짐·미커밋·stale)에 한정되고, "almost
@@ -39,7 +40,21 @@ export interface ReceiptDiffCover {
   ratio: number
 }
 
-/** 영수증 입력 — 4대 기계증거(commands/receipt.ts 가 git/verify/diff-cover 에서 수집). */
+/**
+ * ⑤ intent(의도 대조) 증거 — Goal 87. mission.json(scope/forbidden) ↔ 변경 파일을 글로브로 대조.
+ * forbidden 위반은 변경 파일이 금지 경로에 매치되는 **결정론 사실**(LLM 0)이라 red/dirty/stale 와
+ * 동급 실차단(block). scope 밖 변경은 advisory(caution). mission 없으면 이 증거 자체가 부재(영향 0).
+ */
+export interface ReceiptIntentEvidence {
+  /** mission.json 이 있어 의도 대조를 수행했는가. false 면 decision 영향 0(missionKnown 패턴은 staleKnown 과 동형). */
+  missionKnown: boolean
+  /** forbidden glob 위반 파일 수(>0 → 실차단 block — 결정론). */
+  forbiddenHits: number
+  /** scope 밖 변경 파일 수(>0 → caution — advisory). */
+  scopeWarnings: number
+}
+
+/** 영수증 입력 — 4대 기계증거 + (옵션) 의도 대조(commands/receipt.ts 가 git/verify/diff-cover/mission 에서 수집). */
 export interface ReceiptEvidence {
   /** ① tsc/test/build 실종료코드 게이트. */
   gates: ReceiptGateEvidence
@@ -51,6 +66,8 @@ export interface ReceiptEvidence {
   staleKnown: boolean
   /** ④ 변경라인 diff-cover(advisory). */
   diffCover: ReceiptDiffCover
+  /** ⑤ intent(의도 대조, Goal 87) — mission.json 있을 때만. 부재 → decision·출력 영향 0(하위호환). */
+  intent?: ReceiptIntentEvidence
 }
 
 /** 산출 .md 하단 고정 1줄 — 정직성(능력 경계)을 제품에 박는다(RFC 0056 §6·§11). */
@@ -58,23 +75,28 @@ export const HONESTY_LINE =
   '이 영수증은 게으른 거짓완료(빌드 깨짐·미커밋·낡은 증거)를 잡지, 미묘한 오류(그럴듯하게 틀린 코드)는 못 잡는다. 판정은 기계증거(종료코드·dirty·SHA) 기반이며 LLM 추론이 아니다.'
 
 /**
- * 4대 기계증거 → decision. **순수 함수, LLM 0.**
+ * 4대 기계증거 + (옵션) 의도 대조 → decision. **순수 함수, LLM 0.**
  *
- * 실차단 3종(red·dirty·stale) 중 하나라도면 block(불변식 ①). 그게 아니고 약신호(soft 게이트·
- * stale 미상·diff-cover 미커버)가 있으면 caution. 전부 clean·확인됐을 때만 pass.
+ * 실차단(red·dirty·stale·forbidden 위반) 중 하나라도면 block(불변식 ①). 그게 아니고 약신호(soft
+ * 게이트·stale 미상·diff-cover 미커버·scope 밖 변경)가 있으면 caution. 전부 clean·확인됐을 때만 pass.
  *
  * 단조성(불변식 ②): 부정 신호가 늘수록 block ← caution ← pass 한 방향으로만 간다. caution 을
  * pass 로 격상시키는 분기는 존재하지 않는다(아래는 "block? → caution? → pass" 폭포라 역행 불가).
  *
- * ④ diff-cover 는 caution 까지만 올린다(advisory, 불변식 ③) — block 분기에 절대 들어가지 않는다.
+ * ④ diff-cover·scope 경고는 caution 까지만 올린다(advisory, 불변식 ③) — block 분기에 절대 안 들어간다.
+ * ⑤ intent 는 missionKnown=false(mission 부재)면 forbiddenHits/scopeWarnings 를 무시 → 영향 0(하위호환).
  */
 export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
-  // 실차단 3종 — diff-cover 는 여기에 없다(advisory 라 block 격하 불가).
-  if (e.gates.red || e.dirty || (e.staleKnown && e.stale)) return 'block'
+  const intentKnown = e.intent?.missionKnown === true
+  const forbiddenViolated = intentKnown && e.intent!.forbiddenHits > 0
+
+  // 실차단 — diff-cover·scope 는 여기에 없다(advisory 라 block 격하 불가). forbidden 위반은 결정론 차단.
+  if (e.gates.red || e.dirty || (e.staleKnown && e.stale) || forbiddenViolated) return 'block'
 
   // 약신호(soft) — 차단은 아니나 "안심"도 금지 → caution. (단조성: pass 로 못 내려감)
   const hasUncoveredChange = e.diffCover.measured && e.diffCover.totalUncovered > 0
-  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange) return 'caution'
+  const scopeWarned = intentKnown && e.intent!.scopeWarnings > 0
+  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange || scopeWarned) return 'caution'
 
   return 'pass'
 }
@@ -88,6 +110,8 @@ export function receiptReasons(e: ReceiptEvidence): string[] {
   }
   if (e.dirty) reasons.push('working tree 가 dirty — 미커밋/untracked 변경 있음(자기파일 제외 후에도)')
   if (e.staleKnown && e.stale) reasons.push('작업 시작 SHA ≠ 현재 HEAD — 증거가 낡았을 수 있음(stale)')
+  if (e.intent?.missionKnown && e.intent.forbiddenHits > 0)
+    reasons.push(`의도 위반 — forbidden(금지 경로) 변경 ${e.intent.forbiddenHits}건: mission 계약을 어김 — block`)
   if (!e.staleKnown) reasons.push('작업 시작 기준선 미기록 — stale 판정 불가(vhk receipt --mark-start 로 기준선 고정 가능)')
   if (e.gates.hasSoftWarning) reasons.push('일부 게이트 skip/warn — 결과 불완전(수동 확인 권장)')
   if (e.diffCover.measured && e.diffCover.totalUncovered > 0) {
@@ -96,6 +120,8 @@ export function receiptReasons(e: ReceiptEvidence): string[] {
       `변경라인 미검증 ${e.diffCover.totalUncovered}/${e.diffCover.totalAdded} (커버 ${pct}%) — advisory(약신호, 차단 안 함)`
     )
   }
+  if (e.intent?.missionKnown && e.intent.scopeWarnings > 0)
+    reasons.push(`scope 밖 변경 ${e.intent.scopeWarnings}건 — 시킨 범위 밖일 수 있음(advisory, 차단 안 함)`)
   if (reasons.length === 0) reasons.push('전 게이트 green · clean · 신선 · 변경라인 풀커버')
   return reasons
 }
@@ -217,6 +243,18 @@ export function renderReceiptMarkdown(r: Receipt): string {
   lines.push(`| ③ stale(작업시작 SHA≠HEAD) | ${staleCell} | ${staleNote} |`)
   // ④ 는 advisory — 체크표시는 정보용이지 decision 에 영향 없음(표 비고에 명시).
   lines.push(`| ④ diff-cover(advisory) | ${dc.measured && dc.totalUncovered === 0 ? '✅' : 'ℹ️'} | ${dcNote} |`)
+  // ⑤ intent(의도 대조, Goal 87) — mission.json 있을 때만 행 추가(없으면 출력 변화 0 = 하위호환).
+  if (e.intent?.missionKnown) {
+    const it = e.intent
+    const intentCell = it.forbiddenHits > 0 ? '❌' : it.scopeWarnings > 0 ? 'ℹ️' : '✅'
+    const intentNote =
+      it.forbiddenHits > 0
+        ? `forbidden 위반 ${it.forbiddenHits}건 — 시킨 범위(의도) 어김`
+        : it.scopeWarnings > 0
+          ? `scope 밖 변경 ${it.scopeWarnings}건 — advisory(차단 안 함)`
+          : 'scope/forbidden 계약 준수'
+    lines.push(`| ⑤ intent(의도 대조) | ${intentCell} | ${intentNote} |`)
+  }
   lines.push('')
   lines.push('**사유:**')
   for (const reason of r.reasons) lines.push(`- ${reason}`)

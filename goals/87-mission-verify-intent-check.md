@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 87
 title: 의도 대조 — receipt/review가 mission(시킨 것)을 검증에 반영 (의도 장갑 손바닥) — P0
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P0
 created: 2026-06-23
 leads_to: "AI가 시킨 대로(scope/forbidden) 했나"를 자동 판정 — 경쟁사 못 하는 해자(남들은 의도를 모름) 실현
@@ -50,11 +50,11 @@ leads_to: "AI가 시킨 대로(scope/forbidden) 했나"를 자동 판정 — 경
 - **latest.json 스키마 불변** (격리 결정 존중 — 옵션 A).
 - GA: 기존 verify/mission/receipt 시그니처 추가만(옵셔널 필드). breaking 0.
 
-## Completion Check (작은 단위 — 미착수)
-- [ ] `ReceiptEvidence.intent?` 필드 + `commands/receipt.ts` 수집기가 mission.json 있을 때 `checkMission` 호출
-- [ ] 순수 `decideReceipt`가 forbidden→block · scope→caution 반영 (단조성 유지)
-- [ ] 하위호환 테스트 — mission.json 없으면 기존과 동일(decision·출력 불변)
-- [ ] 과확장 0 테스트 — scope 안 변경은 caution 유발 안 함
+## Completion Check (PR1 완료 · PR2/게이트 잔여)
+- [x] `ReceiptEvidence.intent?` 필드 + `commands/receipt.ts` 수집기가 mission.json 있을 때 `checkMission` 호출 (PR1, #394 예정)
+- [x] 순수 `decideReceipt`가 forbidden→block · scope→caution 반영 (단조성 유지) (PR1)
+- [x] 하위호환 테스트 — mission.json 없으면 기존과 동일(decision·출력 불변) (PR1)
+- [x] 과확장 0 테스트 — scope 안 변경은 caution 유발 안 함 (PR1)
 - [ ] review가 forbidden 위반을 거짓완료 신호로 합류 (PR2)
 - [ ] 공통 게이트(_meta), check-goal-87.mjs (vhk goal sync 자동생성)
 
