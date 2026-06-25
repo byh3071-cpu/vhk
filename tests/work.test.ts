@@ -172,4 +172,46 @@ describe('work / workHandoff — 동작·안전장치', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  // ── 방향 3-②: mission 미설정 경고(block 아님 — exit 0 유지) ──
+  it('work — mission 없으면 경고 출력 + exit 0 (block 아님)', async () => {
+    const dir = tmpProject('mission-unset')
+    makeGoal(dir, 1, 'IN_PROGRESS')
+    const logs: string[] = []
+    ;(console.log as unknown as { mockImplementation: (f: (m?: unknown) => void) => void })
+      .mockImplementation((m?: unknown) => { logs.push(String(m ?? '')) })
+    process.exitCode = 0
+    process.chdir(dir)
+    try {
+      const { ko } = await import('../src/i18n/ko.js')
+      const { work } = await import('../src/commands/work.js')
+      await work()
+      expect(logs.some((l) => l.includes(ko.work.missionUnset))).toBe(true)
+      expect(process.exitCode ?? 0).toBe(0) // 경고일 뿐 — exit 0
+    } finally {
+      process.exitCode = 0
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('work — mission 있으면 경고 없음', async () => {
+    const dir = tmpProject('mission-set')
+    makeGoal(dir, 1, 'IN_PROGRESS')
+    const logs: string[] = []
+    ;(console.log as unknown as { mockImplementation: (f: (m?: unknown) => void) => void })
+      .mockImplementation((m?: unknown) => { logs.push(String(m ?? '')) })
+    process.chdir(dir)
+    try {
+      const { writeMission, scaffoldMission } = await import('../src/commands/mission.js')
+      writeMission(dir, scaffoldMission('app'))
+      const { ko } = await import('../src/i18n/ko.js')
+      const { work } = await import('../src/commands/work.js')
+      await work()
+      expect(logs.some((l) => l.includes(ko.work.missionUnset))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

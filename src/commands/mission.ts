@@ -126,9 +126,28 @@ export function readMission(cwd: string = process.cwd()): Mission | null {
   }
 }
 
-function writeMission(cwd: string, mission: Mission): void {
+export function writeMission(cwd: string, mission: Mission): void {
   mkdirSync(join(cwd, '.vhk'), { recursive: true })
   atomicWriteFile(join(cwd, MISSION_PATH_REL), JSON.stringify(mission, null, 2) + '\n')
+}
+
+/** 미설정 상태를 의미하는 placeholder objective — init 스캐폴드가 박고, 사용자가 mission set 으로 채운다. */
+export const MISSION_SCAFFOLD_OBJECTIVE = '(작업 전 vhk mission set 으로 선언)'
+
+/**
+ * init 스캐폴드용 빈 미션 계약 — 순수 팩토리(fs 없음). scope/forbidden 빈 배열, objective 는 placeholder.
+ * 의도: mission.json 을 미리 깔아 "미설정 0" 상태(거짓 안전)를 없애고, work/receipt 가 합류 지점을 갖게 한다.
+ */
+export function scaffoldMission(_projectName: string): Mission {
+  const now = new Date().toISOString()
+  return {
+    schemaVersion: MISSION_SCHEMA_VERSION,
+    objective: MISSION_SCAFFOLD_OBJECTIVE,
+    scope: [],
+    forbidden: [],
+    createdAt: now,
+    updatedAt: now,
+  }
 }
 
 /** working tree + staged 변경 파일 경로 (simple-git status — 추가/수정/삭제/이름변경/미추적 포함). */

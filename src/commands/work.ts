@@ -12,6 +12,7 @@ import { emitPrompt } from '../lib/emit-prompt.js'
 import { detectDocCandidates, formatDocCandidatesForPrompt, type DocCandidates } from '../lib/doc-suggest.js'
 import { getSessionDiff, getRecentCommits } from '../lib/git.js'
 import { localDate } from '../lib/date.js'
+import { readMission } from './mission.js'
 
 const VHK_DIR = '.vhk'
 
@@ -163,6 +164,12 @@ export async function work(): Promise<void> {
   const goalLine = activeGoalLine()
   console.log('')
   console.log(chalk.cyan(`🎯 현재 목표: ${goalLine}`))
+
+  // 작업 계약(mission) 미설정 경고 — block 아님(exit 0 유지). 사용자가 의도적으로 미설정할 수 있다.
+  if (readMission(process.cwd()) === null) {
+    console.log('')
+    console.log(chalk.yellow(`   ${ko.work.missionUnset}`))
+  }
 
   const refreshed = await refreshContextQuietly()
   console.log(chalk.dim(refreshed ? '⚙️  .vhk/context.md 갱신됨' : '⚙️  .vhk/context.md 갱신 생략(건너뜀)'))

@@ -25,6 +25,7 @@ import { readJsonFile } from '../lib/read-json.js'
 import { detectExistingRuleFiles, buildAdoptedRules } from '../lib/rules-import.js'
 import { detectProjectStack, detectManifestLangs } from '../lib/stack-detect.js'
 import { isInteractive } from '../lib/interactive.js'
+import { scaffoldMission, writeMission, readMission, MISSION_PATH_REL } from './mission.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -284,6 +285,22 @@ export async function init(options: InitOptions = {}) {
   }
 
   await writeInitExtras(cwd, !isInteractive(options))
+
+  // 작업 계약(mission) 뼈대 — 이미 있으면 절대 덮어쓰지 않는다(조건부). isInteractive 분기 밖:
+  // 비대화형 --yes 에서도 생성해 "미설정 0"(거짓 안전)을 없애고 work/receipt 가 합류 지점을 갖게 한다.
+  // 선택 기능이라 실패(권한 등)해도 init 전체를 중단하지 않는다 — 경고만 (missionSet 과 동일 방어).
+  const missionPath = path.join(cwd, MISSION_PATH_REL)
+  if (!fileExists(missionPath)) {
+    try {
+      writeMission(cwd, scaffoldMission(answers.name))
+      log.success(ko.init.missionScaffold)
+    } catch (e) {
+      log.warn(`${ko.init.missionScaffoldFailed} ${e instanceof Error ? e.message : String(e)}`)
+    }
+  } else if (readMission(cwd) === null) {
+    // 파일은 있는데 손상(파싱 실패) → work 가 "없다"고 경고하는 혼동 방지용 별도 안내. 덮어쓰진 않음(보존).
+    log.warn(ko.init.missionScaffoldCorrupt)
+  }
 
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
