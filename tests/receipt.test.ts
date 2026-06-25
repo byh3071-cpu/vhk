@@ -11,7 +11,7 @@ import {
   type ReceiptDecision,
   HONESTY_LINE,
 } from '../src/lib/receipt.js'
-import { collectReceipt } from '../src/commands/receipt.js'
+import { collectReceipt, collectIntent } from '../src/commands/receipt.js'
 
 // Goal 86 (RFC 0056 T1): vhk receipt — 4대 기계증거 → 영수증 1장.
 // 핵심 불변식(테스트로 고정):
@@ -223,4 +223,164 @@ describe('lint 게이트 → receipt block 합류 (#381 거짓완료 포획)', (
     expect(r.decision).toBe('block')
     fs.rmSync(d, { recursive: true, force: true })
   }, 30_000)
+})
+
+// Goal 87: ⑤ intent(의도 대조) — mission(scope/forbidden) ↔ 변경 파일.
+//  forbidden 위반 = 결정론 실차단(block, red/dirty/stale 동급) · scope 밖 = advisory(caution).
+//  mission.json 없으면 동작·decision·출력 변화 0(하위호환). 단조성·과확장 0 유지.
+describe('decideReceipt — ⑤ intent(의도 대조) 반영', () => {
+  it('forbidden 위반(missionKnown) → block (red/dirty/stale 동급 실차단)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 1, scopeWarnings: 0 }
+    expect(decideReceipt(e)).toBe('block')
+  })
+
+  it('scope 밖 변경만(forbidden 0, missionKnown) → caution (block 아님 — advisory)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 3 }
+    expect(decideReceipt(e)).toBe('caution')
+  })
+
+  it('하위호환 — intent 부재(undefined)면 기존과 동일(clean→pass)', () => {
+    const e = cleanEvidence()
+    expect(e.intent).toBeUndefined()
+    expect(decideReceipt(e)).toBe('pass')
+  })
+
+  it('missionKnown=false 면 forbiddenHits 가 있어도 무시 → 영향 0(clean→pass)', () => {
+    const e = cleanEvidence()
+    // mission 없을 때의 방어값: 숫자가 채워져도 missionKnown=false 면 decision 에 반영 안 됨.
+    e.intent = { missionKnown: false, forbiddenHits: 5, scopeWarnings: 5 }
+    expect(decideReceipt(e)).toBe('pass')
+  })
+
+  it('과확장 0 — missionKnown 이어도 위반·경고 0 이면 caution 유발 안 함(clean→pass)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0 }
+    expect(decideReceipt(e)).toBe('pass')
+  })
+
+  it('단조성 — clean 에 forbidden 위반을 더해도 절대 pass 로 격상 안 됨(→block)', () => {
+    const order: Record<ReceiptDecision, number> = { pass: 0, caution: 1, block: 2 }
+    const base = cleanEvidence()
+    const baseRank = order[decideReceipt(base)] // pass
+    const violated = cleanEvidence()
+    violated.intent = { missionKnown: true, forbiddenHits: 2, scopeWarnings: 0 }
+    expect(order[decideReceipt(violated)]).toBeGreaterThanOrEqual(baseRank)
+    expect(decideReceipt(violated)).toBe('block')
+  })
+
+  it('실차단 우선 — diff-cover 풀커버여도 forbidden 위반이면 block', () => {
+    const e = cleanEvidence()
+    e.diffCover = { measured: true, totalAdded: 10, totalUncovered: 0, ratio: 1 }
+    e.intent = { missionKnown: true, forbiddenHits: 1, scopeWarnings: 0 }
+    expect(decideReceipt(e)).toBe('block')
+  })
+})
+
+describe('renderReceiptMarkdown — ⑤ intent 행', () => {
+  function receiptWithIntent(intent: ReceiptEvidence['intent']) {
+    const e = cleanEvidence()
+    e.intent = intent
+    return renderReceiptMarkdown(
+      buildReceipt(e, {
+        generatedAt: '2026-06-25T00:00:00.000Z',
+        date: '2026-06-25',
+        slug: 's',
+        headSha: 'abc1234def',
+        baseSha: 'abc1234def',
+      })
+    )
+  }
+
+  it('forbidden 위반 → ⑤ intent 행 + "의도" 표기 + 판정 BLOCK', () => {
+    const md = receiptWithIntent({ missionKnown: true, forbiddenHits: 1, scopeWarnings: 0 })
+    expect(md).toContain('intent')
+    expect(md).toMatch(/의도|forbidden/)
+    expect(md).toContain('BLOCK')
+  })
+
+  it('하위호환 — mission 부재(intent undefined)면 ⑤ intent 행 자체가 없다(출력 변화 0)', () => {
+    const md = receiptWithIntent(undefined)
+    expect(md).not.toContain('⑤')
+    expect(md).not.toContain('intent')
+  })
+})
+
+describe('collectIntent(경계) — mission.json ↔ 변경 파일', () => {
+  // 커밋 1개 박은 임시 git 레포 + 선택적 mission.json. verify 게이트는 안 돌림(intent 수집만 — 빠름).
+  function makeMissionRepo(mission: { forbidden: string[]; scope: string[] } | null): string {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-receipt-intent-'))
+    const g = (args: string[]): void => {
+      execFileSync('git', args, { cwd: d, stdio: 'pipe' })
+    }
+    g(['init'])
+    g(['config', 'user.email', 't@t'])
+    g(['config', 'user.name', 't'])
+    fs.writeFileSync(path.join(d, 'README.md'), 'seed\n', 'utf-8')
+    g(['add', '.'])
+    g(['commit', '-m', 'seed'])
+    if (mission) {
+      fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+      fs.writeFileSync(
+        path.join(d, '.vhk', 'mission.json'),
+        JSON.stringify({
+          schemaVersion: 1,
+          objective: 'test',
+          scope: mission.scope,
+          forbidden: mission.forbidden,
+          createdAt: '2026-06-25T00:00:00.000Z',
+          updatedAt: '2026-06-25T00:00:00.000Z',
+        }),
+        'utf-8'
+      )
+      // mission.json 을 커밋해 "변경 파일"에서 뺀다 — 안 그러면 mission.json 자체가 scope 밖 변경으로
+      // 잡혀 검증 대상(secret/stray/self-tracked)만 보려는 의도를 흐린다.
+      g(['add', '.'])
+      g(['commit', '-m', 'mission'])
+    }
+    return d
+  }
+
+  it('forbidden 매치 변경 → forbiddenHits>0 → decideReceipt block (수용기준)', () => {
+    const d = makeMissionRepo({ forbidden: ['secret/**'], scope: [] })
+    fs.mkdirSync(path.join(d, 'secret'), { recursive: true })
+    fs.writeFileSync(path.join(d, 'secret', 'key.txt'), 'x', 'utf-8')
+    const intent = collectIntent(d)
+    expect(intent?.missionKnown).toBe(true)
+    expect(intent?.forbiddenHits).toBeGreaterThan(0)
+    const e = cleanEvidence()
+    e.intent = intent
+    expect(decideReceipt(e)).toBe('block')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('scope 밖 변경 → scopeWarnings>0 · forbiddenHits=0 → caution', () => {
+    const d = makeMissionRepo({ forbidden: [], scope: ['allowed/**'] })
+    fs.writeFileSync(path.join(d, 'stray.txt'), 'x', 'utf-8')
+    const intent = collectIntent(d)
+    expect(intent?.forbiddenHits).toBe(0)
+    expect(intent?.scopeWarnings).toBeGreaterThan(0)
+    const e = cleanEvidence()
+    e.intent = intent
+    expect(decideReceipt(e)).toBe('caution')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('하위호환 — mission.json 없으면 collectIntent undefined(변경이 있어도)', () => {
+    const d = makeMissionRepo(null)
+    fs.writeFileSync(path.join(d, 'whatever.txt'), 'x', 'utf-8')
+    expect(collectIntent(d)).toBeUndefined()
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('자기참조 회귀 — .vhk/events/*.jsonl 변경은 scope 경고를 유발 안 함(dirty 와 동일 제외)', () => {
+    const d = makeMissionRepo({ forbidden: [], scope: ['src/**'] })
+    fs.mkdirSync(path.join(d, '.vhk', 'events'), { recursive: true })
+    fs.writeFileSync(path.join(d, '.vhk', 'events', 'ai-actions.jsonl'), '{}\n', 'utf-8')
+    const intent = collectIntent(d)
+    expect(intent?.scopeWarnings).toBe(0)
+    expect(intent?.forbiddenHits).toBe(0)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })
