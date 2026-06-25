@@ -278,6 +278,36 @@ describe('decideReceipt — ⑤ intent(의도 대조) 반영', () => {
   })
 })
 
+// Goal 87 방향 2-1: glob 미지원 문법 → 거짓 안전을 caution 으로 드러냄.
+describe('decideReceipt — unsupportedForbiddenCount (방향 2-1)', () => {
+  it('unsupportedForbiddenCount>0 → caution (forbidden 검증 무효 가능 — advisory, block 아님)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0, unsupportedForbiddenCount: 1 }
+    expect(decideReceipt(e)).toBe('caution')
+  })
+
+  it('단조성 — unsupportedForbiddenCount>0 결과 등급 ≥ cleanEvidence() 결과 등급', () => {
+    const order: Record<ReceiptDecision, number> = { pass: 0, caution: 1, block: 2 }
+    const base = cleanEvidence()
+    const baseRank = order[decideReceipt(base)]
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0, unsupportedForbiddenCount: 1 }
+    expect(order[decideReceipt(e)]).toBeGreaterThanOrEqual(baseRank)
+  })
+
+  it('missionKnown=false + unsupportedForbiddenCount=5 → pass (하위호환, 영향 0)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: false, forbiddenHits: 0, scopeWarnings: 0, unsupportedForbiddenCount: 5 }
+    expect(decideReceipt(e)).toBe('pass')
+  })
+
+  it('intent 없을 때(undefined) → pass 유지 (하위호환)', () => {
+    const e = cleanEvidence()
+    expect(e.intent).toBeUndefined()
+    expect(decideReceipt(e)).toBe('pass')
+  })
+})
+
 describe('renderReceiptMarkdown — ⑤ intent 행', () => {
   function receiptWithIntent(intent: ReceiptEvidence['intent']) {
     const e = cleanEvidence()

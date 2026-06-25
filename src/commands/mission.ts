@@ -8,6 +8,7 @@ import { readJsonFile } from '../lib/read-json.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { printNextStep } from '../lib/next-step.js'
 import { isInteractive } from '../lib/interactive.js'
+import { ko } from '../i18n/ko.js'
 
 /**
  * Goal 17: vhk mission — Mission Contract (Trust Loop scope/intent 층).
@@ -36,6 +37,7 @@ export interface MissionCheckResult {
   violations: { file: string; pattern: string }[]
   warnings: { file: string }[]
   disclaimer: string
+  unsupportedForbiddenPatterns: string[]
 }
 
 /** glob → RegExp. `**`=경로 전체(슬래시 포함), `*`=세그먼트 내, `?`=한 글자. 외부 의존 0. */
@@ -62,6 +64,27 @@ export function globToRegExp(glob: string): RegExp {
   return new RegExp('^' + re + '$')
 }
 
+/**
+ * glob 패턴이 globToRegExp 로 지원되지 않는 문법을 포함하는지 검출. 포함하면 패턴 문자열(비null) 반환.
+ *
+ * 검출 규칙:
+ * - `!` — 어느 위치에든 포함 시 미지원(negation glob 은 globToRegExp 가 처리 안 함).
+ * - `{` — 중괄호 확장({a,b}) 미지원. `.+^${}()|[]\\` escape 목록에 `{` 가 있어 리터럴로 처리됨.
+ * - `[` — 문자 클래스([abc]·[!abc]) 미지원. escape 처리돼 리터럴 `[` 로만 매칭됨.
+ * - 후행 `/` — 디렉터리 한정 glob. globToRegExp 가 trailing slash 를 그대로 re 에 붙여
+ *   "경로가 /로 끝나야 매칭" 조건을 만들므로 파일 경로와 절대 매칭 안 됨.
+ *
+ * why: `?` 는 `[^/]` 로 변환돼 **지원됨** → 검출 대상 아님(L-2).
+ *      `*`·`**` 도 지원. [abc]·[!abc] 는 escape돼 리터럴로 처리되므로 둘 다 미지원 경고 대상.
+ */
+export function detectUnsupportedGlob(g: string): string | null {
+  if (g.includes('!')) return g
+  if (g.includes('{')) return g
+  if (g.includes('[')) return g
+  if (g.endsWith('/')) return g
+  return null
+}
+
 /** 경로가 glob 목록 중 하나라도 매칭하는지. 경로 구분자는 posix(/)로 정규화. */
 function matchesAny(file: string, globs: string[]): string | null {
   const norm = file.replace(/\\/g, '/')
@@ -78,6 +101,7 @@ function matchesAny(file: string, globs: string[]): string | null {
 export function checkMission(changedFiles: string[], mission: Mission): MissionCheckResult {
   const violations: MissionCheckResult['violations'] = []
   const warnings: MissionCheckResult['warnings'] = []
+  const unsupportedForbiddenPatterns = mission.forbidden.filter((g) => detectUnsupportedGlob(g) !== null)
   for (const file of changedFiles) {
     const forbiddenHit = matchesAny(file, mission.forbidden)
     if (forbiddenHit) {
@@ -88,7 +112,7 @@ export function checkMission(changedFiles: string[], mission: Mission): MissionC
       warnings.push({ file })
     }
   }
-  return { violations, warnings, disclaimer: MISSION_DISCLAIMER }
+  return { violations, warnings, disclaimer: MISSION_DISCLAIMER, unsupportedForbiddenPatterns }
 }
 
 /** .vhk/mission.json 읽기 (BOM-safe). 없거나 손상이면 null. */
@@ -213,7 +237,12 @@ export async function missionCheck(): Promise<void> {
     console.log(chalk.yellow.bold(`\n  ⚠️  scope 밖 변경 ${result.warnings.length}건 (경고)`))
     for (const w of result.warnings) console.log(chalk.yellow(`   ? ${w.file}`))
   }
-  if (result.violations.length === 0 && result.warnings.length === 0) {
+  if (result.unsupportedForbiddenPatterns.length > 0) {
+    console.log(chalk.yellow.bold(`\n  ⚠️  ${ko.receipt.unsupportedForbiddenGlob(result.unsupportedForbiddenPatterns.length)}`))
+    for (const p of result.unsupportedForbiddenPatterns) console.log(chalk.yellow(`   ? ${p}`))
+  }
+  // 미지원 패턴이 있으면 "✓ 통과"와 "⚠️ 미지원" 모순 메시지를 동시 출력하지 않는다(critic L-1).
+  if (result.violations.length === 0 && result.warnings.length === 0 && result.unsupportedForbiddenPatterns.length === 0) {
     console.log(chalk.green('\n  ✓ 변경이 계약(scope/forbidden) 안입니다.'))
   }
   console.log(chalk.yellow(`\n  ${result.disclaimer}`))

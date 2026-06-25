@@ -11,6 +11,7 @@ import {
   missionSet,
   missionShow,
   missionCheck,
+  detectUnsupportedGlob,
   MISSION_PATH_REL,
   MISSION_DISCLAIMER,
   type Mission,
@@ -35,6 +36,33 @@ describe('mission — globToRegExp', () => {
   it('`*.md` 는 루트 세그먼트만 (디렉터리 안 넘음)', () => {
     expect(globToRegExp('*.md').test('README.md')).toBe(true)
     expect(globToRegExp('*.md').test('docs/x.md')).toBe(false)
+  })
+})
+
+describe('mission — detectUnsupportedGlob (방향 2-1)', () => {
+  it('선두 ! → 비null (negation glob 미지원)', () => {
+    expect(detectUnsupportedGlob('!src/a.ts')).not.toBeNull()
+  })
+  it('중간 ! → 비null (어느 위치든 ! 는 미지원, L-1)', () => {
+    expect(detectUnsupportedGlob('src/a!b.ts')).not.toBeNull()
+  })
+  it('{ 포함 → 비null (중괄호 확장 미지원)', () => {
+    expect(detectUnsupportedGlob('src/{a,b}.ts')).not.toBeNull()
+  })
+  it('[ 포함 → 비null (문자 클래스 미지원, [abc]·[!abc] 둘 다)', () => {
+    expect(detectUnsupportedGlob('src/[ab].ts')).not.toBeNull()
+  })
+  it('후행 / → 비null (디렉터리 glob 미지원)', () => {
+    expect(detectUnsupportedGlob('src/')).not.toBeNull()
+  })
+  it('? 는 지원됨 → null (L-2: globToRegExp 가 [^/] 로 변환)', () => {
+    expect(detectUnsupportedGlob('src/a?.ts')).toBeNull()
+  })
+  it('** 포함 일반 패턴 → null (지원)', () => {
+    expect(detectUnsupportedGlob('src/**/*.ts')).toBeNull()
+  })
+  it('*.md → null (지원)', () => {
+    expect(detectUnsupportedGlob('*.md')).toBeNull()
   })
 })
 
@@ -63,6 +91,15 @@ describe('mission — checkMission (순수)', () => {
   it('disclaimer 항상 존재 ("보장 아님" + 경로 glob 한계)', () => {
     expect(checkMission([], mission([], [])).disclaimer).toBe(MISSION_DISCLAIMER)
     expect(MISSION_DISCLAIMER).toMatch(/경로 glob|의미/)
+  })
+  it('미지원 forbidden 패턴 → unsupportedForbiddenPatterns 수집, 위반은 0 (glob 실패지 파일 매치 아님)', () => {
+    const r = checkMission(['src/a.ts'], mission([], ['src/{a,b}.ts']))
+    expect(r.violations).toHaveLength(0)
+    expect(r.unsupportedForbiddenPatterns).toHaveLength(1)
+  })
+  it('지원 forbidden 패턴만 있으면 unsupportedForbiddenPatterns 빈 배열', () => {
+    const r = checkMission(['src/a.ts'], mission([], ['**/secret*']))
+    expect(r.unsupportedForbiddenPatterns).toHaveLength(0)
   })
 })
 
