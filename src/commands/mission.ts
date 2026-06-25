@@ -64,19 +64,17 @@ export function globToRegExp(glob: string): RegExp {
   return new RegExp('^' + re + '$')
 }
 
-/**
- * glob 패턴이 globToRegExp 로 지원되지 않는 문법을 포함하는지 검출. 포함하면 패턴 문자열(비null) 반환.
- *
- * 검출 규칙:
- * - `!` — 어느 위치에든 포함 시 미지원(negation glob 은 globToRegExp 가 처리 안 함).
- * - `{` — 중괄호 확장({a,b}) 미지원. `.+^${}()|[]\\` escape 목록에 `{` 가 있어 리터럴로 처리됨.
- * - `[` — 문자 클래스([abc]·[!abc]) 미지원. escape 처리돼 리터럴 `[` 로만 매칭됨.
- * - 후행 `/` — 디렉터리 한정 glob. globToRegExp 가 trailing slash 를 그대로 re 에 붙여
- *   "경로가 /로 끝나야 매칭" 조건을 만들므로 파일 경로와 절대 매칭 안 됨.
- *
- * why: `?` 는 `[^/]` 로 변환돼 **지원됨** → 검출 대상 아님(L-2).
- *      `*`·`**` 도 지원. [abc]·[!abc] 는 escape돼 리터럴로 처리되므로 둘 다 미지원 경고 대상.
- */
+// glob 패턴이 globToRegExp 로 지원되지 않는 문법을 포함하는지 검출. 포함하면 패턴 문자열(비null) 반환.
+//
+// 검출 규칙:
+// - `!` — 어느 위치에든 포함 시 미지원(negation glob 은 globToRegExp 가 처리 안 함).
+// - `{` — 중괄호 확장({a,b}) 미지원. `.+^${}()|[]\\` escape 목록에 `{` 가 있어 리터럴로 처리됨.
+// - `[` — 문자 클래스([abc]·[!abc]) 미지원. escape 처리돼 리터럴 `[` 로만 매칭됨.
+// - 후행 `/` — 디렉터리 한정 glob. globToRegExp 가 trailing slash 를 그대로 re 에 붙여
+//   "경로가 /로 끝나야 매칭" 조건을 만들므로 파일 경로와 절대 매칭 안 됨.
+//
+// why: `?` 는 `[^/]` 로 변환돼 지원됨 → 검출 대상 아님(L-2).
+//      `*`·`**` 도 지원. [abc]·[!abc] 는 escape돼 리터럴로 처리되므로 둘 다 미지원 경고 대상.
 export function detectUnsupportedGlob(g: string): string | null {
   if (g.includes('!')) return g
   if (g.includes('{')) return g
