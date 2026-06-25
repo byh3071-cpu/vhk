@@ -27,5 +27,23 @@ export default tseslint.config({
     '@typescript-eslint/no-base-to-string': 'error',
     // Promise reject 는 Error 로(문자열 reject 는 스택 없는 디버깅 지옥).
     '@typescript-eslint/prefer-promise-reject-errors': 'error',
+
+    // ── 영구 코딩 규칙 코드화 (RULES.md → 자동 집행 → verify lint 게이트 → receipt block #381) ──
+    // RULES.md: `execSync` 신규 사용 금지 → `safeExecFile` 사용. execFileSync(safeExecFile 내부 통로)는 허용 — execSync 만 차단.
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector: "CallExpression[callee.name='execSync']",
+        message: 'execSync 신규 사용 금지 → safeExecFile 사용 (RULES.md 코딩 규칙)',
+      },
+      {
+        selector: "MemberExpression[property.name='execSync']",
+        message: 'execSync 신규 사용 금지 → safeExecFile 사용 (RULES.md 코딩 규칙)',
+      },
+    ],
+    // RULES.md: try-catch 필수, 빈 catch 금지. 주석으로 무시 사유를 밝힌 catch 는 통과(no-empty 기본).
+    'no-empty': ['error', { allowEmptyCatch: false }],
+    // RULES.md: TypeScript strict (any 금지) — tsc strict 는 implicit any 만, 명시 `: any`/`as any` 는 여기서 차단.
+    '@typescript-eslint/no-explicit-any': 'error',
   },
 })
