@@ -11,7 +11,7 @@ import {
   type ReceiptDecision,
   HONESTY_LINE,
 } from '../src/lib/receipt.js'
-import { collectReceipt, collectIntent } from '../src/commands/receipt.js'
+import { collectReceipt, collectIntent, verifyBaseSha } from '../src/commands/receipt.js'
 
 // Goal 86 (RFC 0056 T1): vhk receipt — 4대 기계증거 → 영수증 1장.
 // 핵심 불변식(테스트로 고정):
@@ -436,4 +436,158 @@ describe('collectIntent(경계) — mission.json ↔ 변경 파일', () => {
     expect(intent?.scopeWarnings).toBe(0)
     expect(intent?.forbiddenHits).toBe(0)
   })
+
+  // 방향 3-③: mission checksum 스냅샷(사후 위조 탐지). decision 영향 0 — 순수 사후 감사용.
+  it('mission 있으면 missionChecksum 존재 + 16자 hex', () => {
+    const d = makeMissionRepo({ forbidden: ['secret/**'], scope: [] })
+    const intent = collectIntent(d)
+    expect(intent?.missionChecksum).toBeDefined()
+    expect(intent?.missionChecksum).toMatch(/^[0-9a-f]{16}$/)
+  })
+
+  it('mission.json 내용이 바뀌면 checksum 도 달라진다(사후 위조 탐지)', () => {
+    const d = makeMissionRepo({ forbidden: ['secret/**'], scope: [] })
+    const before = collectIntent(d)?.missionChecksum
+    // forbidden 을 완화(위조 시나리오) → 내용 변화 → checksum 변화.
+    fs.writeFileSync(
+      path.join(d, '.vhk', 'mission.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        objective: 'test',
+        scope: [],
+        forbidden: [],
+        createdAt: '2026-06-25T00:00:00.000Z',
+        updatedAt: '2026-06-25T00:00:00.000Z',
+      }),
+      'utf-8'
+    )
+    const after = collectIntent(d)?.missionChecksum
+    expect(before).toBeDefined()
+    expect(after).toBeDefined()
+    expect(after).not.toBe(before)
+  })
+
+  it('하위호환 — mission 없으면 missionChecksum 자체가 없다(undefined intent)', () => {
+    const d = makeMissionRepo(null)
+    expect(collectIntent(d)).toBeUndefined()
+  })
+})
+
+// 방향 3-③: checksum 은 decision 에 절대 반영 안 됨(순수 사후 감사) — 단조성 불변식 ②·③ 불변.
+describe('decideReceipt — missionChecksum 은 decision 무영향(3-③)', () => {
+  it('checksum 유무가 decision 을 바꾸지 않는다(clean→pass 유지)', () => {
+    const withSum = cleanEvidence()
+    withSum.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0, missionChecksum: 'deadbeefdeadbeef' }
+    const without = cleanEvidence()
+    without.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0 }
+    expect(decideReceipt(withSum)).toBe('pass')
+    expect(decideReceipt(without)).toBe('pass')
+    expect(decideReceipt(withSum)).toBe(decideReceipt(without))
+  })
+
+  it('forbidden 위반 + checksum 있어도 여전히 block(checksum 이 격상시키지 못함)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 1, scopeWarnings: 0, missionChecksum: 'abcdef0123456789' }
+    expect(decideReceipt(e)).toBe('block')
+  })
+})
+
+describe('renderReceiptMarkdown — mission checksum 1줄(3-③)', () => {
+  function md(intent: ReceiptEvidence['intent']) {
+    const e = cleanEvidence()
+    e.intent = intent
+    return renderReceiptMarkdown(
+      buildReceipt(e, {
+        generatedAt: '2026-06-25T00:00:00.000Z',
+        date: '2026-06-25',
+        slug: 's',
+        headSha: 'abc1234def',
+        baseSha: 'abc1234def',
+      })
+    )
+  }
+
+  it('checksum 있으면 mission checksum 줄을 표시', () => {
+    const out = md({ missionKnown: true, forbiddenHits: 0, scopeWarnings: 0, missionChecksum: 'deadbeefdeadbeef' })
+    expect(out).toContain('mission checksum')
+    expect(out).toContain('deadbeefdeadbeef')
+  })
+
+  it('checksum 없으면(mission 있어도) checksum 줄 없음', () => {
+    const out = md({ missionKnown: true, forbiddenHits: 0, scopeWarnings: 0 })
+    expect(out).not.toContain('mission checksum')
+  })
+
+  it('하위호환 — mission 부재(intent undefined)면 checksum 줄 없음', () => {
+    const out = md(undefined)
+    expect(out).not.toContain('mission checksum')
+  })
+})
+
+// 방향 3-④: baseSha 무결성 — 위조·오타·비커밋 SHA 를 무효 처리(거짓 stale 방지).
+describe('verifyBaseSha / collectReceipt — baseSha 무결성(3-④)', () => {
+  const tmpDirs: string[] = []
+  afterEach(() => {
+    for (const d of tmpDirs) {
+      try {
+        fs.rmSync(d, { recursive: true, force: true })
+      } catch {
+        /* 정리 실패 무시 */
+      }
+    }
+    tmpDirs.length = 0
+  })
+
+  // 커밋 2개 + 빌드/테스트 게이트 없는 임시 git 레포 — baseSha 검증만 본다.
+  function makeRepo(): { dir: string; head: string } {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-receipt-basesha-'))
+    tmpDirs.push(d)
+    const g = (args: string[]): void => {
+      execFileSync('git', args, { cwd: d, stdio: 'pipe' })
+    }
+    g(['init'])
+    g(['config', 'user.email', 't@t'])
+    g(['config', 'user.name', 't'])
+    fs.writeFileSync(path.join(d, 'README.md'), 'seed\n', 'utf-8')
+    g(['add', '.'])
+    g(['commit', '-m', 'seed'])
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: d, encoding: 'utf-8' }).trim()
+    return { dir: d, head }
+  }
+
+  it('verifyBaseSha — 실제 HEAD 커밋이면 true', () => {
+    const { dir, head } = makeRepo()
+    expect(verifyBaseSha(dir, head)).toBe(true)
+  })
+
+  it('verifyBaseSha — 존재하지 않는 SHA 면 false(위조·오타)', () => {
+    const { dir } = makeRepo()
+    expect(verifyBaseSha(dir, '0000000000000000000000000000000000000000')).toBe(false)
+    expect(verifyBaseSha(dir, 'not-a-sha')).toBe(false)
+  })
+
+  it('verifyBaseSha — 커밋이 아닌 객체(tree)면 false(^{commit} 역참조 실패)', () => {
+    const { dir, head } = makeRepo()
+    // HEAD 의 tree SHA — 존재하는 객체지만 커밋이 아님. ^{commit} 으로 못 풀어야 정상.
+    const treeSha = execFileSync('git', ['rev-parse', `${head}^{tree}`], { cwd: dir, encoding: 'utf-8' }).trim()
+    expect(verifyBaseSha(dir, treeSha)).toBe(false)
+  })
+
+  // 무효 baseSha → 무효 처리(stale 미상). decision 은 임시 레포의 dirty/게이트로 오염될 수 있어
+  // 단언하지 않는다 — 3-④의 직접 출력(base.sha null·staleKnown false·stale false)만 본다.
+  it('collectReceipt — 무효 baseSha(--since 위조) → base.sha null · staleKnown false · stale false', () => {
+    const { dir } = makeRepo()
+    const r = collectReceipt(dir, '0000000000000000000000000000000000000000')
+    expect(r.base.sha).toBeNull()
+    expect(r.evidence.staleKnown).toBe(false)
+    expect(r.evidence.stale).toBe(false) // 무효 baseSha 는 거짓 stale 을 만들지 않는다.
+  }, 30_000)
+
+  it('collectReceipt — 유효 baseSha(=HEAD) → base.sha 보존 · staleKnown true · stale=false', () => {
+    const { dir, head } = makeRepo()
+    const r = collectReceipt(dir, head)
+    expect(r.base.sha).toBe(head)
+    expect(r.evidence.staleKnown).toBe(true)
+    expect(r.evidence.stale).toBe(false)
+  }, 30_000)
 })

@@ -57,6 +57,12 @@ export interface ReceiptIntentEvidence {
    * undefined·0은 무시. GA 동결 — 옵셔널로만 추가(기존 시그니처 불변).
    */
   unsupportedForbiddenCount?: number
+  // 방향 3-③: 영수증 발행 시점 mission.json 내용의 sha256 스냅샷(앞 16자).
+  // 왜: receipt 는 발행 후 mission.json 이 사후 위조(목표·forbidden 완화)돼도 그 영수증의 판정 근거가
+  //   무엇이었는지 증명할 길이 없었다. checksum 을 박아두면 "이 영수증은 *그때의* 계약으로 판정했다"가
+  //   사후 검증 가능해진다(같은 mission 의 두 영수증 checksum 이 다르면 사이에 계약이 바뀐 것).
+  // decision 에는 절대 반영 안 함 — 순수 사후 감사용(단조성 불변식 ②·③ 불변). GA 동결 — 옵셔널 추가만.
+  missionChecksum?: string
 }
 
 /** 영수증 입력 — 4대 기계증거 + (옵션) 의도 대조(commands/receipt.ts 가 git/verify/diff-cover/mission 에서 수집). */
@@ -273,6 +279,11 @@ export function renderReceiptMarkdown(r: Receipt): string {
     lines.push(`| ⑤ intent(의도 대조) | ${intentCell} | ${intentNote} |`)
   }
   lines.push('')
+  // 방향 3-③: mission checksum 1줄(사후 위조 탐지용). mission 있을 때만 — 없으면 출력 변화 0(하위호환).
+  if (e.intent?.missionKnown && e.intent.missionChecksum) {
+    lines.push(`- mission checksum: \`${e.intent.missionChecksum}\` (발행 시점 .vhk/mission.json 내용 해시 — 사후 위조 탐지용)`)
+    lines.push('')
+  }
   lines.push('**사유:**')
   for (const reason of r.reasons) lines.push(`- ${reason}`)
   lines.push('')

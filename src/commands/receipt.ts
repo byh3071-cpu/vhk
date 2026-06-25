@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
@@ -16,7 +17,7 @@ import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
 import { diffCoverage } from '../lib/diff-coverage.js'
 import { parsePorcelainLines } from '../lib/git-porcelain.js'
 import { porcelainPath, isSelfTrackedPath } from '../lib/self-tracked.js'
-import { readMission, checkMission } from './mission.js'
+import { readMission, checkMission, MISSION_PATH_REL } from './mission.js'
 import {
   buildReceipt,
   renderReceiptMarkdown,
@@ -53,6 +54,28 @@ export function readBaseSha(cwd: string): string | null {
   } catch {
     // 읽기 실패는 "미기록"으로 정직 처리(거짓 stale 금지).
     return null
+  }
+}
+
+/**
+ * 방향 3-④: baseSha 무결성 검증 — 그 SHA 가 실제 레포의 커밋 객체인지 git 에 묻는다.
+ *
+ * 왜: baseSha(.base-sha 파일 또는 --since 인자)는 사람·외부 입력이라 위조·오타·다른 레포 SHA·
+ *   비커밋 객체(blob/tree)일 수 있다. 검증 없이 그대로 쓰면 "baseSha ≠ HEAD"가 무조건 참이 되어
+ *   **거짓 stale(block)** 을 만들고, intent 의 `git diff <baseSha>` 도 엉뚱한 기준으로 돌아간다.
+ *   `git rev-parse --verify <sha>^{commit}` 는 해당 객체를 커밋으로 역참조 가능할 때만 0 으로 끝나고
+ *   아니면 throw → 무효로 판정한다(존재하지 않거나 커밋이 아니면 false).
+ *
+ * @returns 유효한 커밋이면 true. 무효(미존재·비커밋·git 실패)면 false → 호출부가 baseSha 를 null 처리.
+ */
+export function verifyBaseSha(cwd: string, sha: string): boolean {
+  try {
+    // ^{commit}: blob/tree/태그가 아니라 커밋으로 역참조 가능한지까지 본다(SHA 존재만으로 통과 금지).
+    gitOut(['rev-parse', '--verify', `${sha}^{commit}`], cwd)
+    return true
+  } catch {
+    // throw = 미존재/비커밋/레포 아님 → 무효. 거짓 stale 방지로 호출부가 baseSha 를 버린다.
+    return false
   }
 }
 
@@ -115,6 +138,25 @@ export function collectDiffCover(cwd: string): ReceiptDiffCover {
  * check` 는 self-tracked 를 제외 안 하므로 결과가 미세하게 다를 수 있다 — 의도된 차이.)
  * mission.json 없으면 undefined → decision·출력 영향 0(하위호환).
  */
+/**
+ * 방향 3-③: mission.json 내용의 sha256 스냅샷(앞 16자). 사후 위조 탐지용 — decision 영향 0.
+ *
+ * 왜 raw 파일을 해시하나: readMission 의 파싱 결과가 아니라 디스크의 실제 바이트를 본다 →
+ * objective/scope/forbidden 어느 한 글자라도 바뀌면 checksum 이 달라진다. BOM·양끝 공백은 stripBom+trim
+ * 으로 정규화(무의미한 차이로 checksum 이 흔들리지 않게) — 의미 있는 내용 변화만 반영. 16자 절단:
+ * 사후 대조엔 충돌확률 무시 가능하고 영수증 가독성↑. 읽기 실패 → undefined(거짓 checksum 금지, 정직).
+ */
+function missionChecksum(cwd: string): string | undefined {
+  try {
+    const raw = stripBom(readFileSync(join(cwd, MISSION_PATH_REL), 'utf-8')).trim()
+    if (!raw) return undefined
+    return createHash('sha256').update(raw, 'utf-8').digest('hex').slice(0, 16)
+  } catch {
+    // 읽기 실패는 checksum 부재로 정직 처리 — intent 본체(forbidden/scope)는 readMission 으로 이미 수집됨.
+    return undefined
+  }
+}
+
 export function collectIntent(cwd: string, baseSha?: string | null): ReceiptIntentEvidence | undefined {
   const mission = readMission(cwd)
   if (!mission) return undefined
@@ -144,6 +186,7 @@ export function collectIntent(cwd: string, baseSha?: string | null): ReceiptInte
     forbiddenHits: result.violations.length,
     scopeWarnings: result.warnings.length,
     unsupportedForbiddenCount: result.unsupportedForbiddenPatterns.length,
+    missionChecksum: missionChecksum(cwd),
   }
 }
 
@@ -163,7 +206,13 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
   const dirty = commit?.dirty ?? false
 
   // ③ stale — 작업시작 기준선 SHA ≠ 현재 HEAD. 기준선/HEAD 미상이면 stale 미상(거짓 block 금지).
-  const baseSha = baseShaOverride !== undefined ? baseShaOverride : readBaseSha(cwd)
+  // 방향 3-④: 기준선 SHA 가 실제 커밋인지 먼저 검증 — 위조·오타·다른 레포 SHA·비커밋 객체면 무효
+  //   처리해 거짓 stale(block)·엉뚱한 diff 기준을 막는다(무효 → null → stale 미상=caution, block 아님).
+  const rawBaseSha = baseShaOverride !== undefined ? baseShaOverride : readBaseSha(cwd)
+  const baseSha = rawBaseSha !== null && !verifyBaseSha(cwd, rawBaseSha) ? null : rawBaseSha
+  if (rawBaseSha !== null && baseSha === null) {
+    console.error(chalk.yellow(`  ⚠️  ${ko.receipt.invalidBaseSha(rawBaseSha)}`))
+  }
   const staleKnown = baseSha !== null && headSha !== null
   const stale = staleKnown ? baseSha !== headSha : false
 

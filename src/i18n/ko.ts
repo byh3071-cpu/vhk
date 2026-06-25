@@ -273,6 +273,9 @@ export const ko = {
     // Goal 87 방향 2-1: glob 미지원 문법 경고 — 거짓 안전을 caution 으로 드러냄.
     unsupportedForbiddenGlob: (n: number) =>
       `forbidden 패턴 ${n}개에 미지원 glob 문법(!, {}, [], 후행 /) — 해당 forbidden 검증 무효. 지원: *, **, ?`,
+    // Goal 87 방향 3-④: 작업시작 기준선 SHA 가 실제 커밋이 아님(위조·오타·다른 레포) — 무효 처리(거짓 stale 방지).
+    invalidBaseSha: (sha: string) =>
+      `작업시작 기준선 SHA(${sha})가 이 레포의 커밋이 아닙니다 — 무효 처리(stale 판정 제외). vhk receipt --mark-start 로 다시 고정하세요.`,
   },
   worktree: {
     checkTitle: '🌳 Worktree env 점검',
