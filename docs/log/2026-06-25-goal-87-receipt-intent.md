@@ -40,3 +40,8 @@
 - **PR2**: `review` 가 forbidden 위반을 거짓완료 신호에 합류(confidence cap/경고 1줄).
 - **PR3(선택)**: receipt `.md` 에 "의도 대조" 전용 섹션(scope/forbidden 상세).
 - objective(목표 달성) 판정은 범위 밖 — 결정론(scope/forbidden)만. LLM judge 는 Goal 73.
+
+## 리뷰 반영 (CodeRabbit · #394 · 2026-06-25)
+
+- **커밋된 위반 누락 차단 (🟡 정확성)**: `collectIntent` 가 `git status`(미커밋)만 봐서 **금지 파일을 고친 뒤 곧장 커밋하면** `forbiddenHits=0` 으로 위반을 놓치던 우회 구멍 → `baseSha`(작업시작 기준선)가 있으면 `git diff --name-only <baseSha>` + untracked 로 **커밋된 변경까지** 대조한다. (CodeRabbit 이 추천한 `diffUnified0`=`git diff HEAD` 는 커밋된 건 빠지므로 부정확 → `git diff <baseSha>` 채택.) self-tracked 제외는 porcelain 전용 `filterSelfTrackedLines` 대신 경로 기반 `isSelfTrackedPath` 로 통일. 기준선 없으면 status 폴백(이 경우는 receipt 의 stale③ 이 보완). 새 테스트로 "baseSha 기준 검출 vs status 폴백 미검출" 대조 고정.
+- **테스트 누수 (🔵 trivial)**: 임시 git 레포 정리를 `afterEach` 일괄로 — 단언 실패로 인라인 `rmSync` 가 건너뛰어도 누수 0.

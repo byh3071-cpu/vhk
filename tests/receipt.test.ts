@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -308,9 +308,23 @@ describe('renderReceiptMarkdown — ⑤ intent 행', () => {
 })
 
 describe('collectIntent(경계) — mission.json ↔ 변경 파일', () => {
+  // 임시 git 레포를 모아 afterEach 에서 일괄 삭제 — 단언 실패로 인라인 rmSync 가 건너뛰어도 누수 0(CodeRabbit #394).
+  const tmpDirs: string[] = []
+  afterEach(() => {
+    for (const d of tmpDirs) {
+      try {
+        fs.rmSync(d, { recursive: true, force: true })
+      } catch {
+        /* 정리 실패는 무시 — 테스트 결과에 영향 없음 */
+      }
+    }
+    tmpDirs.length = 0
+  })
+
   // 커밋 1개 박은 임시 git 레포 + 선택적 mission.json. verify 게이트는 안 돌림(intent 수집만 — 빠름).
   function makeMissionRepo(mission: { forbidden: string[]; scope: string[] } | null): string {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-receipt-intent-'))
+    tmpDirs.push(d)
     const g = (args: string[]): void => {
       execFileSync('git', args, { cwd: d, stdio: 'pipe' })
     }
@@ -352,7 +366,19 @@ describe('collectIntent(경계) — mission.json ↔ 변경 파일', () => {
     const e = cleanEvidence()
     e.intent = intent
     expect(decideReceipt(e)).toBe('block')
-    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('커밋된 forbidden 위반도 잡는다 — baseSha 기준(커밋해 숨기기 차단, CodeRabbit #394)', () => {
+    const d = makeMissionRepo({ forbidden: ['secret/**'], scope: [] })
+    const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: d, encoding: 'utf-8' }).trim()
+    fs.mkdirSync(path.join(d, 'secret'), { recursive: true })
+    fs.writeFileSync(path.join(d, 'secret', 'key.txt'), 'leak', 'utf-8')
+    execFileSync('git', ['add', '.'], { cwd: d, stdio: 'pipe' })
+    execFileSync('git', ['commit', '-m', 'leak'], { cwd: d, stdio: 'pipe' })
+    // 커밋 후 working tree 는 clean — status(미커밋)만 보면 놓친다. baseSha 기준이면 커밋된 위반을 잡는다.
+    expect(collectIntent(d, base)?.forbiddenHits).toBeGreaterThan(0)
+    // 대조: 기준선 없으면 status 폴백 → 미커밋 0 이라 forbiddenHits=0 (이 경우 receipt stale 이 보완).
+    expect(collectIntent(d)?.forbiddenHits).toBe(0)
   })
 
   it('scope 밖 변경 → scopeWarnings>0 · forbiddenHits=0 → caution', () => {
@@ -364,14 +390,12 @@ describe('collectIntent(경계) — mission.json ↔ 변경 파일', () => {
     const e = cleanEvidence()
     e.intent = intent
     expect(decideReceipt(e)).toBe('caution')
-    fs.rmSync(d, { recursive: true, force: true })
   })
 
   it('하위호환 — mission.json 없으면 collectIntent undefined(변경이 있어도)', () => {
     const d = makeMissionRepo(null)
     fs.writeFileSync(path.join(d, 'whatever.txt'), 'x', 'utf-8')
     expect(collectIntent(d)).toBeUndefined()
-    fs.rmSync(d, { recursive: true, force: true })
   })
 
   it('자기참조 회귀 — .vhk/events/*.jsonl 변경은 scope 경고를 유발 안 함(dirty 와 동일 제외)', () => {
@@ -381,6 +405,5 @@ describe('collectIntent(경계) — mission.json ↔ 변경 파일', () => {
     const intent = collectIntent(d)
     expect(intent?.scopeWarnings).toBe(0)
     expect(intent?.forbiddenHits).toBe(0)
-    fs.rmSync(d, { recursive: true, force: true })
   })
 })

@@ -15,7 +15,7 @@ import { addedLinesByFile } from '../lib/diff-hunks.js'
 import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
 import { diffCoverage } from '../lib/diff-coverage.js'
 import { parsePorcelainLines } from '../lib/git-porcelain.js'
-import { filterSelfTrackedLines, porcelainPath } from '../lib/self-tracked.js'
+import { porcelainPath, isSelfTrackedPath } from '../lib/self-tracked.js'
 import { readMission, checkMission } from './mission.js'
 import {
   buildReceipt,
@@ -103,22 +103,41 @@ export function collectDiffCover(cwd: string): ReceiptDiffCover {
 /**
  * ⑤ intent(의도 대조, Goal 87) 수집 — .vhk/mission.json 있으면 변경 파일을 scope/forbidden 과 대조.
  *
- * 변경 파일은 dirty(②)와 **동일 기준**으로 자기 산출 추적파일을 제외한다(Goal 85 filterSelfTrackedLines):
- * receipt 자신이 남기는 .vhk/events·ledger 가 scope 경고를 만드는 자기참조 노이즈를 막기 위함.
- * (수동 `vhk mission check` 는 self-tracked 를 제외 안 하므로 결과가 미세하게 다를 수 있다 — 의도된 차이.)
+ * 변경 파일 범위:
+ *  - baseSha(작업시작 기준선)가 있으면 `git diff --name-only <baseSha>` (baseSha..working tree) +
+ *    untracked 신규 — **커밋된 변경까지 포함**한다. 그래야 금지 파일을 고친 뒤 곧장 커밋해 status 에서
+ *    숨겨도(forbiddenHits=0 위장) 의도 위반을 놓치지 않는다(CodeRabbit #394 지적 — 거짓완료 우회 차단).
+ *  - 기준선 미기록이면 미커밋 변경(status -uall)만 본다. 이 경우 커밋된 변경은 receipt 의 stale(③)이
+ *    "증거 낡음"으로 잡는다(가능하면 vhk receipt --mark-start 로 기준선을 박는 게 정확).
+ *
+ * dirty(②)와 **동일 기준**으로 vhk 자기 산출 추적파일(isSelfTrackedPath)을 제외한다 — receipt 자신이
+ * 남기는 .vhk/events·ledger 가 scope 경고를 만드는 자기참조 노이즈 방지(Goal 85). (수동 `vhk mission
+ * check` 는 self-tracked 를 제외 안 하므로 결과가 미세하게 다를 수 있다 — 의도된 차이.)
  * mission.json 없으면 undefined → decision·출력 영향 0(하위호환).
  */
-export function collectIntent(cwd: string): ReceiptIntentEvidence | undefined {
+export function collectIntent(cwd: string, baseSha?: string | null): ReceiptIntentEvidence | undefined {
   const mission = readMission(cwd)
   if (!mission) return undefined
-  let changed: string[] = []
+  const files = new Set<string>()
   try {
-    // -uall: 미추적 파일을 개별 경로로 펴서 glob 매칭 정확도 확보(getCommitInfo 와 동일 이유).
-    const lines = parsePorcelainLines(gitOut(['status', '--porcelain', '--untracked-files=all'], cwd))
-    changed = filterSelfTrackedLines(lines).map(porcelainPath)
+    if (baseSha) {
+      // baseSha..working tree — 커밋된 변경까지 포함. diff 는 tracked 만이므로 untracked 는 ls-files 로 보충.
+      const diffNames = gitOut(['diff', '--name-only', baseSha], cwd)
+      const untracked = gitOut(['ls-files', '--others', '--exclude-standard'], cwd)
+      for (const f of `${diffNames}\n${untracked}`.split('\n')) {
+        const t = f.trim()
+        if (t) files.add(t)
+      }
+    } else {
+      // -uall: 미추적 파일을 개별 경로로 펴서 glob 매칭 정확도 확보(getCommitInfo 와 동일 이유).
+      for (const line of parsePorcelainLines(gitOut(['status', '--porcelain', '--untracked-files=all'], cwd))) {
+        files.add(porcelainPath(line))
+      }
+    }
   } catch {
-    // git status 실패 → 변경 목록 미상. 빈 목록(위반 0)으로 둔다 — 거짓 block 금지(정직).
+    // git 실패 → 변경 목록 미상. 빈 목록(위반 0)으로 둔다 — 거짓 block 금지(정직). 다른 증거가 보완.
   }
+  const changed = [...files].filter((f) => !isSelfTrackedPath(f))
   const { violations, warnings } = checkMission(changed, mission)
   return { missionKnown: true, forbiddenHits: violations.length, scopeWarnings: warnings.length }
 }
@@ -146,8 +165,8 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
   // ④ diff-cover — advisory(약신호).
   const diffCover = collectDiffCover(cwd)
 
-  // ⑤ intent — mission.json 있으면 scope/forbidden 대조(Goal 87). 없으면 undefined(decision·출력 영향 0).
-  const intent = collectIntent(cwd)
+  // ⑤ intent — mission.json 있으면 scope/forbidden 대조(Goal 87). baseSha 전달 → 커밋된 변경도 포함.
+  const intent = collectIntent(cwd, baseSha)
 
   return buildReceipt(
     {
