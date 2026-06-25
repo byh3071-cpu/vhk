@@ -4,10 +4,12 @@
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-06-23
+**갱신:** 2026-06-25
 **Phase:** **도그푸딩 하드닝(RFC 0053 · goals 78~84) 완료** — 78(#303)·79(#304)·80(#310)·81(#311)·82(#312)·83(#332)·84(#348) 전부 머지. 우선순위 2 measure-first가 현재 최우선(Recall@5 라벨링·diff-cover 누적 대기). 뒷단 4트랙(74~77)·SEO 22~26·SOUL 상속 기완료. 사실값(버전·테스트수)은 package.json·CHANGELOG.
 
 ## 다음 할 일 (measure-first 최우선)
+- **🆕 [2026-06-25 갱신 · 의도 검증 2층 합류 — 세션 핸드오프] main `423ff7b`** — receipt 의도 대조(**#394 Goal 87 PR1**: mission scope/forbidden ↔ 변경파일 → forbidden=block·scope=caution, baseSha 로 커밋된 위반까지) + 영구 규칙 ESLint 코드화(**#395**: execSync·빈catch·명시any → verify lint→receipt block 자동합류). "AI 에게 시킨 것"=작업계약(mission)+영구규칙(RULES.md) 2층 모두 자동 검증에 합류. **진입점 [docs/log/2026-06-25-intent-verification-handoff.md](../log/2026-06-25-intent-verification-handoff.md)** (B·C 상세).
+  - **다음 후보**: ⓐ **B=Phase 2 보강**(receipt 합류 E2E·RULES↔ESLint 일치 봉인 — 병렬, 즉시) · ⓑ **C=의도검증 방향 2·3·4 설계**(방향2 glob 정직화[부정 `!`·한글경로 미지원=거짓 안전] / 방향3 위조·미설정 차단[init 스캐폴드·baseSha 무결성] / 방향4 objective LLM=Goal 73 — 탐색완료·설계 미착수) · ⓒ **measure-first**(Recall@5·diff-cover 누적) · ⓓ **v2.8.0 발행**(2.7.0 이후 신기능 누적·2FA). **goal 87=IN_PROGRESS**(PR2 review 합류·PR3 md 잔여).
 - **🆕 [2026-06-24 갱신 · 이번 세션 19 PR 머지 — 증명트랙 T1 + 도그푸딩 wave2/3] main `76e6da0`** (npm 미발행 — 2.7.0인 채 +19 PR). **신기능 3**: `vhk receipt`(Goal 86)·events/ledger `merge=union`(멀티PC dirty-block 해소)·**verify lint 게이트**(4→5게이트 — receipt가 eslint 거짓완료 #381 클래스 포획). **도그푸딩 ~25 이슈 close**(wave2 #313/316/317/318/331/315 · wave3 #314/319~326/333/342~345/371). **receipt 라이브 검증 완료**(2026-06-24): 5게이트(tsc/lint/test/build/secure) PASS·자기파일 제외(Goal85)·receipts gitignore(Goal86)·미커밋이면 BLOCK 정상.
   - **다음 우선순위 (코드 아님 — doctrine: 병목=데이터·증명)**: ① **v2.8.0 npm 발행**(main +19 PR 미발행·2FA·CHANGELOG wave2/3·receipt 백필) · ② **T2 측정 데이터**(며칠 vhk 일상사용 — `vhk recall` 라벨 → `memory eval --init` → Recall@5 / `diff-cover` 추세 #371) · ③ **self-receipt 습관**(완료 전 `vhk receipt --mark-start`→`vhk receipt`, block이면 미완 — T3 라이브 캡처 무대, 현 0/8).
   - **코드 후속(저레버리지·필요시만)**: 측정스키마 #373/374/375 · Epic #376/364 · #372(memory영속 의도보류) · #309(vhk-auto skill 참조) · A86-low(`--since ""` 검증) · 미완 P2 goal 62/65/73/50/79 · self-receipt 자동강제(hook/skill).
