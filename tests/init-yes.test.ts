@@ -70,6 +70,42 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
     expect(rules).toContain('보존되어야 함 KEEP999') // 기존 RULES.md 보존
   })
 
+  it('방향 3-①: -y → .vhk/mission.json 스캐폴드 생성 (readMission 비null, 프롬프트 0)', async () => {
+    const { init } = await import('../src/commands/init.js')
+    const { readMission, MISSION_PATH_REL } = await import('../src/commands/mission.js')
+    await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+    expect(fs.existsSync(path.join(dir, MISSION_PATH_REL))).toBe(true)
+    const m = readMission(dir)
+    expect(m).not.toBeNull()
+    expect(m?.schemaVersion).toBe(1)
+    expect(m?.scope).toEqual([])
+    expect(m?.forbidden).toEqual([])
+  })
+
+  it('방향 3-①: 기존 mission.json 있으면 스캐폴드가 덮어쓰지 않음 (조건부 생성)', async () => {
+    const { writeMission, scaffoldMission, readMission, MISSION_PATH_REL } = await import('../src/commands/mission.js')
+    // 사용자가 이미 채운 계약을 먼저 깔아둔다.
+    fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+    const existing = { ...scaffoldMission('pre'), objective: '사용자 목표 KEEP777', scope: ['src/**'] }
+    writeMission(dir, existing)
+    const { init } = await import('../src/commands/init.js')
+    await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+    const m = readMission(dir)
+    expect(m?.objective).toBe('사용자 목표 KEEP777') // 보존 — 덮어쓰지 않음
+    expect(m?.scope).toEqual(['src/**'])
+    expect(fs.existsSync(path.join(dir, MISSION_PATH_REL))).toBe(true)
+  })
+
+  it('방향 3-①: 손상된 mission.json → 덮어쓰지 않고 보존 (critic 하드닝)', async () => {
+    const { MISSION_PATH_REL } = await import('../src/commands/mission.js')
+    fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(dir, MISSION_PATH_REL), '{ broken json', 'utf-8') // 손상
+    const { init } = await import('../src/commands/init.js')
+    await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+    // 파일이 있으므로(손상이라도) 덮어쓰지 않는다 — 원본 내용 보존.
+    expect(fs.readFileSync(path.join(dir, MISSION_PATH_REL), 'utf-8')).toBe('{ broken json')
+  })
+
   it('비-TTY + -y 없음: confirmStack/adopt 도 프롬프트 0개 (Codex #3 회귀)', async () => {
     const origIn = process.stdin.isTTY
     const origOut = process.stdout.isTTY

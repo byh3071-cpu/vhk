@@ -190,6 +190,9 @@ export const ko = {
     adoptPreview: (n: number) =>
       `기존 규칙 ${n}개를 RULES.md 표준 섹션으로 병합했어요 (출처 주석 포함).`,
     adoptDone: '📥 RULES.md — 기존 규칙 adopt 완료',
+    missionScaffold: '🎯 .vhk/mission.json 생성 (작업 계약 뼈대 — vhk mission set 으로 목표·범위 채우기)',
+    missionScaffoldFailed: '⚠️  .vhk/mission.json 생성 실패 (권한 확인) — 작업 계약 없이 계속합니다:',
+    missionScaffoldCorrupt: '⚠️  .vhk/mission.json 이 손상된 것 같아요 — vhk mission set 으로 다시 만드세요 (덮어쓰지 않았습니다).',
   },
   recap: {
     title: '📝 오늘 한 일 정리',
@@ -534,6 +537,7 @@ export const ko = {
   work: {
     workTitle: '🚀 vhk work — 작업 시작/이어하기',
     handoffTitle: '⏸️  vhk work handoff — 중단 정리',
+    missionUnset: '⚠️  작업 계약(mission)이 없습니다 — vhk mission set 으로 목표·범위를 선언하면 변경이 계약 안인지 검증됩니다 (선택).',
   },
   pattern: {
     detectTitle: '패턴 감지',
