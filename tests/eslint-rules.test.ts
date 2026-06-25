@@ -9,16 +9,22 @@ import eslintConfig from '../eslint.config.js'
 //   R1 no-restricted-syntax(execSync) · R2 no-empty(빈 catch) · R3 no-explicit-any(명시 any)
 // 설계 결정도 회귀로 못박는다: 주석으로 사유를 밝힌 catch 는 통과 · execFileSync(safeExecFile 통로)는 허용.
 
-// 동작 검증용 규칙(명시) — eslint.config.js 의 값과 동일하게 유지. config 존재 여부는 아래 정합 테스트가 봉인.
-const PERMANENT_RULES: Linter.RulesRecord = {
-  'no-restricted-syntax': [
-    'error',
-    { selector: "CallExpression[callee.name='execSync']", message: 'execSync 금지' },
-    { selector: "MemberExpression[property.name='execSync']", message: 'execSync 금지' },
-  ],
-  'no-empty': ['error', { allowEmptyCatch: false }],
-  '@typescript-eslint/no-explicit-any': 'error',
+// flat config 배열 전체에서 rules 병합 — 특정 항목 위치([0])에 의존하지 않음(CodeRabbit #395).
+const configs = Array.isArray(eslintConfig) ? eslintConfig : [eslintConfig]
+const mergedRules: Record<string, unknown> = {}
+for (const c of configs) {
+  const r = (c as { rules?: Record<string, unknown> }).rules
+  if (r) Object.assign(mergedRules, r)
 }
+
+// ★동작 검증은 config 의 **실제 규칙 값**으로 한다(명시 복제값이 아니라). 그래서 config 가 약화되면
+//   (no-empty 가 allowEmptyCatch:true 로 바뀌거나 selector 가 빠지거나 규칙이 삭제되면) 아래 동작
+//   테스트가 직접 빨강이 된다 — 존재만 보는 toBeDefined 보다 강한 드리프트 봉인(CodeRabbit #395).
+const TESTED_RULES = {
+  'no-restricted-syntax': mergedRules['no-restricted-syntax'],
+  'no-empty': mergedRules['no-empty'],
+  '@typescript-eslint/no-explicit-any': mergedRules['@typescript-eslint/no-explicit-any'],
+} as Linter.RulesRecord
 
 function lint(code: string): Linter.LintMessage[] {
   const linter = new Linter()
@@ -29,7 +35,7 @@ function lint(code: string): Linter.LintMessage[] {
     },
     // @typescript-eslint 플러그인 등록(no-explicit-any 제공). 타입 마찰만 회피.
     plugins: { '@typescript-eslint': tseslint.plugin as unknown as Linter.Plugin },
-    rules: PERMANENT_RULES,
+    rules: TESTED_RULES,
   })
 }
 
@@ -37,7 +43,7 @@ function hits(code: string, ruleId: string): number {
   return lint(code).filter((m) => m.ruleId === ruleId).length
 }
 
-describe('영구 코딩 규칙 — ESLint 코드화 (RULES.md 자동 집행)', () => {
+describe('영구 코딩 규칙 — ESLint 코드화 (RULES.md 자동 집행, config 실제 값으로 검증)', () => {
   describe('R1: execSync 신규 금지 (no-restricted-syntax)', () => {
     it('execSync 직접 호출을 잡는다', () => {
       expect(hits("import { execSync } from 'node:child_process'\nexecSync('echo')", 'no-restricted-syntax')).toBeGreaterThan(0)
@@ -52,8 +58,8 @@ describe('영구 코딩 규칙 — ESLint 코드화 (RULES.md 자동 집행)', (
     })
   })
 
-  describe('R2: 빈 catch 금지 (no-empty)', () => {
-    it('완전 빈 catch 를 잡는다', () => {
+  describe('R2: 빈 catch 금지 (no-empty, allowEmptyCatch:false)', () => {
+    it('완전 빈 catch 를 잡는다 — config 가 allowEmptyCatch:true 로 약화되면 이 테스트가 빨강', () => {
       expect(hits('try { doThing() } catch {}', 'no-empty')).toBeGreaterThan(0)
     })
 
@@ -72,16 +78,11 @@ describe('영구 코딩 규칙 — ESLint 코드화 (RULES.md 자동 집행)', (
     })
   })
 
-  describe('config 정합 — 규칙이 eslint.config.js 에 실제 켜져 있다 (드리프트 1차 봉인)', () => {
-    const flat = (Array.isArray(eslintConfig) ? eslintConfig[0] : eslintConfig) as {
-      rules?: Record<string, unknown>
-    }
-    const cfgRules = flat.rules ?? {}
-
-    it('세 영구 규칙이 모두 eslint.config.js 에 정의돼 있다', () => {
-      expect(cfgRules['no-restricted-syntax']).toBeDefined()
-      expect(cfgRules['no-empty']).toBeDefined()
-      expect(cfgRules['@typescript-eslint/no-explicit-any']).toBeDefined()
+  describe('config 정합 — 규칙이 eslint.config.js 에 실제 켜져 있다 (드리프트 봉인)', () => {
+    it('세 영구 규칙이 모두 eslint.config.js 에 정의돼 있다 (삭제 시 위 동작 테스트도 빨강)', () => {
+      expect(mergedRules['no-restricted-syntax']).toBeDefined()
+      expect(mergedRules['no-empty']).toBeDefined()
+      expect(mergedRules['@typescript-eslint/no-explicit-any']).toBeDefined()
     })
 
     it('깨끗한 코드는 위반 0', () => {

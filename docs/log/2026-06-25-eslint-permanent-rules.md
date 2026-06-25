@@ -36,3 +36,9 @@ receipt 합류는 #381 로 이미 배선됨(lint fail → `gates.red` → `decid
 - **Phase 2** (병렬): T2a receipt 합류 E2E(규칙 위반 → lint fail → receipt block) · T2b RULES.md↔ESLint 일치 봉인.
 - **Phase 3**: console.log 경로별 정책(별도 트랙, 후순위).
 - 의도 검증 방향 2(glob 정직화)·3(위조·미설정)·4(objective LLM)는 사용자 추후 결정.
+
+## 리뷰 반영 (CodeRabbit · #395 · 2026-06-25)
+
+정합 테스트(`tests/eslint-rules.test.ts`)가 약했던 2건(🟡 Functional Correctness) 강화:
+- **① flat config 전체 병합**: `eslintConfig[0]`만 보던 것을 배열 전체 `rules` 병합으로 — 규칙이 다른 config 항목에 있어도 정확.
+- **② 존재 확인 → config 실제 값으로 동작 검증**: `toBeDefined()`만으로는 `no-empty`가 `allowEmptyCatch:true`로 **약화돼도 통과**하던 것을, config 의 실제 규칙 값을 lint 에 주입해 검증 → 약화·selector 삭제 시 동작 테스트가 직접 빨강(강한 드리프트 봉인). tsx 로 config 병합·8케이스 재검증 PASS(병합 규칙 10개·3규칙 정의 확인).
