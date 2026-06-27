@@ -395,8 +395,8 @@ program
   .command('inject-bootstrap')
   .alias('생태계규칙')
   .option('--yes', '확인 없이 실행')
-  .option('--force', '기존 ecosystem.mdc 덮어쓰기')
-  .description('Cursor ecosystem 규칙 설치 (.cursor/rules/ecosystem.mdc)')
+  .option('--force', '기존 harness 파일 덮어쓰기')
+  .description('tier S harness bootstrap (ecosystem · CORE-RULES · context · mcp.example)')
   .action(async (opts: { yes?: boolean; force?: boolean }) => {
     await injectBootstrapCommand(opts)
   })
