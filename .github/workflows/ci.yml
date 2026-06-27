@@ -20,7 +20,7 @@ jobs:
         node: [22, 24]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # pnpm 버전은 package.json "packageManager"(pnpm@11.2.2) 단일 소스에서 읽음.
       # (pnpm 9 는 workspace overrides 거부 → 11.x 고정. Dependabot/corepack 도 동일 버전 사용.)
@@ -84,7 +84,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # pnpm 버전은 package.json "packageManager" 단일 소스에서 읽음.
       - name: pnpm 설치
