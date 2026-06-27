@@ -12,6 +12,7 @@ import {
   toAntigravityRules,
   toAgentsMd,
   agentsMdEcosystemBlock,
+  resolveAgentCompactRel,
   truncateForAntigravity,
   ANTIGRAVITY_CHAR_LIMIT,
   SYNC_TARGETS,
@@ -129,6 +130,24 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     expect(block).toContain('status=active')
     expect(block).toContain('inject-bootstrap')
     expect(block).toContain('vhk sync')
+  })
+
+  it('toAgentsMd — compactRel null 이면 agent-compact 포인터 생략 (tier S dead link 방지)', () => {
+    const out = toAgentsMd(parseRulesMd(SAMPLE_RULES), 'P', null)
+    expect(out).not.toContain('agent-compact')
+    expect(out).toContain('Loop Protocol')
+  })
+
+  it('resolveAgentCompactRel — 파일 있을 때만 경로 반환', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-compact-'))
+    try {
+      expect(resolveAgentCompactRel(dir)).toBeNull()
+      fs.mkdirSync(path.join(dir, 'docs', 'context'), { recursive: true })
+      fs.writeFileSync(path.join(dir, 'docs', 'context', 'agent-compact.md'), '# c\n')
+      expect(resolveAgentCompactRel(dir)).toBe('docs/context/agent-compact.md')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('SYNC_TARGETS 레지스트리에 AGENTS.md 가 등록됨 (drift/backup 자동 반영)', () => {
