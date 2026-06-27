@@ -23,6 +23,7 @@ import { status } from './commands/status.js'
 import { stats } from './commands/stats.js'
 import { startMcpServer, getMcpToolCount } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
+import { injectBootstrapCommand } from './commands/inject-bootstrap.js'
 import { deploy } from './commands/deploy.js'
 import { env, envCheck } from './commands/env.js'
 import { publish } from './commands/publish.js'
@@ -388,6 +389,16 @@ program
   .description('Cursor·Claude Desktop MCP 연동 설정 자동 생성 (.cursor/mcp.json)')
   .action(async () => {
     await mcpInit()
+  })
+
+program
+  .command('inject-bootstrap')
+  .alias('생태계규칙')
+  .option('--yes', '확인 없이 실행')
+  .option('--force', '기존 ecosystem.mdc 덮어쓰기')
+  .description('Cursor ecosystem 규칙 설치 (.cursor/rules/ecosystem.mdc)')
+  .action(async (opts: { yes?: boolean; force?: boolean }) => {
+    await injectBootstrapCommand(opts)
   })
 
 program

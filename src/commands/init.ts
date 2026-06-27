@@ -18,6 +18,7 @@ import { printSecurityWarnings } from '../lib/check-secure.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
 import { generateCoreRulesContent } from '../lib/core-rules.js'
+import { generateEcosystemMdcContent } from '../lib/inject-bootstrap.js'
 import { VISION_TEMPLATE } from '../templates/vision.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
@@ -360,6 +361,7 @@ export function generateFiles(
     '.vhkignore': VHK_IGNORE_TEMPLATE(),
     // core-ruleset 마커블록 상속 — YOHAN_BRAIN_ROOT 있으면 라이브, 없으면 번들 스냅샷
     '.agents/CORE-RULES.md': generateCoreRulesContent(null),
+    '.cursor/rules/ecosystem.mdc': generateEcosystemMdcContent(),
   }
 }
 

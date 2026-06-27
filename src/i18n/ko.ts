@@ -114,6 +114,16 @@ export const ko = {
     nextHintMessage: '프로젝트 시작 준비 끝! 이제 개발을 시작하세요.',
     nextHintCursor: 'docs/PRD.md 보고 개발 시작해줘',
   },
+  injectBootstrap: {
+    confirm: '.cursor/rules/ecosystem.mdc (Cursor ecosystem 규칙)을 설치할까요?',
+    cancelled: '취소했어요.',
+    created: '.cursor/rules/ecosystem.mdc 생성 완료',
+    updated: '.cursor/rules/ecosystem.mdc 갱신 완료',
+    unchanged: 'ecosystem.mdc 가 이미 최신입니다.',
+    skipped: '기존 ecosystem.mdc 가 vhk 템플릿이 아닙니다 — 건너뜀',
+    retryHint: '덮어쓰려면: vhk inject-bootstrap --force',
+    nextHint: 'Cursor ecosystem 규칙 설치 완료',
+  },
   gate: {
     title: '💡 아이디어 검증',
     welcome: '새 아이디어를 검증합니다. 질문에 답해주세요.',
