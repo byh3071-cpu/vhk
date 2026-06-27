@@ -15,6 +15,7 @@ import {
   type VerifyReport,
 } from './verify.js'
 import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
+import { readMission, checkMission, collectChangedFiles, type MissionCheckResult } from './mission.js'
 
 /**
  * Goal 15: vhk review — 적대적 자기검증 v0.
@@ -185,7 +186,8 @@ export function crossCheck(
   goalStatus: string,
   report: VerifyReport | null,
   nowMs: number,
-  current: CommitInfo | null = null
+  current: CommitInfo | null = null,
+  mission: MissionCheckResult | null = null
 ): ReviewAnalysis {
   const suspicions: ReviewAnalysis['suspicions'] = []
   const gaps: ReviewAnalysis['gaps'] = []
@@ -224,6 +226,24 @@ export function crossCheck(
         // Goal 59: warn(스캔 불완전)도 soft 신호 — 거짓완료 강한 의심(suspicion)이 아니라 gap(수동 확인).
         gaps.push({ check: c.text, note: `${gid} 게이트 불완전(warn) — ${g.detail ?? '한도로 일부 미검증'}(수동 확인 권장).` })
       }
+    }
+  }
+
+  // Goal 87 PR2: mission(시킨 것) 의도 대조 합류. forbidden 위반은 거짓완료 강한 의심(suspicion →
+  // confidence low → exit 1), scope 밖 변경은 미검증(gap, advisory). mission=null(계약 없음)이면
+  // 영향 0(하위호환). receipt 의 forbidden→block · scope→caution 과 동급 매핑(Goal 87 옵션 A 정합).
+  if (mission) {
+    for (const v of mission.violations) {
+      suspicions.push({
+        check: `의도 위반: ${v.file}`,
+        reason: `mission forbidden(금지 경로 "${v.pattern}") 변경 — 시킨 범위(의도)를 벗어남(거짓완료 의심).`,
+      })
+    }
+    for (const w of mission.warnings) {
+      gaps.push({
+        check: `scope 밖 변경: ${w.file}`,
+        note: 'mission scope 밖 — 시킨 범위 밖일 수 있음(advisory, 수동 확인).',
+      })
     }
   }
 
@@ -340,7 +360,18 @@ export async function review(opts: { id?: string; strict?: boolean } = {}): Prom
 
   // Goal 80: 현재 HEAD SHA·dirty 를 읽어 증거 SHA(Goal 44 기록)와 비교 — 낡은 증거 신선도 강등.
   const current = getCommitInfo(cwd)
-  const analysis = crossCheck(checks, goalStatus, report, Date.now(), current)
+  // Goal 87 PR2: mission 계약 있으면 변경 파일을 scope/forbidden 과 대조해 review 에 합류(없으면 영향 0).
+  let missionResult: MissionCheckResult | null = null
+  const mission = readMission(cwd)
+  if (mission) {
+    try {
+      missionResult = checkMission(await collectChangedFiles(cwd), mission)
+    } catch {
+      // 변경 파일 수집 실패(git 레포 아님 등) → 의도 대조 생략(거짓 위반 금지). 다른 신호는 그대로.
+      missionResult = null
+    }
+  }
+  const analysis = crossCheck(checks, goalStatus, report, Date.now(), current, missionResult)
   const result: ReviewResult = {
     ...analysis,
     reviewedAt: new Date().toISOString(),
