@@ -34,7 +34,10 @@ dist/
 .claude/agent-memory/
 
 # Cursor MCP 설정 — 절대 로컬 경로 포함, 머신별 — 커밋 금지 (VHK-022 hygiene)
-.cursor/
+# ecosystem.mdc 만 예외 (E5-01 vhk-inject-bootstrap 템플릿 dogfood)
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/ecosystem.mdc
 
 # Serena MCP 로컬 캐시/프로젝트 메모 — 머신별 툴 산출물, 커밋 금지
 .serena/

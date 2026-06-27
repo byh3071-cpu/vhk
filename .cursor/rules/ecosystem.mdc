@@ -1,0 +1,16 @@
+---
+description: Yohan ecosystem boundaries (Cursor-only)
+alwaysApply: true
+---
+
+# Ecosystem (Cursor-only)
+
+<!-- ECOSYSTEM-MDC:START v1 (vhk template — 직접 편집 금지) -->
+
+1. **Claude Code = primary** — handoff, release-gate, epic architecture, vhk-auto는 Claude-only (yohan-cc-skills).
+2. **Cursor = secondary** — Composer batch/repeat 보조; 코딩·반복 작업용.
+3. **Cross-repo / harness** — 이 레포 `AGENTS.md` 먼저; 전역 계약·tier는 **yohan-brain** `memory/core/ecosystem-contract.yaml` + `memory/core/inheritance-registry.yaml` (status=active면 obey). 로컬에 brain 없으면 MCP digest 또는 brain clone 경로 사용.
+4. **Concurrency** — same repo + same branch에 에이전트 2개 금지; parallel은 worktree (`vhk worktree` / Cursor `--worktree`).
+5. **Derived files** — `AGENTS.md`·`.cursorrules` 손수 편집 금지 → `RULES.md` 수정 후 `vhk sync`. `.cursor/agents/`에 `.claude/agents/` 중복 금지.
+
+<!-- ECOSYSTEM-MDC:END -->
