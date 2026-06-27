@@ -25,6 +25,14 @@ const EXPECTED_FILES = [
 ]
 
 describe('vhk init', () => {
+  it('generateFiles — ecosystem.mdc 템플릿 포함 (E1-02)', () => {
+    const files = generateFiles('my-app', '설명', ['Node.js'])
+    const mdc = files['.cursor/rules/ecosystem.mdc']
+    expect(mdc).toContain('ECOSYSTEM-MDC:START')
+    expect(mdc).toContain('memory/core/inheritance-registry.yaml')
+    expect(mdc).toContain('AGENTS.md')
+  })
+
   it('템플릿 파일이 생성된다', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-test-'))
     const files = generateFiles('my-app', '테스트 프로젝트', ['Node.js', 'TypeScript'])
