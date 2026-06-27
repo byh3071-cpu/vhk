@@ -158,6 +158,7 @@ vhk doctor
 | `vhk diff-cover` | 이번 변경이 테스트로 커버됐는지 측정 (자문형) |
 | `vhk mcp` | MCP 서버 시작 (stdio) |
 | `vhk mcp-init` | Cursor·Claude Desktop MCP 설정 생성 |
+| `vhk inject-bootstrap` | Cursor ecosystem 규칙 설치 (`.cursor/rules/ecosystem.mdc`) |
 | `vhk deploy` | 프로덕션 배포 (자동 감지) |
 | `vhk env` | .env → .env.example 동기화 |
 | `vhk env-check` | 필수 환경변수 누락 검사 |
