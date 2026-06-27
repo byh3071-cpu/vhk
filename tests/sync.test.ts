@@ -11,6 +11,8 @@ import {
   toClineRules,
   toAntigravityRules,
   toAgentsMd,
+  agentsMdEcosystemBlock,
+  resolveAgentCompactRel,
   truncateForAntigravity,
   ANTIGRAVITY_CHAR_LIMIT,
   SYNC_TARGETS,
@@ -108,15 +110,44 @@ describe('vhk sync — ③ 미매칭 섹션 silent drop 방지 (회귀)', () => 
 })
 
 describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
-  it('toAgentsMd — Loop Protocol + 자동생성 경고 + 코딩 규칙 + compact 포인터 포함', () => {
+  it('toAgentsMd — Loop Protocol + Ecosystem block + 자동생성 경고 + 코딩 규칙 + compact 포인터 포함', () => {
     const sections = parseRulesMd(SAMPLE_RULES)
     const out = toAgentsMd(sections, '데모 프로젝트')
     expect(out).toContain('# 데모 프로젝트 — AGENTS')
     expect(out).toContain('Loop Protocol')
+    expect(out).toContain('## Ecosystem (cross-repo)')
+    expect(out).toContain('ecosystem-contract.yaml')
+    expect(out).toContain('inheritance-registry.yaml')
+    expect(out.indexOf('Loop Protocol')).toBeLessThan(out.indexOf('Ecosystem (cross-repo)'))
     expect(out).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
     expect(out).toContain('execSync 금지') // 코딩 규칙 섹션 본문
     // compact 안내는 AGENTS.md 에 하드코딩이 아니라 생성기(toAgentsMd)를 거쳐 들어간다.
     expect(out).toContain('agent-compact.md')
+  })
+
+  it('agentsMdEcosystemBlock — contract SoT + tier + 금지 3줄', () => {
+    const block = agentsMdEcosystemBlock().join('\n')
+    expect(block).toContain('status=active')
+    expect(block).toContain('inject-bootstrap')
+    expect(block).toContain('vhk sync')
+  })
+
+  it('toAgentsMd — compactRel null 이면 agent-compact 포인터 생략 (tier S dead link 방지)', () => {
+    const out = toAgentsMd(parseRulesMd(SAMPLE_RULES), 'P', null)
+    expect(out).not.toContain('agent-compact')
+    expect(out).toContain('Loop Protocol')
+  })
+
+  it('resolveAgentCompactRel — 파일 있을 때만 경로 반환', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-compact-'))
+    try {
+      expect(resolveAgentCompactRel(dir)).toBeNull()
+      fs.mkdirSync(path.join(dir, 'docs', 'context'), { recursive: true })
+      fs.writeFileSync(path.join(dir, 'docs', 'context', 'agent-compact.md'), '# c\n')
+      expect(resolveAgentCompactRel(dir)).toBe('docs/context/agent-compact.md')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('SYNC_TARGETS 레지스트리에 AGENTS.md 가 등록됨 (drift/backup 자동 반영)', () => {

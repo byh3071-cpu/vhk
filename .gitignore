@@ -38,6 +38,7 @@ dist/
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/ecosystem.mdc
+!.cursor/mcp.json.example
 
 # Serena MCP 로컬 캐시/프로젝트 메모 — 머신별 툴 산출물, 커밋 금지
 .serena/

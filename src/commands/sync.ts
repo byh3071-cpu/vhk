@@ -336,12 +336,39 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
   return [cleaned, vhkBlock].filter(s => s.length > 0).join('\n\n') + '\n'
 }
 
+/** AGENTS.md compact 포인터 대상 — repo 에 실제 있을 때만 sync 가 안내 줄을 넣는다. */
+export function resolveAgentCompactRel(rootDir: string): string | null {
+  for (const rel of ['docs/context/agent-compact.md', 'AGENTS.compact.md']) {
+    if (fs.existsSync(path.join(rootDir, rel))) return rel
+  }
+  return null
+}
+
+/** E6-01: tier S/A child AGENTS.md — ecosystem cross-repo block (Loop Protocol 직후 고정 삽입). */
+export function agentsMdEcosystemBlock(): string[] {
+  return [
+    '## Ecosystem (cross-repo)',
+    '',
+    '> Contract SoT: private-rules-repository `memory/core/ecosystem-contract.yaml` (obey when status=active).',
+    '',
+    '- **Tier:** private-rules-repository `memory/core/inheritance-registry.yaml`',
+    '- **Cursor:** `.cursor/rules/ecosystem.mdc` (vhk inject-bootstrap)',
+    '- **금지:** AGENTS.md 손수 편집 → `RULES.md` + `vhk sync`',
+    '',
+  ]
+}
+
 /**
  * RULES.md 섹션을 AGENTS.md 포맷으로 변환 (sync 6번째 타겟).
  * Loop Protocol 보일러플레이트를 생성기에 내장해 — sync 가 AGENTS.md 를 재생성해도
  * 운영 규약(Loop Protocol)·compact 안내가 보존된다(수기 AGENTS.md 하드코딩 회피).
  */
-export function toAgentsMd(sections: RulesSection[], projectName: string): string {
+export function toAgentsMd(
+  sections: RulesSection[],
+  projectName: string,
+  /** null = compact 안내 생략. undefined = 레거시 테스트 기본(경로 문자열 포함). */
+  compactRel: string | null | undefined = 'docs/context/agent-compact.md',
+): string {
   const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
   const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
   // #131: 한 섹션이 양쪽 키에 걸리면(예: '기술 스택 (변경 시 ADR 필수)' = '기술 스택'+'ADR')
@@ -364,7 +391,11 @@ export function toAgentsMd(sections: RulesSection[], projectName: string): strin
     `# ${projectName} — AGENTS.md (에이전트 작동 규약)`,
     '',
     '> ⚡ 이 파일은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.',
-    '> 빠른 시작(토큰 절감): `docs/context/agent-compact.md` 를 먼저 읽으세요.',
+  ]
+  if (compactRel !== null) {
+    lines.push(`> 빠른 시작(토큰 절감): \`${compactRel ?? 'docs/context/agent-compact.md'}\` 를 먼저 읽으세요.`)
+  }
+  lines.push(
     '',
     '## Loop Protocol',
     '- 루프: `context → goal next → 작업 → goal check → goal done`',
@@ -373,7 +404,8 @@ export function toAgentsMd(sections: RulesSection[], projectName: string): strin
     '- 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, 단일 출처).',
     '- 게이트(tsc / test:run / build) 통과해야만 `vhk goal done`.',
     '',
-  ]
+    ...agentsMdEcosystemBlock(),
+  )
 
   for (const section of orderedMapped) {
     lines.push(`## ${section.title}`)
@@ -507,7 +539,10 @@ export function buildSyncPlan(
   for (const target of SYNC_TARGETS) {
     const fullPath = path.join(rootDir, target.path)
     const exists = fs.existsSync(fullPath)
-    const newContent = target.generate(sections, projectName)
+    const newContent =
+      target.path === 'AGENTS.md'
+        ? toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir))
+        : target.generate(sections, projectName)
     // drift = 정규화 후 비교. 공백/EOL(CRLF)-only 차이는 의도적으로 drift 아님(거짓경보·백업 churn 방지)
     // → 그 차이는 백업 없이 덮어써질 수 있으나 규칙 본문은 절대 손실 안 됨(범위 한정).
     const drift = exists
