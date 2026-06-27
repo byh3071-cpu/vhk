@@ -25,6 +25,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'diff-cover', '커버리지',
   'mcp',
   'mcp-init', 'mcp설정',
+  'inject-bootstrap', '생태계규칙',
   'deploy', '배포',
   'env', '환경변수',
   'env-check', '환경변수점검',
