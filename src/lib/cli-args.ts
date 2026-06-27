@@ -91,6 +91,17 @@ const FREEFORM_ARG_COMMANDS = new Set([
 ])
 
 /**
+ * 위치인자(예약 서브명령 등)를 명령 스스로 처리하는 leaf 명령 → NL 가로채기 금지.
+ * #405: `vhk check evals` 의 'evals' 가 NL 라우터의 bare 'check' 키워드(nlp-router 규칙)에 삼켜져
+ * check() 가 인자 없이 실행되는 silent fallback 을 막는다 → commander 위치인자로 위임해
+ * check() 가 직접 인식/안내(evals 미구현 안내·미인식 인자 에러)하게 한다.
+ * (영문 + 한글 별칭 모두 — KNOWN_COMMAND_TOKENS ⊆ 실제 명령/별칭 을 registry-drift 가 강제하므로 실재 토큰만.)
+ */
+const POSITIONAL_ARG_COMMANDS = new Set([
+  'check', '점검', '린트',
+])
+
+/**
  * 서브커맨드를 갖는 컨테이너 명령 → 실제 서브커맨드 이름 목록.
  * `goal check` · `ref add` · `memory list` 처럼 rest[1] 이 실제 서브커맨드면
  * commander 가 직접 처리한다(자연어 라우터가 가로채지 못하게 — R1: 명령어 매칭 우선).
@@ -182,6 +193,9 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
 
   // #147: 자유형식 본문 명령(learn/blocker)은 본문에 NLP 키워드가 있어도 가로채지 않는다.
   if (firstIsKnown && FREEFORM_ARG_COMMANDS.has(first)) return null
+
+  // #405: 위치인자 처리 명령(check)은 NL 가로채기 금지 → commander 가 'evals' 등 위치인자를 받게.
+  if (firstIsKnown && POSITIONAL_ARG_COMMANDS.has(first)) return null
 
   // vhk save / vhk 검증
   if (firstIsKnown && rest.length === 1) return null
