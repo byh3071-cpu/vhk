@@ -10,6 +10,14 @@
 - 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, 단일 출처).
 - 게이트(tsc / test:run / build) 통과해야만 `vhk goal done`.
 
+## Ecosystem (cross-repo)
+
+> Contract SoT: yohan-brain `memory/core/ecosystem-contract.yaml` (obey when status=active).
+
+- **Tier:** yohan-brain `memory/core/inheritance-registry.yaml`
+- **Cursor:** `.cursor/rules/ecosystem.mdc` (vhk inject-bootstrap)
+- **금지:** AGENTS.md 손수 편집 → `RULES.md` + `vhk sync`
+
 ## 기술 스택
 > 변경 시 ADR(docs/adr/) 필수.
 
