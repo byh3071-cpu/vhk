@@ -217,6 +217,12 @@ export const ko = {
     noAutoRules: '⚠️ 자동으로 검사할 규칙이 없어요.',
     allPassed: '🎉 규칙을 모두 지켰어요!',
     summary: '📊 점검 결과:',
+    // #405: 'evals' 는 골든셋 채점기용 예약 서브명령 — 본체는 로드맵 goal G-B 에서 구현(현재 미구현).
+    evalsTitle: '🚧 골든셋 채점기는 아직 미구현이에요 (로드맵 goal G-B).',
+    evalsHint: '채점 기준은 docs/evals/golden-set.md 에 있어요 — 자동 채점은 goal G-B 에서 구현 예정이에요.',
+    // #405: 미인식 인자는 규칙점검으로 조용히 빠지지(silent fallback) 않고 정직하게 안내.
+    unknownTarget: (arg: string) => `알 수 없는 인자 '${arg}' — vhk check 는 RULES.md 규칙 점검 명령이에요.`,
+    unknownHint: '인자 없이 `vhk check` 로 실행하면 규칙을 점검해요.',
   },
   doctor: {
     title: '🩺 개발 환경 점검',
