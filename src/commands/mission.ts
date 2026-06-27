@@ -151,7 +151,7 @@ export function scaffoldMission(_projectName: string): Mission {
 }
 
 /** working tree + staged 변경 파일 경로 (simple-git status — 추가/수정/삭제/이름변경/미추적 포함). */
-async function collectChangedFiles(cwd: string): Promise<string[]> {
+export async function collectChangedFiles(cwd: string): Promise<string[]> {
   const status = await simpleGit(cwd).status()
   const set = new Set<string>()
   for (const f of status.files) if (f.path) set.add(f.path.replace(/\\/g, '/'))

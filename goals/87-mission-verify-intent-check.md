@@ -55,7 +55,7 @@ leads_to: "AI가 시킨 대로(scope/forbidden) 했나"를 자동 판정 — 경
 - [x] 순수 `decideReceipt`가 forbidden→block · scope→caution 반영 (단조성 유지) (PR1)
 - [x] 하위호환 테스트 — mission.json 없으면 기존과 동일(decision·출력 불변) (PR1)
 - [x] 과확장 0 테스트 — scope 안 변경은 caution 유발 안 함 (PR1)
-- [ ] review가 forbidden 위반을 거짓완료 신호로 합류 (PR2)
+- [x] review가 forbidden 위반을 거짓완료 신호로 합류 (PR2)
 - [ ] 공통 게이트(_meta), check-goal-87.mjs (vhk goal sync 자동생성)
 
 ## 구현 노트 (선조사 — 2026-06-23)

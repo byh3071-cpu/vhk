@@ -12,6 +12,7 @@ import {
   type CompletionCheck,
 } from '../src/commands/review.js'
 import type { GateResult, ReportStatus, VerifyReport } from '../src/commands/verify.js'
+import type { MissionCheckResult } from '../src/commands/mission.js'
 import type { CommitInfo } from '../src/lib/git-repo.js'
 import { routeNaturalLanguage } from '../src/lib/nlp-router.js'
 import { dispatchNlpRoute } from '../src/lib/nlp-run.js'
@@ -161,6 +162,48 @@ describe('review — crossCheck (순수)', () => {
   it('미체크 항목은 의심 대상 아님', () => {
     const r = crossCheck([{ text: '테스트 통과', checked: false }], 'IN_PROGRESS', report('FAIL', [gate('test', 'fail', 1)]), FRESH)
     expect(r.suspicions).toHaveLength(0)
+  })
+})
+
+describe('review — crossCheck 의도 대조 (Goal 87 PR2)', () => {
+  const mres = (
+    violations: { file: string; pattern: string }[],
+    warnings: { file: string }[] = []
+  ): MissionCheckResult => ({ violations, warnings, disclaimer: 'd', unsupportedForbiddenPatterns: [] })
+
+  it('mission forbidden 위반 → suspicion + confidence low', () => {
+    const m = mres([{ file: 'src/secret.ts', pattern: 'src/secret.*' }])
+    const r = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', report('PASS', [gate('typecheck', 'pass')]), FRESH, null, m)
+    expect(r.suspicions.some((s) => /의도 위반|forbidden/.test(s.check + s.reason))).toBe(true)
+    expect(r.confidence).toBe('low')
+  })
+
+  it('mission scope 밖 변경 → gap(advisory), suspicion 아님, high 금지', () => {
+    const gates = [gate('typecheck', 'pass'), gate('test', 'pass'), gate('build', 'pass')]
+    const checks = [checked('tsc 통과'), checked('테스트 통과'), checked('빌드 통과')]
+    const m = mres([], [{ file: 'other/x.ts' }])
+    const r = crossCheck(checks, 'IN_PROGRESS', report('PASS', gates), FRESH, null, m)
+    expect(r.suspicions).toHaveLength(0)
+    expect(r.gaps.some((g) => /scope/.test(g.check + g.note))).toBe(true)
+    expect(r.confidence).not.toBe('high') // gaps>0 → medium 캡
+  })
+
+  it('mission=null(계약 없음) → 의도 대조 영향 0(하위호환)', () => {
+    const base = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', report('PASS', [gate('typecheck', 'pass')]), FRESH)
+    const withNull = crossCheck([checked('tsc 통과')], 'IN_PROGRESS', report('PASS', [gate('typecheck', 'pass')]), FRESH, null, null)
+    expect(withNull.suspicions).toEqual(base.suspicions)
+    expect(withNull.gaps).toEqual(base.gaps)
+    expect(withNull.confidence).toBe(base.confidence)
+  })
+
+  it('단조성: forbidden 위반은 high→low (pass/high 격상 0)', () => {
+    const gates = [gate('typecheck', 'pass'), gate('test', 'pass'), gate('build', 'pass')]
+    const checks = [checked('tsc 통과'), checked('테스트 통과'), checked('빌드 통과')]
+    const clean = crossCheck(checks, 'IN_PROGRESS', report('PASS', gates), FRESH)
+    expect(clean.confidence).toBe('high')
+    const m = mres([{ file: 'x.ts', pattern: 'x.ts' }])
+    const violated = crossCheck(checks, 'IN_PROGRESS', report('PASS', gates), FRESH, null, m)
+    expect(violated.confidence).toBe('low') // 위반 추가가 신뢰도를 격상시키지 않음
   })
 })
 
