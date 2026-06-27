@@ -4,6 +4,7 @@ import { simpleGit } from 'simple-git'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { init } from './init.js'
+import { sync } from './sync.js'
 import { mcpInit } from './mcp-init.js'
 import { context } from './context.js'
 import { ko } from '../i18n/ko.js'
@@ -53,7 +54,7 @@ async function runStep<T>(label: string, fn: () => Promise<T>): Promise<T> {
     const msg = err instanceof Error ? err.message : String(err)
     log.error(`${label} 실패: ${msg}`)
     log.warn('마법사를 중단합니다. 이미 생성된 파일은 그대로 남아있어요.')
-    log.warn('문제를 고친 뒤 `vhk start`를 다시 실행하거나, 개별 명령(`vhk init`, `vhk mcp-init`, `vhk context`)으로 이어 진행하세요.')
+    log.warn('문제를 고친 뒤 `vhk start`를 다시 실행하거나, 개별 명령(`vhk init`, `vhk sync`, `vhk mcp-init`, `vhk context`)으로 이어 진행하세요.')
     throw err
   }
 }
@@ -65,6 +66,7 @@ export async function start(options: StartOptions = {}): Promise<void> {
   console.log(chalk.dim(`  ${ko.start.step2}`))
   console.log(chalk.dim(`  ${ko.start.step3}`))
   console.log(chalk.dim(`  ${ko.start.step4}`))
+  console.log(chalk.dim(`  ${ko.start.step5}`))
   console.log()
 
   const cwd = process.cwd()
@@ -100,10 +102,10 @@ export async function start(options: StartOptions = {}): Promise<void> {
   }
 
   log.step(ko.start.step1Header)
-  await runStep('[1/4] git init', () => runGitInit(cwd))
+  await runStep('[1/5] git init', () => runGitInit(cwd))
 
   log.step(ko.start.step2Header)
-  await runStep('[2/4] vhk init', () => init({
+  await runStep('[2/5] vhk init', () => init({
     skipGate: true,
     fromNotion: options.fromNotion,
     name: options.name,
@@ -113,10 +115,13 @@ export async function start(options: StartOptions = {}): Promise<void> {
   }))
 
   log.step(ko.start.step3Header)
-  await runStep('[3/4] vhk mcp-init', () => mcpInit())
+  await runStep('[3/5] vhk sync', () => sync({ yes: options.yes }))
 
   log.step(ko.start.step4Header)
-  await runStep('[4/4] vhk context', () => context())
+  await runStep('[4/5] vhk mcp-init', () => mcpInit())
+
+  log.step(ko.start.step5Header)
+  await runStep('[5/5] vhk context', () => context())
 
   console.log(chalk.bold.green(`\n${ko.start.allDone}\n`))
   printNextStep({
