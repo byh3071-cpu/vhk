@@ -1,5 +1,6 @@
 import chalk from 'chalk'
-import { injectBootstrap } from '../lib/inject-bootstrap.js'
+import { injectBootstrapAll } from '../lib/inject-bootstrap.js'
+import type { InjectBootstrapResult } from '../lib/inject-bootstrap.js'
 import { ko } from '../i18n/ko.js'
 import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -11,8 +12,25 @@ export type InjectBootstrapCommandOptions = {
   force?: boolean
 }
 
+function logItem(label: string, result: InjectBootstrapResult): void {
+  switch (result) {
+    case 'created':
+      log.success(`${label}: ${ko.injectBootstrap.itemCreated}`)
+      break
+    case 'updated':
+      log.success(`${label}: ${ko.injectBootstrap.itemUpdated}`)
+      break
+    case 'unchanged':
+      log.info(`${label}: ${ko.injectBootstrap.itemUnchanged}`)
+      break
+    case 'skipped':
+      log.warn(`${label}: ${ko.injectBootstrap.itemSkipped}`)
+      break
+  }
+}
+
 export async function injectBootstrapCommand(
-  options: InjectBootstrapCommandOptions = {}
+  options: InjectBootstrapCommandOptions = {},
 ): Promise<void> {
   const cwd = process.cwd()
   const force = options.force === true
@@ -30,26 +48,20 @@ export async function injectBootstrapCommand(
     }
   }
 
-  const result = injectBootstrap(cwd, { yes: options.yes || force, force })
+  const results = injectBootstrapAll(cwd, { yes: options.yes || force, force })
 
-  switch (result) {
-    case 'created':
-      log.success(ko.injectBootstrap.created)
-      break
-    case 'updated':
-      log.success(ko.injectBootstrap.updated)
-      break
-    case 'unchanged':
-      log.info(ko.injectBootstrap.unchanged)
-      break
-    case 'skipped':
-      log.warn(ko.injectBootstrap.skipped)
-      console.log(chalk.dim(`  ${ko.injectBootstrap.retryHint}`))
-      return
+  logItem('ecosystem.mdc', results.ecosystem)
+  logItem('CORE-RULES.md', results.coreRules)
+  logItem('.vhk/context.md', results.context)
+  logItem('mcp.json.example', results.mcpExample)
+
+  if (Object.values(results).every(r => r === 'skipped')) {
+    console.log(chalk.dim(`  ${ko.injectBootstrap.retryHint}`))
+    return
   }
 
   printNextStep({
     message: ko.injectBootstrap.nextHint,
-    cursorHint: 'ecosystem.mdc 설치됨 — Cursor cross-repo 작업 시 contract obey',
+    cursorHint: 'tier S harness — ecosystem + core-rules + context seed + mcp example',
   })
 }

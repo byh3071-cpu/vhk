@@ -336,6 +336,20 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
   return [cleaned, vhkBlock].filter(s => s.length > 0).join('\n\n') + '\n'
 }
 
+/** E6-01: tier S/A child AGENTS.md — ecosystem cross-repo block (Loop Protocol 직후 고정 삽입). */
+export function agentsMdEcosystemBlock(): string[] {
+  return [
+    '## Ecosystem (cross-repo)',
+    '',
+    '> Contract SoT: private-rules-repository `memory/core/ecosystem-contract.yaml` (obey when status=active).',
+    '',
+    '- **Tier:** private-rules-repository `memory/core/inheritance-registry.yaml`',
+    '- **Cursor:** `.cursor/rules/ecosystem.mdc` (vhk inject-bootstrap)',
+    '- **금지:** AGENTS.md 손수 편집 → `RULES.md` + `vhk sync`',
+    '',
+  ]
+}
+
 /**
  * RULES.md 섹션을 AGENTS.md 포맷으로 변환 (sync 6번째 타겟).
  * Loop Protocol 보일러플레이트를 생성기에 내장해 — sync 가 AGENTS.md 를 재생성해도
@@ -373,6 +387,7 @@ export function toAgentsMd(sections: RulesSection[], projectName: string): strin
     '- 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, 단일 출처).',
     '- 게이트(tsc / test:run / build) 통과해야만 `vhk goal done`.',
     '',
+    ...agentsMdEcosystemBlock(),
   ]
 
   for (const section of orderedMapped) {

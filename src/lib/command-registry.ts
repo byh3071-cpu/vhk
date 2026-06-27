@@ -74,7 +74,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'diff-cover', desc: '이번 변경이 테스트로 커버됐는지 측정 (자문형)' },
   { name: 'mcp', desc: 'MCP 서버 시작 (stdio)' },
   { name: 'mcp-init', desc: 'Cursor·Claude Desktop MCP 설정 생성' },
-  { name: 'inject-bootstrap', desc: 'Cursor ecosystem 규칙 (.cursor/rules/ecosystem.mdc)' },
+  { name: 'inject-bootstrap', desc: 'tier S harness (ecosystem · CORE-RULES · context · mcp.example)' },
   { name: 'deploy', desc: '프로덕션 배포 (자동 감지)' },
   { name: 'env', desc: '.env → .env.example 동기화' },
   { name: 'env-check', desc: '필수 환경변수 누락 검사' },
