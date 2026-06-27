@@ -273,9 +273,10 @@ program
   .command('check')
   .alias('점검')
   .alias('린트')
+  .argument('[target]', "예약 서브명령 'evals'(골든셋 채점기, goal G-B 예정) — 미구현/미인식은 안내 (#405)")
   .option('--goal <id>', 'goal id 지정 시 scripts/check-goal-<id>.sh 게이트 실행')
   .description('RULES.md 규칙 점검 — 코드 위반 검사 (또는 --goal <id> 로 goal 게이트)')
-  .action(async (opts: { goal?: string }) => { await check(opts) })
+  .action(async (target: string | undefined, opts: { goal?: string }) => { await check(opts, target) })
 
 const secureCmd = program
   .command('secure')

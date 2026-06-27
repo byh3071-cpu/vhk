@@ -3,6 +3,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { parseRules, type RuleViolation } from '../lib/rules-parser.js'
 import { ko } from '../i18n/ko.js'
+import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
 import { goalCheck } from './goal.js'
 
@@ -10,12 +11,42 @@ export interface CheckOptions {
   goal?: string
 }
 
-export async function check(opts: CheckOptions = {}) {
+export async function check(opts: CheckOptions = {}, target?: string) {
+  // #405: `vhk check <target>` 위치인자 처리 — 'evals'(골든셋 채점기, 미구현) 등 미인식 서브명령이
+  // RULES.md 규칙점검으로 조용히 빠지던(silent fallback) 동작을 막고 명시적으로 안내한다.
+  const sub = target?.trim()
+  if (sub) {
+    return checkSubcommand(sub)
+  }
   // --goal <id> 지정 시 goal-aware 게이트로 우회 (RULES.md 점검 대신).
   if (opts.goal !== undefined) {
     return goalCheck({ id: opts.goal })
   }
   return checkRules()
+}
+
+/**
+ * #405: `vhk check <target>` 의 서브명령 안내. silent fallback 금지.
+ *  - 'evals' = 골든셋 채점기용 예약어(본체 미구현, 로드맵 goal G-B) → 정보성 안내(exit 0).
+ *  - 그 외   = 알 수 없는 인자 → 정직한 안내 + exit 1(#346: 조용한 성공 위장 차단).
+ */
+function checkSubcommand(sub: string) {
+  if (sub === 'evals') {
+    log.plain('')
+    log.bold(ko.check.evalsTitle)
+    log.dim(`  ${ko.check.evalsHint}`)
+    printNextStep({
+      message: '지금은 인자 없는 `vhk check` 가 RULES.md 규칙을 점검해요.',
+      command: 'vhk check',
+      cursorHint: '규칙 점검 돌려줘',
+    })
+    return
+  }
+  log.plain('')
+  log.warn(ko.check.unknownTarget(sub))
+  log.dim(`  ${ko.check.unknownHint}`)
+  log.plain('')
+  process.exitCode = 1
 }
 
 async function checkRules() {
