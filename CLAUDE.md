@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-25
+**마지막 갱신:** 2026-06-27
 - **버전:** v2.7.0 — 사실 확인은 package.json·CHANGELOG
 - **테스트:** ~1791 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
 - **Phase:** **의도 검증 방향 2·3·4 합류 — 2026-06-25** — `/flow` + worktree 3트랙 병렬로 4 PR 머지: **#398**(방향2-1 glob 미지원 forbidden `!`·`{}`·`[]`·후행`/` 거짓안전→caution)·**#399**(방향4 `goals/73` objective LLM judge **BLOCKED** 문서 — RFC0056 §2 "LLM판단0" 정체성 결정 선행)·**#400**(방향3-③④ receipt mission checksum + baseSha 무결성 = 위조 방어 2층)·**#401**(방향3-①② `init` mission 스캐폴드 + `work` 미설정 경고). goal 87 의도 대조 핵심 완성(잔여 PR2 review 합류·PR3 md). **이전**: 의도검증 2층 합류(#394 mission 대조·#395 영구규칙 ESLint)·도그푸딩 하드닝(goals 78~84)·receipt MVP(85·86)·RFC0056 정체성(ADR-006). 상세 docs/state/next-task.md·docs/log·CHANGELOG.
 - **블로커:** 없음
-- **진행 중(미완):** 없음 — 방향 2·3·4 4 PR 전부 머지. 열린 PR = dependabot **#397**(actions/checkout 6→7, 이번 작업과 별개)뿐. 🔧 잔존: `VISION.md` 빈줄 포맷 미커밋(출처 불명) · `.claude/worktrees/agent-*` 디렉터리 3개(node_modules로 물리삭제 권한막힘·기능 무해, 수동 청소).
-- **다음 할 일:** **[2026-06-25] 의도검증 방향 2·3·4 머지 완료(#398·#399·#400·#401)** → 상세·다음 후보는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. **다음 후보**: ⓐ **measure-first**(Recall@5 `memory eval --init` 라벨링·diff-cover 누적, 며칠) · ⓑ **v2.8.0 npm 발행**(2.7.0 이후 신기능 누적·사용자 2FA) · ⓒ **goal 87 마감**(PR2 review 합류·PR3 md 섹션). 방향2-2는 2-1에 흡수·2-3 한글경로 위험과장 보류·방향4는 `goals/73` BLOCKED(RFC0056 §2 정체성 결정 선행). **goal 87 = IN_PROGRESS**. ※ 저레버리지: 측정스키마 #373~375·Epic #376/364·미완 P2 goal 62/65/50 · 잔여청소(worktree 디렉터리·`VISION.md`·#397).
+- **진행 중(미완):** 없음 — 방향 2·3·4 4 PR 전부 머지. **[2026-06-27 청소]** 좀비 정리 완료: 머지된 원격 브랜치 21개 삭제 + dependabot **#397**(actions/checkout 6→7) 머지 + `.claude/worktrees/` 잔재 없음 확인. 🔧 잔존: `VISION.md` 헤딩-뒤-빈줄 포맷 변경 미커밋(출처 불명·사용자 확인 대기).
+- **다음 할 일:** **[2026-06-25] 의도검증 방향 2·3·4 머지 완료(#398·#399·#400·#401)** → 상세·다음 후보는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. **다음 후보**: ⓐ **measure-first**(Recall@5 `memory eval --init` 라벨링·diff-cover 누적, 며칠) · ⓑ **v2.8.0 npm 발행**(2.7.0 이후 신기능 누적·사용자 2FA) · ⓒ **goal 87 마감**(PR2 review 합류·PR3 md 섹션). 방향2-2는 2-1에 흡수·2-3 한글경로 위험과장 보류·방향4는 `goals/73` BLOCKED(RFC0056 §2 정체성 결정 선행). **goal 87 = IN_PROGRESS**. ※ 저레버리지: 측정스키마 #373~375·Epic #376/364·미완 P2 goal 62/65/50 · 잔여청소 완료(좀비 브랜치 21개·#397 머지) — `VISION.md`만 확인 대기. **트랙B 발견**: `vhk check evals` 채점기 미구현(G-B 대기)→규칙점검 silent fallback UX 갭.
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유 / 적대리뷰 워크플로 에이전트는 read-only 명시(과거 `vhk save` 정크커밋 사고) / 동시세션 docs/state 충돌 주의
