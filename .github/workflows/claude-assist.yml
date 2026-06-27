@@ -24,7 +24,7 @@ jobs:
       issues: write
       actions: read # CI 결과 참조
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # PR 브랜치 전환·diff 계산에 전체 이력 필요
           # action이 git 인증을 자체 구성(configureGitAuth)하므로 checkout 인증정보 잔류 불필요
