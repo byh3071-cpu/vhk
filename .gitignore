@@ -30,6 +30,9 @@ dist/
 # EnterWorktree 가 .claude/worktrees/ 에 isolated 복사본 생성 — 커밋 금지
 .claude/worktrees/
 
+# 서브에이전트(critic 등) 로컬 학습 메모리 — 머신별 산출물, 커밋 금지
+.claude/agent-memory/
+
 # Cursor MCP 설정 — 절대 로컬 경로 포함, 머신별 — 커밋 금지 (VHK-022 hygiene)
 .cursor/
 
