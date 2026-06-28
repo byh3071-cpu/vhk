@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 8 goal — IN_PROGRESS 3 · NOT_STARTED 2 · BLOCKED 1 · DONE 2
+> 총 8 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 3
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -13,5 +13,5 @@
 | 73 | Objective LLM 판정 — "목표를 실제로 달성했나"를 LLM judge로 평가 (`vhk check --evals`) | ⛔ BLOCKED | P2 | 결정론(scope/forbidden)으로 잡지 못하는 "목표 달성 여부" 판정 계층 확보 → 의도 검증 깊이 확장 |
 | 79 | verify 로컬 환경의존 테스트 분리 — 선조사 후 범위 재조정(확실한 것만) — P0 | 🔄 IN_PROGRESS | P0 | 로컬 verify 신뢰 — 선조사로 회귀 0 확인, 확실한 조치만 적용 |
 | 85 | receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0 | ✅ DONE | P0 | receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결) |
-| 86 | vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0 | 🔄 IN_PROGRESS | P0 | 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기 |
+| 86 | vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0 | ✅ DONE | P0 | 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기 |
 | 87 | 의도 대조 — receipt/review가 mission(시킨 것)을 검증에 반영 (의도 장갑 손바닥) — P0 | ✅ DONE | P0 | "AI가 시킨 대로(scope/forbidden) 했나"를 자동 판정 — 경쟁사 못 하는 해자(남들은 의도를 모름) 실현 |

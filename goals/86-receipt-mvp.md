@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 86
 title: vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0
-status: IN_PROGRESS
+status: DONE
 priority: P0
 created: 2026-06-23
+completed: 2026-06-28
 leads_to: 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기
 ---
 
