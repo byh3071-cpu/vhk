@@ -6,6 +6,7 @@ import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import * as gitSession from '../lib/git-session.js'
 import { isGitRepo } from '../lib/git-repo.js'
 import { parseEnvKeys } from '../commands/env.js'
+import { formatChangeSummaryMessage } from '../commands/save.js'
 import { resolveDeployTarget } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
 import { detectCurrentPM, parseAuditOutputDetailed, runAuditJson } from '../commands/audit.js'
@@ -153,9 +154,8 @@ export function createVhkMcpServer(): McpServer {
         }
       }
 
-      const now = new Date()
-      const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-      const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
+      // #286: 메시지 미지정 시 변경 파일 기반 요약 생성(CLI save 와 동일 helper — 파리티).
+      const commitMsg = message?.trim() || formatChangeSummaryMessage(files)
 
       // goal 70: 고위험 옵트인 — confirm:true 없으면 commit/push 하지 않고 미리보기만.
       // 에이전트가 사람 승인 없이 원격에 push 하는 것을 차단(undo 와 동일 패턴, HIGH_RISK_MCP_TOOLS).

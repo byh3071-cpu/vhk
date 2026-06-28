@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import inquirer from 'inquirer'
-import { formatDefaultCommitMessage } from '../src/commands/save.js'
+import { formatChangeSummaryMessage } from '../src/commands/save.js'
 import { t } from '../src/i18n/ko.js'
 
 vi.mock('node:child_process')
@@ -97,7 +97,7 @@ describe('save', () => {
     process.exitCode = exitBefore
   })
 
-  it('비-TTY 면 커밋 메시지 inquirer 없이 기본값(chore: vhk save) 사용', async () => {
+  it('#286: 비-TTY 면 inquirer 없이 변경요약 fallback 메시지로 커밋 (고정 chore: vhk save 아님)', async () => {
     // vitest = 비-TTY (stdin.isTTY undefined). promptOrDefault 가 ask() 미호출 → fallback.
     const ttyBefore = process.stdin.isTTY
     Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
@@ -111,8 +111,8 @@ describe('save', () => {
       await expect(save()).resolves.not.toThrow()
       // inquirer 프롬프트 미호출 (비대화형 = stdin 미접근, MCP 안전)
       expect(vi.mocked(inquirer.prompt)).not.toHaveBeenCalled()
-      // 커밋은 fallback 메시지로 수행 (commit(message, cwd) 시그니처)
-      expect(mockCommit).toHaveBeenCalledWith('chore: vhk save', '/repo')
+      // #286: fallback 도 변경 파일 반영 (' M file.ts' → file.ts). 고정 메시지였던 회귀 방지.
+      expect(mockCommit).toHaveBeenCalledWith('chore: vhk save — file.ts', '/repo')
     } finally {
       Object.defineProperty(process.stdin, 'isTTY', { value: ttyBefore, configurable: true })
     }
@@ -146,9 +146,33 @@ describe('save', () => {
 })
 
 describe('vhk save helpers', () => {
-  it('formatDefaultCommitMessage — vhk save 접두사', () => {
-    const msg = formatDefaultCommitMessage(new Date('2026-05-23T15:30:00'))
-    expect(msg).toBe('✨ vhk save: 2026-05-23 15:30')
+  describe('formatChangeSummaryMessage (#286)', () => {
+    it('단일 파일 — 경로를 메시지에 반영', () => {
+      expect(formatChangeSummaryMessage([' M src/commands/save.ts']))
+        .toBe('chore: vhk save — src/commands/save.ts')
+    })
+
+    it('여러 파일 — 개수 + 목록', () => {
+      expect(formatChangeSummaryMessage([' M a.ts', '?? b.ts', ' D c.ts']))
+        .toBe('chore: vhk save — 3 files: a.ts, b.ts, c.ts')
+    })
+
+    it('rename — "old -> new" 에서 new 경로만 사용', () => {
+      expect(formatChangeSummaryMessage(['R  old.ts -> src/new.ts']))
+        .toBe('chore: vhk save — src/new.ts')
+    })
+
+    it('파일 많으면 subject 상한 내로 자르고 +N more 로 총개수 표기', () => {
+      const many = Array.from({ length: 30 }, (_, i) => ` M src/very/long/path/file-${i}.ts`)
+      const msg = formatChangeSummaryMessage(many)
+      expect(msg.startsWith('chore: vhk save — 30 files: ')).toBe(true)
+      expect(msg).toMatch(/ \+\d+ more$/)
+      expect(msg).not.toContain('file-29.ts') // 일부만 나열(전부 X)
+    })
+
+    it('변경 없음 — prefix 만 (방어)', () => {
+      expect(formatChangeSummaryMessage([])).toBe('chore: vhk save')
+    })
   })
 
   it('t(save.*) — i18n 키 조회', () => {

@@ -24,13 +24,35 @@ function must(r: ExecResult): string {
   return r.out
 }
 
-export function formatDefaultCommitMessage(date = new Date()): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  const h = String(date.getHours()).padStart(2, '0')
-  const min = String(date.getMinutes()).padStart(2, '0')
-  return `✨ vhk save: ${y}-${m}-${d} ${h}:${min}`
+// #286: 변경 파일 목록(git porcelain 라인)으로 의미있는 커밋 메시지를 만든다.
+// 이전엔 비-TTY/에이전트 저장이 항상 'chore: vhk save' 로 고정돼 git 히스토리에서 작업을
+// 구분할 수 없었다(독푸딩 cafe-pos-vhk 14커밋 전부 동일). 이제 변경 파일/개수를 반영해
+// 저장마다 다른 메시지를 만든다. 사용자가 -m 으로 직접 지정하면 그쪽이 우선.
+const SUBJECT_MAX = 72
+export function formatChangeSummaryMessage(lines: string[]): string {
+  const prefix = 'chore: vhk save'
+  // porcelain v1: "XY path" (코드 2자 + 공백 + 경로). rename 은 "old -> new" → new 만 취함.
+  const paths = lines
+    .map(line => {
+      const name = line.slice(3).trim()
+      const arrow = name.lastIndexOf(' -> ')
+      return (arrow >= 0 ? name.slice(arrow + 4) : name).trim()
+    })
+    .filter(Boolean)
+
+  if (paths.length === 0) return prefix
+  if (paths.length === 1) return `${prefix} — ${paths[0]}`.replace(/\r?\n/g, ' ')
+
+  // subject 상한(~72자 conventional) 안에서 가능한 파일을 나열, 나머지는 '+N more'.
+  const head = `${prefix} — ${paths.length} files: `
+  const shown: string[] = []
+  for (const p of paths) {
+    if (shown.length > 0 && (head + [...shown, p].join(', ')).length > SUBJECT_MAX) break
+    shown.push(p)
+  }
+  const remaining = paths.length - shown.length
+  const list = shown.join(', ') + (remaining > 0 ? ` +${remaining} more` : '')
+  return `${head}${list}`.replace(/\r?\n/g, ' ')
 }
 
 function statusIcon(code: string): string {
@@ -98,8 +120,10 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
     console.log(`   ${statusIcon(code)} ${name}`)
   })
 
-  // #154: --message 제공 시 프롬프트 건너뛰고 그대로 사용(MCP save 파리티). 없으면 기존 흐름
-  // (TTY → 프롬프트 / 비-TTY → 기본 메시지).
+  // 메시지 우선순위(#286 + #154): ① --message(에이전트/사용자 직접) → ② TTY 프롬프트
+  // (기본값 = 변경요약) → ③ 비-TTY fallback(변경요약). 항상 'chore: vhk save' 고정이던
+  // 과거와 달리, 변경 파일을 반영해 매 저장마다 의미있는 메시지를 만든다(히스토리 구분 가능).
+  const autoMessage = formatChangeSummaryMessage(lines)
   const message = opts.message?.trim()
     ? opts.message.trim()
     : await promptOrDefault(
@@ -107,9 +131,9 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
           type: 'input',
           name: 'message',
           message: t('save.commitMessage'),
-          default: formatDefaultCommitMessage(),
+          default: autoMessage,
         }])).message,
-        'chore: vhk save',
+        autoMessage,
       )
 
   const spinner = ora(t('save.saving')).start()
