@@ -433,10 +433,17 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   }
   warnIfBashOnWindows(scriptPath)
   const gate = runGate(scriptPath)
-  console.log(chalk.dim(`  ▶ 게이트 검증: ${gate.runner} ${scriptPath}\n`))
-  if (gate.out) console.log(gate.out)
+  // #287: 게이트 출력(빌드·테스트 로그)은 길어서, stdout 파이프가 조기 종료되면(예: PowerShell
+  //       `... | Select -First N`) 이 write 에서 EPIPE 가 난다. Windows 는 파이프 write 가 동기라
+  //       EPIPE 가 throw 되어 스택을 풀고 나가 버려 — 아래 상태 전이(atomicWriteFile)에 도달하지 못한다.
+  //       그래서 게이트 통과 시 '부수효과(상태 전이)'를 출력보다 먼저 수행한다(출력 소비 여부와 무관하게 전이 보장).
+  const showGateOutput = (): void => {
+    console.log(chalk.dim(`  ▶ 게이트 검증: ${gate.runner} ${scriptPath}\n`))
+    if (gate.out) console.log(gate.out)
+  }
   if (!gate.ok) {
     // Forbidden: 게이트 실패에도 done 으로 마킹 금지. frontmatter 변경 없이 종료.
+    showGateOutput()
     console.log(
       chalk.red(
         `\n  ❌ 게이트 실패 — frontmatter 변경 없이 종료. (Forbidden: 실패 = 보존)`
@@ -450,6 +457,7 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   const updated = updateFrontmatterStatus(content, 'DONE', { completed: today })
   if (updated === content) {
     // 갱신 결과 무변경 — frontmatter 미인식(손상·마커 누락) 또는 이미 동일 상태. "✅ DONE" 거짓 성공 방지.
+    showGateOutput()
     console.log(
       chalk.yellow(
         `\n  ⚠ frontmatter 갱신 결과 변경 없음 — 이미 DONE(completed: ${today})이거나 frontmatter 형식 미인식. 파일을 확인하세요.`
@@ -458,7 +466,9 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
     process.exitCode = 1
     return
   }
+  // #287: durable write 를 출력보다 먼저 — 파이프가 끊겨(EPIPE) 후속 console.log 가 죽어도 전이는 이미 디스크에 안전.
   atomicWriteFile(target.filePath, updated) // Goal 40: frontmatter 갱신 중 kill 시 goal 파일 손상 방지
+  showGateOutput()
   console.log(chalk.green(`\n  ✅ Goal ${id} → DONE (completed: ${today})`))
   printNextStep({
     message: `Goal ${id} 완료! 다음 goal 로:`,
