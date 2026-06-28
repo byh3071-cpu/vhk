@@ -1,4 +1,9 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+
+// execFile(callback) → Promise. Node 가 exec/execFile 에 한해 custom promisify 를 제공해
+// 실패(reject) 시에도 err.stdout/err.stderr 가 보존된다(아래 비동기 에러 파싱이 sync 와 동일하게 동작).
+const execFileAsync = promisify(execFile)
 
 // Windows에서 pnpm/npm/npx/yarn/vhk는 .cmd shim. execFileSync는 native 바이너리만 찾으므로 .cmd 확장자 부여.
 // #150: 'vhk' 추가 — 전역 설치 시 vhk.cmd 만 노출돼 MCP 가 bare 'vhk' spawn 시 ENOENT 였음.
@@ -98,6 +103,51 @@ export function safeExecFile(
     const stderr = e.stderr ? e.stderr.toString().trim() : ''
     let msg = e.message ?? String(err)
     if (isTimeoutError(e, timeout)) {
+      msg = `명령 시간 초과 (timeout ${timeout}ms): ${cmd} ${args.join(' ')}`.trim()
+    }
+    return { ok: false, err: msg, out: stdout.trim(), stderr: stderr || undefined }
+  }
+}
+
+// safeExecFile 의 비동기(non-blocking) 쌍둥이. 동작 의미(ExecResult 모양·env 병합·timeout·
+// cwd·trimOutput·Windows .cmd shim 해석·실패 시 stdout/stderr 보존)는 sync 와 동일하게 유지하되,
+// execFileSync 가 이벤트루프를 막는 것을 promisified execFile 로 해소한다(장시간 build/test 가
+// MCP stdio 서버의 다른 요청을 블로킹하지 않게 — server.ts ship 핸들러용).
+// 외부 의존성(execa 등) 추가 없이 node:child_process 내장 API 만 사용 — 공개 CLI 의존성 표면 보존.
+export async function safeExecFileAsync(
+  cmd: string,
+  args: string[],
+  opts: SafeExecOptions = {}
+): Promise<ExecResult> {
+  const { bin, argv } = resolveCmd(cmd, args)
+  const env = opts.env ? { ...process.env, ...opts.env } : undefined
+  const timeout = resolveTimeout(opts.timeoutMs, DEFAULT_EXEC_TIMEOUT_MS)
+  try {
+    const { stdout } = await execFileAsync(bin, argv, {
+      encoding: 'utf-8',
+      env,
+      ...(opts.cwd ? { cwd: opts.cwd } : {}),
+      ...(timeout ? { timeout, killSignal: 'SIGTERM' as const } : {}),
+    })
+    const out = stdout.toString()
+    // trimOutput !== false → trim(기본). false 면 raw 보존(porcelain 선행 공백 등).
+    return { ok: true, out: opts.trimOutput === false ? out : out.trim() }
+  } catch (err) {
+    // non-zero exit / timeout kill: stdout/stderr 는 err.stdout/err.stderr 에 보존됨(sync 와 동일).
+    const e = err as {
+      stdout?: Buffer | string
+      stderr?: Buffer | string
+      message?: string
+      killed?: boolean
+      signal?: string
+      code?: string
+    }
+    const stdout = e.stdout ? e.stdout.toString() : ''
+    const stderr = e.stderr ? e.stderr.toString().trim() : ''
+    let msg = e.message ?? String(err)
+    // sync(spawnSync) 는 timeout 시 code='ETIMEDOUT' 를 주지만, async execFile 은 killSignal 로
+    // 죽여 killed=true + signal 로 신호한다 → 둘 다 timeout 으로 라벨(메시지 파리티). ok=false 는 동일.
+    if (timeout && (e.code === 'ETIMEDOUT' || (e.killed === true && (e.signal === 'SIGTERM' || e.signal === 'SIGKILL')))) {
       msg = `명령 시간 초과 (timeout ${timeout}ms): ${cmd} ${args.join(' ')}`.trim()
     }
     return { ok: false, err: msg, out: stdout.trim(), stderr: stderr || undefined }
