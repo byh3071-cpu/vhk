@@ -9,12 +9,18 @@ import { createTroubleshootingFile } from '../lib/troubleshooting.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
-import { ensureInteractive } from '../lib/interactive.js'
+import { isInteractive } from '../lib/interactive.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { localDate } from '../lib/date.js'
 
 export type RecapOptions = {
   since?: string
+  // #288: 비-TTY(헤드리스 AI·파이프)·--yes 비대화형 회고 입력. 미지정 항목은 기본값/미입력 표식.
+  summary?: string
+  decisions?: string
+  next?: string
+  blockers?: string
+  yes?: boolean
 }
 
 export async function recap(options: RecapOptions = {}) {
@@ -69,33 +75,45 @@ export async function recap(options: RecapOptions = {}) {
   }
 
   console.log('')
-  // VHK-014: 비-TTY 면 프롬프트 크래시 대신 friendly 안내 + exit 1 (위 git 분석은 보여준 뒤).
-  if (!ensureInteractive('회고 입력은 대화형으로만 가능합니다.')) return
+  // #288: 비-TTY(헤드리스 AI·파이프) 또는 --yes 면 프롬프트 대신 플래그값(없으면 미입력 표식)으로
+  // 회고를 구성한다. 과거엔 여기서 ensureInteractive 가 TTY_REQUIRED(exit 2)로 중단해 AI 워크플로가
+  // 끊겼다(COMMANDS.md "오늘 한 일 정리해" 안내와 모순). 대화형 경로는 그대로 — 프롬프트 호출 금지
+  // 규칙은 아래 비-TTY 분기(프롬프트 미호출)에서 지킨다.
+  const interactive = isInteractive({ yes: options.yes })
 
-  const answers = await prompt([
-    {
-      type: 'input',
-      name: 'summary',
-      message: ko.recap.summary,
-    },
-    {
-      type: 'input',
-      name: 'decisions',
-      message: ko.recap.decisions,
-      default: '없음',
-    },
-    {
-      type: 'input',
-      name: 'nextTodo',
-      message: ko.recap.nextTodo,
-    },
-    {
-      type: 'input',
-      name: 'blockers',
-      message: ko.recap.blockers,
-      default: '없음',
-    },
-  ])
+  const answers = interactive
+    ? await prompt<{ summary: string; decisions: string; nextTodo: string; blockers: string }>([
+        {
+          type: 'input',
+          name: 'summary',
+          message: ko.recap.summary,
+        },
+        {
+          type: 'input',
+          name: 'decisions',
+          message: ko.recap.decisions,
+          default: '없음',
+        },
+        {
+          type: 'input',
+          name: 'nextTodo',
+          message: ko.recap.nextTodo,
+        },
+        {
+          type: 'input',
+          name: 'blockers',
+          message: ko.recap.blockers,
+          default: '없음',
+        },
+      ])
+    : {
+        summary: options.summary?.trim() || ko.recap.notProvided,
+        decisions: options.decisions?.trim() || '없음',
+        nextTodo: options.next?.trim() || ko.recap.notProvided,
+        blockers: options.blockers?.trim() || '없음',
+      }
+
+  if (!interactive) console.log(chalk.dim(`  ${ko.recap.nonInteractiveNote}`))
 
   const today = localDate()
   const logDir = path.join(process.cwd(), 'docs', 'log')
@@ -145,6 +163,39 @@ export async function recap(options: RecapOptions = {}) {
   ].join('\n')
 
   fs.writeFileSync(filePath, content, 'utf-8')
+
+  const gitSaveCmd = process.platform === 'win32'
+    ? 'git add .; git commit -m "recap: 세션 기록"'
+    : 'git add . && git commit -m "recap: 세션 기록"'
+
+  // #288: 비대화형(비-TTY/--yes)은 여기서 마무리한다 — ADR/트러블슈팅 후보는 읽기전용으로
+  // 보고하되, 문서 자동 생성·CLAUDE.md 갱신처럼 프롬프트가 필요한 경로는 건너뛴다(헤드리스 inquirer 금지).
+  if (!interactive) {
+    const adrCandidates = detectAdrCandidates(diff)
+    if (adrCandidates.length > 0) {
+      console.log(chalk.cyan.bold(`\n${ko.recap.adrDetected} (${adrCandidates.length}건)`))
+      for (const candidate of adrCandidates) {
+        console.log(chalk.cyan(`  • ${candidate.title}: ${candidate.context}`))
+        candidate.files.forEach(f => console.log(chalk.dim(`    ${f}`)))
+      }
+    }
+    const troubleCommits = detectTroubleshootingCommits(commits)
+    if (troubleCommits.length > 0) {
+      console.log(chalk.yellow.bold(`\n${ko.recap.troubleDetected} (${troubleCommits.length}건)`))
+      troubleCommits.forEach(c => console.log(chalk.dim(`  • ${c.message}`)))
+    }
+    if (adrCandidates.length > 0 || troubleCommits.length > 0) {
+      console.log(chalk.dim(`  ${ko.recap.detectSkipNonInteractive}`))
+    }
+    console.log(chalk.green.bold(`\n${ko.recap.done}`))
+    console.log(chalk.dim(`  📄 ${path.relative(process.cwd(), filePath)}`))
+    printNextStep({
+      message: '오늘 기록 완료! 저장하고 싶으면:',
+      command: gitSaveCmd,
+      cursorHint: '저장해줘',
+    })
+    return
+  }
 
   const adrCandidates = detectAdrCandidates(diff)
   if (adrCandidates.length > 0) {
@@ -269,10 +320,6 @@ export async function recap(options: RecapOptions = {}) {
       }
     }
   }
-
-  const gitSaveCmd = process.platform === 'win32'
-    ? 'git add .; git commit -m "recap: 세션 기록"'
-    : 'git add . && git commit -m "recap: 세션 기록"'
 
   printNextStep({
     message: '오늘 기록 완료! 저장하고 싶으면:',

@@ -257,6 +257,12 @@ program
   .alias('오늘')
   .description('오늘 한 일 정리 + ADR/트러블슈팅 자동 분리')
   .option('--since <date>', '분석 시작일 (YYYY-MM-DD)')
+  // #288: 비-TTY(헤드리스 AI·파이프)에서도 회고를 남길 수 있게 비대화형 입력 경로 제공.
+  .option('--summary <text>', '작업 요약 (비대화형 입력)')
+  .option('--decisions <text>', '결정 사항 (비대화형 입력)')
+  .option('--next <text>', '다음 할 일 (비대화형 입력)')
+  .option('--blockers <text>', '블로커 (비대화형 입력)')
+  .option('-y, --yes', '비대화형 실행 — 프롬프트 없이 플래그·기본값 사용 (TTY 에서도 강제)')
   .action(recap)
 
 // 유틸
