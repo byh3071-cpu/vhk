@@ -54,6 +54,11 @@ function emptyV2(): MemoryFileV2 {
   return { schemaVersion: MEMORY_SCHEMA_VERSION, decisions: [], failures: [], successes: [], patterns: [] }
 }
 
+/** 흡수할 항목이 전혀 없는 빈 v2 인가 — read 경로가 빈 memory.json 을 litter 하지 않도록 판정용(#372). */
+function isEmptyV2(m: MemoryFileV2): boolean {
+  return m.decisions.length === 0 && m.failures.length === 0 && m.successes.length === 0 && m.patterns.length === 0
+}
+
 function isV2(raw: unknown): raw is MemoryFileV2 {
   return !!raw && typeof raw === 'object' && (raw as { schemaVersion?: number }).schemaVersion === 2
 }
@@ -176,10 +181,22 @@ function readLearningsRaw(cwd: string): string | undefined {
 }
 
 /**
+ * read 경로 자동 영구화 — 마이그레이션 결과(v2)를 1회 디스크에 쓴다.
+ * 영구화 실패(파일 잠금 등)는 read 커맨드를 죽이지 않는다 — 메모리상 v2 로 진행, 다음 쓰기 때 재시도.
+ */
+function persistOnRead(cwd: string, v2: MemoryFileV2): void {
+  try {
+    writeMemory(cwd, v2)
+  } catch {
+    console.error(chalk.yellow(`   (v2 영구화 보류 — ${MEMORY_PATH_REL} 잠금 의심. 이번엔 메모리상으로만 진행)`))
+  }
+}
+
+/**
  * memory.json 읽기 → 항상 v2.
- * **계약 일관성**: 디스크가 v1 평면배열이면 read 경로(memory list / context / brief 등)에서도 1회 실제
- * 마이그레이션을 영구화(v2 write + .v1.bak) — 어느 명령으로 첫 실행해도 동일 결과.
- * 멱등: 이미 v2 면 no-op(재흡수·재기록 없음). 파일이 아예 없으면 빈 v2 만 반환(쓰지 않음).
+ * **계약 일관성**: 디스크가 v1 평면배열이거나 파일이 없어도 learnings.md 흡수분이 있으면 read 경로
+ * (memory list / context / brief 등)에서 1회 실제 마이그레이션을 영구화 — 어느 명령으로 첫 실행해도 동일 결과.
+ * 멱등: 이미 v2 면 no-op(재흡수·재기록 없음). 파일도 learnings 도 없어 흡수할 게 0이면 빈 v2 반환(쓰지 않음 — litter 방지).
  * **안전**: 파일은 있으나 파싱 불가(손상/부분 write/IO) 면 **절대 덮어쓰지 않고** 경고 후 빈 v2 반환(원본 보존).
  */
 export function readMemory(cwd: string = process.cwd()): MemoryFileV2 {
@@ -191,22 +208,20 @@ export function readMemory(cwd: string = process.cwd()): MemoryFileV2 {
   if (raw.kind === 'parsed') {
     if (isV2(raw.value)) return normalizeV2(raw.value)
     if (Array.isArray(raw.value)) {
-      // v1 평면 배열이 디스크에 **실재**할 때만 1회 영구화(+.v1.bak).
-      // 영구화 실패(파일 잠금 등)는 read 커맨드를 죽이지 않는다 — 메모리상 v2 로 진행, 다음 쓰기 때 재시도.
+      // v1 평면 배열이 디스크에 **실재**할 때 1회 영구화(+.v1.bak).
       const v2 = migrateMemory(raw.value, readLearningsRaw(cwd))
-      try {
-        writeMemory(cwd, v2)
-      } catch {
-        console.error(chalk.yellow(`   (v2 영구화 보류 — ${MEMORY_PATH_REL} 잠금 의심. 이번엔 메모리상으로만 진행)`))
-      }
+      persistOnRead(cwd, v2)
       return v2
     }
     // 파싱되나 v1/v2 아님 (미래 스키마/수동 편집) → 덮어쓰지 않고 빈 v2 반환(원본 보존).
     warnUnrecognized(cwd)
     return emptyV2()
   }
-  // 파일 없음 — 빈 v2(+learnings 흡수). 쓰지 않음.
-  return migrateMemory(null, readLearningsRaw(cwd))
+  // 파일 없음 — learnings.md 흡수분이 있으면 1회 영구화(#372: 매 read 재마이그레이션 → 디스크 영속 0 방지).
+  // 흡수할 게 전혀 없으면(빈 v2) 쓰지 않는다 — 빈 memory.json litter 방지(memoryMigrate 와 동일 정책).
+  const v2 = migrateMemory(null, readLearningsRaw(cwd))
+  if (!isEmptyV2(v2)) persistOnRead(cwd, v2)
+  return v2
 }
 
 type LoadOutcome = { ok: true; mem: MemoryFileV2 } | { ok: false }
