@@ -62,8 +62,9 @@ must(/export function buildReceipt/.test(core), 'receipt.ts: buildReceipt(.json 
 must(/export function renderReceiptMarkdown/.test(core), 'receipt.ts: renderReceiptMarkdown(.md 붙여넣기)')
 must(/export const HONESTY_LINE/.test(core), 'receipt.ts: 정직성 1줄 SoT')
 must(/게으른 거짓완료/.test(core) && /미묘한 오류/.test(core), 'receipt.ts: 정직성 경계(게으른 거짓완료 vs 미묘한 오류)')
-// 실차단 3종만 block — diff-cover 는 block 분기에 없어야 함(advisory 분리)
-must(/e\.gates\.red \|\| e\.dirty \|\| \(e\.staleKnown && e\.stale\)/.test(core), 'receipt.ts: 실차단 3종(red·dirty·stale)만 block')
+// 실차단(red·dirty·stale·forbidden) block — diff-cover 는 block 분기에 없어야 함(advisory 분리).
+// 이 게이트는 기저 3종(red·dirty·stale) 분기 존재만 확인 — forbidden(Goal 87)은 check-goal-87 게이트 소관.
+must(/e\.gates\.red \|\| e\.dirty \|\| \(e\.staleKnown && e\.stale\)/.test(core), 'receipt.ts: 기저 실차단(red·dirty·stale) block 분기 존재 — forbidden 은 check-goal-87')
 
 // ② 경계(IO) — 기존 자산 재사용 글루코드(신규 발명 최소)
 const cmd = read('src/commands/receipt.ts') ?? ''
