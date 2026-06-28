@@ -13,6 +13,8 @@ Cursor에게 한국어로 말해도 됩니다.
 | 규칙 동기화 | `vhk 규칙` | "규칙 동기화해" |
 | 보안 스캔 | `vhk 보안 scan` | "보안 스캔 돌려" |
 
+> 🤖 **헤드리스/AI 실행:** `vhk recap`(오늘 정리)은 비-TTY(파이프·AI 에이전트 셸)에서도 동작합니다 — `--summary` · `--next` · `--decisions` · `--blockers` 로 내용을 넘기거나 `--yes` 로 기본값을 씁니다. 미지정 항목은 "미입력"으로 기록되고, ADR/트러블슈팅 문서 **생성**은 대화형(터미널)에서만 진행돼요(비-TTY 에서는 후보만 보고). (#288)
+
 > `vhk sync` 대상(7): `.cursorrules` · `.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/vhk-rules.md` · `AGENTS.md` · `GEMINI.md`(Gemini CLI) · `.clinerules/vhk-rules.md`(Cline) + `CLAUDE.md`(하이브리드). 모두 RULES.md 단일소스에서 생성.
 
 | 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |
@@ -142,7 +144,7 @@ vhk doctor
 | `vhk gate` | 아이디어 검증 |
 | `vhk start` | 새 프로젝트 시작 마법사 |
 | `vhk init` | 하네스 파일 생성 |
-| `vhk recap` | 오늘 한 일 정리 + ADR 분리 |
+| `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63) |
 | `vhk check` | RULES.md 규칙 점검 |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사) |

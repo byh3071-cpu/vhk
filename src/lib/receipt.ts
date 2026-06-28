@@ -16,7 +16,7 @@
 
 import type { ReportStatus } from '../commands/verify.js'
 
-/** 영수증 판정 — 기계증거만(LLM 0). block: 실차단(red/dirty/stale). caution: 약신호만. pass: 전부 clean·확인됨. */
+/** 영수증 판정 — 기계증거만(LLM 0). block: 실차단(red/dirty/stale/forbidden). caution: 약신호만. pass: 전부 clean·확인됨. */
 export type ReceiptDecision = 'block' | 'caution' | 'pass'
 
 /** 게이트(verify) 증거 요약 — 실종료코드 출처(자기보고 거부, verify.ts 가 이미 강제). */

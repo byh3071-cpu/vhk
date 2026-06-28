@@ -15,7 +15,7 @@ import { collectReceipt, collectIntent, verifyBaseSha } from '../src/commands/re
 
 // Goal 86 (RFC 0056 T1): vhk receipt — 4대 기계증거 → 영수증 1장.
 // 핵심 불변식(테스트로 고정):
-//  ① decision 은 기계증거만으로(LLM 0). dirty/stale/red 중 하나라도면 block.
+//  ① decision 은 기계증거만으로(LLM 0). 실차단(red·dirty·stale·forbidden) 중 하나라도면 block.
 //  ② 단조성: caution → pass 격상 절대 금지(부정 신호가 늘면 결과가 좋아질 수 없다).
 //  ③ ④ diff-cover 는 advisory(약신호) — decision 을 block 으로 격하시키지 못한다.
 
@@ -55,7 +55,7 @@ describe('decideReceipt — 기계증거만(LLM 0)', () => {
     expect(decideReceipt(e)).toBe('block')
   })
 
-  it('실차단 3종(red·dirty·stale) 중 하나라도면 block — 조합 무관', () => {
+  it('기저 실차단 3종(red·dirty·stale) 각각 단독이면 block — 조합 무관 (forbidden 은 별도 describe)', () => {
     for (const key of ['red', 'dirty', 'stale'] as const) {
       const e = cleanEvidence()
       if (key === 'red') e.gates.red = true
@@ -119,7 +119,7 @@ describe('④ diff-cover 는 advisory — decision 을 block 으로 격하 못 �
     expect(d).toBe('caution')
   })
 
-  it('실차단(dirty)에 더해 diff-cover 가 풀커버여도 여전히 block — 차단은 3종만이 결정', () => {
+  it('실차단(dirty)에 더해 diff-cover 가 풀커버여도 여전히 block — 차단은 실차단이 결정(diff-cover 무관)', () => {
     const e = cleanEvidence()
     e.dirty = true
     e.diffCover = { measured: true, totalAdded: 10, totalUncovered: 0, ratio: 1 }

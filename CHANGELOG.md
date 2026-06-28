@@ -10,6 +10,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Fixed
 
+- **`vhk goal done` 파이프 조기종료(EPIPE) 시 상태 전이 누락 + exit 255 차단** (#287) — 게이트 통과 후 상태 write(frontmatter→DONE)를 게이트 출력보다 **먼저** 수행. Windows 는 파이프 write 가 동기라, 소비자가 출력 도중 파이프를 닫으면(예: `... | Select-Object -First 3`) `console.log(gate.out)` 이 EPIPE 를 throw 해 스택을 풀고 `atomicWriteFile` 전에 함수를 빠져나가던 게 원인 — 부수효과(상태 전이)를 출력보다 앞세워 출력 소비 여부와 무관하게 전이를 보장. 추가로 CLI 진입점에서 stdout/stderr 의 EPIPE 를 정상 종료(0)로 흡수. 회귀: 게이트 출력 print 가 EPIPE 로 죽어도 DONE 전이 보존.
 - **verify 자기참조 봉인** (Goal 85, #315, #370) — dirty 판정에서 vhk 자기 산출 추적파일(`.vhk/ledger.jsonl`·`.vhk/events/*.jsonl`)을 제외(`src/lib/self-tracked.ts` 단일 SoT). verify 직후 자기 ledger append 때문에 늘 거짓 "낡은 증거(dirty)"로 done/release 게이트를 막던 자기모순 해소. 과확장 0·퇴행 0 테스트 고정.
 - **recall 자유형식 쿼리 NL 라우터 가로채기 차단** (#313, #365) — `recall`/`회상` 쿼리에 트리거 단어(어떻게·보안·롤백 등)가 섞여도 NL 라우터에 가로채이지 않고 commander 로 위임(`FREEFORM_ARG_COMMANDS` 에 추가). 흔한 한국어 쿼리에서 메모리 검색이 무에러로 불능이던 문제 해소.
 - **goal·memory 파괴적 입력 검증 강화** (#317·#318, #367) — `goal check/done --id` 빈/공백 값(`Number('')===0` 으로 goal 0 오염)과 `memory remove/archive` 부분파싱(`parseInt('2zzz')=2`·`'1.5'=1`)을 정수 정규식으로 거부 — 엉뚱한 항목 DONE/삭제 차단.

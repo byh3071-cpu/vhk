@@ -968,3 +968,57 @@ describe('#330 goalCheck/goalDone — 비숫자 --id 진짜 원인 지목', () =
     })
   }
 })
+
+// #287: stdout 파이프가 게이트 로그 도중 조기 종료(EPIPE)돼도 status 전이는 보존돼야 한다.
+//        (Windows 는 파이프 write 가 동기 → EPIPE throw 가 스택을 풀어 옛 코드는 write 전 종료.)
+describe('#287 goalDone — 파이프 조기종료(EPIPE) 시에도 상태 전이 보장', () => {
+  let origCwd: string
+  let origExitCode: number | string | undefined
+  beforeEach(() => {
+    origCwd = process.cwd()
+    origExitCode = process.exitCode
+    mockSafeExecFile.mockReset()
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    process.exitCode = origExitCode
+    vi.restoreAllMocks()
+  })
+
+  it('게이트 출력 print 가 EPIPE 로 죽어도 frontmatter 는 DONE 으로 전이됨', async () => {
+    const dir = tmpProject('epipe-done')
+    makeGoalFile(dir, 4, 'NOT_STARTED')
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts/check-goal-4.sh'), '#!/usr/bin/env bash\nexit 0\n', 'utf-8')
+    // 게이트 통과시키고, 게이트 출력에 마커를 심어 그 출력 console.log 에서만 EPIPE 를 던지게 한다.
+    // (PowerShell `... | Select -First N` 처럼 소비자가 게이트 로그 도중 파이프를 닫는 상황 모사.)
+    const MARK = '__VHK287_EPIPE_MARK__'
+    mockSafeExecFile.mockReturnValue({ ok: true, out: MARK, err: '' })
+    vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
+      if (String(a[0]).includes(MARK)) {
+        throw Object.assign(new Error('write EPIPE'), { code: 'EPIPE' })
+      }
+    })
+    process.chdir(dir)
+    try {
+      const { goalDone } = await import('../src/commands/goal.js')
+      let thrown: unknown = null
+      try {
+        await goalDone({ id: '4' })
+      } catch (e) {
+        // 옛 코드: write 전 throw → 여기로(상태 미전이). 수정 코드: write 후 throw → 여기로(상태 전이됨).
+        thrown = e
+      }
+      // 시뮬레이션이 실제로 EPIPE 를 던졌는지 확인 — 테스트가 헛돌지 않게 가드.
+      expect((thrown as NodeJS.ErrnoException | null)?.code).toBe('EPIPE')
+      // 핵심: 출력이 EPIPE 로 끊겼어도 상태 전이는 디스크에 남아야 한다.
+      const after = readFileSync(join(dir, 'goals/4-test.md'), 'utf-8')
+      expect(after).toContain('status: DONE')
+      expect(after).not.toContain('status: NOT_STARTED')
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
