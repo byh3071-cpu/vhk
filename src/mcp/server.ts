@@ -6,6 +6,8 @@ import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import * as gitSession from '../lib/git-session.js'
 import { isGitRepo } from '../lib/git-repo.js'
 import { parseEnvKeys } from '../commands/env.js'
+import { formatChangeSummaryMessage } from '../commands/save.js'
+import { parsePorcelainLines } from '../lib/git-porcelain.js'
 import { resolveDeployTarget } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
 import { detectCurrentPM, parseAuditOutputDetailed, runAuditJson } from '../commands/audit.js'
@@ -126,8 +128,9 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '📭 저장할 변경사항이 없습니다.' }] }
       }
 
-      // statusPorcelain 은 raw(후행 개행 포함) → 빈 줄 제거 후 파일 카운트.
-      const files = status.out.split('\n').filter(Boolean)
+      // CLI save 와 동일 파싱(parsePorcelainLines: CRLF 정규화 + 빈 줄 제거) — files 가
+      // formatChangeSummaryMessage 로 들어가 커밋 메시지가 되므로 파싱 파리티가 정확성에 직결.
+      const files = parsePorcelainLines(status.out)
 
       // MCP 모드는 inquirer 프롬프트가 동작하지 않으므로 CLI 의 확인 단계 없이
       // severe(critical/high) 시크릿이 발견되면 commit 자체를 거부한다.
@@ -153,9 +156,8 @@ export function createVhkMcpServer(): McpServer {
         }
       }
 
-      const now = new Date()
-      const ts = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-      const commitMsg = message?.trim() || `✨ vhk save: ${ts}`
+      // #286: 메시지 미지정 시 변경 파일 기반 요약 생성(CLI save 와 동일 helper — 파리티).
+      const commitMsg = message?.trim() || formatChangeSummaryMessage(files)
 
       // goal 70: 고위험 옵트인 — confirm:true 없으면 commit/push 하지 않고 미리보기만.
       // 에이전트가 사람 승인 없이 원격에 push 하는 것을 차단(undo 와 동일 패턴, HIGH_RISK_MCP_TOOLS).

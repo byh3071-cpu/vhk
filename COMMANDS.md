@@ -151,7 +151,7 @@ vhk doctor
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
 | `vhk ship` | 배포 체크리스트 + 회고 |
 | `vhk doctor` | 개발 환경 점검 (+ `--strict` 드리프트 게이트) |
-| `vhk save` | git 저장 (add → commit → push) |
+| `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 |
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
 | `vhk status` | 프로젝트 상태 대시보드 |

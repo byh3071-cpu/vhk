@@ -27,10 +27,11 @@ const lastOpts = () => mockExec.mock.calls.at(-1)?.[2]
 const lastBin = () => mockExec.mock.calls.at(-1)?.[0]
 
 describe('git-session — git argv SoT (같은 질문 = 함수 하나)', () => {
-  it('statusPorcelain → git status --porcelain (raw 보존)', () => {
+  it('statusPorcelain → git -c core.quotepath=false status --porcelain (raw 보존)', () => {
     session.statusPorcelain('/repo')
     expect(lastBin()).toBe('git')
-    expect(lastArgv()).toEqual(['status', '--porcelain'])
+    // #286/#319: quotepath=false 로 한글 경로 8진 이스케이프 차단(커밋 메시지·표시 깨짐 방지).
+    expect(lastArgv()).toEqual(['-c', 'core.quotepath=false', 'status', '--porcelain'])
     // 선행 공백(" M file") 의미있음 → trimOutput:false 강제.
     expect(lastOpts()).toMatchObject({ cwd: '/repo', trimOutput: false })
   })
