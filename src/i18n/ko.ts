@@ -226,6 +226,10 @@ export const ko = {
     createAdr: '왜 그렇게 했는지 기록 문서를 만들까요?',
     troubleDetected: '🔧 버그·오류를 고친 커밋이 보여요!',
     createTroubleshoot: '어떻게 고쳤는지 메모를 남길까요?',
+    // #288: 비-TTY(헤드리스 AI·파이프)·--yes 비대화형 경로 안내.
+    notProvided: '_(미입력 — 비대화형 실행)_',
+    nonInteractiveNote: '비대화형 모드 — 회고 본문은 --summary / --next / --decisions / --blockers 플래그로 채울 수 있어요 (미지정 항목은 "미입력"으로 기록).',
+    detectSkipNonInteractive: '비대화형 모드 — 문서 자동 생성은 대화형(vhk recap)에서만. 위 후보를 참고해 직접 기록하세요.',
   },
   check: {
     title: '🔍 프로젝트 규칙 점검',
