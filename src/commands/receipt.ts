@@ -118,7 +118,7 @@ export function collectDiffCover(cwd: string): ReceiptDiffCover {
       ratio: r.ratio,
     }
   } catch {
-    // diff-cover 수집 실패는 advisory 부재로 — 영수증 본체(실차단 3종)는 계속 만든다.
+    // diff-cover 수집 실패는 advisory 부재로 — 영수증 본체(실차단 red·dirty·stale·forbidden)는 계속 만든다.
     return empty
   }
 }

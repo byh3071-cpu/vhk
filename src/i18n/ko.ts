@@ -292,7 +292,7 @@ export const ko = {
     title: '증거 영수증',
     noCommit: 'git 커밋을 찾을 수 없습니다 — 작업시작 기준선을 기록하려면 커밋이 1개 이상 필요합니다.',
     markStartDone: '작업시작 기준선 SHA 기록 완료 (이후 stale 비교 기준):',
-    nextBlockMessage: '🔴 기계증거가 "됐어요"와 모순 — 아직 완료 아님. 막힌 증거(red/dirty/stale)부터 고치세요:',
+    nextBlockMessage: '🔴 기계증거가 "됐어요"와 모순 — 아직 완료 아님. 막힌 증거(red/dirty/stale/forbidden)부터 고치세요:',
     nextCautionMessage: '🟡 실차단은 없으나 약신호 있음(수동 확인 권장). 보강 후 다시 떼세요:',
     nextPassMessage: '🟢 게으른 거짓완료 징후 없음(미묘한 오류는 못 잡음). 완료 처리하려면:',
     // Goal 87 방향 2-1: glob 미지원 문법 경고 — 거짓 안전을 caution 으로 드러냄.
