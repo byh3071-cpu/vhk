@@ -1096,7 +1096,25 @@ const isMainModule =
   !!process.argv[1] &&
   getRealPath(fileURLToPath(import.meta.url)) === getRealPath(process.argv[1])
 
+// #287: stdout/stderr 의 소비자(예: PowerShell `... | Select -First N`)가 출력을 다 읽기 전에
+//       파이프를 닫으면 후속 write 가 EPIPE 를 던진다. 미처리 시 exit 255 로 죽고, 그 throw 가
+//       부수효과(상태 write)보다 먼저 나면 상태 전이까지 누락된다(본 이슈). EPIPE 는 정상 종료(0)로
+//       흡수한다 — 각 커맨드가 부수효과를 출력보다 먼저 수행하므로(goalDone 참조) 파이프가 끊겨도
+//       디스크 상태는 안전하다.
+const isEpipeError = (err: unknown): boolean =>
+  err instanceof Error && (err as NodeJS.ErrnoException).code === 'EPIPE'
+
 if (isMainModule) {
+  // POSIX 는 파이프 write 가 비동기 → EPIPE 가 'error' 이벤트로 온다(여기서 흡수). Windows 는 동기 →
+  // throw 되어 아래 try/catch 로 잡힌다. 양쪽 모두 0 종료. (isMainModule 안에서만 등록 = 테스트 격리.)
+  const swallowEpipe = (stream: NodeJS.WriteStream): void => {
+    stream.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EPIPE') process.exit(0)
+      throw err
+    })
+  }
+  swallowEpipe(process.stdout)
+  swallowEpipe(process.stderr)
   // VHK-014: parseAsync 를 try/catch 로 감싸 unsettled top-level await 경고 제거 +
   // 비-TTY/EOF 프롬프트 크래시(ERR_USE_AFTER_CLOSE)를 friendly 종료로 처리.
   try {
@@ -1115,6 +1133,11 @@ if (isMainModule) {
       }
     }
   } catch (err) {
+    if (isEpipeError(err)) {
+      // #287: 동기 write(Windows 파이프)에서 throw 된 EPIPE. 여기서 console.error 재시도는 같은
+      //       끊긴 파이프(2>&1)라 또 EPIPE → exit 255 의 원흉. 메시지 없이 정상 종료(0)한다.
+      process.exit(0)
+    }
     if (isPromptAbortError(err)) {
       // #153: 비-TTY 프롬프트 중단도 TTY_REQUIRED 전용 코드(2)로 — generic 실패와 구분.
       console.error(chalk.yellow('\n  ⚠️  TTY_REQUIRED — 대화형 입력이 취소/종료됐습니다 (비대화형 환경 불가).'))
