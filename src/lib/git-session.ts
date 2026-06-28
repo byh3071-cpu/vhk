@@ -11,9 +11,16 @@ import { safeExecFile, type ExecResult } from './exec.js'
 //   · cwd 기본 process.cwd() → MCP(인자 생략)·CLI(gitRoot 전달) 파리티.
 //   · porcelain 만 raw 보존(trimOutput:false) — 선행 공백(" M file")이 파싱에 load-bearing.
 
-/** git status --porcelain — 선행 공백 보존(raw). 변경 파일 파싱의 SoT. */
+// #286/#319: core.quotepath=false 로 비ASCII(한글) 경로를 8진 이스케이프 없이 raw UTF-8 로 받는다.
+// Git 기본(quotepath=true)은 `"\355\214\214...ts"`(따옴표+8진)로 출력 → save 의 변경요약 커밋
+// 메시지(formatChangeSummaryMessage)와 status/MCP 의 파일 표시에 깨진 문자열이 박힌다(한국어
+// 사용자에서 즉시 발동). `-c key=val` 은 git 글로벌 옵션이라 서브커맨드(status) 앞에 와야 한다.
+/** git -c core.quotepath=false status --porcelain — 선행 공백 보존(raw). 변경 파일 파싱의 SoT. */
 export function statusPorcelain(cwd: string = process.cwd()): ExecResult {
-  return safeExecFile('git', ['status', '--porcelain'], { cwd, trimOutput: false })
+  return safeExecFile('git', ['-c', 'core.quotepath=false', 'status', '--porcelain'], {
+    cwd,
+    trimOutput: false,
+  })
 }
 
 /** git branch --show-current — 현재 브랜치명. */

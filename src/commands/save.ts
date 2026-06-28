@@ -44,6 +44,8 @@ export function formatChangeSummaryMessage(lines: string[]): string {
   if (paths.length === 1) return `${prefix} — ${paths[0]}`.replace(/\r?\n/g, ' ')
 
   // subject 상한(~72자 conventional) 안에서 가능한 파일을 나열, 나머지는 '+N more'.
+  // 상한은 근사치 — ' +N more' 접미사는 길이 검사 후 덧붙으므로 최종 길이가 SUBJECT_MAX 를
+  // 접미사 길이만큼 넘을 수 있다(git subject 는 hard limit 아님 → 허용).
   const head = `${prefix} — ${paths.length} files: `
   const shown: string[] = []
   for (const p of paths) {

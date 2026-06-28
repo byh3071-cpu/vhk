@@ -7,6 +7,7 @@ import * as gitSession from '../lib/git-session.js'
 import { isGitRepo } from '../lib/git-repo.js'
 import { parseEnvKeys } from '../commands/env.js'
 import { formatChangeSummaryMessage } from '../commands/save.js'
+import { parsePorcelainLines } from '../lib/git-porcelain.js'
 import { resolveDeployTarget } from '../commands/deploy.js'
 import { bumpVersion } from '../commands/publish.js'
 import { detectCurrentPM, parseAuditOutputDetailed, runAuditJson } from '../commands/audit.js'
@@ -127,8 +128,9 @@ export function createVhkMcpServer(): McpServer {
         return { content: [{ type: 'text', text: '📭 저장할 변경사항이 없습니다.' }] }
       }
 
-      // statusPorcelain 은 raw(후행 개행 포함) → 빈 줄 제거 후 파일 카운트.
-      const files = status.out.split('\n').filter(Boolean)
+      // CLI save 와 동일 파싱(parsePorcelainLines: CRLF 정규화 + 빈 줄 제거) — files 가
+      // formatChangeSummaryMessage 로 들어가 커밋 메시지가 되므로 파싱 파리티가 정확성에 직결.
+      const files = parsePorcelainLines(status.out)
 
       // MCP 모드는 inquirer 프롬프트가 동작하지 않으므로 CLI 의 확인 단계 없이
       // severe(critical/high) 시크릿이 발견되면 commit 자체를 거부한다.
