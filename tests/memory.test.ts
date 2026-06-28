@@ -79,6 +79,45 @@ describe('memory v2 — read/write (fs)', () => {
     expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.bak'))).toBe(true)
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  // #372: memory.json 없음 + learnings.md 있음 경로가 매 read 재마이그레이션(in-memory)만 하고
+  //       디스크 영속을 0회 하던 버그 — 자기측정 데이터(recall/memory)가 디스크에 안 쌓임.
+  it('#372 readMemory: 파일 없음 + learnings → 디스크 v2 영속(1회 write), .v1.bak 없음(신규 생성)', () => {
+    const d = tmp()
+    seedLearnings(d, '- [2026-01-01 goal-1] 교훈 하나.\n- [2026-01-02 goal-2] 교훈 둘.\n')
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL))).toBe(false) // 시작: memory.json 없음
+    const mem = readMemory(d)
+    expect(mem.failures).toHaveLength(2)
+    // 핵심: in-memory 만이 아니라 디스크에 실제 영속돼야 함(#372 수용 기준).
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL))).toBe(true)
+    expect(read(d).failures.map((f) => f.lesson)).toEqual(['교훈 하나.', '교훈 둘.'])
+    // v1 원본 파일이 없었으니 .v1.bak 도 없음(신규 생성).
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.v1.bak'))).toBe(false)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('#372 readMemory: 두 번째 read 는 재마이그레이션 안 함 (failures 2 유지 · .bak 미생성 = write 0)', () => {
+    const d = tmp()
+    seedLearnings(d, '- [2026-01-01 goal-1] 교훈 하나.\n- [2026-01-02 goal-2] 교훈 둘.\n')
+    readMemory(d) // 1차: 파일 없음 → learnings 흡수 후 1회 영속(신규 파일이라 .bak 없음)
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.bak'))).toBe(false)
+    const after1 = read(d)
+    const mem2 = readMemory(d) // 2차: 이미 v2 → no-op(재흡수·재기록 없음)
+    // 재마이그레이션이었다면 failures 가 4(2+2)로 늘거나, 두 번째 write 로 .bak 이 생겼을 것.
+    expect(mem2.failures).toHaveLength(2)
+    expect(read(d)).toEqual(after1) // 디스크 내용 무변경
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL + '.bak'))).toBe(false) // 2차 read 가 write 0 이었다는 증거
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('#372 readMemory: 파일·learnings 둘 다 없으면 memory.json 생성 안 함 (빈 파일 litter 방지)', () => {
+    const d = tmp()
+    const mem = readMemory(d)
+    expect(mem.decisions).toEqual([])
+    expect(mem.failures).toEqual([])
+    expect(fs.existsSync(path.join(d, MEMORY_PATH_REL))).toBe(false) // 흡수할 게 없으면 안 씀
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })
 
 describe('memory v2 — recordLesson (learn 통합)', () => {
