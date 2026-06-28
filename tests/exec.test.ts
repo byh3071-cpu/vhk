@@ -103,6 +103,34 @@ describe('lib/exec', () => {
     expect(NETWORK_EXEC_TIMEOUT_MS).toBeLessThan(DEFAULT_EXEC_TIMEOUT_MS)
   })
 
+  it('safeExecFileAsync: 성공 시 ok=true와 trim된 out 반환 (sync 파리티)', async () => {
+    const { safeExecFileAsync } = await import('../src/lib/exec.js')
+    const result = await safeExecFileAsync('node', ['--version'])
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.out).toMatch(/^v\d+\.\d+\.\d+/)
+    }
+  })
+
+  it('safeExecFileAsync: 실패 시 ok=false와 err 메시지 반환', async () => {
+    const { safeExecFileAsync } = await import('../src/lib/exec.js')
+    const result = await safeExecFileAsync('this-binary-does-not-exist-vhk-xyz', [])
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.err).toBeTruthy()
+    }
+  })
+
+  it('safeExecFileAsync: timeoutMs 초과 시 ok=false + 시간 초과 메시지 (이벤트루프 비블로킹)', async () => {
+    const { safeExecFileAsync } = await import('../src/lib/exec.js')
+    // async execFile 은 killSignal 로 죽이므로 killed/signal 기반 timeout 라벨이 동작해야 함.
+    const result = await safeExecFileAsync('node', ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 200 })
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.err).toMatch(/시간 초과|timeout/i)
+    }
+  })
+
   it('safeExecFileStream: timeoutMs 초과 시 ok=false + 시간 초과 메시지', async () => {
     const { safeExecFileStream } = await import('../src/lib/exec.js')
     const result = safeExecFileStream('node', ['-e', 'setInterval(() => {}, 1000)'], { timeoutMs: 200 })

@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { existsSync, readFileSync, writeFileSync, appendFileSync } from 'node:fs'
-import { safeExecFile, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
+import { safeExecFile, safeExecFileAsync, NETWORK_EXEC_TIMEOUT_MS } from '../lib/exec.js'
 import * as gitSession from '../lib/git-session.js'
 import { isGitRepo } from '../lib/git-repo.js'
 import { parseEnvKeys } from '../commands/env.js'
@@ -357,14 +357,16 @@ export function createVhkMcpServer(): McpServer {
   })
 
   // ─── ship ───────────────────────────────────────────────
-  // TODO(v0.6.1): execa로 비동기 전환 — ship 장시간 블로킹 방지
+  // 빌드·테스트는 장시간 작업 → 비동기(safeExecFileAsync)로 실행해 MCP stdio 이벤트루프
+  // 블로킹을 제거한다(과거 execFileSync 는 응답 동안 다른 요청을 막았음). 동작 의미(ok 판정·
+  // 출력·종료코드)는 동일.
   server.registerTool('ship', { description: '배포 체크리스트 실행 (빌드 + 테스트 + 버전 + git 상태)' }, async () => {
     const checks: string[] = []
 
-    const build = safeExecFile('pnpm', ['build'])
+    const build = await safeExecFileAsync('pnpm', ['build'])
     checks.push(build.ok ? '✅ 빌드 성공' : '❌ 빌드 실패')
 
-    const test = safeExecFile('pnpm', ['test', '--run'])
+    const test = await safeExecFileAsync('pnpm', ['test', '--run'])
     checks.push(test.ok ? '✅ 테스트 통과' : '❌ 테스트 실패')
 
     if (existsSync('package.json')) {
