@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-27
+**마지막 갱신:** 2026-06-28
 - **버전:** v2.7.0 — 사실 확인은 package.json·CHANGELOG
 - **테스트:** ~1791 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
-- **Phase:** **goal 87 완결 — 의도 장갑 손바닥 완성(2026-06-27)** — receipt(PR1 #394)·review(PR2 #406)가 mission(scope/forbidden)을 거짓완료 검증에 자동 합류 + check-goal-87 게이트(#408) → **goal 87 DONE**. 함께: 좀비 브랜치 21개 청소(#404)·`vhk check evals` silent fallback 제거(#405→#407). **이전**: 의도검증 방향 2·3·4(#398~401)·2층 합류(#394·#395)·도그푸딩 하드닝(78~84)·RFC0056 정체성(ADR-006). 상세 docs/state/next-task.md·docs/log·CHANGELOG.
+- **Phase:** **[2026-06-28] 병렬작업 7 PR 머지** — 도그푸딩 백로그 버그(#372·286·287·288·309)·goal 86 receipt MVP **DONE**(#416)·receipt 드리프트 정리를 worktree 격리 병렬로 **7 PR 전부 머지**(#415~#421). 각 **4중 게이트**(CI green·diff·CodeRabbit·G4 적대리뷰) — G4가 **#418 한글경로 깨짐 치명·#417 별칭 가드구멍**을 실제 차단(보강 후 재통과). goal 79=관찰유지(no-op 정직판정). **이전**: goal 87 완결(#406·#408)·좀비청소(#404)·의도검증 2·3·4(#398~401)·RFC0056 정체성(ADR-006). 상세 docs/state/next-task.md·docs/log·CHANGELOG.
 - **블로커:** 없음
-- **진행 중(미완):** 없음 — **[2026-06-27]** 좀비 청소(원격 브랜치 21개·#397·#404) + goal 87 **DONE**(#406 review 의도대조·#408 게이트+status) + `vhk check evals` fallback 제거(#405→#407) 전부 머지. 🔧 잔존: `.claude/worktrees/agent-*` 디렉터리 2개(이번 병렬 작업 산물·node_modules 권한으로 물리삭제 막힘·git prune 됨·무해·수동 청소).
-- **다음 할 일:** **[2026-06-27] goal 87 DONE + 좀비청소 + check evals fix 머지(#404·#406·#407·#408)** → 상세는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. **다음 후보**: ⓐ **measure-first**(Recall@5 `memory eval --init` 대화형 라벨링=사용자 직접·diff-cover 누적) · ⓑ **v2.8.0 npm 발행**(2.7.0 이후 신기능 누적·사용자 2FA) · ⓒ **goal 73 BLOCKED 해제**(RFC0056 §2 "LLM판단0" 정체성 결정 선행). **goal 87 = DONE**. ※ 저레버리지: 측정스키마 #373~375·Epic #376/364·미완 P2 goal 62/65/50. 🔧 잔여청소: `.claude/worktrees/agent-*` 디렉터리 2개(무해·수동).
+- **진행 중(미완):** 없음 — **[2026-06-28]** 7 PR(#415~#421) 전부 머지 완료. G4 경미 후속(미수정·기록만 — #415 race·#421 exitCode·#420 정직성·#418 CRLF/72자)은 next-task.md. 🔧 잔존: `.claude/worktrees/agent-*` 물리 디렉터리 다수(node_modules 권한으로 물리삭제 막힘·git 등록은 정리됨·무해·수동 청소).
+- **다음 할 일:** **[2026-06-28] 병렬 7 PR 머지 완료(#415~#421)** → 상세는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. **다음 후보**: ⓐ **measure-first**(Recall@5 `memory eval --init` 대화형 라벨링=사용자 직접·diff-cover 누적) · ⓑ **v2.8.0 npm 발행**(2.7.0 이후 신기능 누적 **+7 PR 더**·사용자 2FA) · ⓒ **goal 73 BLOCKED 해제**(RFC0056 §2 "LLM판단0" 정체성 결정 선행). + **G4 경미 후속 ~6건**(next-task). ※ 저레버리지: 측정스키마 #373~375·Epic #376/364·미완 P2 goal 62/65/50. 🔧 잔여청소: `.claude/worktrees/agent-*` 물리 디렉터리(무해·수동).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유 / 적대리뷰 워크플로 에이전트는 read-only 명시(과거 `vhk save` 정크커밋 사고) / 동시세션 docs/state 충돌 주의
