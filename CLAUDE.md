@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-06-28
+**마지막 갱신:** 2026-06-30
 - **버전:** v2.7.0 — 사실 확인은 package.json·CHANGELOG
 - **테스트:** ~1791 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
-- **Phase:** **[2026-06-28] 병렬작업 7 PR 머지** — 도그푸딩 백로그 버그(#372·286·287·288·309)·goal 86 receipt MVP **DONE**(#416)·receipt 드리프트 정리를 worktree 격리 병렬로 **7 PR 전부 머지**(#415~#421). 각 **4중 게이트**(CI green·diff·CodeRabbit·G4 적대리뷰) — G4가 **#418 한글경로 깨짐 치명·#417 별칭 가드구멍**을 실제 차단(보강 후 재통과). goal 79=관찰유지(no-op 정직판정). **이전**: goal 87 완결(#406·#408)·좀비청소(#404)·의도검증 2·3·4(#398~401)·RFC0056 정체성(ADR-006). 상세 docs/state/next-task.md·docs/log·CHANGELOG.
+- **Phase:** **[2026-06-30] 서브에이전트 활용 정책(ADR-007) + critic 쓰기권한 결함** — "CC 공식 기준 도입 검토" → 이미 도입됨(yohan-core plugin 4에이전트·best practice 준수) 확인 → 활용 정책 **ADR-007** 확정(plugin SoT·읽기전용 위임·판정은 결정론만·자동머지/루프분해 금지). probe로 **`yohan-core:critic` 쓰기 구멍** 발견(정의 read-only인데 런타임 Write 실행·`memory:project` 추정 n=1). **#425**(정책+B가드)·**#427**(후속노트+memtest) 머지·각 G4 다라운드 적대정정. **이전**: 병렬 7 PR(#415~#421)·goal 87 완결·RFC0056 정체성(ADR-006). 상세 docs/state/next-task.md·docs/log·CHANGELOG.
 - **블로커:** 없음
-- **진행 중(미완):** 없음 — **[2026-06-28]** 7 PR(#415~#421) 전부 머지 완료. G4 경미 후속(미수정·기록만 — #415 race·#421 exitCode·#420 정직성·#418 CRLF/72자)은 next-task.md. 🔧 잔존: `.claude/worktrees/agent-*` 물리 디렉터리 다수(node_modules 권한으로 물리삭제 막힘·git 등록은 정리됨·무해·수동 청소).
-- **다음 할 일:** **[2026-06-28] 병렬 7 PR 머지 완료(#415~#421)** → 상세는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. **다음 후보**: ⓐ **measure-first**(Recall@5 `memory eval --init` 대화형 라벨링=사용자 직접·diff-cover 누적) · ⓑ **v2.8.0 npm 발행**(2.7.0 이후 신기능 누적 **+7 PR 더**·사용자 2FA) · ⓒ **goal 73 BLOCKED 해제**(RFC0056 §2 "LLM판단0" 정체성 결정 선행). + **G4 경미 후속 ~6건**(next-task). ※ 저레버리지: 측정스키마 #373~375·Epic #376/364·미완 P2 goal 62/65/50. 🔧 잔여청소: `.claude/worktrees/agent-*` 물리 디렉터리(무해·수동).
+- **진행 중(미완):** **[2026-06-30] ⓒ critic 구조 차단 = 다음 세션** — `memory:project` 원인이 n=1 추정이라 미확정. `.claude/agents/memtest.md`(다음 세션 로드) probe로 확정 후 `yohan-cc-skills` critic.md서 `memory:project` 제거 예정(사용자 A 선택). 즉시 위험은 CLAUDE.md B가드로 덮임.
+- **다음 할 일:** **[2026-06-30] memtest probe로 ⓒ 확정** → `.claude/agents/memtest.md`(tools:Read+memory:project만) 호출 → Write 생기면 `memory:project`가 critic 쓰기 원인 확정 → `yohan-cc-skills` `plugins/yohan-core/agents/critic.md`서 해당 줄 제거(전역 plugin PR)·확인 후 memtest.md 삭제. 상세 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단·[docs/log/2026-06-30-subagent-policy-critic-probe.md](docs/log/2026-06-30-subagent-policy-critic-probe.md). **다음 후보(유지)**: ⓐ **measure-first**(Recall@5·diff-cover) · ⓑ **v2.8.0 npm 발행**(2.7.0 이후 누적·사용자 2FA) · ⓒ **goal 73 BLOCKED 해제**. ⚠️ yohan-cc-skills 미커밋 `critic-gate.ps1`(출처불명).
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA) / 직접 main push 차단 → PR 경유 / 적대리뷰 워크플로 에이전트는 read-only 명시(과거 `vhk save` 정크커밋 사고) — ⚠️ `yohan-core:critic` 실권한에 쓰기 열림(Write 실측·ADR-007), critic 호출 시 쓰기·커밋 금지 / 동시세션 docs/state 충돌 주의
