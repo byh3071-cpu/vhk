@@ -48,12 +48,16 @@ export interface EvolveQueueFile {
 
 /**
  * 결정적 한국어 룰 초안 생성 — 같은 입력 → 같은 출력(ML/LLM 없음).
- * 예: "- 태그 'build' 관련 작업 시 사전 점검 필수 (근거: 3건 반복, [avoid] 태그 'build' 3건 반복)"
+ * avoid:     "- 태그 'build' 관련 작업 시 사전 점검 필수 (근거: 3건 반복, [avoid] …)"
+ * reinforce: "- ✅ 권장: 태그 'deploy' 패턴 재사용 (근거: 3건 성공, [reinforce] …)"
+ * N2: 성공패턴(reinforce)도 룰 초안화 — pattern.ts 가 감지만 하고 버리던 ✅ 자산을 살림.
  */
 export function buildDraft(p: PatternEntryV19): string {
   const axisLabel = p.axis === 'tag' ? `태그 '${p.signal}'` : `키워드 '${p.signal}'`
-  const countDesc = `${p.count}건 반복`
-  return `- ${axisLabel} 관련 작업 시 사전 점검 필수 (근거: ${countDesc}, ${p.summary})`
+  if (p.kind === 'reinforce') {
+    return `- ✅ 권장: ${axisLabel} 패턴 재사용 (근거: ${p.count}건 성공, ${p.summary})`
+  }
+  return `- ${axisLabel} 관련 작업 시 사전 점검 필수 (근거: ${p.count}건 반복, ${p.summary})`
 }
 
 /** dedupeKey = `${patternId}:${targetLayer}`. v1 의 `${patternId}:rule` 과 하위호환(targetLayer 기본 'rule'). */
@@ -63,7 +67,8 @@ export function buildDedupeKey(patternId: string, targetLayer: TargetLayer = 'ru
 
 /**
  * 후보 생성 — 순수 함수. 부수효과 없음.
- * v0 규칙: kind==='avoid' AND status==='active' 패턴만 대상.
+ * 규칙: status==='active' 패턴 대상 (N2: avoid + reinforce 모두 — 성공패턴도 룰 자산화).
+ *   patternId 가 kind 를 포함(pattern.ts sigOf)해 avoid/reinforce dedupeKey 충돌 0.
  * A1: 같은 dedupeKey 가 rejected 이면 재제안 억제.
  * A2: 같은 dedupeKey 가 pending/applied 이면 스킵.
  * 결정성: patternId 알파벳 오름차순 정렬.
@@ -80,7 +85,7 @@ export function generateCandidates(
   )
 
   const eligible = patterns
-    .filter((p) => p.kind === 'avoid' && p.status === 'active')
+    .filter((p) => p.status === 'active')
     .sort((a, b) => a.id.localeCompare(b.id))
 
   const result: Omit<EvolveQueueItem, 'id' | 'createdAt'>[] = []
@@ -360,8 +365,9 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
   const newItems = generateCandidates(patterns, queue.items)
 
   if (newItems.length === 0 && !opts.json) {
-    const activeAvoid = patterns.filter(p => p.kind === 'avoid' && p.status === 'active')
-    if (activeAvoid.length === 0) {
+    // N2: avoid + reinforce 모두 후보 대상 → 활성 패턴 전체로 "패턴 없음/모두 제안됨" 구분.
+    const activePatterns = patterns.filter(p => p.status === 'active')
+    if (activePatterns.length === 0) {
       console.log(chalk.yellow('\n📭 ' + t('evolve.noPatterns')))
       return
     }

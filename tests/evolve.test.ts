@@ -93,6 +93,17 @@ describe('buildDraft', () => {
     const draft = buildDraft(p)
     expect(draft).toContain("'auth'")
   })
+
+  it('reinforce 패턴 → ✅ 권장 재사용 초안 (성공 근거)', () => {
+    const p = pat('p4', 'deploy', 3, 'reinforce')
+    const draft = buildDraft(p)
+    expect(draft).toContain("'deploy'")
+    expect(draft).toContain('✅ 권장')
+    expect(draft).toContain('재사용')
+    expect(draft).toContain('3건 성공')
+    // avoid 문구(사전 점검)는 reinforce 초안에 섞이지 않음
+    expect(draft).not.toContain('사전 점검')
+  })
 })
 
 // ── buildDedupeKey ───────────────────────────────────────────────────────────
@@ -115,14 +126,28 @@ describe('generateCandidates', () => {
     expect(result.every((r) => r.status === 'pending')).toBe(true)
   })
 
-  it('reinforce 패턴 제외', () => {
+  it('avoid·reinforce active 패턴 모두 후보 생성 (N2: 성공패턴 활용)', () => {
     const patterns = [
       pat('p1', 'build', 3, 'avoid'),
       pat('p2', 'deploy', 3, 'reinforce'),
     ]
     const result = generateCandidates(patterns, [])
-    expect(result).toHaveLength(1)
-    expect(result[0].patternId).toBe('p1')
+    expect(result).toHaveLength(2)
+    expect(result.map((r) => r.patternId).sort()).toEqual(['p1', 'p2'])
+    // reinforce 후보 초안은 ✅ 권장 형태
+    const reinforce = result.find((r) => r.patternId === 'p2')
+    expect(reinforce?.draft).toContain('✅ 권장')
+  })
+
+  it('avoid·reinforce 동일 signal 이어도 dedupeKey 충돌 없음', () => {
+    // 실제 pattern.ts sigOf 가 kind 를 포함 → patternId 가 kind 별로 달라 충돌 0
+    const patterns = [
+      pat('a1', 'build', 3, 'avoid'),
+      pat('r1', 'build', 3, 'reinforce'),
+    ]
+    const result = generateCandidates(patterns, [])
+    const keys = result.map((r) => r.dedupeKey)
+    expect(new Set(keys).size).toBe(keys.length)
   })
 
   it('archived 패턴 제외', () => {
