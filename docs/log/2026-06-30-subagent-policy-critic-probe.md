@@ -9,7 +9,7 @@
 - **합불 판정·자동 push/머지·vhk-auto 루프 분해는 금지**(INV-1/INV-7 + 공식 anti-pattern).
 
 ## 발견 — critic 쓰기권한 결함
-정책 검토 중 probe로 발견: `yohan-core:critic`이 정의(`tools: Read,Grep,Glob,Bash` = 읽기전용)와 달리 런타임에 **Write/Edit를 보유·실행**(scratchpad에 파일 실제 생성). CLAUDE.md가 경고한 "적대리뷰 에이전트 read-only(과거 `vhk save` 정크커밋 사고)" 원칙이 critic에 한해 구조적으로 깨진 상태.
+정책 검토 중 probe로 발견: `yohan-core:critic`이 정의(`tools: Read,Grep,Glob,Bash` = 읽기전용)와 달리 런타임에 **Write를 보유·실행**(scratchpad에 파일 실제 생성 — 실측은 Write 실행 1건, Edit는 미probe). CLAUDE.md가 경고한 "적대리뷰 에이전트 read-only(과거 `vhk save` 정크커밋 사고)" 원칙이 critic에 한해 구조적으로 깨진 상태.
 
 ## probe 결과 (가설⑶ 검증)
 - explorer·planner probe → 둘 다 Write 미보유(정의대로 읽기전용) = **tools 선언 자체는 작동**(⑶ "선언이 런타임 무력화" 전면 형태 반증). 단 선언은 하한만 보장.
