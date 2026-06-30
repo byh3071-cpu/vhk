@@ -61,6 +61,6 @@ tags: [subagent, agent, governance, policy]
 
 후속 대응 ②(explorer/planner probe)를 실행해 가설 ⑶을 검증했다. 결정 섹션은 불변이고, 결과 섹션의 추정을 사실 수준별로 갱신한다.
 
-- **실측(measured)**: `explorer`(정의 Read·Grep·Glob·Bash)·`planner`(정의 Read·Grep·Glob)를 각각 probe한 결과 **둘 다 Write/Edit 미보유로 파일 생성 실패** — 정의대로 읽기전용이었다. 따라서 **가설 ⑶("tools 선언이 런타임을 제한하지 않는다")은 반증**됐다. tools 선언은 런타임을 실제로 제한한다. (advisor 도구는 explorer/planner/critic 셋 다 공통 부여 — 정의와 무관한 기본값)
+- **실측(measured)**: `explorer`(정의 Read·Grep·Glob·Bash)·`planner`(정의 Read·Grep·Glob)를 각각 probe한 결과 **둘 다 Write/Edit 미보유로 파일 생성 실패** — 정의대로 읽기전용이었다. 따라서 가설 ⑶의 **전면적 형태**("선언이 어느 에이전트에서도 런타임을 제한하지 않는다")는 반증됐다 — 기본 tools 선언 제한은 작동한다. **단 선언은 '하한'(선언된 도구는 보장)일 뿐 상한이 아니다**: critic은 선언(Read·Grep·Glob·Bash)에 없는 Write를 실행했으므로(결과 섹션 실측), 부가 메커니즘(`memory:project` 추정)이 선언 외 도구를 더할 수 있다 — 이 우회 가능성은 critic 실측으로 남는다. (advisor 도구는 explorer/planner/critic 셋 다 공통 부여 — 정의와 무관한 기본값)
 - **추론(inferred, n=1)**: 그렇다면 critic만 정의 밖 Write를 가진 원인은 critic 고유의 `memory: project`로 좁혀진다(`cross-check` 스킬은 `allowed-tools` 읽기전용이라 앞서 배제). 단 memory를 가진 에이전트가 critic 하나뿐이라 **단일 사례 추론**이며 인과 확정은 아니다.
 - **미검증(pending)**: 위 인과를 확정하려면 `memory: project`만 단독으로 켠 격리 에이전트를 probe해야 한다(이 레포 `.claude/agents/memtest.md`로 셋업 — 다음 세션 로드 후 확인 예정). **확정 전까지 critic의 `memory` 제거 같은 구조 차단은 보류**하고, 단기 가드(후속 ① · CLAUDE.md LIVE 주의)로 운영한다 — 가설(n=1)에 근거한 전역·영구 변경의 리스크 회피.
