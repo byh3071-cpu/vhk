@@ -11,7 +11,7 @@ import {
   BLOCKERS_PATH,
   HARD_STOP_BLOCKER_THRESHOLD,
 } from '../lib/state-files.js'
-import { recordLesson } from './memory.js'
+import { recordLesson, recordSuccess } from './memory.js'
 import { selectActiveId } from './goal.js'
 
 function activeGoalId(): number | undefined {
@@ -70,6 +70,27 @@ export async function learn(lesson: string): Promise<void> {
   }
   console.log(chalk.green(`  ✅ 교훈 기록 → memory failures.lesson (${entry.id})`))
   console.log(chalk.dim('  교훈·결정·실패·성공 모두 vhk memory (단일 SoT). vhk memory list 로 확인.'))
+}
+
+// N3: vhk win — 성공 기록(learn 의 성공 쌍둥이). successes.content → pattern reinforce → evolve 후보.
+export async function win(content: string): Promise<void> {
+  console.log(chalk.bold(`\n${ko.agent.winTitle}\n`))
+  if (!content || !content.trim()) {
+    console.log(chalk.red('  ❌ 성공 내용을 입력해 주세요.'))
+    console.log(chalk.dim('  예: vhk win "worktree 병렬로 충돌 0 머지 성공"'))
+    process.exitCode = 1
+    return
+  }
+  const goalId = activeGoalId()
+  const entry = recordSuccess(process.cwd(), content, goalId)
+  if (!entry) {
+    // memory.json 손상 의심 — 빈 v2 로 덮지 않고 중단(데이터 손실 방지, learn 과 동일 계약).
+    console.log(chalk.red('  ❌ memory.json 손상 의심 — 성공 기록 중단. 원본/백업 확인 후 다시 시도하세요.'))
+    process.exitCode = 1
+    return
+  }
+  console.log(chalk.green(`  ✅ 성공 기록 → memory successes (${entry.id})`))
+  console.log(chalk.dim('  성공 패턴은 vhk pattern detect → vhk evolve 재사용 후보로 복리됩니다.'))
 }
 
 export interface ResumeOptions {

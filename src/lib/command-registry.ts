@@ -113,6 +113,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'goal', desc: 'Goal 단계별 미션 관리' },
   { name: 'blocker', desc: '블로커 기록 (3건 누적 시 HARD_STOP)' },
   { name: 'learn', desc: '교훈 기록 → memory v2 단일 SoT' },
+  { name: 'win', desc: '성공 기록 → memory successes (reinforce 입력)' },
   { name: 'resume', desc: '.vhk/HARD_STOP 해제 (--confirm 필요)' },
   { name: 'pattern', desc: '반복 패턴 감지·목록 (avoid/reinforce)' },
   { name: 'evolve', desc: '패턴 → 룰 후보 제안·반영·undo' },
