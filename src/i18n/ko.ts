@@ -12,6 +12,13 @@ export const ko = {
     trendNextMessage: '추세는 receipt 발행이 누적될수록 정밀해집니다.',
     trendNextCursor: 'receipt 발행해줘',
   },
+  loop: {
+    tickTitle: 'loop tick — 자가진화 조율 (읽기 전용)',
+    closed: '닫힌 것:',
+    nextMove: '다음 한 수:',
+    nextMessage: '읽기 전용 조율 — 실행은 사람이 결정합니다.',
+    nextCursor: '다음 한 수 실행해줘',
+  },
   status: {
     title: '프로젝트 상태',
     notGitRepo: 'Git 저장소가 아니에요. 먼저 git init을 실행하세요.',
