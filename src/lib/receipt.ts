@@ -63,6 +63,12 @@ export interface ReceiptIntentEvidence {
   //   사후 검증 가능해진다(같은 mission 의 두 영수증 checksum 이 다르면 사이에 계약이 바뀐 것).
   // decision 에는 절대 반영 안 함 — 순수 사후 감사용(단조성 불변식 ②·③ 불변). GA 동결 — 옵셔널 추가만.
   missionChecksum?: string
+  /**
+   * ⓑ(N4): objective 토큰 교집합 수 — mission.objective ↔ (active goal.title + 최근 commit) 의
+   * 결정론 토큰 공통 개수. **LLM 0**(pattern.tokenize 순수 교집합). undefined=미계산(영향 0·하위호환),
+   * 0=계산했으나 겹침 없음 → caution(advisory, block 절대 금지 — 단조성 불변식 ③ 유지). GA 동결 옵셔널 추가.
+   */
+  objectiveTokenOverlap?: number
 }
 
 /** 영수증 입력 — 4대 기계증거 + (옵션) 의도 대조(commands/receipt.ts 가 git/verify/diff-cover/mission 에서 수집). */
@@ -109,7 +115,9 @@ export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
   const scopeWarned = intentKnown && e.intent!.scopeWarnings > 0
   // intentKnown이 false면 단락평가로 e.intent! 접근 안 됨 — 이 순서 필수(GA 동결, 단조성 불변식 ②·③ 유지).
   const unsupportedForbidden = intentKnown && (e.intent!.unsupportedForbiddenCount ?? 0) > 0
-  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange || scopeWarned || unsupportedForbidden) return 'caution'
+  // ⓑ(N4): objective 토큰 교집합 0 → advisory caution(목표와 실제 작업 어휘 안 겹침 = 약신호). `=== 0` 이라 undefined(미계산) 무영향 → block 절대 안 함.
+  const objectiveMismatch = intentKnown && e.intent!.objectiveTokenOverlap === 0
+  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange || scopeWarned || unsupportedForbidden || objectiveMismatch) return 'caution'
 
   return 'pass'
 }
@@ -139,6 +147,8 @@ export function receiptReasons(e: ReceiptEvidence): string[] {
     reasons.push(
       `forbidden 패턴 ${e.intent.unsupportedForbiddenCount}개가 glob 미지원 문법 포함 — forbidden 검증이 무효할 수 있음(!, {}, [], 후행 / — caution)`
     )
+  if (e.intent?.missionKnown && e.intent.objectiveTokenOverlap === 0)
+    reasons.push('objective 토큰 교집합 0 — 목표와 최근 작업(goal·commit) 어휘가 겹치지 않음(advisory, 차단 안 함)')
   if (reasons.length === 0) reasons.push('전 게이트 green · clean · 신선 · 변경라인 풀커버')
   return reasons
 }
