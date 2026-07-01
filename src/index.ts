@@ -950,6 +950,7 @@ evolveCmd
 
 evolveCmd
   .command('digest')
+  .alias('묶음')
   .description('진화 후보 묶음 초안 — 신뢰도별 정렬 (읽기 전용·자동 반영 0, PR 초안용)')
   .action(async () => { await evolveDigest() })
 

@@ -420,7 +420,7 @@ export interface DigestEntry {
   confidence: 'high' | 'med' | 'low'
 }
 
-/** pending 후보 + 패턴 → 신뢰도 부여 digest(순수·결정적). 빈도 내림차순, 동률은 id 오름차순. */
+/** pending 후보 + 패턴 → 신뢰도 부여 digest(순수·결정적). 빈도 내림차순, 동률은 id 숫자 오름차순(e2<e10). */
 export function buildDigest(pending: EvolveQueueItem[], patterns: PatternEntryV19[]): DigestEntry[] {
   const byId = new Map(patterns.map((p) => [p.id, p]))
   return pending
@@ -434,7 +434,7 @@ export function buildDigest(pending: EvolveQueueItem[], patterns: PatternEntryV1
         confidence: (count >= 5 ? 'high' : count >= 3 ? 'med' : 'low') as DigestEntry['confidence'],
       }
     })
-    .sort((a, b) => b.patternCount - a.patternCount || a.id.localeCompare(b.id))
+    .sort((a, b) => b.patternCount - a.patternCount || a.id.localeCompare(b.id, undefined, { numeric: true }))
 }
 
 /**

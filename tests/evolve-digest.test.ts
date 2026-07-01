@@ -70,6 +70,14 @@ describe('buildDigest (결정론)', () => {
     expect(byId.e2.confidence).toBe('low')
   })
 
+  it('동률 tie-break 는 id 숫자순 (e2 가 e10 보다 앞 — 적대리뷰 반영)', () => {
+    const d = buildDigest(
+      [item('e10', 'p10'), item('e2', 'p2')],
+      [pat('p10', 3), pat('p2', 3)],
+    )
+    expect(d.map((x) => x.id)).toEqual(['e2', 'e10'])
+  })
+
   it('빈 입력 → 빈 digest', () => {
     expect(buildDigest([], [])).toEqual([])
   })
