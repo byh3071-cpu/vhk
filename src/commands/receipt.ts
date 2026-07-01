@@ -17,7 +17,10 @@ import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
 import { diffCoverage } from '../lib/diff-coverage.js'
 import { parsePorcelainLines } from '../lib/git-porcelain.js'
 import { porcelainPath, isSelfTrackedPath } from '../lib/self-tracked.js'
-import { readMission, checkMission, MISSION_PATH_REL } from './mission.js'
+import { readMission, checkMission, MISSION_PATH_REL, MISSION_SCAFFOLD_OBJECTIVE } from './mission.js'
+import { tokenize } from './pattern.js'
+import { listGoals } from '../lib/goal-frontmatter.js'
+import { selectActiveId } from './goal.js'
 import {
   buildReceipt,
   renderReceiptMarkdown,
@@ -158,6 +161,45 @@ function missionChecksum(cwd: string): string | undefined {
   }
 }
 
+// ── ⓑ(N4): objective 토큰 교집합 — 결정론(LLM 0)·advisory ────────────────────
+
+/** placeholder/빈 objective 는 검증 대상 아님(스캐폴드 미설정 = 암묵 opt-out). */
+export function isRealObjective(objective: string): boolean {
+  const o = objective.trim()
+  return o.length > 0 && o !== MISSION_SCAFFOLD_OBJECTIVE
+}
+
+/** objective ↔ ref 결정론 토큰 교집합 수(공통 distinct 토큰). pattern.tokenize 재사용, LLM 0. */
+export function computeObjectiveOverlap(objective: string, ref: string): number | undefined {
+  const objTokens = new Set(tokenize(objective))
+  // 토큰화 불가(전부 <2자/불용어) = 미계산(undefined) — '겹침 0'과 구분, ref-empty 가드와 대칭(적대리뷰 반영).
+  if (objTokens.size === 0) return undefined
+  const refTokens = new Set(tokenize(ref))
+  let overlap = 0
+  for (const tok of objTokens) if (refTokens.has(tok)) overlap++
+  return overlap
+}
+
+/** overlap 참조 텍스트 = active goal.title + 최근 commit subject(읽기 전용, git/goal 실패 무해). */
+function collectObjectiveRef(cwd: string): string {
+  const parts: string[] = []
+  try {
+    const goals = listGoals(join(cwd, 'goals'))
+    const id = selectActiveId(goals)
+    const g = id !== null ? goals.find((x) => x.frontmatter.id === id) : undefined
+    if (g?.frontmatter.title) parts.push(g.frontmatter.title)
+  } catch {
+    /* goal 미상 — ref 에서 생략(정직, 거짓 0 방지) */
+  }
+  try {
+    const subject = gitOut(['log', '-1', '--format=%s'], cwd).trim()
+    if (subject) parts.push(subject)
+  } catch {
+    /* commit 없음/git 실패 — 생략 */
+  }
+  return parts.join(' ')
+}
+
 export function collectIntent(cwd: string, baseSha?: string | null): ReceiptIntentEvidence | undefined {
   const mission = readMission(cwd)
   if (!mission) return undefined
@@ -182,12 +224,19 @@ export function collectIntent(cwd: string, baseSha?: string | null): ReceiptInte
   }
   const changed = [...files].filter((f) => !isSelfTrackedPath(f))
   const result = checkMission(changed, mission)
+  // ⓑ(N4): objective 가 실제 설정됐을 때만 토큰 교집합 계산(암묵 opt-in). placeholder/빈값 → undefined(영향 0).
+  let objectiveTokenOverlap: number | undefined
+  if (isRealObjective(mission.objective)) {
+    const ref = collectObjectiveRef(cwd)
+    if (ref.trim()) objectiveTokenOverlap = computeObjectiveOverlap(mission.objective, ref)
+  }
   return {
     missionKnown: true,
     forbiddenHits: result.violations.length,
     scopeWarnings: result.warnings.length,
     unsupportedForbiddenCount: result.unsupportedForbiddenPatterns.length,
     missionChecksum: missionChecksum(cwd),
+    objectiveTokenOverlap,
   }
 }
 
