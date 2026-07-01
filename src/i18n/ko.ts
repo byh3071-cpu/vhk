@@ -15,6 +15,7 @@ export const ko = {
   loop: {
     tickTitle: 'loop tick — 자가진화 조율 (읽기 전용)',
     closed: '닫힌 것:',
+    watch: '주의:',
     nextMove: '다음 한 수:',
     nextMessage: '읽기 전용 조율 — 실행은 사람이 결정합니다.',
     nextCursor: '다음 한 수 실행해줘',

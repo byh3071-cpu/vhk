@@ -59,6 +59,18 @@ describe('computeLoopTick 우선순위 사다리', () => {
     expect(c.nextMove.command).toBe('vhk goal peek')
   })
 
+  it('임계 미만 블로커 → watch 노출 (다음수 정상이어도 숨기지 않음, 적대리뷰 반영)', () => {
+    const c = computeLoopTick(state({ activeBlockers: 2, activeGoalId: 5 }))
+    expect(c.watch.some((w) => w.includes('블로커 2건'))).toBe(true)
+    expect(c.nextMove.priority).toBe('정상')
+  })
+
+  it('임계 이상 블로커 → watch 없음 (다음수로 승격)', () => {
+    const c = computeLoopTick(state({ activeBlockers: 3, blockerThreshold: 3 }))
+    expect(c.watch).toHaveLength(0)
+    expect(c.nextMove.priority).toBe('블로커 임계')
+  })
+
   it('닫힌 신호 집계 (모두 정상 + 추세 비악화)', () => {
     const c = computeLoopTick(state({ trendDelta: -0.1 }))
     expect(c.closed).toContain('HARD_STOP 없음')

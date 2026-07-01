@@ -11,7 +11,7 @@ import {
 } from '../lib/state-files.js'
 import { readQueue, generateCandidates } from './evolve.js'
 import type { PatternEntryV19 } from './pattern.js'
-import { readMemory } from './memory.js'
+import { loadForMutation } from './memory.js'
 import { readReceiptLog } from '../lib/receipt-log.js'
 import { computeReceiptTrend } from './stats.js'
 import { selectActiveId } from './goal.js'
@@ -46,6 +46,8 @@ export interface LoopTickMove {
 export interface LoopTickCard {
   /** 닫힌(정상) 신호 목록. */
   closed: string[]
+  /** 임계 미만이라 다음 한 수는 아니나 숨기면 안 되는 미해결 항목(관측성 — 0건 오독 방지). */
+  watch: string[]
   /** 결정적으로 뽑은 단 하나의 다음 한 수. */
   nextMove: LoopTickMove
 }
@@ -61,6 +63,12 @@ export function computeLoopTick(s: LoopTickState): LoopTickCard {
   if (s.evolvePending === 0) closed.push('진화 대기 0')
   if (s.trendDelta !== null && s.trendDelta <= 0) closed.push('추세 비악화')
   if (s.unqueuedPatterns === 0) closed.push('미제안 패턴 0')
+
+  // 임계 미만 블로커는 다음 한 수는 아니지만 카드에서 사라지면 안 됨(0건으로 오독 방지 — 적대리뷰 반영).
+  const watch: string[] = []
+  if (s.activeBlockers > 0 && s.activeBlockers < s.blockerThreshold) {
+    watch.push(`미해결 블로커 ${s.activeBlockers}건 (임계 ${s.blockerThreshold} 미만 — 방치 금지)`)
+  }
 
   let nextMove: LoopTickMove
   if (s.hardStop) {
@@ -78,19 +86,24 @@ export function computeLoopTick(s: LoopTickState): LoopTickCard {
   } else {
     nextMove = { priority: '정상', action: '닫힌 루프 — 다음 goal 선택 또는 측정 누적', command: 'vhk goal peek' }
   }
-  return { closed, nextMove }
+  return { closed, watch, nextMove }
 }
 
 /** 디스크에서 폐회로 상태 수집(읽기 전용). */
 function collectState(cwd: string): LoopTickState {
   const blockersContent = existsSync(BLOCKERS_PATH) ? readFileSync(BLOCKERS_PATH, 'utf-8') : ''
-  const mem = readMemory(cwd)
-  const patterns = mem.patterns as PatternEntryV19[]
+  // 읽기 전용 계약 준수: readMemory 는 v1→v2 마이그레이션 시 디스크 write(persistOnRead)로 집행0 을 어긴다.
+  // loadForMutation 은 in-memory 정규화만(비영속) — 손상/미래스키마면 ok=false → 빈 패턴(적대리뷰 med 반영).
+  const loaded = loadForMutation(cwd)
+  const patterns = (loaded.ok ? loaded.mem.patterns : []) as PatternEntryV19[]
   const queue = readQueue(cwd)
   const evolvePending = queue.items.filter((i) => i.status === 'pending').length
   // 지금 suggest 하면 생길 후보 수 = 미제안 active 패턴(generateCandidates 재사용 — 단일 진실원).
   const unqueuedPatterns = generateCandidates(patterns, queue.items).length
   const trend = computeReceiptTrend(readReceiptLog(cwd)).trend
+  // 최소 표본 가드(measure-first): 절반당 3건 미만이면 델타는 잡음 → null(n=1 대 n=1 거짓 추세악화 방지, 적대리뷰 반영).
+  const TREND_MIN = 3
+  const trendDelta = trend && trend.earlierN >= TREND_MIN && trend.recentN >= TREND_MIN ? trend.delta : null
   const activeGoalId = selectActiveId(listGoals('goals'))
   return {
     hardStop: isHardStopActive(),
@@ -98,7 +111,7 @@ function collectState(cwd: string): LoopTickState {
     blockerThreshold: HARD_STOP_BLOCKER_THRESHOLD,
     evolvePending,
     unqueuedPatterns,
-    trendDelta: trend ? trend.delta : null,
+    trendDelta,
     activeGoalId,
   }
 }
@@ -112,6 +125,9 @@ export async function loopTick(): Promise<void> {
 
   if (card.closed.length > 0) {
     log.plain(chalk.green(`  ✅ ${t('loop.closed')} `) + chalk.dim(card.closed.join(' · ')))
+  }
+  if (card.watch.length > 0) {
+    log.plain(chalk.yellow(`  ⚠️  ${t('loop.watch')} `) + chalk.dim(card.watch.join(' · ')))
   }
   log.plain(
     chalk.cyan(`\n  👉 ${t('loop.nextMove')} `) +

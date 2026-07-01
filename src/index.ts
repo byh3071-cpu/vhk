@@ -388,7 +388,7 @@ program
   .command('loop')
   .alias('틱')
   .description('자가진화 조율 1틱 — 닫힌 것/다음 한 수 (읽기 전용, 집행 0)')
-  .option('--tick', '1틱 실행 (기본 동작)')
+  .option('--tick', '명시적 1틱 — vhk loop 기본 동작과 동일(문서화된 no-op 별칭)')
   .action(async () => { await loopTick() })
 
 program
