@@ -254,6 +254,25 @@ describe('decideReceipt — ⑤ intent(의도 대조) 반영', () => {
     expect(decideReceipt(e)).toBe('pass')
   })
 
+  it('ⓑ(N4) objective 토큰 교집합 0 → caution (advisory, block 아님)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0, objectiveTokenOverlap: 0 }
+    expect(decideReceipt(e)).toBe('caution')
+    expect(decideReceipt(e)).not.toBe('block')
+  })
+
+  it('ⓑ(N4) objective 교집합 >0 → 영향 없음(clean→pass)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0, objectiveTokenOverlap: 2 }
+    expect(decideReceipt(e)).toBe('pass')
+  })
+
+  it('ⓑ(N4) objectiveTokenOverlap undefined(미계산) → 영향 0(하위호환·pass)', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0 }
+    expect(decideReceipt(e)).toBe('pass')
+  })
+
   it('과확장 0 — missionKnown 이어도 위반·경고 0 이면 caution 유발 안 함(clean→pass)', () => {
     const e = cleanEvidence()
     e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0 }
