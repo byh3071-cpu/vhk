@@ -561,6 +561,7 @@ export const ko = {
   agent: {
     blockerTitle: '🛑 Blocker 기록',
     learnTitle: '🧠 Learning 기록',
+    winTitle: '🏆 성공 기록',
     resumeTitle: '▶️  HARD_STOP 해제',
   },
   work: {

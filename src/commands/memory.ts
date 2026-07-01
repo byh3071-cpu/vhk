@@ -590,6 +590,28 @@ export function recordLesson(cwd: string, lesson: string, goalId?: number): Fail
   return entry
 }
 
+/**
+ * N3: 성공 기록 — learn(recordLesson) 의 성공 쌍둥이. memory v2 successes 에 append.
+ * successes.content 는 pattern.ts processBucket(reinforce) 입력 → evolve reinforce 후보(N2)로
+ * 복리된다("이렇게 하면 됐다"의 양방향 자산화). loadForMutation 실패 시 null(빈 v2 로 안 덮음).
+ */
+export function recordSuccess(cwd: string, content: string, goalId?: number): SuccessEntry | null {
+  const loaded = loadForMutation(cwd)
+  if (!loaded.ok) return null
+  const mem = loaded.mem
+  const tag = goalId !== undefined ? `goal-${goalId}` : 'no-goal'
+  const entry: SuccessEntry = {
+    id: nextId('success', mem),
+    content: content.trim(),
+    tags: [tag],
+    createdAt: new Date().toISOString(),
+    status: 'active',
+  }
+  mem.successes.push(entry)
+  writeMemory(cwd, mem)
+  return entry
+}
+
 // ── 키워드 회상 (RFC 0049 ① · 순수 JS · 의존성 0) ──
 // N≤수백 full-scan. 임베딩·벡터DB 없음(RFC 0049 Kill-gate: eval Recall@5<0.7 측정 전 ML 금지).
 

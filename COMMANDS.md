@@ -79,6 +79,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | 실패+교훈 기록 | `vhk memory add "테스트 미커버" --type failure --why "..." --lesson "회귀 가드 먼저"` | "이 실수 기억해" |
 | 성공 기록 | `vhk memory add "롤백 빨랐다" --type success --why "백업 먼저"` | "이 성공 기억해" |
 | 교훈만 빠르게 | `vhk learn "PowerShell 은 && 미지원"` | "교훈 남겨" |
+| 성공만 빠르게 | `vhk win "worktree 병렬로 충돌 0 머지"` | "성공 남겨" |
 | 목록 | `vhk memory list [--type failure] [--all]` | "기억 보여줘" |
 | 보관(선순환) | `vhk memory archive <번호>` | "이거 보관해" |
 | 삭제 / 해결 / 보관해제 | `vhk memory remove <번호>` · `vhk memory resolve <번호>` · `vhk memory unarchive <번호>` | "이 기억 지워/해결/복원" |
@@ -199,6 +200,7 @@ vhk doctor
 | `vhk goal` | Goal 단계별 미션 관리 |
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |
 | `vhk learn` | 교훈 기록 → memory v2 단일 SoT |
+| `vhk win` | 성공 기록 → memory successes (reinforce evolve 입력) |
 | `vhk resume` | .vhk/HARD_STOP 해제 (`--confirm` 필요) |
 | `vhk pattern` | 반복 패턴 감지·목록 (`pattern detect` · `pattern list` · `pattern dismiss`) |
 | `vhk evolve` | 패턴 → 룰 후보 제안·반영·undo |

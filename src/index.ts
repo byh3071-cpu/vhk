@@ -125,7 +125,7 @@ async function guardCliDefer(
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek, goalSync } from './commands/goal.js'
-import { blocker, learn, resume } from './commands/agent.js'
+import { blocker, learn, resume, win } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives } from './commands/evolve.js'
 import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './commands/seo/index.js'
@@ -175,6 +175,7 @@ const KO_ALIASES: Record<string, string> = {
   mission: '미션',
   blocker: '블로커',
   learn: '교훈',
+  win: '성공',
   resume: '재개',
   pattern: '패턴',
   evolve: '진화',
@@ -867,6 +868,13 @@ program
   .alias('교훈')
   .description('교훈 기록 → memory v2 failures.lesson 단일 SoT (v2.0 통합 — vhk memory list 로 확인)')
   .action(async (lesson: string[]) => { await learn(lesson.join(' ')) })
+
+program
+  // N3: variadic — 따옴표 없는 다단어 성공기록도 받는다 (learn 과 대칭).
+  .command('win <content...>')
+  .alias('성공')
+  .description('성공 기록 → memory successes (learn 의 성공 쌍둥이 — reinforce evolve 입력)')
+  .action(async (content: string[]) => { await win(content.join(' ')) })
 
 program
   .command('resume')

@@ -54,6 +54,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'goal', '목표',
   'blocker', '블로커',
   'learn', '교훈',
+  'win', '성공',
   'resume', '재개',
   'mode', '모드',
   'verify', '사전점검',
@@ -85,6 +86,7 @@ function isOptionToken(token: string): boolean {
  */
 const FREEFORM_ARG_COMMANDS = new Set([
   'learn', '교훈',
+  'win', '성공',
   'blocker', '블로커',
   // #313: recall 은 자유형식 검색 쿼리라 '어떻게·보안·롤백' 등 트리거 단어가 본문에 와도
   // 항상 commander 로 위임돼야 한다(NL 라우터 가로채기 금지 — learn/blocker 와 동일).
