@@ -26,6 +26,10 @@
 - **구현**: `generateCandidates` 필터 `avoid|reinforce` · `buildDraft` kind 분기(reinforce=긍정형 "이 접근 계속 권장") · suggest "allSuggested" 판정도 reinforce 포함(activePatterns). dedupeKey=`patternId:rule`는 patternId 유니크라 avoid/reinforce 충돌0. RULES 반영은 apply 사람승인 유지(철칙 불변).
 - **검증**: TDD — 기존 `reinforce 패턴 제외` 테스트를 계약변경(포함)으로 갱신 + buildDraft reinforce 테스트 신규 → RED 확인 후 GREEN. 전체 2102 tests green.
 
+### 5. 적대리뷰 반영 (Workflow 다각 리뷰: 6발견 → 5반증·1확정 low)
+- **CONFIRMED(low)**: reinforce `buildDraft`가 `pattern.summary`(내부라벨 `[reinforce]` + "N건 반복") 임베드 → evolve apply→RULES.md→sync 로 "3건 성공…3건 반복" 모순·내부라벨 노출. → **summary 임베드 제거**, `${count}건 성공 사례`로 재조립(정보손실 0 — 태그·count 이미 앞에). 회귀가드 테스트 추가(`[reinforce]`·`반복` 금지).
+- **5건 반증(오탐)**: 등록 완비·recordSuccess null 계약·nlp-router 미추가 정상(learn 형제)·RULES 사람승인 철칙 부합 등. ※ `[avoid]` 프리픽스 누출은 **기존 동작**(N2 무관·범위 밖).
+
 ## 다음(갱신)
-- N2·N3 = ⓒ 완결 → 적대리뷰 후 PR·머지.
+- N2·N3 = ⓒ 완결 → PR·머지.
 - 후속 복리 척추: N5 evolve digest(ⓓ)·N6 stats --trend(ⓔ)·N1 loop tick(ⓐ)·N4 objective 토큰(ⓑ).

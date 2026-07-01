@@ -99,7 +99,11 @@ describe('buildDraft', () => {
     const draft = buildDraft(p)
     expect(draft).toContain("'worktree'")
     expect(draft).toContain('계속 권장')
+    expect(draft).toContain('3건 성공')
     expect(draft).not.toContain('사전 점검 필수')
+    // 적대리뷰(low) 회귀 가드: 내부 라벨·모순 어휘가 RULES.md 로 새지 않도록.
+    expect(draft).not.toContain('[reinforce]')
+    expect(draft).not.toContain('반복')
   })
 })
 

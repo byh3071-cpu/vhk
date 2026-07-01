@@ -54,7 +54,9 @@ export function buildDraft(p: PatternEntryV19): string {
   const axisLabel = p.axis === 'tag' ? `태그 '${p.signal}'` : `키워드 '${p.signal}'`
   if (p.kind === 'reinforce') {
     // N2: 성공패턴 → 긍정형 룰(이렇게 하면 됐다 → 계속 권장). avoid(사전 점검)와 대칭.
-    return `- ${axisLabel} 관련 작업 시 이 접근 계속 권장 (근거: ${p.count}건 성공, ${p.summary})`
+    // 적대리뷰(low): p.summary 는 내부 라벨 '[reinforce]' + '건 반복'(성공에 '반복'은 모순)을 담아
+    //   RULES.md 로 새므로 임베드 금지 → signal/count 로 재조립(사용자 노출 문구 정합, 정보손실 0).
+    return `- ${axisLabel} 관련 작업 시 이 접근 계속 권장 (근거: ${p.count}건 성공 사례)`
   }
   const countDesc = `${p.count}건 반복`
   return `- ${axisLabel} 관련 작업 시 사전 점검 필수 (근거: ${countDesc}, ${p.summary})`
