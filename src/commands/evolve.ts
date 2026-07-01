@@ -52,6 +52,12 @@ export interface EvolveQueueFile {
  */
 export function buildDraft(p: PatternEntryV19): string {
   const axisLabel = p.axis === 'tag' ? `태그 '${p.signal}'` : `키워드 '${p.signal}'`
+  if (p.kind === 'reinforce') {
+    // N2: 성공패턴 → 긍정형 룰(이렇게 하면 됐다 → 계속 권장). avoid(사전 점검)와 대칭.
+    // 적대리뷰(low): p.summary 는 내부 라벨 '[reinforce]' + '건 반복'(성공에 '반복'은 모순)을 담아
+    //   RULES.md 로 새므로 임베드 금지 → signal/count 로 재조립(사용자 노출 문구 정합, 정보손실 0).
+    return `- ${axisLabel} 관련 작업 시 이 접근 계속 권장 (근거: ${p.count}건 성공 사례)`
+  }
   const countDesc = `${p.count}건 반복`
   return `- ${axisLabel} 관련 작업 시 사전 점검 필수 (근거: ${countDesc}, ${p.summary})`
 }
@@ -63,7 +69,7 @@ export function buildDedupeKey(patternId: string, targetLayer: TargetLayer = 'ru
 
 /**
  * 후보 생성 — 순수 함수. 부수효과 없음.
- * v0 규칙: kind==='avoid' AND status==='active' 패턴만 대상.
+ * 규칙: kind ∈ {avoid, reinforce} AND status==='active' 패턴 대상 (N2: 성공패턴도 복리 — reinforce 후보화).
  * A1: 같은 dedupeKey 가 rejected 이면 재제안 억제.
  * A2: 같은 dedupeKey 가 pending/applied 이면 스킵.
  * 결정성: patternId 알파벳 오름차순 정렬.
@@ -80,7 +86,7 @@ export function generateCandidates(
   )
 
   const eligible = patterns
-    .filter((p) => p.kind === 'avoid' && p.status === 'active')
+    .filter((p) => (p.kind === 'avoid' || p.kind === 'reinforce') && p.status === 'active')
     .sort((a, b) => a.id.localeCompare(b.id))
 
   const result: Omit<EvolveQueueItem, 'id' | 'createdAt'>[] = []
@@ -360,8 +366,8 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
   const newItems = generateCandidates(patterns, queue.items)
 
   if (newItems.length === 0 && !opts.json) {
-    const activeAvoid = patterns.filter(p => p.kind === 'avoid' && p.status === 'active')
-    if (activeAvoid.length === 0) {
+    const activePatterns = patterns.filter(p => (p.kind === 'avoid' || p.kind === 'reinforce') && p.status === 'active')
+    if (activePatterns.length === 0) {
       console.log(chalk.yellow('\n📭 ' + t('evolve.noPatterns')))
       return
     }
