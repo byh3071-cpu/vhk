@@ -119,6 +119,35 @@ describe('mission — readMission BOM-safe', () => {
     expect(readMission(d)).toBeNull()
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  // ── 손상 스키마 방어 회귀 — scope/forbidden 누락·비배열이면 null (downstream checkMission 크래시 차단) ──
+  it('objective 만 있고 scope/forbidden 누락 → null (구조 무효 흡수)', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mission-'))
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, MISSION_PATH_REL), JSON.stringify({ schemaVersion: 1, objective: 'only obj' }), 'utf-8')
+    expect(readMission(d)).toBeNull()
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+  it('forbidden 이 배열이 아니면 (string) → null', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mission-'))
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(
+      path.join(d, MISSION_PATH_REL),
+      JSON.stringify({ schemaVersion: 1, objective: 'o', scope: [], forbidden: '**/*.env' }),
+      'utf-8'
+    )
+    expect(readMission(d)).toBeNull()
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+  it('손상 mission.json → readMission null → collectIntent 크래시 없이 undefined', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mission-'))
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(d, MISSION_PATH_REL), JSON.stringify({ schemaVersion: 1, objective: 'only obj' }), 'utf-8')
+    expect(() => readMission(d)).not.toThrow()
+    // 무효 미션은 null 이므로 checkMission 호출 자체에 도달하지 않음(collectIntent 는 early return undefined)
+    expect(readMission(d)).toBeNull()
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })
 
 describe('mission — 커맨드 통합', () => {
