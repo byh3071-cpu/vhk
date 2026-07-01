@@ -20,3 +20,12 @@
 ## 다음
 - **N2** reinforce evolve 확장(`evolve.ts generateCandidates` reinforce 분기) = 척추 본체. win이 그 입력면.
 - ecosystem 6 PR = 열어둠(그 레포 작업 때).
+
+### 4. N2 reinforce evolve 확장 (별도 커밋)
+- **왜**: ⓒ 척추 본체. pattern.ts는 이미 `processBucket(successes,'reinforce')`로 성공패턴 감지하나, `evolve.ts:generateCandidates` 필터가 `kind==='avoid'`만 통과 → reinforce 후보를 버림(구 v0). N2가 필터를 열어 성공패턴도 evolve 후보화 → win(N3) 입력이 룰 후보로 복리. ✅/❌ 대칭 완성.
+- **구현**: `generateCandidates` 필터 `avoid|reinforce` · `buildDraft` kind 분기(reinforce=긍정형 "이 접근 계속 권장") · suggest "allSuggested" 판정도 reinforce 포함(activePatterns). dedupeKey=`patternId:rule`는 patternId 유니크라 avoid/reinforce 충돌0. RULES 반영은 apply 사람승인 유지(철칙 불변).
+- **검증**: TDD — 기존 `reinforce 패턴 제외` 테스트를 계약변경(포함)으로 갱신 + buildDraft reinforce 테스트 신규 → RED 확인 후 GREEN. 전체 2102 tests green.
+
+## 다음(갱신)
+- N2·N3 = ⓒ 완결 → 적대리뷰 후 PR·머지.
+- 후속 복리 척추: N5 evolve digest(ⓓ)·N6 stats --trend(ⓔ)·N1 loop tick(ⓐ)·N4 objective 토큰(ⓑ).

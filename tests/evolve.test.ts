@@ -93,6 +93,14 @@ describe('buildDraft', () => {
     const draft = buildDraft(p)
     expect(draft).toContain("'auth'")
   })
+
+  it('reinforce 패턴 → 긍정형 초안(계속 권장, N2)', () => {
+    const p = pat('p4', 'worktree', 3, 'reinforce')
+    const draft = buildDraft(p)
+    expect(draft).toContain("'worktree'")
+    expect(draft).toContain('계속 권장')
+    expect(draft).not.toContain('사전 점검 필수')
+  })
 })
 
 // ── buildDedupeKey ───────────────────────────────────────────────────────────
@@ -115,14 +123,14 @@ describe('generateCandidates', () => {
     expect(result.every((r) => r.status === 'pending')).toBe(true)
   })
 
-  it('reinforce 패턴 제외', () => {
+  it('reinforce 패턴도 후보 생성 (N2 — 성공패턴 복리, avoid/reinforce 대칭)', () => {
     const patterns = [
       pat('p1', 'build', 3, 'avoid'),
       pat('p2', 'deploy', 3, 'reinforce'),
     ]
     const result = generateCandidates(patterns, [])
-    expect(result).toHaveLength(1)
-    expect(result[0].patternId).toBe('p1')
+    expect(result).toHaveLength(2)
+    expect(result.map((r) => r.patternId).sort()).toEqual(['p1', 'p2'])
   })
 
   it('archived 패턴 제외', () => {
