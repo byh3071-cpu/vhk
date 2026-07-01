@@ -316,8 +316,15 @@ export async function review(opts: { id?: string; strict?: boolean } = {}): Prom
   const cwd = process.cwd()
   const goals = listGoals(GOALS_DIR)
   if (goals.length === 0) {
-    console.error(chalk.yellow('  ⚠️  goals/ 에 goal 이 없습니다. vhk goal init 으로 시작하세요.'))
-    process.exitCode = 1
+    // review 는 새 증거를 안 만드는 읽기전용 교차검증 — goal(선택 기능) 미사용은 '실패'가 아니라
+    // '검증 대상 없음(스킵)'. #157 exit code 정책과 동일하게 강한 모순이 아닌 상태에 exit 1 을 내지 않는다.
+    // (exit 1 은 외부 가드가 project-failure 로 오인해 incident 레지스트리를 오염시킴 — gh#271.)
+    console.error(chalk.yellow('  ⚠️  goals/ 에 goal 이 없어 검증 대상이 없습니다(스킵). vhk goal init 으로 시작하세요.'))
+    printNextStep({
+      message: 'goal 을 만들면 review 가 완료 주장을 교차검증합니다:',
+      command: 'vhk goal init',
+      cursorHint: 'goal 만들어줘',
+    })
     return
   }
 

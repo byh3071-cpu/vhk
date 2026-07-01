@@ -331,6 +331,19 @@ ${checks.map((c) => `- [x] ${c}`).join('\n')}
     fs.rmSync(d, { recursive: true, force: true })
   })
 
+  it('goals/ 비어 있으면 경고 후 스킵(exit 0) — 선택 기능 미사용을 실패로 오인 금지 (gh#271)', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
+    // goal 을 하나도 seed 하지 않음 → listGoals=[] 경로.
+    process.chdir(d)
+    process.exitCode = 0
+    await review({})
+    // 읽기전용 review 는 새 증거를 안 만들고, goal 미사용만으로 exit 1(실패) 을 내지 않는다.
+    expect(process.exitCode).toBe(0)
+    expect(fs.existsSync(path.join(d, '.vhk', 'reports', 'latest.json'))).toBe(false)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
   it('latest.json 없으면 안내 + exit 1 + 새 증거 미생성', async () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-review-'))
     seedGoal(d, 9, 'IN_PROGRESS', ['테스트 통과'])
