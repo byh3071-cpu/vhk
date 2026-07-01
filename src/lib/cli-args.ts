@@ -21,6 +21,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   // #345: '현황' 은 status 의 별칭이 아니다(status 는 '상태'만) → 유령 KNOWN 토큰. 빼면 NL→status 로 친절 라우팅.
   'status', '상태',
   'stats', '통계',
+  'loop', '틱',
   'diff', '변경', '차이',
   'diff-cover', '커버리지',
   'mcp',
