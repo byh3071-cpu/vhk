@@ -21,5 +21,8 @@
 ### 🔧 선재 버그 발견 (N5 무관·별도 후속)
 - **evolve 한글 서브별칭 전부 CLI 차단**: CONTAINER 가드(`cli-args.ts:259`)가 command-registry 영문 allowlist만 검사 → `vhk evolve 제안`·`묶음` 등 **모든** 한글 서브별칭이 "서브커맨드 아님"으로 거부(스모크 확인). 형제도 동일하게 죽어있는 선재 결함. digest 추가와 무관하나 발견 기록 — 후속 수정 시 전 컨테이너(goal·evolve·seo) allowlist에 한글 별칭 합류 필요(광범위 영향이라 별도 PR).
 
+### 🔧 CI 회귀 포획 (로컬 게이트에 lint 누락)
+- 리뷰수정 push 후 **CI gate+test 전 매트릭스 fail** — 로컬은 typecheck+test만 돌려 green이었으나 CI gate=lint 포함. `buildDigest` confidence 삼항에 불필요 타입단언(`as DigestEntry['confidence']`) → eslint no-unnecessary-type-assertion. 단순 제거하면 tsc가 삼항을 `string`으로 넓혀 실패(eslint↔tsc 충돌) → **map 콜백 반환타입 `(it): DigestEntry` 명시**로 문맥타입 부여(단언 불필요·narrow 유지). 교훈: 로컬 게이트에 `pnpm lint` 필수(typecheck≠lint).
+
 ## 다음
 - **복리 척추 5개(N2·N7·N6·N1·N4) 완성 + N5(ⓓ) 마감.** 후속 후보: ⚠️evolve 한글 서브별칭 가드 수정(선재)·N11 evolve-nudge hook·measure-first(Recall@5)·v2.8.0 발행.

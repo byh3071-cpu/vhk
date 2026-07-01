@@ -424,14 +424,14 @@ export interface DigestEntry {
 export function buildDigest(pending: EvolveQueueItem[], patterns: PatternEntryV19[]): DigestEntry[] {
   const byId = new Map(patterns.map((p) => [p.id, p]))
   return pending
-    .map((it) => {
+    .map((it): DigestEntry => {
       const count = byId.get(it.patternId)?.count ?? 0
       return {
         id: it.id,
         targetLayer: it.targetLayer ?? 'rule',
         draft: it.draft,
         patternCount: count,
-        confidence: (count >= 5 ? 'high' : count >= 3 ? 'med' : 'low') as DigestEntry['confidence'],
+        confidence: count >= 5 ? 'high' : count >= 3 ? 'med' : 'low',
       }
     })
     .sort((a, b) => b.patternCount - a.patternCount || a.id.localeCompare(b.id, undefined, { numeric: true }))
