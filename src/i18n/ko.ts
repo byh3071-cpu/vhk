@@ -607,6 +607,9 @@ export const ko = {
     allSuggested: '모든 패턴이 이미 제안됐거나 reject됐습니다.',
     newCandidates: (n: number) => `신규 후보: ${n}개 추가됨`,
     suggestHint: 'vhk evolve suggest 로 생성하세요.',
+    digestTitle: 'evolve digest — 룰 후보 묶음 초안 (읽기 전용·자동 반영 0)',
+    digestEmpty: 'pending 후보가 없습니다. vhk evolve suggest 로 먼저 생성하세요.',
+    digestNext: (n: number) => `후보 ${n}개 — 신뢰도 높은 것부터 사람이 검토·반영(자동 반영 없음).`,
   },
   seo: {
     init: {
