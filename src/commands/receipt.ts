@@ -26,6 +26,7 @@ import {
   type ReceiptDiffCover,
   type ReceiptIntentEvidence,
 } from '../lib/receipt.js'
+import { appendReceiptLog, buildReceiptLogEntry } from '../lib/receipt-log.js'
 
 /**
  * Goal 86 (RFC 0056 T1): vhk receipt — 에이전트 "완료" 시점에 4대 기계증거를 영수증 1장으로.
@@ -292,6 +293,14 @@ export async function receipt(opts: ReceiptOptions = {}): Promise<void> {
 
   const r = collectReceipt(cwd, opts.since ?? undefined)
   const { jsonPath, mdPath } = writeReceipt(cwd, r)
+
+  // N7: 측정 엔트리 1줄을 .vhk/events/receipt-log.jsonl 에 append(decision 분포 추세 토대).
+  // best-effort — 원장 append 실패가 본 판정/출력을 절대 막지 않는다(advisory 영속).
+  try {
+    appendReceiptLog(cwd, buildReceiptLogEntry(r))
+  } catch {
+    /* 원장 append 실패 비치명 — receipt 본 판정은 이미 .json/.md 로 기록됨 */
+  }
 
   // --json: 기계 소비용 — 영수증 JSON 만 stdout 으로.
   if (opts.json) {
