@@ -117,6 +117,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | 룰 후보 제안 | `vhk evolve suggest` | "규칙 제안해" |
 | 부정 예시 후보 수집 | `vhk evolve negatives` | "실패에서 하지 말 것 뽑아줘" |
 | 후보 목록 / 반영 / 기각 / 되돌리기 | `vhk evolve list` · `vhk evolve apply <id>` · `vhk evolve reject <id>` · `vhk evolve undo` | "규칙 반영해" |
+| 후보 묶음 초안(신뢰도별·읽기전용) | `vhk evolve digest` | "후보 묶어서 초안 보여줘" |
 
 ## SEO·수익 대시보드 (seo — Goals 21~26)
 

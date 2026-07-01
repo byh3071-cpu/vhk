@@ -408,6 +408,76 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
   })
 }
 
+// ── N5(ⓓ): evolve digest — 후보 묶음 PR 초안(읽기 전용·자동 apply 배제) ─────────────
+
+export interface DigestEntry {
+  id: string
+  targetLayer: TargetLayer
+  draft: string
+  /** 근거 패턴 빈도(pattern.count). 패턴 미상 → 0. */
+  patternCount: number
+  /** 빈도 기반 결정적 신뢰도(5+=high · 3~4=med · <3=low). */
+  confidence: 'high' | 'med' | 'low'
+}
+
+/** pending 후보 + 패턴 → 신뢰도 부여 digest(순수·결정적). 빈도 내림차순, 동률은 id 숫자 오름차순(e2<e10). */
+export function buildDigest(pending: EvolveQueueItem[], patterns: PatternEntryV19[]): DigestEntry[] {
+  const byId = new Map(patterns.map((p) => [p.id, p]))
+  return pending
+    .map((it): DigestEntry => {
+      const count = byId.get(it.patternId)?.count ?? 0
+      return {
+        id: it.id,
+        targetLayer: it.targetLayer ?? 'rule',
+        draft: it.draft,
+        patternCount: count,
+        confidence: count >= 5 ? 'high' : count >= 3 ? 'med' : 'low',
+      }
+    })
+    .sort((a, b) => b.patternCount - a.patternCount || a.id.localeCompare(b.id, undefined, { numeric: true }))
+}
+
+/**
+ * N5(ⓓ): vhk evolve digest — pending 룰 후보를 신뢰도별 묶음 초안으로 출력(읽기 전용).
+ * RULES.md 미변경·자동 apply 0(철칙 — 반영은 evolve apply 사람 승인). digest = PR 초안 복사용.
+ */
+export async function evolveDigest(): Promise<void> {
+  const cwd = process.cwd()
+  const queue = readQueue(cwd)
+  const pending = queue.items.filter((i) => i.status === 'pending')
+  // 읽기 전용: loadForMutation 은 비영속(persistOnRead write 회피 — loop 과 동일 계약).
+  const loaded = loadForMutation(cwd)
+  const patterns = (loaded.ok ? loaded.mem.patterns : []) as PatternEntryV19[]
+  const digest = buildDigest(pending, patterns)
+
+  console.log(chalk.bold('\n📋 ' + t('evolve.digestTitle')))
+  console.log(chalk.gray('─'.repeat(40)))
+
+  if (digest.length === 0) {
+    console.log(chalk.dim('  ' + t('evolve.digestEmpty')))
+    printNextStep({ message: t('evolve.digestEmpty'), command: 'vhk evolve suggest', cursorHint: '진화 후보 생성해줘' })
+    return
+  }
+
+  const label: Record<DigestEntry['confidence'], string> = { high: '🟢 high', med: '🟡 med', low: '🔵 low' }
+  for (const conf of ['high', 'med', 'low'] as const) {
+    const group = digest.filter((d) => d.confidence === conf)
+    if (group.length === 0) continue
+    console.log(chalk.cyan(`\n${label[conf]} (${group.length})`))
+    for (const d of group) {
+      console.log(`  [${d.id}] ${d.targetLayer} ← 근거 ${d.patternCount}건`)
+      console.log(chalk.dim(`      ${d.draft}`))
+    }
+  }
+
+  printNextStep({
+    message: t('evolve.digestNext', digest.length),
+    command: 'vhk evolve apply <id>',
+    cursorHint: '이 후보 반영해줘',
+    alternative: '초안을 RULES.md PR 로 사람이 검토·반영 (자동 반영 없음)',
+  })
+}
+
 export async function evolveList(opts: { status?: string; json?: boolean } = {}): Promise<void> {
   const cwd = process.cwd()
   const queue = readQueue(cwd)
