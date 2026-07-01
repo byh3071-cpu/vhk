@@ -1,12 +1,12 @@
 ---
 id: vhk-readme
 date: 2026-06-08
-tags: [vhk, cli, readme, v2.7.0, mcp, proof, ai-coding]
+tags: [vhk, cli, readme, v2.8.0, mcp, proof, ai-coding]
 ---
 
 # VHK - Vibe Harness Kit
 
-> **v2.7.0** - AI 코딩 세션을 **목표, 증거, 기억, 규칙**으로 묶는 한국어 CLI.
+> **v2.8.0** - AI 코딩 세션을 **목표, 증거, 기억, 규칙**으로 묶는 한국어 CLI.
 >
 > Cursor, Claude Code, Claude Desktop, Windsurf, Copilot, Antigravity, Gemini, Cline 사이를 옮겨도 같은 규칙과 맥락, 같은 검증 루프를 유지합니다.
 
