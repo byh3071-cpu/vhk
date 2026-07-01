@@ -4,12 +4,24 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-07-01
+
 ### Added
 
+- **자가진화 복리 척추 5개 (N-series)** — 측정→진단→개선→재측정 루프의 "다음 한 수를 누가 부르나"(전부 사람)를 자동화. 폐회로: win→reinforce→evolve digest→apply(사람)→RULES→receipt(objective 대조)→receipt-log→`stats --trend`→`loop --tick`.
+  - **`vhk win` 성공 기록** (N3, #434) — `vhk learn`(실패/교훈)의 성공 쌍둥이. memory v2 `successes` 에 append → pattern reinforce 입력. ✅/❌ 대칭. 한글별칭 `성공`.
+  - **reinforce evolve 확장** (N2, #434) — `evolve generateCandidates` 필터를 `avoid|reinforce` 로 확장 → 버려지던 성공패턴도 룰 후보로 복리. RULES 반영은 apply 사람 승인 유지(철칙).
+  - **`vhk stats --trend`** (N6, #435) — receipt-log.jsonl 시계열 추세(거짓완료 판정 block율 델타·red/dirty율·diff-cover 평균). 표본 부족·미측정은 null(0 위장 금지·표본수 정직 병기).
+  - **`vhk loop --tick`** (N1, #436) — 읽기 전용 자가진화 조율자. 폐회로 상태(HARD_STOP·블로커·진화 대기·추세·미제안 패턴·goal)를 읽어 "닫힌 것/다음 한 수" 1장 합성(집행 0·결정경로 LLM 0·결정적 우선순위). 한글별칭 `틱`.
+  - **objective 토큰 교집합 advisory** (N4, #437) — receipt 의 mission.objective ↔ (goal.title+commit) 결정론 토큰 교집합(LLM 0, tokenize 재사용). overlap 0 → caution 까지만(block 절대 금지·단조성 불변식 보존·undefined 미계산=하위호환).
+  - **`vhk evolve digest`** (N5, #438) — pending 룰 후보를 신뢰도별(빈도 기반) 묶음 초안으로 출력(읽기 전용·자동 apply 배제·PR 초안용). 한글별칭 `묶음`.
+- **receipt-log.jsonl 영속** (N7, #431) — `vhk receipt` 발행마다 decision·기계증거 요약을 `.vhk/events/receipt-log.jsonl` 에 append(측정 토대, `stats --trend` 가 소비). 자기참조 봉인(self-tracked) 유지.
 - **`vhk receipt` — 거짓완료 탐지 영수증 MVP** (Goal 86, RFC 0056 T1, #377) — 에이전트 "완료" 시점에 4대 기계증거(tsc/test/build 종료코드·git dirty[자기파일 제외]·작업시작 SHA≠HEAD stale·변경라인 diff-cover)를 영수증 1장(`.vhk/receipts/<id>.{json,md}`)으로 조립. `decision = block|caution|pass` 는 기계증거 전용(LLM 0)·단조성 불변식(caution→pass 격상 금지)·diff-cover 는 advisory(decision 격하 불가). 등록 4지점 + 한글별칭 `증거영수증` + 드리프트 테스트. 한글별칭/`.md` 정직성 1줄("게으른 거짓완료를 잡지, 미묘한 오류는 못 잡는다"). ※ T1 본체 — 효과 입증(T3=거짓완료 적발 1건)은 후속.
 
 ### Fixed
 
+- **`readMission` 스키마 검증 누락 — 손상 mission.json 이 `vhk receipt`/`mission check` 크래시** (#432) — 밤샘 무인 결함루프 발굴. 스키마 가드 추가(최소·범위 내).
+- **`vhk review` — goals/ 비었을 때 exit 1 오인** (#433) — 선택 기능 미사용(빈 goals)을 실패로 처리하던 것을 경고 후 스킵(exit 0)으로 정정(#157 정책 일관). 밤샘 무인 결함루프 발굴.
 - **`vhk goal done` 파이프 조기종료(EPIPE) 시 상태 전이 누락 + exit 255 차단** (#287) — 게이트 통과 후 상태 write(frontmatter→DONE)를 게이트 출력보다 **먼저** 수행. Windows 는 파이프 write 가 동기라, 소비자가 출력 도중 파이프를 닫으면(예: `... | Select-Object -First 3`) `console.log(gate.out)` 이 EPIPE 를 throw 해 스택을 풀고 `atomicWriteFile` 전에 함수를 빠져나가던 게 원인 — 부수효과(상태 전이)를 출력보다 앞세워 출력 소비 여부와 무관하게 전이를 보장. 추가로 CLI 진입점에서 stdout/stderr 의 EPIPE 를 정상 종료(0)로 흡수. 회귀: 게이트 출력 print 가 EPIPE 로 죽어도 DONE 전이 보존.
 - **verify 자기참조 봉인** (Goal 85, #315, #370) — dirty 판정에서 vhk 자기 산출 추적파일(`.vhk/ledger.jsonl`·`.vhk/events/*.jsonl`)을 제외(`src/lib/self-tracked.ts` 단일 SoT). verify 직후 자기 ledger append 때문에 늘 거짓 "낡은 증거(dirty)"로 done/release 게이트를 막던 자기모순 해소. 과확장 0·퇴행 0 테스트 고정.
 - **recall 자유형식 쿼리 NL 라우터 가로채기 차단** (#313, #365) — `recall`/`회상` 쿼리에 트리거 단어(어떻게·보안·롤백 등)가 섞여도 NL 라우터에 가로채이지 않고 commander 로 위임(`FREEFORM_ARG_COMMANDS` 에 추가). 흔한 한국어 쿼리에서 메모리 검색이 무에러로 불능이던 문제 해소.
