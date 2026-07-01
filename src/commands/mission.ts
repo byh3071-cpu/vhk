@@ -113,13 +113,21 @@ export function checkMission(changedFiles: string[], mission: Mission): MissionC
   return { violations, warnings, disclaimer: MISSION_DISCLAIMER, unsupportedForbiddenPatterns }
 }
 
-/** .vhk/mission.json 읽기 (BOM-safe). 없거나 손상이면 null. */
+/**
+ * .vhk/mission.json 읽기 (BOM-safe). 없거나 손상이면 null.
+ * why: objective 뿐 아니라 scope/forbidden 이 배열인지도 검증한다. 구조 무효 객체(scope/forbidden
+ * 누락·비배열)를 그대로 흘리면 checkMission 의 `mission.forbidden.filter` 가 TypeError 로 죽어
+ * collectIntent(try/catch 밖 호출) 를 통해 vhk receipt/ mission check 전체가 크래시한다
+ * — "원장/수집 실패는 본 판정을 막지 않는다" 설계와 정면 충돌. 손상은 여기서 null 로 흡수.
+ */
 export function readMission(cwd: string = process.cwd()): Mission | null {
   const p = join(cwd, MISSION_PATH_REL)
   if (!existsSync(p)) return null
   try {
     const m = readJsonFile<Mission>(p)
-    if (m && typeof m.objective === 'string') return m
+    if (m && typeof m.objective === 'string' && Array.isArray(m.scope) && Array.isArray(m.forbidden)) {
+      return m
+    }
     return null
   } catch {
     return null
