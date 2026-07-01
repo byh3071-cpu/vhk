@@ -21,6 +21,7 @@ import { diff } from './commands/diff.js'
 import { diffCover } from './commands/diff-cover.js'
 import { status } from './commands/status.js'
 import { stats } from './commands/stats.js'
+import { loopTick } from './commands/loop.js'
 import { startMcpServer, getMcpToolCount } from './mcp/server.js'
 import { mcpInit } from './commands/mcp-init.js'
 import { injectBootstrapCommand } from './commands/inject-bootstrap.js'
@@ -382,6 +383,13 @@ program
   .description('통계 대시보드 — 패스율/차단율/진화 적용율 집계 (읽기 전용)')
   .option('--trend', 'receipt-log 시계열 추세(거짓완료 판정 추이)')
   .action(async (opts: { trend?: boolean }) => { await stats({ trend: opts.trend }) })
+
+program
+  .command('loop')
+  .alias('틱')
+  .description('자가진화 조율 1틱 — 닫힌 것/다음 한 수 (읽기 전용, 집행 0)')
+  .option('--tick', '명시적 1틱 — vhk loop 기본 동작과 동일(문서화된 no-op 별칭)')
+  .action(async () => { await loopTick() })
 
 program
   .command('mcp')
