@@ -7,6 +7,10 @@ export const ko = {
     noActions: '데이터 없음 (action-ledger 미연동 — Goal 55 머지 후 집계)',
     nextMessage: '집계 확인 완료! 증거를 더 쌓으려면 검증을 실행하세요.',
     nextCursor: '검증 실행해줘',
+    trendTitle: 'receipt 추세 (거짓완료 판정 추이)',
+    trendNoData: '측정 데이터 없음 — vhk receipt 를 반복 발행하면 추세가 쌓입니다.',
+    trendNextMessage: '추세는 receipt 발행이 누적될수록 정밀해집니다.',
+    trendNextCursor: 'receipt 발행해줘',
   },
   status: {
     title: '프로젝트 상태',
