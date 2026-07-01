@@ -23,8 +23,9 @@ describe('computeObjectiveOverlap (결정론·LLM 0)', () => {
     expect(computeObjectiveOverlap('결제 결제 결제', '결제 처리')).toBe(1)
   })
 
-  it('objective 토큰 없음(빈 문자열) → 0', () => {
-    expect(computeObjectiveOverlap('', '아무 작업이나')).toBe(0)
+  it('토큰화 불가 objective(빈/전부 <2자·불용어) → undefined (미계산, ref-empty 가드와 대칭, 적대리뷰 반영)', () => {
+    expect(computeObjectiveOverlap('', '아무 작업이나')).toBeUndefined()
+    expect(computeObjectiveOverlap('가 나', '가 나 다 작업')).toBeUndefined()
   })
 })
 

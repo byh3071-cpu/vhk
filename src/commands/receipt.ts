@@ -170,9 +170,10 @@ export function isRealObjective(objective: string): boolean {
 }
 
 /** objective ↔ ref 결정론 토큰 교집합 수(공통 distinct 토큰). pattern.tokenize 재사용, LLM 0. */
-export function computeObjectiveOverlap(objective: string, ref: string): number {
+export function computeObjectiveOverlap(objective: string, ref: string): number | undefined {
   const objTokens = new Set(tokenize(objective))
-  if (objTokens.size === 0) return 0
+  // 토큰화 불가(전부 <2자/불용어) = 미계산(undefined) — '겹침 0'과 구분, ref-empty 가드와 대칭(적대리뷰 반영).
+  if (objTokens.size === 0) return undefined
   const refTokens = new Set(tokenize(ref))
   let overlap = 0
   for (const tok of objTokens) if (refTokens.has(tok)) overlap++
@@ -183,7 +184,7 @@ export function computeObjectiveOverlap(objective: string, ref: string): number 
 function collectObjectiveRef(cwd: string): string {
   const parts: string[] = []
   try {
-    const goals = listGoals('goals')
+    const goals = listGoals(join(cwd, 'goals'))
     const id = selectActiveId(goals)
     const g = id !== null ? goals.find((x) => x.frontmatter.id === id) : undefined
     if (g?.frontmatter.title) parts.push(g.frontmatter.title)
