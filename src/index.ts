@@ -380,7 +380,8 @@ program
   .command('stats')
   .alias('통계')
   .description('통계 대시보드 — 패스율/차단율/진화 적용율 집계 (읽기 전용)')
-  .action(async () => { await stats() })
+  .option('--trend', 'receipt-log 시계열 추세(거짓완료 판정 추이)')
+  .action(async (opts: { trend?: boolean }) => { await stats({ trend: opts.trend }) })
 
 program
   .command('mcp')
