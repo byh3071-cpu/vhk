@@ -128,7 +128,7 @@ import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek, goalSync } from './commands/goal.js'
 import { blocker, learn, resume, win } from './commands/agent.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
-import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives } from './commands/evolve.js'
+import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives, evolveDigest } from './commands/evolve.js'
 import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './commands/seo/index.js'
 
 const program = new Command()
@@ -947,6 +947,12 @@ evolveCmd
   .option('--json', 'JSON 출력 (CI/MCP용)')
   .description('진화 후보 목록')
   .action(async (opts: { status?: string; json?: boolean }) => { await evolveList(opts) })
+
+evolveCmd
+  .command('digest')
+  .alias('묶음')
+  .description('진화 후보 묶음 초안 — 신뢰도별 정렬 (읽기 전용·자동 반영 0, PR 초안용)')
+  .action(async () => { await evolveDigest() })
 
 evolveCmd
   .command('apply <id>')
