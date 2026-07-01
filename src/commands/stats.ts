@@ -65,9 +65,12 @@ export interface ReceiptTrend {
   dirtyRate: RateStat
   /** measured diff-cover 비율 평균. 측정분 0 이면 null(모름을 0 으로 위장 안 함). */
   avgDiffCover: number | null
-  /** 앞절반 vs 뒷절반 block 비율 비교. total<2 면 null(표본 부족). */
+  /** diff-cover measured 표본 수(분모 정직표기 — n 작을 때 평균 오인 방지). */
+  coverN: number
+  /** 앞절반 vs 뒷절반 block 비율 비교. total<2 면 null. 홀수 total 은 뒤절반이 1 많음 → earlierN/recentN 명시. */
   trend: {
-    window: number
+    earlierN: number
+    recentN: number
     earlierBlockRate: number
     recentBlockRate: number
     /** recent - earlier. 양수=악화(거짓완료 판정 증가), 음수=개선. */
@@ -102,10 +105,19 @@ export function computeReceiptTrend(entries: ReceiptLogEntry[]): ReceiptTrend {
     arr.length === 0 ? 0 : arr.filter((e) => e.decision === 'block').length / arr.length
   let trend: ReceiptTrend['trend'] = null
   if (total >= 2) {
+    // 홀수 total 은 뒤절반이 1 많다(earlierN/recentN 로 정직 노출 — '절반 N개씩' 오표기 방지, 적대리뷰 반영).
     const mid = Math.floor(total / 2)
-    const earlierBlockRate = blockRate(sorted.slice(0, mid))
-    const recentBlockRate = blockRate(sorted.slice(mid))
-    trend = { window: mid, earlierBlockRate, recentBlockRate, delta: recentBlockRate - earlierBlockRate }
+    const earlier = sorted.slice(0, mid)
+    const recent = sorted.slice(mid)
+    const earlierBlockRate = blockRate(earlier)
+    const recentBlockRate = blockRate(recent)
+    trend = {
+      earlierN: earlier.length,
+      recentN: recent.length,
+      earlierBlockRate,
+      recentBlockRate,
+      delta: recentBlockRate - earlierBlockRate,
+    }
   }
   return {
     total,
@@ -113,6 +125,7 @@ export function computeReceiptTrend(entries: ReceiptLogEntry[]): ReceiptTrend {
     redRate: rate(red),
     dirtyRate: rate(dirty),
     avgDiffCover: coverN === 0 ? null : coverSum / coverN,
+    coverN,
     trend,
   }
 }
@@ -197,16 +210,18 @@ function renderTrend(cwd: string): void {
   log.plain(chalk.cyan('📂 dirty') + chalk.white(` ${pct(tr.dirtyRate.rate)}`) + chalk.dim(` (${tr.dirtyRate.count}/${tr.dirtyRate.total})`))
   log.plain(
     chalk.cyan('🎯 diff-cover 평균') +
-      (tr.avgDiffCover === null ? chalk.dim(' 측정 없음') : chalk.white(` ${pct(tr.avgDiffCover)}`)),
+      (tr.avgDiffCover === null
+        ? chalk.dim(' 측정 없음')
+        : chalk.white(` ${pct(tr.avgDiffCover)}`) + chalk.dim(` (측정 ${tr.coverN}/${tr.total})`)),
   )
 
   if (tr.trend) {
-    const { delta, earlierBlockRate, recentBlockRate, window } = tr.trend
+    const { delta, earlierBlockRate, recentBlockRate, earlierN, recentN } = tr.trend
     const arrow = delta > 0 ? '📈 악화' : delta < 0 ? '📉 개선' : '➡️  동일'
     log.plain(
       chalk.cyan('\n📊 block 추세') +
         chalk.white(` ${pct(earlierBlockRate)} → ${pct(recentBlockRate)}`) +
-        chalk.dim(` (${arrow}, 절반 ${window}개씩)`),
+        chalk.dim(` (${arrow}, 앞 ${earlierN}개 vs 뒤 ${recentN}개)`),
     )
   } else {
     log.plain(chalk.dim('\n  추세: 표본 2개 미만 — 발행 더 누적 필요'))
