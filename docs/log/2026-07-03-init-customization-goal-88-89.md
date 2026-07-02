@@ -53,3 +53,18 @@ mission 이탈 없음(Forbidden 3개 전부 준수, 코드로 직접 확인) · 
 ### 교훈 (추가)
 - **`yohan-core:critic` 서브에이전트를 사용자 CLAUDE.md가 문서화했지만 이 세션엔 아직 미탑재**(플러그인 신규 등록 후 세션 재시작 전으로 추정) — `Agent` 호출 에러로 즉시 발견, `general-purpose`+`model:opus` 폴백으로 문제없이 진행. 서브에이전트 이름을 CLAUDE.md에서 봤다고 그대로 믿지 말고 실패 시 폴백 경로를 갖고 있으면 손실 0.
 - **"인수인계 상태값은 스냅샷" 교훈이 이번에도 재현** — 외부 세션이 "goal 88부터 코드 구현 이어가라"고 전달했지만 이미 완료 상태였음(같은 세션 안에서 2번째 재현). 반복성이 확인됐으니 PAT 후보 확신도가 올라감 — 다음 가용 번호 확정되면 등재.
+
+## 추가 — goal 89 3-way 분리 (외부 교차검증 반영)
+
+외부 세션이 VHK 소스를 직접 대조해 goal 89 설계의 취약점을 하나 찾음: "인터뷰 답변을 RULES.md에 쓰면 `vhk sync`가 알아서 `.cursorrules`/CLAUDE.md로 전파한다"는 가정이 검증 안 된 채였음. 이 세션에서 `sync.ts:19,23,79,316,35,593`(`CURSORRULES_KEYS`/`CLAUDE_MD_KEYS`/`buildCodingDoc`/`toClaudeMd`/`findUnmappedSections`) 직접 읽어 재확인 — **반박 정확함**: 섹션 제목 substring 매칭이라 "도메인 규칙" 같은 자연스러운 제목은 두 키 목록 어디에도 안 걸림 → `.cursorrules`/CLAUDE.md엔 안 가고 원본 RULES.md·일부 산출물에만 남음. 원래 버그("안 짚으면 스킵")의 사촌(조용히 반쪽 전파)이 남는 셈.
+
+사람 결정(외부 세션 경유)에 따라 goal 89를 3개로 분리:
+- `goals/89-customization-hook.md`(개정) — 트리거 메커니즘(마커·SessionStart 훅·settings.json 병합)만. 전파 정합성 주장 제거.
+- `goals/90-sync-propagation-fidelity.md`(신규) — 라우팅 결정((a)기존 키 재사용 vs (b)신규 키 추가) + 블랙박스 회귀 테스트. P1(89 혼자 완료돼도 이게 없으면 "커스터마이징이 실제로 먹힌다"는 주장 성립 안 함).
+- `goals/91-core-rules-fallback-visibility.md`(신규, 구 B-2 그대로 이동) — core-rules 폴백 가시화. P2, 독립적.
+
+`vhk goal sync`로 `check-goal-90.mjs`·`check-goal-91.mjs` 백필(스텁), `goals/README.md` 인덱스 재생성(10건→12건).
+
+## 교훈 (추가 2)
+
+- **1차 설계에서 "sync.ts 안 건드림"이라 적었던 전제 자체가 미검증 주장이었다.** 재사용 가능해 보이는 기존 메커니즘(sync.ts fan-out)을 "있으니까 될 거다"로 넘어갔는데, 정작 그 메커니즘의 매칭 규칙(섹션 제목 substring)을 내가 직접 코드로 확인한 적이 없었음 — 외부 교차검증이 이 구멍을 잡음. **"기존 코드를 재사용한다"는 계획 문장은 그 자체로 검증 완료가 아니다 — 정확히 어떤 입력이 그 코드 경로를 타는지까지 확인해야 재사용 주장이 성립한다.**
