@@ -63,6 +63,6 @@
 
 ## 관련
 
-- 소스 프로젝트: `github.com/byh3071-cpu/my-profile-site` (STACK-KIT.md 원본)
+- 소스 프로젝트: `my-profile-site` — 로컬 인프런 실습 프로젝트 (GitHub 미등록, STACK-KIT.md 원본)
 - Notion: 바이브코딩 스타터킷 › reference/ › 정적 웹·프로필 스타터킷
 - 요한 MCP: `memory:ingest` id `web-static-starter-kit`
