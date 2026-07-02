@@ -570,6 +570,9 @@ export const ko = {
     driftFound: (n: number) =>
       `드리프트 의심 ${n}건 — check-goal 게이트에 goal 고유 검증이 있는데 status: NOT_STARTED:`,
   },
+  watch: {
+    title: '👁️  무인 세션 정지 감시',
+  },
   agent: {
     blockerTitle: '🛑 Blocker 기록',
     learnTitle: '🧠 Learning 기록',

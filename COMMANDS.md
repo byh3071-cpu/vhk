@@ -204,6 +204,7 @@ vhk doctor
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |
 | `vhk learn` | 교훈 기록 → memory v2 단일 SoT |
 | `vhk win` | 성공 기록 → memory successes (reinforce evolve 입력) |
+| `vhk watch` | 무인 세션 정지 감시 — 세션 로그 idle 초과 시 텔레그램·콘솔 알림 (`--idle-min` `--interval` `--window` `--once`) |
 | `vhk resume` | .vhk/HARD_STOP 해제 (`--confirm` 필요) |
 | `vhk pattern` | 반복 패턴 감지·목록 (`pattern detect` · `pattern list` · `pattern dismiss`) |
 | `vhk evolve` | 패턴 → 룰 후보 제안·반영·undo |
