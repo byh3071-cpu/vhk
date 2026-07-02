@@ -29,3 +29,27 @@ plan mode로 원인 분석(Explore 에이전트 3개 병렬 + Plan 에이전트 
 ## 다음
 
 goal 88 코드 구현 착수 — explorer(haiku) 정찰 → planner(opus) 계획 → **사람 승인** → 구현 → critic(opus) 적대검증 순서로 진행(계획 승인 전 코드 변경 없음). PAT 번호 건은 사용자에게 별도 확인 요청 예정.
+
+## 추가 — goal 88 구현 완료 (같은 날, 후속)
+
+explorer(haiku)→planner(opus)→**사람 승인**(1차 반려: "fable5 안 써도 되는겨?" → claude-api 스킬로 검증, goal 88은 기계적 작업이라 불필요·2차 승인)→TDD 구현(RED→GREEN, PR1/PR2)→critic(opus, general-purpose 폴백 — `yohan-core:critic` 이 세션엔 미탑재)까지 전 단계 완주.
+
+### 변경
+- `src/templates/docs-readme.ts`(신규) — `RFC_README_TEMPLATE()`·`PATTERNS_README_TEMPLATE()`.
+- `src/commands/init.ts` — 위 템플릿 import + `generateFiles()`에 `docs/rfc/README.md`·`docs/patterns/README.md` 배선.
+- `src/commands/start.ts` — 완료 안내에 `log.dim(ko.start.goalInitHint)` 1줄.
+- `src/i18n/ko.ts` — `goalInitHint` 키 신규.
+- `tests/init.test.ts`·`tests/start.test.ts` — EXPECTED_FILES 2개 확장 + start 신규 테스트 2개(힌트 포함 확인·goal init 자동실행 안 됨 회귀가드).
+
+### 게이트
+`pnpm build`(성공) · `pnpm test:run`(2152/2152 pass) · `pnpm lint`(clean).
+
+### critic 결과 (요약)
+mission 이탈 없음(Forbidden 3개 전부 준수, 코드로 직접 확인) · 템플릿 제네릭성 확보(vhk 전용 표현 전부 제거 확인) · 테스트 false-green 아님(힌트 줄 지우면 실제로 실패함을 확인) · `generateFiles()` 신규 키 2개가 다른 소비처 안 깸. 유일 관찰(비차단): goal 88 frontmatter status 갱신 필요(프로세스, 별도 처리).
+
+### fable5 질문 처리 (dogfood 관찰)
+사용자가 "fable5 안 써도 되나" 질문 → claude-api 스킬 invoke해서 모델 스펙 직접 검증(기억 추정 금지 원칙) → Fable5는 "가장 까다로운 추론·장시간 작업" 전용·비용 2배·명시적 요청시만 사용이 스킬 자체 규정 → goal 88(기계적 작업)엔 불필요, opus로 충분 결론. goal 89류 복잡한 작업엔 재고 여지 있다고 답변.
+
+### 교훈 (추가)
+- **`yohan-core:critic` 서브에이전트를 사용자 CLAUDE.md가 문서화했지만 이 세션엔 아직 미탑재**(플러그인 신규 등록 후 세션 재시작 전으로 추정) — `Agent` 호출 에러로 즉시 발견, `general-purpose`+`model:opus` 폴백으로 문제없이 진행. 서브에이전트 이름을 CLAUDE.md에서 봤다고 그대로 믿지 말고 실패 시 폴백 경로를 갖고 있으면 손실 0.
+- **"인수인계 상태값은 스냅샷" 교훈이 이번에도 재현** — 외부 세션이 "goal 88부터 코드 구현 이어가라"고 전달했지만 이미 완료 상태였음(같은 세션 안에서 2번째 재현). 반복성이 확인됐으니 PAT 후보 확신도가 올라감 — 다음 가용 번호 확정되면 등재.

@@ -10,6 +10,7 @@ import { RULES_MD_TEMPLATE } from '../templates/rules-md.js'
 import { PRD_TEMPLATE } from '../templates/prd.js'
 import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
+import { RFC_README_TEMPLATE, PATTERNS_README_TEMPLATE } from '../templates/docs-readme.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
 import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE, VHK_GITATTRIBUTES_TEMPLATE, VHK_IGNORE_TEMPLATE } from '../templates/vhk-dir.js'
 import { ko } from '../i18n/ko.js'
@@ -348,6 +349,8 @@ export function generateFiles(
     'VISION.md': VISION_TEMPLATE(name, description),
     'docs/ARCHITECTURE.md': ARCHITECTURE_TEMPLATE(name, stackStr),
     'docs/adr/ADR-000-template.md': ADR_TEMPLATE(),
+    'docs/rfc/README.md': RFC_README_TEMPLATE(),
+    'docs/patterns/README.md': PATTERNS_README_TEMPLATE(),
     'docs/log/.gitkeep': '',
     'docs/troubleshooting/.gitkeep': '',
     'docs/til.md': `# TIL (Today I Learned)\n\n- [${localDate()}] 프로젝트 시작\n`, // VHK-019

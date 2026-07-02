@@ -125,6 +125,7 @@ export const ko = {
     allDone: '🎉 모든 단계 완료!',
     nextHintMessage: '프로젝트 시작 준비 끝! 이제 개발을 시작하세요.',
     nextHintCursor: 'docs/PRD.md 보고 개발 시작해줘',
+    goalInitHint: '💡 goal 단계 체계(goals/·docs/state/)가 필요하면 vhk goal init 으로 언제든 추가할 수 있어요 (선택).',
   },
   injectBootstrap: {
     confirm: 'tier S harness (ecosystem.mdc · CORE-RULES · context seed · mcp.json.example) 설치할까요?',

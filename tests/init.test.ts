@@ -16,6 +16,8 @@ const EXPECTED_FILES = [
   'VISION.md',
   'docs/ARCHITECTURE.md',
   'docs/adr/ADR-000-template.md',
+  'docs/rfc/README.md',
+  'docs/patterns/README.md',
   'docs/log/.gitkeep',
   'docs/troubleshooting/.gitkeep',
   'docs/til.md',
