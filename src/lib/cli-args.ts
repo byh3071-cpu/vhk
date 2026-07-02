@@ -56,6 +56,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'blocker', '블로커',
   'learn', '교훈',
   'win', '성공',
+  'watch', '감시',
   'resume', '재개',
   'mode', '모드',
   'verify', '사전점검',

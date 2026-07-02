@@ -127,6 +127,7 @@ async function guardCliDefer(
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek, goalSync } from './commands/goal.js'
 import { blocker, learn, resume, win } from './commands/agent.js'
+import { watch } from './commands/watch.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives, evolveDigest } from './commands/evolve.js'
 import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './commands/seo/index.js'
@@ -177,6 +178,7 @@ const KO_ALIASES: Record<string, string> = {
   blocker: '블로커',
   learn: '교훈',
   win: '성공',
+  watch: '감시',
   resume: '재개',
   pattern: '패턴',
   evolve: '진화',
@@ -884,6 +886,19 @@ program
   .alias('성공')
   .description('성공 기록 → memory successes (learn 의 성공 쌍둥이 — reinforce evolve 입력)')
   .action(async (content: string[]) => { await win(content.join(' ')) })
+
+program
+  // 트랙 A(신뢰): 2026-07-01 밤샘루프 무감지 사건 재발 방지 — 경량 폴러(에이전트 아님).
+  .command('watch')
+  .alias('감시')
+  .description('무인 세션 정지 감시 — 세션 로그 idle 초과 시 텔레그램·콘솔 알림 (수준 2)')
+  .option('--idle-min <min>', 'idle 판정 기준 분 (기본 15)')
+  .option('--interval <sec>', '폴링 주기 초 (기본 60)')
+  .option('--window <min>', '감시 편입 활성 윈도우 분 (기본 30)')
+  .option('--once', '1회 점검 후 종료 (상태 확인용)')
+  .action(async (opts: { idleMin?: string; interval?: string; window?: string; once?: boolean }) => {
+    await watch(opts)
+  })
 
 program
   .command('resume')
