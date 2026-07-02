@@ -214,6 +214,9 @@ export const ko = {
     scriptsDone: '📦 package.json scripts 추가',
     gitignoreCreated: '🔒 .gitignore 생성 (.env·node_modules·dist 제외)',
     gitignoreUpdated: '🔒 .gitignore 보강 (누락 항목 추가)',
+    customizationMarkerDone: '🎯 .vhk/NEEDS_CUSTOMIZATION 생성 — 첫 세션에서 도메인 인터뷰 자동 트리거',
+    customizationHookWired: '🪝 .claude/settings.json SessionStart 훅 배선 (커스터마이징 트리거)',
+    customizationHookSkipped: '⚠️  .claude/settings.json 파싱 실패 — SessionStart 훅 배선 건너뜀(기존 파일 보존).',
     adoptPrompt: (n: number, list: string) =>
       `📥 기존 규칙 파일 ${n}개 발견 (${list}). RULES.md로 가져올까요?`,
     adoptPreview: (n: number) =>

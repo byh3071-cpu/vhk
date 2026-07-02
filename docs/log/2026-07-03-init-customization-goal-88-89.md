@@ -68,3 +68,29 @@ mission 이탈 없음(Forbidden 3개 전부 준수, 코드로 직접 확인) · 
 ## 교훈 (추가 2)
 
 - **1차 설계에서 "sync.ts 안 건드림"이라 적었던 전제 자체가 미검증 주장이었다.** 재사용 가능해 보이는 기존 메커니즘(sync.ts fan-out)을 "있으니까 될 거다"로 넘어갔는데, 정작 그 메커니즘의 매칭 규칙(섹션 제목 substring)을 내가 직접 코드로 확인한 적이 없었음 — 외부 교차검증이 이 구멍을 잡음. **"기존 코드를 재사용한다"는 계획 문장은 그 자체로 검증 완료가 아니다 — 정확히 어떤 입력이 그 코드 경로를 타는지까지 확인해야 재사용 주장이 성립한다.**
+
+## 추가 — goal 89(트리거) 구현 완료
+
+haiku 정찰 → opus 설계(gate 회피 정규식·삽입 라인번호까지 직접 재검증) → **사람 승인** → TDD(RED→GREEN, PR1/PR2/PR3) → critic(opus, `general-purpose` 폴백 — `yohan-core:critic` 이 세션엔 여전히 미탑재) 전 단계 완주.
+
+### 변경
+- `src/templates/customization-hook.ts`(신규) — `CUSTOMIZATION_HOOK_TEMPLATE()`, 자기완결형 SessionStart 훅 `.mjs`.
+- `src/commands/init.ts` — `ensureCustomizationMarker()`·`ensureSessionStartHook()` 신규 + `generateFiles()`/`writeInitExtras()` 배선.
+- `src/i18n/ko.ts` — 안내 문구 3개.
+- `src/templates/vhk-dir.ts` — `.vhk/.gitignore`·`.vhk/README.md` 씨앗에 마커 항목 반영.
+- `docs/spec.md` — spec_version 1.1→1.2, 파일 표·변경이력 갱신.
+- `tests/init.test.ts`·`tests/customization-hook.test.ts`(신규) — 마커 4상태·훅 병합 6케이스(critic 지적 2건 추가 포함)·서브프로세스 실행 4조합.
+
+### 게이트
+`pnpm build`·`pnpm exec tsc --noEmit`·`pnpm lint` 전부 clean. `pnpm test:run` 2169/2169 pass.
+
+### 구현 중 실제로 잡힌 것 2건
+1. **게이트 위반**: `ensureSessionStartHook`이 raw `JSON.parse(readFileSync(...))` 써서 `check-no-raw-json-parse` 게이트(BOM-안전성, PAT-002 아님)에 걸림 → `readJsonFile()`로 교체, 즉시 해소.
+2. **critic이 진짜 버그 하나 찾음**: `hooks`가 배열(비정상 형태)이면 `typeof === 'object'` 체크를 통과해버려서 `SessionStart` 병합 결과가 `JSON.stringify`에서 조용히 유실되는데 반환값은 `'merged'`(성공)였음 — RED로 재현 확인 후 `Array.isArray` 가드 추가해 `'skipped'`로 정정. 같은 리뷰에서 UX 갭(건너뛰기 시 무한 재넛지)도 지적받아 훅 지시문에 "건너뛰어도 done 마커는 만들어라" 한 줄 추가.
+
+### 교훈
+- **critic 리뷰를 "게이트 다 green이니 형식적으로 돌린다"고 여기면 안 된다** — 이번에도 게이트 2169개가 전부 green인 상태에서 critic이 실제 데이터 유실 버그(배열 hooks 케이스)를 찾아냈다. 테스트 커버리지가 있어도 "생각 못 한 입력 형태"는 여전히 새 눈이 잡는다.
+- goal 88/89 두 goal 모두 critic이 지적한 걸 그 자리에서 바로 반영(추가 승인 사이클 없이) — 이유: 둘 다 이미 승인된 구현의 범위 내 미세 수정(텍스트 문구·방어 로직 강화)이지 새 아키텍처가 아니었음. 반대로 goal 90처럼 설계 자체가 바뀌는 지적이면 재승인이 맞다 — 이 경계 판단 자체가 이번 세션에서 두 번 실전 적용됨.
+
+## 다음
+goal 90(sync 전파 정합성) → goal 91(core-rules 폴백 가시화) 순서로 진행 예정. goal 89 커밋 직후 사용자에게 상태 보고.
