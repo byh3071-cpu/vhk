@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 8 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 3
+> 총 10 goal — IN_PROGRESS 2 · NOT_STARTED 4 · BLOCKED 1 · DONE 3
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -15,3 +15,5 @@
 | 85 | receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0 | ✅ DONE | P0 | receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결) |
 | 86 | vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0 | ✅ DONE | P0 | 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기 |
 | 87 | 의도 대조 — receipt/review가 mission(시킨 것)을 검증에 반영 (의도 장갑 손바닥) — P0 | ✅ DONE | P0 | "AI가 시킨 대로(scope/forbidden) 했나"를 자동 판정 — 경쟁사 못 하는 해자(남들은 의도를 모름) 실현 |
+| 88 | vhk init/start — docs 스캐폴딩 완성 (rfc·patterns README + goal init 발견성) — P2 | ⬜ NOT_STARTED | P2 | 새 프로젝트가 노션 바이브코딩 스타터킷 docs 구조(rfc/patterns)를 갖고 시작 + goal 단계 체계를 발견 가능하게 — 매번 사용자가 "이 문서 필요하지 않아?"라고 직접 짚어주는 비용 제거 |
+| 89 | 새 프로젝트 세션 시작 — 도메인 커스터마이징 인터뷰 강제 트리거 + core-rules 폴백 가시화 — P1 | ⬜ NOT_STARTED | P1 | vhk init 직후 첫 세션에서 AI가 알아서 도메인 규칙을 묻고 RULES.md에 반영 + 헌법(core-ruleset) 반영 여부가 눈에 보이게 — "안 짚으면 스킵됨" 패턴을 트리거 레벨에서 코드로 봉인 |
