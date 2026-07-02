@@ -4,6 +4,16 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-07-02
+
+### Added
+
+- **`vhk watch` — 무인 세션 정지 감시 (트랙 A 수준 2: 감지+알림)** (#441) — 2026-07-01 밤샘루프 무감지 사건(8.5h) 재발 방지. Claude Code 세션 로그(`~/.claude/projects/<proj>/<session>.jsonl`) mtime 폴링 → idle 초과(기본 15분) 시 **stalled 1회 알림**(재알림 금지)·활동 재개 시 recovered+재무장. 알림은 텔레그램(`VHK_TG_TOKEN`·`VHK_TG_CHAT_ID`, 미설정 시 콘솔 전용을 시작 배너에 명시, 발송 실패는 삼키고 감시 루프 생존). 완료/멈춤은 로그만으론 구분 불가 — 둘 다 확인 신호로 정직하게 알림. 감시자는 에이전트가 아닌 경량 폴러(공멸 방지). 옵션 오입력은 fail-fast(silent 기본값 폴백 금지 — 사건 교훈). 하위폴더(서브에이전트·워크플로) 로그 제외, 메인 세션만 depth 2 스캔. 한글별칭 `감시`, `--once` 1회 점검 모드, `--idle-min`/`--interval`/`--window`.
+
+### Docs
+
+- **TS-005 확장 — 디렉토리 `rmSync` 도 silent exit 127 재현 확정** (#441) — 노트북(Windows·Node v24.13.0)에서 파일·디렉토리 모두 `node -e` 한 줄로 결정적 재현(샌드박스 무관). tmp+rmSync cleanup 패턴이 vitest 워커를 즉사시켜 이 머신에서 스위트 실행 불가였던 근본 원인. 회귀 방지 패턴을 "신규 rmSync 금지(파일·디렉토리 모두), cleanup 은 unlink+rmdir 재귀(`tests/watch.test.ts` `rmTree()`)"로 갱신.
+
 ## [2.8.0] - 2026-07-01
 
 ### Added

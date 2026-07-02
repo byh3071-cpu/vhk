@@ -148,8 +148,8 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-07-01
-- **버전:** v2.8.0 — 사실 확인은 package.json·CHANGELOG
+**마지막 갱신:** 2026-07-02
+- **버전:** v2.9.0 — 사실 확인은 package.json·CHANGELOG
 - **테스트:** ~2139 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
 - **Phase:** **[2026-07-01] 자가진화 복리 척추 완성 스프린트** — 병렬 실행 계획(vhk-goal-shimmying-moore) 실행: 밤샘 무인루프(vhk 실결함 2건 #432·#433)·**복리 척추 5개 전 항목 머지** — N3+N2(#434 `vhk win`+reinforce evolve, ⓒ)·N6(#435 `stats --trend`, ⓔ)·N1(#436 `loop --tick`, ⓐ)·N4(#437 objective 토큰 교집합, ⓑ)·N5(#438 `evolve digest`, ⓓ). 각 TDD + 다각 적대리뷰(반증·Workflow) + CI green. **폐회로**: win→reinforce→evolve digest→apply(사람)→RULES→receipt(objective 대조)→receipt-log→`stats --trend`→`loop --tick`. **이전**: 서브에이전트 정책 ADR-007·critic 쓰기구멍(memory 필드 확정). 상세 docs/state·docs/log·CHANGELOG.
 - **블로커:** 없음
