@@ -94,3 +94,30 @@ haiku 정찰 → opus 설계(gate 회피 정규식·삽입 라인번호까지 �
 
 ## 다음
 goal 90(sync 전파 정합성) → goal 91(core-rules 폴백 가시화) 순서로 진행 예정. goal 89 커밋 직후 사용자에게 상태 보고.
+
+## 추가 — goal 90(sync 전파 정합성) 구현 완료 · DONE
+
+haiku 정찰 → opus 설계(sync.ts 8개 산출물 함수 전부 직접 대조, `CURSORRULES_KEYS`에 `'도메인'` 키 1개만 추가하는 최소변경안 도출) → 내가 직접 sync.ts·rules-md.ts 재검증(`## 안전 규칙` 기존 미매핑 부수 발견) → **사람 승인** → TDD(RED→GREEN) → critic(opus) 적대검증 → **critic이 진짜 아키텍처 리스크 발견** → 대응 반영 → 재검증 → commit.
+
+### 변경
+- `src/commands/sync.ts:19` — `CURSORRULES_KEYS`에 `'도메인'` 추가(6개→7개). `toClaudeMd`가 이 배열을 union하므로 `CLAUDE_MD_KEYS`는 안 건드림.
+- `src/templates/customization-hook.ts` — 인터뷰 지시문을 "적절한 섹션에 추가"(범용)에서 "`## 도메인 규칙` 섹션 하나에 정리(### 하위 허용)"(구체적)로 교체.
+- `tests/sync.test.ts` — 블랙박스 전파 테스트 4개(`.cursorrules`·CLAUDE.md·나머지 5개 코딩 타깃 전부 도달 + findUnmappedSections 미탐지 확인) + 리스크 characterization test 1개.
+- `scripts/check-goal-90.mjs` — 고유 검증 4개(정규식으로 배열 리터럴 한정, 주석 오탐 방지).
+- `goals/90-sync-propagation-fidelity.md` — 결정 근거·리스크 기록, NOT_STARTED→DONE.
+
+### critic이 찾은 진짜 리스크와 대응
+`CURSORRULES_KEYS` 확장이 `VHK_MANAGED_KEYS`(spread)에도 자동 반영되는데, 이 배열은 `stripLegacyAutogen`(레거시 마커없는 CLAUDE.md 1회 마이그레이션의 삭제 판정)에도 쓰임 — 즉 이 기능 이전에 사용자가 CLAUDE.md에 손으로 쓴 "도메인" 섹션이 있으면 최초 sync 시 삭제 대상으로 분류될 수 있음. **결정적으로, `docs/log/2026-06-10-governance.md:63-65`에 'Forbidden' 키에 대해 정확히 이 이유로 신규 키 추가를 거부한 전례가 있었다** — 직접 원문 대조로 확인.
+
+대응: 키셋을 분리하는 완화책(직관적으로 제일 먼저 떠오름)은 `sync.ts:27-29` 자체 주석("재생성 판정과 삭제 판정은 같은 키 집합을 써야 중복이 안 생긴다")과 정면 배치돼 기각. 대신 위험을 받아들이되(1) 완전 침묵 아님(removed 노출+백업으로 복구 가능) (2) "도메인"은 'Forbidden'과 달리 이 기능 이전엔 표준 관용구가 아니라 위험 시나리오가 훨씬 좁다는 점을 근거로 그대로 두고, characterization test로 트레이드오프를 코드에 박아 문서화(동작이 조용히 바뀌면 테스트가 잡음).
+
+### 게이트
+`pnpm build`·`pnpm exec tsc --noEmit`·`pnpm lint` clean. `pnpm test:run` 2174/2174 pass. `check-goal-90.mjs` 고유 검증 4개 통과.
+
+### 교훈
+- **"영향 범위를 확인했다"는 주장도 grep 결과에 의존하면 놓칠 수 있다.** `CURSORRULES_KEYS`/`CLAUDE_MD_KEYS`가 다른 파일에 중복 하드코딩 안 됐다는 grep 결과는 정확했지만, **같은 파일 안에서 파생되는 다른 배열(`VHK_MANAGED_KEYS`)이 완전히 다른 함수(레거시 마이그레이션)에서 소비된다**는 건 grep으로 안 잡혔다 — critic이 코드 흐름을 끝까지 추적해서 잡음. "정의부만 확인"과 "모든 파생/소비처를 끝까지 추적"은 다른 검증 깊이다.
+- **과거 governance 결정(이 저장소 자신의 dev log)이 지금 결정의 반증 자료가 될 수 있다** — critic이 `docs/log/2026-06-10-governance.md`를 찾아내 "Forbidden 키를 VHK_MANAGED_KEYS에 안 넣은 전례"를 들이밀었을 때, 이게 정말 같은 상황인지(위험도 비교: Forbidden=거의 100% 매치 vs 도메인=낮은 매치 확률) 따져서 "전례를 그대로 따라야 한다"와 "전례의 근거를 재사용하되 다른 결론"을 구분해야 했다 — 전례를 맹종하지도, 무시하지도 않는 판단이 필요했음.
+- **critic 리뷰가 "커밋 차단급은 아니다"라고 해도, 발견한 리스크를 그냥 넘기지 않고 characterization test로 코드에 박아두는 비용은 낮고 가치는 크다** — 나중에 누가 실수로 `stripLegacyAutogen`을 건드려도 이 테스트가 그 순간 잡아준다.
+
+## 다음
+goal 91(core-rules 폴백 가시화) 진행 예정.

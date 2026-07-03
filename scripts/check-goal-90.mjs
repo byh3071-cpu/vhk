@@ -53,8 +53,25 @@ if (!skipDeep) {
 }
 
 // ─── goal 90 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const syncTs = read('src/commands/sync.ts')
+// critic 지적(2026-07-03): 단순 includes 는 주석에도 매치돼 배열에서 키를 지워도 통과하는 거짓양성
+// 위험이 있었음 — CURSORRULES_KEYS 배열 리터럴 라인 자체를 정규식으로 한정해 검증.
+must(
+  /const CURSORRULES_KEYS = \[[^\]]*'도메인'[^\]]*\]/.test(syncTs ?? ''),
+  "sync.ts CURSORRULES_KEYS 배열 리터럴에 '도메인' 키 실제 등록(주석 아님)"
+)
+const hookTs = read('src/templates/customization-hook.ts')
+must(hookTs?.includes('## 도메인 규칙'), 'customization-hook.ts 지시문이 `## 도메인 규칙` 제목을 명시')
+const syncTest = read('tests/sync.test.ts')
+must(
+  syncTest?.includes('SENTINEL_INVARIANT') && syncTest?.includes('toClaudeMd'),
+  'sync.test.ts 에 .cursorrules+CLAUDE.md 양쪽 도달 블랙박스 테스트 존재'
+)
+must(
+  syncTest?.includes('claudeMdMigration') && syncTest?.includes('[알려진 트레이드오프]'),
+  'sync.test.ts 에 VHK_MANAGED_KEYS/레거시 마이그레이션 트레이드오프 characterization test 존재'
+)
 
 if (pass) { console.log('✅ goal 90 gate passes'); process.exit(0) }
 console.log('❌ goal 90 gate failed'); process.exit(1)

@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 12 goal — IN_PROGRESS 2 · NOT_STARTED 6 · BLOCKED 1 · DONE 3
+> 총 12 goal — IN_PROGRESS 2 · NOT_STARTED 5 · BLOCKED 1 · DONE 4
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -17,5 +17,5 @@
 | 87 | 의도 대조 — receipt/review가 mission(시킨 것)을 검증에 반영 (의도 장갑 손바닥) — P0 | ✅ DONE | P0 | "AI가 시킨 대로(scope/forbidden) 했나"를 자동 판정 — 경쟁사 못 하는 해자(남들은 의도를 모름) 실현 |
 | 88 | vhk init/start — docs 스캐폴딩 완성 (rfc·patterns README + goal init 발견성) — P2 | ⬜ NOT_STARTED | P2 | 새 프로젝트가 노션 바이브코딩 스타터킷 docs 구조(rfc/patterns)를 갖고 시작 + goal 단계 체계를 발견 가능하게 — 매번 사용자가 "이 문서 필요하지 않아?"라고 직접 짚어주는 비용 제거 |
 | 89 | 커스터마이징 트리거 훅 — 마커·SessionStart 훅·settings.json 배선 — P1 | ⬜ NOT_STARTED | P1 | vhk init 직후 첫 세션에서 AI가 도메인 규칙 인터뷰를 알아서 시작하도록 코드로 강제 — "안 짚으면 스킵됨" 패턴의 트리거 지점을 봉인 |
-| 90 | sync 전파 정합성 — RULES.md 신규 섹션이 .cursorrules/CLAUDE.md까지 실제 도달하는가 — P1 | ⬜ NOT_STARTED | P1 | goal 89(커스터마이징 트리거)가 쓰는 인터뷰 답변이 실제로 도구별 산출물(.cursorrules·CLAUDE.md)까지 도달함을 코드로 보장 — 원래 버그("안 짚으면 스킵")의 사촌(조용히 반쪽 전파)을 차단 |
+| 90 | sync 전파 정합성 — RULES.md 신규 섹션이 .cursorrules/CLAUDE.md까지 실제 도달하는가 — P1 | ✅ DONE | P1 | goal 89(커스터마이징 트리거)가 쓰는 인터뷰 답변이 실제로 도구별 산출물(.cursorrules·CLAUDE.md)까지 도달함을 코드로 보장 — 원래 버그("안 짚으면 스킵")의 사촌(조용히 반쪽 전파)을 차단 |
 | 91 | core-rules 폴백 가시화 — YOHAN_BRAIN_ROOT 미설정 시 조용한 구버전 스냅샷 사용을 경고 — P2 | ⬜ NOT_STARTED | P2 | "헌법도 자동 반영 안 됨" 불만의 유력 원인(조용한 폴백)을 가시화 — 최소 수정으로 독립 완료 가능 |
