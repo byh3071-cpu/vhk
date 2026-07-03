@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 89
 title: 커스터마이징 트리거 훅 — 마커·SessionStart 훅·settings.json 배선 — P1
-status: NOT_STARTED
+status: IN_PROGRESS
 priority: P1
 created: 2026-07-03
 leads_to: vhk init 직후 첫 세션에서 AI가 도메인 규칙 인터뷰를 알아서 시작하도록 코드로 강제 — "안 짚으면 스킵됨" 패턴의 트리거 지점을 봉인
@@ -40,13 +40,17 @@ leads_to: vhk init 직후 첫 세션에서 AI가 도메인 규칙 인터뷰를 �
 
 ## Completion Check
 
-- [ ] `.vhk/NEEDS_CUSTOMIZATION`/`customization-done` 마커 로직이 `tests/init.test.ts`에서 4가지 상태 조합 모두 통과
-- [ ] `.claude/settings.json`이 없던 프로젝트 → 생성, 있던 프로젝트(다른 훅 포함) → 기존 내용 보존 + SessionStart만 병합, 이미 배선된 경우 → 중복 추가 안 함 (3가지 케이스 테스트)
-- [ ] `docs/spec.md` 1.2 갱신 + `tests/init.test.ts` spec_version 단언 갱신
-- [ ] 훅 스크립트 서브프로세스 테스트(마커 4조합) green
-- [ ] **체감 검증(수동, 필수):** 실제 임시 프로젝트에 `vhk init` 돌리고 Claude Code를 열어 SessionStart 넛지가 실제로 뜨는지, 인터뷰가 자연스러운지 확인
-- [ ] 공통 게이트(_meta) + `check-goal-89.mjs`(status `NOT_STARTED` 단계라 스텁 허용)
-- [ ] **이 goal 단독 완료로 "규칙이 .cursorrules/CLAUDE.md까지 도달한다"고 주장하지 않는다** — 그건 goal 90의 Completion Check
+- [x] `.vhk/NEEDS_CUSTOMIZATION`/`customization-done` 마커 로직이 `tests/init.test.ts`에서 4가지 상태 조합 모두 통과
+- [x] `.claude/settings.json`이 없던 프로젝트 → 생성, 있던 프로젝트(다른 훅 포함) → 기존 내용 보존 + SessionStart만 병합, 이미 배선된 경우 → 중복 추가 안 함 (실측: `created`/`merged`/`unchanged`/`skipped` 4상태 + 손상 JSON·배열 hooks 등 7개 테스트 케이스로 3가지 요구보다 더 넓게 커버 — `tests/init.test.ts:408-490`)
+- [x] `docs/spec.md` 1.2 갱신 + `tests/init.test.ts` spec_version 단언 갱신
+- [x] 훅 스크립트 서브프로세스 테스트(마커 4조합) green
+- [ ] **체감 검증(수동, 필수):** 실제 임시 프로젝트에 `vhk init` 돌리고 Claude Code를 열어 SessionStart 넛지가 실제로 뜨는지, 인터뷰가 자연스러운지 확인 — **미이행. 이 항목 때문에 status 를 DONE 으로 전환하지 않음(IN_PROGRESS 유지).**
+- [x] 공통 게이트(_meta) 통과 — `check-goal-89.mjs`는 스텁 유지(status `IN_PROGRESS`라 `_meta.md` M.6 규정상 정상 — 스텁 허용은 DONE에만 강제)
+- [x] **이 goal 단독 완료로 "규칙이 .cursorrules/CLAUDE.md까지 도달한다"고 주장하지 않는다** — 그건 goal 90의 Completion Check(90은 별도로 DONE 완료됨)
+
+## 완료 처리 정정 (2026-07-03, 별도 감사 중 발견)
+
+구현(`4db5d31`)·자동 게이트(build/tsc/test/lint)·critic 적대검증까지는 실제로 다 끝났으나, 이 goal 파일의 frontmatter/Completion Check 갱신이 구현 커밋에서 누락됐었다(`git show 4db5d31 -- goals/89-customization-hook.md` = 빈 diff). "완료됐다"고 사람에게 보고했던 것은 부정확했음 — 자동화 가능한 항목 6/7은 실측 재확인해 체크했지만, 자체적으로 "필수"라 못박은 47행 체감 검증은 실제로 한 번도 수행되지 않아 정직하게 미체크·`IN_PROGRESS`로 남긴다.
 
 ## Forbidden Actions (OUT)
 

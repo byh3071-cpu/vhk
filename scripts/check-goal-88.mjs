@@ -53,8 +53,37 @@ if (!skipDeep) {
 }
 
 // ─── goal 88 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+
+const docsReadmeTs = read('src/templates/docs-readme.ts')
+must(
+  docsReadmeTs?.includes('RFC_README_TEMPLATE') && docsReadmeTs?.includes('PATTERNS_README_TEMPLATE'),
+  'docs-readme.ts 에 RFC_README_TEMPLATE·PATTERNS_README_TEMPLATE 존재'
+)
+
+const initTs = read('src/commands/init.ts')
+must(
+  initTs?.includes("'docs/rfc/README.md': RFC_README_TEMPLATE()") &&
+    initTs?.includes("'docs/patterns/README.md': PATTERNS_README_TEMPLATE()"),
+  'init.ts generateFiles() 가 rfc/patterns README 를 산출물에 배선'
+)
+
+const startTs = read('src/commands/start.ts')
+must(startTs?.includes('ko.start.goalInitHint'), 'start.ts 완료 안내에 goalInitHint 출력')
+must(!startTs?.includes('goalInit('), 'start.ts 가 goalInit() 을 직접 호출하지 않음 (자동실행 금지 회귀가드)')
+
+const initTest = read('tests/init.test.ts')
+must(
+  initTest?.includes("'docs/rfc/README.md'") && initTest?.includes("'docs/patterns/README.md'"),
+  'init.test.ts EXPECTED_FILES 에 rfc/patterns README 경로 포함'
+)
+
+const startTest = read('tests/start.test.ts')
+must(startTest?.includes('vhk goal init'), 'start.test.ts 가 goalInit 힌트 노출을 검증')
+must(
+  startTest?.includes("goals', '_meta.md'") || startTest?.includes('goals/_meta.md'),
+  'start.test.ts 가 goal init 미자동실행(goals/_meta.md 미생성)을 회귀가드로 검증'
+)
 
 if (pass) { console.log('✅ goal 88 gate passes'); process.exit(0) }
 console.log('❌ goal 88 gate failed'); process.exit(1)

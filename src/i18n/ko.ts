@@ -221,7 +221,9 @@ export const ko = {
       const v = version === 'unknown' ? '버전 미상' : `v${version}`
       return (
         `YOHAN_BRAIN_ROOT 미설정 또는 라이브 파일 읽기 실패 — 헌법(core-rules)이 번들 스냅샷(${v})으로 사용되고 있어요. ` +
-        `최신이 아닐 수 있어요. 라이브로 갱신하려면 YOHAN_BRAIN_ROOT 설정 후 vhk inject-bootstrap --force 를 실행하세요.`
+        `최신이 아닐 수 있어요. 라이브로 갱신하려면 YOHAN_BRAIN_ROOT 설정(Windows는 설정 후 터미널·VSCode 재시작 필수 — 안 하면 실행 중 프로세스에 반영 안 됨) 후 ` +
+        `vhk inject-bootstrap --force 를 실행하세요. 이 명령은 ecosystem.mdc 등 다른 tier-S 파일도 최신 템플릿으로 되돌릴 수 있어요 — ` +
+        `직접 손으로 고친 적 있으면 먼저 git status로 확인하세요.`
       )
     },
     adoptPrompt: (n: number, list: string) =>

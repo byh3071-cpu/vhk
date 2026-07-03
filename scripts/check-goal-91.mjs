@@ -96,5 +96,14 @@ must(
   'init-core-rules-warn.test.ts 에 올바른 명령 회귀 가드 테스트 존재'
 )
 
+// 원래 의도 이행 감사(2026-07-03) 발견 2건 — --force 부작용(ecosystem.mdc 등도 덮어씀,
+// tests/inject-bootstrap.test.ts:64-77 로 실증) + Windows env var 재시작 필요성 고지 누락.
+must(koTs?.includes('ecosystem.mdc'), 'ko.ts coreRulesBundledWarn 이 --force 의 다른 tier-S 파일 부작용을 고지')
+must(koTs?.includes('재시작'), 'ko.ts coreRulesBundledWarn 이 Windows 환경변수 재시작 필요성을 고지')
+must(
+  warnTest?.includes("toContain('ecosystem.mdc')") && warnTest?.includes("toContain('재시작')"),
+  'init-core-rules-warn.test.ts 에 위 2개 캐비어트 회귀 가드 테스트 존재'
+)
+
 if (pass) { console.log('✅ goal 91 gate passes'); process.exit(0) }
 console.log('❌ goal 91 gate failed'); process.exit(1)

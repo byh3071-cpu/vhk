@@ -61,6 +61,21 @@ describe('vhk init — core-rules 폴백 가시화 (goal 91)', () => {
     expect(joined).not.toContain('vhk sync')
   })
 
+  // 원래 의도 이행 감사(2026-07-03) 발견 2건 — 실전 검증 갭:
+  // (1) --force 는 CORE-RULES.md 뿐 아니라 ecosystem.mdc 등 다른 tier-S 파일도 함께
+  //     덮어씀(tests/inject-bootstrap.test.ts:64-77 로 실증된 부작용) — 부작용 고지 누락.
+  // (2) 사용자 자신의 글로벌 규칙("Windows env var 설정 후 VSCode 완전 재시작 필수")과
+  //     경고 문구가 안내하는 즉시 실행 흐름이 충돌 — "시킨 대로 했는데 안 됨" 루프 위험.
+  it('경고 문구가 --force 부작용과 Windows 재시작 필요성을 고지한다', async () => {
+    delete process.env.YOHAN_BRAIN_ROOT
+    const { init } = await import('../src/commands/init.js')
+    await init({ yes: true, name: 'demo', description: 'd', type: 'cli' })
+
+    const joined = logs.join('\n')
+    expect(joined).toContain('ecosystem.mdc')
+    expect(joined).toContain('재시작')
+  })
+
   it('YOHAN_BRAIN_ROOT 유효 → 경고 없음(회귀 가드) + context.md 에 live 표기', async () => {
     const brainDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-brain-warn-'))
     const yamlPath = path.join(brainDir, 'memory', 'core', 'core-ruleset.yaml')

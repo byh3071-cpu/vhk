@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 88
 title: vhk init/start — docs 스캐폴딩 완성 (rfc·patterns README + goal init 발견성) — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-07-03
+completed: 2026-07-03
 leads_to: 새 프로젝트가 노션 바이브코딩 스타터킷 docs 구조(rfc/patterns)를 갖고 시작 + goal 단계 체계를 발견 가능하게 — 매번 사용자가 "이 문서 필요하지 않아?"라고 직접 짚어주는 비용 제거
 ---
 
@@ -33,11 +34,15 @@ leads_to: 새 프로젝트가 노션 바이브코딩 스타터킷 docs 구조(rf
 
 ## Completion Check
 
-- [ ] `docs/rfc/README.md`·`docs/patterns/README.md`가 `generateFiles()` 산출물에 포함
-- [ ] `tests/init.test.ts` `EXPECTED_FILES` 확장, green
-- [ ] `vhk start` 실행 후 콘솔 출력에 `vhk goal init` 문구 포함(테스트로 확인)
-- [ ] `start()`의 5단계 흐름에 `goal init` 자동 호출이 추가되지 **않았음**을 확인(의도적 — 회귀 방지용 별도 검증 항목)
-- [ ] 공통 게이트(_meta) + `check-goal-88.mjs`(status `NOT_STARTED` 단계라 스텁 허용 — `goals/_meta.md` M.6 규칙)
+- [x] `docs/rfc/README.md`·`docs/patterns/README.md`가 `generateFiles()` 산출물에 포함
+- [x] `tests/init.test.ts` `EXPECTED_FILES` 확장, green
+- [x] `vhk start` 실행 후 콘솔 출력에 `vhk goal init` 문구 포함(테스트로 확인)
+- [x] `start()`의 5단계 흐름에 `goal init` 자동 호출이 추가되지 **않았음**을 확인(의도적 — 회귀 방지용 별도 검증 항목)
+- [x] 공통 게이트(_meta) + `check-goal-88.mjs`(고유 검증 채움)
+
+## 완료 처리 지연 사유 (2026-07-03 정정)
+
+구현·커밋(`051b931`)은 goal 88 완료 시점(같은 날)에 끝났으나, goal 파일 frontmatter `status`/Completion Check 갱신이 커밋에서 누락돼 `NOT_STARTED`로 남아있었다. 이후 세션에서 goal 90·91은 정상적으로 DONE 처리됐지만 88·89는 놓침 — 별도 감사(원래 의도 이행 여부 조사) 중 발견해 사실관계에 맞게 정정.
 
 ## Forbidden Actions (OUT)
 
