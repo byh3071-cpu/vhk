@@ -661,6 +661,21 @@ export const ko = {
       notionBlocked: 'Notion 실 적재는 자격증명·연동이 필요합니다 — 운영 단계.',
     },
   },
+  // goal 92 — YOHAN_BRAIN_ROOT 재시작 필요 문제를 피하는 파일기반(~/.vhk/config.json) 설정.
+  config: {
+    setBrainRootTitle: '🧭 vhk config set-brain-root',
+    saved: (path: string) => `~/.vhk/config.json 에 저장: ${path}`,
+    liveConfirmed: (version: string) => `확인: 헌법(core-rules) 라이브 반영 성공 (v${version})`,
+    liveNote: '재시작 없이 지금부터 모든 vhk 명령에 즉시 적용됩니다.',
+    notFoundWarn: '경로는 저장했지만, 그 경로에서 아직 core-ruleset.yaml 을 못 읽었어요.',
+    notFoundHint: (path: string) => `${path}/memory/core/core-ruleset.yaml 파일이 있는지 확인하세요.`,
+    // critic 지적(M2, goal 92): YOHAN_BRAIN_ROOT 가 다른 경로로 설정돼 있으면 방금 저장한
+    // 경로는 유효해도 지금 당장은 안 쓰인다 — "성공"이라고 말하면 거짓 확신을 준다.
+    envOverrideWarn: (envRoot: string) =>
+      `저장은 됐지만, 지금은 YOHAN_BRAIN_ROOT 환경변수(${envRoot})가 우선 적용 중이라 방금 설정한 경로는 아직 안 쓰여요.`,
+    envOverrideHint: '환경변수를 해제하거나 같은 경로로 맞추면 이 설정이 바로 쓰입니다.',
+    nextHint: '헌법 소스를 다시 확인하려면:',
+  },
 } as const
 
 type KoValue = string | ((...args: never[]) => string)

@@ -11,6 +11,7 @@ import {
   CORE_RULES_END_TAG,
   type CoreRuleset,
 } from './core-rules.js'
+import { writeHomeConfig } from './home-config.js'
 
 const MINIMAL: CoreRuleset = {
   version: '0.1.0',
@@ -141,5 +142,77 @@ describe('loadCoreRuleset — 소스 판정 (goal 91)', () => {
     expect(loadCoreRuleset().source).toBe('bundled')
 
     fs.rmSync(dir, { recursive: true, force: true })
+  })
+})
+
+// goal 92 — YOHAN_BRAIN_ROOT 환경변수의 "설정해도 재시작 전까지 반영 안 됨" 문제를 피하려고
+// ~/.vhk/config.json 파일기반 설정을 3순위(env var → 홈 설정파일 → 번들)로 추가.
+describe('loadCoreRuleset — 3단계 우선순위 (goal 92)', () => {
+  let origBrain: string | undefined
+  let tmpHome: string
+
+  beforeEach(() => {
+    origBrain = process.env.YOHAN_BRAIN_ROOT
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-home-'))
+  })
+  afterEach(() => {
+    if (origBrain === undefined) delete process.env.YOHAN_BRAIN_ROOT
+    else process.env.YOHAN_BRAIN_ROOT = origBrain
+    fs.rmSync(tmpHome, { recursive: true, force: true })
+  })
+
+  function writeBrainYaml(dir: string, version: string): void {
+    const yamlPath = path.join(dir, 'memory', 'core', 'core-ruleset.yaml')
+    fs.mkdirSync(path.dirname(yamlPath), { recursive: true })
+    fs.writeFileSync(yamlPath, `version: "${version}"\nnon_negotiable:\n  - x\n`, 'utf-8')
+  }
+
+  it('env var 있으면 홈 설정파일보다 우선(무시)', () => {
+    const envBrain = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-envbrain-'))
+    const homeBrain = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-homebrain-'))
+    writeBrainYaml(envBrain, '1.1.1')
+    writeBrainYaml(homeBrain, '2.2.2')
+    process.env.YOHAN_BRAIN_ROOT = envBrain
+    writeHomeConfig({ brainRoot: homeBrain }, tmpHome)
+
+    const loaded = loadCoreRuleset(tmpHome)
+    expect(loaded.source).toBe('live')
+    expect(loaded.version).toBe('1.1.1') // env var 쪽, 홈 설정(2.2.2) 아님
+
+    fs.rmSync(envBrain, { recursive: true, force: true })
+    fs.rmSync(homeBrain, { recursive: true, force: true })
+  })
+
+  it('env var 없고 홈 설정파일에 brainRoot 있으면 그걸 씀', () => {
+    delete process.env.YOHAN_BRAIN_ROOT
+    const homeBrain = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-homebrain2-'))
+    writeBrainYaml(homeBrain, '3.3.3')
+    writeHomeConfig({ brainRoot: homeBrain }, tmpHome)
+
+    const loaded = loadCoreRuleset(tmpHome)
+    expect(loaded.source).toBe('live')
+    expect(loaded.version).toBe('3.3.3')
+
+    fs.rmSync(homeBrain, { recursive: true, force: true })
+  })
+
+  it('env var 도 없고 홈 설정파일도 없으면 bundled', () => {
+    delete process.env.YOHAN_BRAIN_ROOT
+    expect(loadCoreRuleset(tmpHome).source).toBe('bundled')
+  })
+
+  it('홈 설정파일의 brainRoot 가 가리키는 경로에 yaml 이 없으면 bundled 로 폴백', () => {
+    delete process.env.YOHAN_BRAIN_ROOT
+    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-empty2-'))
+    writeHomeConfig({ brainRoot: emptyDir }, tmpHome)
+
+    expect(loadCoreRuleset(tmpHome).source).toBe('bundled')
+
+    fs.rmSync(emptyDir, { recursive: true, force: true })
+  })
+
+  it('homeDir 인자 생략 시 기존 무인자 호출과 하위호환(에러 없이 동작)', () => {
+    delete process.env.YOHAN_BRAIN_ROOT
+    expect(() => loadCoreRuleset()).not.toThrow()
   })
 })
