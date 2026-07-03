@@ -3,8 +3,10 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { generateFiles, enhancePackageScripts, ensureRootGitignore } from '../src/commands/init.js'
+import { generateFiles, enhancePackageScripts, ensureRootGitignore, ensureCustomizationMarker, ensureSessionStartHook } from '../src/commands/init.js'
 import { COMMANDS_MD_TEMPLATE } from '../src/templates/commands-md.js'
+import { CUSTOMIZATION_HOOK_TEMPLATE } from '../src/templates/customization-hook.js'
+import { VHK_CONTEXT_SEED } from '../src/templates/vhk-dir.js'
 import { parseRulesMd } from '../src/commands/sync.js'
 import { writeFile } from '../src/utils/file.js'
 
@@ -16,12 +18,15 @@ const EXPECTED_FILES = [
   'VISION.md',
   'docs/ARCHITECTURE.md',
   'docs/adr/ADR-000-template.md',
+  'docs/rfc/README.md',
+  'docs/patterns/README.md',
   'docs/log/.gitkeep',
   'docs/troubleshooting/.gitkeep',
   'docs/til.md',
   'BACKLOG.md',
   '.vhk/README.md',
   '.vhk/context.md',
+  '.vhk/hooks/customization-check.mjs',
 ]
 
 describe('vhk init', () => {
@@ -143,6 +148,28 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     expect(ctx).toContain('vhk context')
     expect(ctx).toContain('webapp')
     expect(ctx).toContain('Next.js')
+  })
+
+  it('VHK_CONTEXT_SEED 가 core-rules 소스를 표기한다 (live/bundled, goal 91)', () => {
+    const live = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'live', version: '9.9.9' })
+    expect(live).toContain('live')
+    expect(live).toContain('9.9.9')
+    const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: '0.1.0' })
+    expect(bundled).toContain('bundled')
+    expect(bundled).toContain('번들 스냅샷')
+  })
+
+  // critic 지적(2026-07-03): "YOHAN_BRAIN_ROOT 미설정"이라 단정하면 env는 설정됐지만
+  // yaml 읽기가 실패한 케이스(core-rules.ts:85 catch 분기)에서 사용자가 "설정했는데 왜
+  // 미설정이래?" 혼란에 빠진다 — 두 원인 다 포괄하는 문구인지 회귀 가드.
+  it('bundled 문구가 "미설정"으로 단정하지 않는다 (읽기실패 케이스도 포괄, goal 91 critic)', () => {
+    const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: '0.1.0' })
+    expect(bundled).toContain('읽기 실패')
+  })
+
+  it('version="unknown" 이면 "vunknown" 대신 사람이 읽을 표기를 쓴다 (goal 91 critic)', () => {
+    const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: 'unknown' })
+    expect(bundled).not.toContain('vunknown')
   })
 
   it('유형별로 씨앗 내용이 다르다 (프리셋)', () => {
@@ -303,14 +330,205 @@ describe('vhk init — 루트 .gitignore 보장', () => {
 })
 
 describe('docs/spec.md 규격', () => {
-  it('spec_version 1.1 과 핵심 파일을 명시한다 (governance T4 — RFC 0038 v1.1 반영)', () => {
+  it('spec_version 1.2 와 핵심 파일을 명시한다 (goal 89 — 커스터마이징 트리거 등록)', () => {
     const spec = fs.readFileSync(path.join(process.cwd(), 'docs', 'spec.md'), 'utf-8')
-    expect(spec).toContain('spec_version: "1.1"')
+    expect(spec).toContain('spec_version: "1.2"')
     expect(spec).toContain('context.md')
     expect(spec).toContain('memory.json')
     expect(spec).toContain('HARD_STOP')
     // 1.1 가산분 — 하위 폴더 공식 인정 + 변경 이력
     expect(spec).toContain('events/')
     expect(spec).toContain('변경 이력')
+    // 1.2 가산분 — 커스터마이징 트리거 마커·훅
+    expect(spec).toContain('NEEDS_CUSTOMIZATION')
+    expect(spec).toContain('customization-done')
+  })
+})
+
+describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
+  it('.vhk/.gitignore 씨앗에 마커 2개는 등록되지만 hooks/ 는 등록 안 됨 (스크립트는 커밋 대상 — 회귀 가드)', () => {
+    const ignore = generateFiles('p', 'd', ['Node.js'])['.vhk/.gitignore']
+    expect(ignore).toContain('NEEDS_CUSTOMIZATION')
+    expect(ignore).toContain('customization-done')
+    expect(ignore).not.toMatch(/(^|\n)\s*hooks\/?\s*(\n|$)/)
+  })
+
+  it('훅 템플릿에 셔뱅이 없고 필수 키워드를 포함한다', () => {
+    const script = CUSTOMIZATION_HOOK_TEMPLATE()
+    expect(script.startsWith('#!')).toBe(false)
+    expect(script).toContain('hookSpecificOutput')
+    expect(script).toContain('SessionStart')
+    expect(script).toContain('NEEDS_CUSTOMIZATION')
+    expect(script).toContain('customization-done')
+    expect(script).toContain('RULES.md')
+    expect(script).toContain('vhk sync')
+  })
+
+  describe('ensureCustomizationMarker', () => {
+    function mkTmp(): string {
+      return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-cmark-'))
+    }
+
+    it('둘 다 없으면 NEEDS_CUSTOMIZATION 을 생성한다', () => {
+      const dir = mkTmp()
+      expect(ensureCustomizationMarker(dir)).toBe(true)
+      expect(fs.existsSync(path.join(dir, '.vhk', 'NEEDS_CUSTOMIZATION'))).toBe(true)
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('customization-done 이 있으면 NEEDS_CUSTOMIZATION 을 절대 만들지 않는다 (재우지 않음)', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+      fs.writeFileSync(path.join(dir, '.vhk', 'customization-done'), '')
+      expect(ensureCustomizationMarker(dir)).toBe(false)
+      expect(fs.existsSync(path.join(dir, '.vhk', 'NEEDS_CUSTOMIZATION'))).toBe(false)
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('NEEDS_CUSTOMIZATION 만 있으면 멱등 — 재생성 안 하고 그대로 둔다', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+      fs.writeFileSync(path.join(dir, '.vhk', 'NEEDS_CUSTOMIZATION'), '')
+      expect(ensureCustomizationMarker(dir)).toBe(false)
+      expect(fs.existsSync(path.join(dir, '.vhk', 'NEEDS_CUSTOMIZATION'))).toBe(true)
+      expect(fs.existsSync(path.join(dir, '.vhk', 'customization-done'))).toBe(false)
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('둘 다 있으면 아무 변화 없다', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+      fs.writeFileSync(path.join(dir, '.vhk', 'NEEDS_CUSTOMIZATION'), '')
+      fs.writeFileSync(path.join(dir, '.vhk', 'customization-done'), '')
+      expect(ensureCustomizationMarker(dir)).toBe(false)
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+  })
+
+  describe('ensureSessionStartHook', () => {
+    function mkTmp(): string {
+      return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-shook-'))
+    }
+
+    it('.claude/settings.json 이 없으면 새로 생성하고 SessionStart 훅을 심는다', () => {
+      const dir = mkTmp()
+      expect(ensureSessionStartHook(dir)).toBe('created')
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      expect(parsed.hooks.SessionStart[0].hooks[0].command).toContain('customization-check.mjs')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    // 실전 검증 감사(2026-07-03): 훅 command 가 상대경로(`node .vhk/hooks/...`)라
+    // Claude Code 가 SessionStart 훅을 어떤 cwd 로 spawn 하는지 보장 안 되면 "command not
+    // found"로 조용히 실패할 위험(공식 문서: 훅 command 경로는 ${CLAUDE_PROJECT_DIR} 또는
+    // 절대경로 사용 권장). 프로젝트 이동/클론 대비 상대경로였던 원래 의도는
+    // ${CLAUDE_PROJECT_DIR}(Claude Code 가 매번 실제 프로젝트 루트로 동적 치환)가 절대경로이면서도
+    // 그대로 만족한다 — 트레이드오프 없는 강화.
+    it('SessionStart 훅 command 가 ${CLAUDE_PROJECT_DIR} 로 cwd 무관하게 경로를 고정한다', () => {
+      const dir = mkTmp()
+      ensureSessionStartHook(dir)
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      expect(parsed.hooks.SessionStart[0].hooks[0].command).toContain('${CLAUDE_PROJECT_DIR}')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    // 공식 문서 예시(`"$CLAUDE_PROJECT_DIR"/...`)는 변수를 따옴표로 감싼다 — Windows 사용자
+    // 경로에 공백(예: "C:\Users\John Doe\...")이 있으면 미보호 시 셸이 단어분리해 command가
+    // 깨질 수 있음. 전체를 큰따옴표로 감싸 방지.
+    it('SessionStart 훅 command 가 경로 공백 대비 큰따옴표로 감싸져 있다', () => {
+      const dir = mkTmp()
+      ensureSessionStartHook(dir)
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      expect(parsed.hooks.SessionStart[0].hooks[0].command).toContain('"${CLAUDE_PROJECT_DIR}/.vhk/hooks/customization-check.mjs"')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    // 공식 문서의 SessionStart matcher 예시는 전부 단일값(`"startup"`·`"compact"`)뿐 —
+    // 파이프 OR(`startup|resume`)가 SessionStart 에서도 동작하는지 문서로 100% 확정 못 함
+    // (claude-code-guide 조사, 2026-07-03). 문서에 실제로 나온 단일값 패턴 2개로 분리해
+    // 트리거 전체가 조용히 안 뜨는 catastrophic 실패 가능성을 원천 제거.
+    it('SessionStart 훅이 파이프 matcher 대신 startup·resume 각각 단일 entry 로 분리된다', () => {
+      const dir = mkTmp()
+      ensureSessionStartHook(dir)
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      const matchers = parsed.hooks.SessionStart.map((e: { matcher: string }) => e.matcher)
+      expect(matchers).toEqual(['startup', 'resume'])
+      for (const entry of parsed.hooks.SessionStart) {
+        expect(entry.hooks[0].command).toContain('customization-check.mjs')
+      }
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('기존 훅(PreToolUse 등)이 있으면 보존하면서 SessionStart 만 병합한다', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+      fs.writeFileSync(
+        path.join(dir, '.claude', 'settings.json'),
+        JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ type: 'command', command: 'echo hi' }] }] } }),
+        'utf-8'
+      )
+      expect(ensureSessionStartHook(dir)).toBe('merged')
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      expect(parsed.hooks.PreToolUse[0].hooks[0].command).toBe('echo hi')
+      expect(parsed.hooks.SessionStart[0].hooks[0].command).toContain('customization-check.mjs')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('이미 배선돼 있으면 중복 추가하지 않는다', () => {
+      const dir = mkTmp()
+      ensureSessionStartHook(dir) // startup·resume 2개 entry 생성
+      expect(ensureSessionStartHook(dir)).toBe('unchanged')
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      expect(parsed.hooks.SessionStart.length).toBe(2)
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('손상된 JSON 이면 죽지 않고 skipped 를 반환, 기존 파일을 건드리지 않는다', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+      const settingsPath = path.join(dir, '.claude', 'settings.json')
+      fs.writeFileSync(settingsPath, '{ not valid json', 'utf-8')
+      expect(ensureSessionStartHook(dir)).toBe('skipped')
+      expect(fs.readFileSync(settingsPath, 'utf-8')).toBe('{ not valid json')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('SessionStart 가 이미 다른 matcher로 있으면 보존하며 별도 그룹으로 병합한다 (critic 리뷰 4a)', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+      fs.writeFileSync(
+        path.join(dir, '.claude', 'settings.json'),
+        JSON.stringify({ hooks: { SessionStart: [{ matcher: 'clear', hooks: [{ type: 'command', command: 'echo other' }] }] } }),
+        'utf-8'
+      )
+      expect(ensureSessionStartHook(dir)).toBe('merged')
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      // 기존 1개(clear) + 신규 2개(startup·resume, 파이프 matcher 분리) = 3개
+      expect(parsed.hooks.SessionStart.length).toBe(3)
+      expect(parsed.hooks.SessionStart[0].hooks[0].command).toBe('echo other')
+      expect(parsed.hooks.SessionStart[1].hooks[0].command).toContain('customization-check.mjs')
+      expect(parsed.hooks.SessionStart[2].hooks[0].command).toContain('customization-check.mjs')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('hooks 가 배열(비정상 형태)이면 조용히 유실시키지 않고 skipped 를 반환한다 (critic 리뷰 4번 결함)', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+      const settingsPath = path.join(dir, '.claude', 'settings.json')
+      const original = JSON.stringify({ hooks: [] })
+      fs.writeFileSync(settingsPath, original, 'utf-8')
+      expect(ensureSessionStartHook(dir)).toBe('skipped')
+      expect(fs.readFileSync(settingsPath, 'utf-8')).toBe(original)
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    it('settings.json 자체가 배열(비정상 루트)이면 skipped 를 반환한다', () => {
+      const dir = mkTmp()
+      fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
+      const settingsPath = path.join(dir, '.claude', 'settings.json')
+      fs.writeFileSync(settingsPath, '[]', 'utf-8')
+      expect(ensureSessionStartHook(dir)).toBe('skipped')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
   })
 })

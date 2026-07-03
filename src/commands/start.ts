@@ -128,4 +128,5 @@ export async function start(options: StartOptions = {}): Promise<void> {
     message: ko.start.nextHintMessage,
     cursorHint: ko.start.nextHintCursor,
   })
+  log.dim(ko.start.goalInitHint)
 }

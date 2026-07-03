@@ -125,6 +125,7 @@ export const ko = {
     allDone: '🎉 모든 단계 완료!',
     nextHintMessage: '프로젝트 시작 준비 끝! 이제 개발을 시작하세요.',
     nextHintCursor: 'docs/PRD.md 보고 개발 시작해줘',
+    goalInitHint: '💡 goal 단계 체계(goals/·docs/state/)가 필요하면 vhk goal init 으로 언제든 추가할 수 있어요 (선택).',
   },
   injectBootstrap: {
     confirm: 'tier S harness (ecosystem.mdc · CORE-RULES · context seed · mcp.json.example) 설치할까요?',
@@ -213,6 +214,18 @@ export const ko = {
     scriptsDone: '📦 package.json scripts 추가',
     gitignoreCreated: '🔒 .gitignore 생성 (.env·node_modules·dist 제외)',
     gitignoreUpdated: '🔒 .gitignore 보강 (누락 항목 추가)',
+    customizationMarkerDone: '🎯 .vhk/NEEDS_CUSTOMIZATION 생성 — 첫 세션에서 도메인 인터뷰 자동 트리거',
+    customizationHookWired: '🪝 .claude/settings.json SessionStart 훅 배선 (커스터마이징 트리거)',
+    customizationHookSkipped: '⚠️  .claude/settings.json 파싱 실패 — SessionStart 훅 배선 건너뜀(기존 파일 보존).',
+    coreRulesBundledWarn: (version: string) => {
+      const v = version === 'unknown' ? '버전 미상' : `v${version}`
+      return (
+        `YOHAN_BRAIN_ROOT 미설정 또는 라이브 파일 읽기 실패 — 헌법(core-rules)이 번들 스냅샷(${v})으로 사용되고 있어요. ` +
+        `최신이 아닐 수 있어요. 라이브로 갱신하려면 YOHAN_BRAIN_ROOT 설정(Windows는 설정 후 터미널·VSCode 재시작 필수 — 안 하면 실행 중 프로세스에 반영 안 됨) 후 ` +
+        `vhk inject-bootstrap --force 를 실행하세요. 이 명령은 ecosystem.mdc 등 다른 tier-S 파일도 최신 템플릿으로 되돌릴 수 있어요 — ` +
+        `직접 손으로 고친 적 있으면 먼저 git status로 확인하세요.`
+      )
+    },
     adoptPrompt: (n: number, list: string) =>
       `📥 기존 규칙 파일 ${n}개 발견 (${list}). RULES.md로 가져올까요?`,
     adoptPreview: (n: number) =>

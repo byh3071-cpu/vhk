@@ -10,6 +10,8 @@ import { RULES_MD_TEMPLATE } from '../templates/rules-md.js'
 import { PRD_TEMPLATE } from '../templates/prd.js'
 import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
+import { RFC_README_TEMPLATE, PATTERNS_README_TEMPLATE } from '../templates/docs-readme.js'
+import { CUSTOMIZATION_HOOK_TEMPLATE } from '../templates/customization-hook.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
 import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE, VHK_GITATTRIBUTES_TEMPLATE, VHK_IGNORE_TEMPLATE } from '../templates/vhk-dir.js'
 import { ko } from '../i18n/ko.js'
@@ -17,7 +19,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
-import { generateCoreRulesContent } from '../lib/core-rules.js'
+import { generateCoreRulesContent, loadCoreRuleset } from '../lib/core-rules.js'
 import { generateEcosystemMdcContent } from '../lib/inject-bootstrap.js'
 import { VISION_TEMPLATE } from '../templates/vision.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
@@ -303,6 +305,11 @@ export async function init(options: InitOptions = {}) {
     log.warn(ko.init.missionScaffoldCorrupt)
   }
 
+  const coreRulesCheck = loadCoreRuleset()
+  if (coreRulesCheck.source === 'bundled') {
+    log.warn(ko.init.coreRulesBundledWarn(coreRulesCheck.version))
+  }
+
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
   if (options.fromNotion) {
@@ -338,6 +345,7 @@ export function generateFiles(
     tagline: description,
     ...prdContent,
   }
+  const coreRules = loadCoreRuleset()
 
   return {
     'CLAUDE.md': CLAUDE_MD_TEMPLATE(name, stackStr),
@@ -348,16 +356,22 @@ export function generateFiles(
     'VISION.md': VISION_TEMPLATE(name, description),
     'docs/ARCHITECTURE.md': ARCHITECTURE_TEMPLATE(name, stackStr),
     'docs/adr/ADR-000-template.md': ADR_TEMPLATE(),
+    'docs/rfc/README.md': RFC_README_TEMPLATE(),
+    'docs/patterns/README.md': PATTERNS_README_TEMPLATE(),
     'docs/log/.gitkeep': '',
     'docs/troubleshooting/.gitkeep': '',
     'docs/til.md': `# TIL (Today I Learned)\n\n- [${localDate()}] 프로젝트 시작\n`, // VHK-019
     'BACKLOG.md': `# BACKLOG\n\n> v1 OUT 기능은 여기에 기록. 범위 수비 필수.\n\n## v1.1 후보\n\n- \n`,
     // .vhk/ 씨앗 — 규격: docs/spec.md (spec_version 1.1)
     '.vhk/README.md': VHK_README_TEMPLATE(),
-    '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack),
+    '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack, {
+      source: coreRules.source,
+      version: coreRules.version,
+    }),
     '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),
     // 증거 원장(events·ledger)에 merge=union — 멀티PC append 분기 자동 병합(A축). 추적 유지 전제.
     '.vhk/.gitattributes': VHK_GITATTRIBUTES_TEMPLATE(),
+    '.vhk/hooks/customization-check.mjs': CUSTOMIZATION_HOOK_TEMPLATE(),
     '.vhkignore': VHK_IGNORE_TEMPLATE(),
     // core-ruleset 마커블록 상속 — YOHAN_BRAIN_ROOT 있으면 라이브, 없으면 번들 스냅샷
     '.agents/CORE-RULES.md': generateCoreRulesContent(null),
@@ -468,4 +482,106 @@ async function writeInitExtras(projectDir: string, noninteractive = false) {
   } else if (gitignoreResult === 'updated') {
     log.success(ko.init.gitignoreUpdated)
   }
+
+  if (ensureCustomizationMarker(projectDir)) {
+    log.success(ko.init.customizationMarkerDone)
+  }
+  const hookResult = ensureSessionStartHook(projectDir)
+  if (hookResult === 'created' || hookResult === 'merged') {
+    log.success(ko.init.customizationHookWired)
+  }
+}
+
+/**
+ * goal 89 — `.vhk/NEEDS_CUSTOMIZATION` 트립와이어 마커(내용 없음, HARD_STOP과 동일 패턴).
+ * customization-done 이 이미 있으면 절대 재생성하지 않는다 — 인터뷰 끝난 프로젝트를 재우지 않는 게 핵심.
+ * 반환: true = 새로 생성함(호출부가 로그 출력에 사용).
+ */
+export function ensureCustomizationMarker(projectDir: string): boolean {
+  const vhkDir = path.join(projectDir, '.vhk')
+  const needs = path.join(vhkDir, 'NEEDS_CUSTOMIZATION')
+  const done = path.join(vhkDir, 'customization-done')
+  if (fs.existsSync(done)) return false
+  if (fs.existsSync(needs)) return false
+  writeFile(needs, '')
+  return true
+}
+
+// ${CLAUDE_PROJECT_DIR} — Claude Code 가 훅 실행 시 실제 프로젝트 루트로 동적 치환(공식 권장 패턴).
+// 상대경로(cwd 의존)는 Claude Code 가 SessionStart 훅을 어떤 cwd 로 spawn 하는지 미보장이라
+// "command not found"로 조용히 실패할 위험 — 절대경로이면서도 프로젝트 이동/클론에 안전하다.
+// 큰따옴표로 전체 경로를 감쌈 — 프로젝트 경로에 공백(Windows에서 흔함, 예: "John Doe")이 있어도
+// 셸이 단어분리하지 않게 보호(공식 문서 예시도 변수를 따옴표로 감쌈).
+const CUSTOMIZATION_HOOK_CMD = 'node "${CLAUDE_PROJECT_DIR}/.vhk/hooks/customization-check.mjs"'
+// 공식 문서의 SessionStart matcher 예시는 전부 단일값('startup'·'compact')뿐 — 파이프 OR가
+// SessionStart 에서도 지원되는지 문서로 확정 안 됨. 단일값 2개 entry 로 분리해 트리거 전체가
+// 조용히 안 뜰 위험을 원천 제거(startup/resume 은 상호배타적이라 중복 실행 없음).
+const SESSION_START_ENTRIES = ['startup', 'resume'].map((matcher) => ({
+  matcher,
+  hooks: [{ type: 'command', command: CUSTOMIZATION_HOOK_CMD, timeout: 10 }],
+}))
+
+/**
+ * goal 89 — 새 프로젝트의 .claude/settings.json 에 SessionStart 훅을 심는다.
+ * 없으면 생성, 있으면 기존 내용(다른 훅·enabledPlugins 등) 보존하며 SessionStart 만 병합.
+ * 손상된 JSON 이면 fail-soft(경고만, 파일 안 건드림) — init 전체를 막지 않는다.
+ */
+export function ensureSessionStartHook(
+  projectDir: string
+): 'created' | 'merged' | 'unchanged' | 'skipped' {
+  const file = path.join(projectDir, '.claude', 'settings.json')
+
+  if (!fs.existsSync(file)) {
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ hooks: { SessionStart: SESSION_START_ENTRIES } }, null, 2) + '\n',
+      'utf-8'
+    )
+    return 'created'
+  }
+
+  let parsed: unknown
+  try {
+    parsed = readJsonFile(file)
+  } catch {
+    log.warn(ko.init.customizationHookSkipped)
+    return 'skipped'
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    log.warn(ko.init.customizationHookSkipped)
+    return 'skipped'
+  }
+  const root = parsed as Record<string, unknown>
+  if (root.hooks !== undefined && (typeof root.hooks !== 'object' || root.hooks === null || Array.isArray(root.hooks))) {
+    log.warn(ko.init.customizationHookSkipped)
+    return 'skipped'
+  }
+  const hooks = (root.hooks as Record<string, unknown> | undefined) ?? {}
+  const ss = hooks.SessionStart
+  if (ss !== undefined && !Array.isArray(ss)) {
+    log.warn(ko.init.customizationHookSkipped)
+    return 'skipped'
+  }
+  const arr = Array.isArray(ss) ? ss : []
+
+  const already = arr.some((e) => {
+    const inner = (e as { hooks?: unknown })?.hooks
+    return (
+      Array.isArray(inner) &&
+      inner.some(
+        (h) =>
+          typeof (h as { command?: unknown })?.command === 'string' &&
+          (h as { command: string }).command.includes('customization-check.mjs')
+      )
+    )
+  })
+  if (already) return 'unchanged'
+
+  arr.push(...SESSION_START_ENTRIES)
+  hooks.SessionStart = arr
+  root.hooks = hooks
+  fs.writeFileSync(file, JSON.stringify(root, null, 2) + '\n', 'utf-8')
+  return 'merged'
 }

@@ -10,6 +10,8 @@ import {
   toGeminiMd,
   toClineRules,
   toAntigravityRules,
+  toClaudeMd,
+  claudeMdMigration,
   toAgentsMd,
   agentsMdEcosystemBlock,
   resolveAgentCompactRel,
@@ -269,5 +271,66 @@ describe('vhk init → sync 연결 (VHK-002 / #61 회귀)', () => {
     expect(result.written).toContain('CLAUDE.md')
     expect(fs.existsSync(path.join(dir, '.cursorrules'))).toBe(true)
     fs.rmSync(dir, { recursive: true })
+  })
+})
+
+describe('vhk sync — goal 90: 도메인 규칙 섹션이 .cursorrules + CLAUDE.md 양쪽 도달 (회귀)', () => {
+  // init 커스터마이징 인터뷰가 쓸 법한 합성 RULES.md — 도메인 불변식 + ### 절대 금지.
+  const domainRules =
+    '# 사주봇 — Rules\n\n' +
+    '## 도메인 규칙\n' +
+    '- 사주 계산은 반드시 음력 변환을 거친다 SENTINEL_INVARIANT\n' +
+    '### 절대 금지\n' +
+    '- 사용자 사주 데이터 외부 전송 금지 SENTINEL_FORBIDDEN\n' +
+    '\n## 코딩 규칙\n- a\n'
+
+  it('.cursorrules 렌더 결과에 도메인 규칙 본문 포함 (AGENTS.md 만이면 FAIL)', () => {
+    const out = toCursorrules(parseRulesMd(domainRules), '사주봇')
+    expect(out).toContain('SENTINEL_INVARIANT')
+    expect(out).toContain('SENTINEL_FORBIDDEN') // ### 하위 제목도 같은 ## 섹션 본문으로 실림
+  })
+
+  it('CLAUDE.md 렌더 결과(마커블록 안)에도 도메인 규칙 본문 포함', () => {
+    const out = toClaudeMd(parseRulesMd(domainRules), '# 기록 규칙 (사주봇)\n\n## 현재 상태\n- P1\n')
+    const start = out.indexOf('<!-- vhk:rules:start -->')
+    const end = out.indexOf('<!-- vhk:rules:end -->')
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(out.indexOf('SENTINEL_INVARIANT')).toBeGreaterThan(start)
+    expect(out.indexOf('SENTINEL_INVARIANT')).toBeLessThan(end)
+    expect(out.indexOf('SENTINEL_FORBIDDEN')).toBeLessThan(end)
+  })
+
+  it('도메인 규칙 섹션은 findUnmappedSections 가 더 이상 잡지 않음 (properly mapped)', () => {
+    expect(findUnmappedSections(parseRulesMd(domainRules))).not.toContain('도메인 규칙')
+  })
+
+  it('회귀 가드: 나머지 코딩 타깃(windsurf·copilot·gemini·cline·antigravity)에도 전파', () => {
+    const s = parseRulesMd(domainRules)
+    expect(toWindsurfrules(s, 'P')).toContain('SENTINEL_INVARIANT')
+    expect(toCopilotInstructions(s, 'P')).toContain('SENTINEL_INVARIANT')
+    expect(toGeminiMd(s, 'P')).toContain('SENTINEL_INVARIANT')
+    expect(toClineRules(s, 'P')).toContain('SENTINEL_INVARIANT')
+    expect(toAntigravityRules(s, 'P')).toContain('SENTINEL_INVARIANT')
+  })
+
+  // critic 리뷰 발견(2026-07-03): CURSORRULES_KEYS 확장이 VHK_MANAGED_KEYS(spread)에도 자동
+  // 반영되고, VHK_MANAGED_KEYS는 stripLegacyAutogen(레거시 마커없는 CLAUDE.md 1회 마이그레이션)의
+  // "옛 자동생성 → 삭제" 판정에도 쓰인다. 즉 이 기능 이전에 사용자가 CLAUDE.md에 손으로 써둔
+  // "## 도메인 규칙" 유사 섹션이 있으면, 최초 sync 시 "옛 자동생성"으로 오인돼 제거된다.
+  // governance 2026-06-10이 'Forbidden' 키에 대해 정확히 이 이유로 신규 키 추가를 거부한 전례가
+  // 있으나, sync.ts:27-29 자체 주석이 "toClaudeMd 재생성 판정과 stripLegacyAutogen 삭제 판정은
+  // 반드시 같은 키 집합을 써야 한다(다르면 재생성 섹션이 사용자 섹션으로 오인돼 중복된다)"고
+  // 명시하므로, 두 키셋을 분리하는 완화책은 이 저장소 자신의 설계 의도와 정면 배치돼 채택하지
+  // 않는다. 대신: (1) 완전 침묵 아님 — 아래 테스트가 증명하듯 removed 목록으로 노출되고
+  // syncCore가 덮어쓰기 전 항상 백업하므로 복구 가능. (2) 위험 시나리오 자체가 좁음 — "도메인"은
+  // 이 기능(goal 89/90) 이전엔 표준 관용구가 아니었어서 'Forbidden'(전 프로젝트 헌법 영구구역,
+  // 매치 확률 사실상 100%)과 위험도가 다르다. 이 테스트는 그 트레이드오프를 의도적으로 문서화한다
+  // — 동작이 바뀌면(예: 실수로 stripLegacyAutogen 을 건드려 조용해지면) 이 테스트가 잡는다.
+  it('[알려진 트레이드오프] 레거시(마커없는) CLAUDE.md에 손으로 쓴 "도메인" 섹션은 1회 마이그레이션 시 제거 대상으로 분류되지만, 완전 침묵은 아니다(removed 로 노출)', () => {
+    const legacy = '# 기록 규칙 (사주봇)\n\n## 도메인 규칙\n- 사용자가 예전에 손으로 쓴 내용\n\n## 현재 상태\n- P1\n'
+    const r = claudeMdMigration(legacy)
+    expect(r.migrated).toBe(true)
+    expect(r.removed).toContain('도메인 규칙') // 알려진 트레이드오프 — 위 주석 참조
+    expect(r.preserved).toContain('현재 상태') // 무관 사용자 섹션은 그대로 보존됨(과확장 아님)
   })
 })
