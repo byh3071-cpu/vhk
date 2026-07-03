@@ -4,7 +4,7 @@
 출처프로젝트: VHK (vhk-cli)
 태그: [bash, PowerShell, here-string, heredoc, git-commit, shell, AI-agent]
 발견일: 2026-06-03
-출처DevLog: Notion Dev Log `vhk-til-bash-tool-pwsh-heredoc` (https://app.notion.com/p/3749740ab0728199a91df50f5f0b586d)
+출처DevLog: Notion Dev Log `vhk-til-bash-tool-pwsh-heredoc`
 ---
 
 # 패턴: 셸 종류와 쿼팅 문법 불일치 — bash 에서 PowerShell here-string 쓰면 인자 오염
