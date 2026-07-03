@@ -59,9 +59,60 @@ goals/next-task.md/CHANGELOG/소스코드와 교차검증 → 결과 보고 후 
 
 - **실제 해결**: #6(코드수정)·#271·#364(이미 해결된 것 뒤늦은 close) = 3건
 - **애초에 문제 아님(오탐 확정)**: #4·#5 = 2건
-- **오늘 기준 안전, 구조적 잠재리스크는 미해소**: #1·#3·#7·#9 = 4건(dismiss했지만 `safeExecFile`의
-  Windows shim cmd.exe 래핑 자체를 하드닝하는 별도 작업은 이번 범위 밖)
+- **dismiss 후 구조 자체를 하드닝**: #1·#3·#7·#9 = 4건 — 사용자가 "구조를 고쳐야 하지 않아?"로
+  재지시, 아래 "후속 — 구조 하드닝" 참조.
 - **유지(실측으로 이슈 여전히 유효)**: #289 = 1건, close 안 함
+
+## 후속 — cmd.exe shim 경로 구조 하드닝 (같은 날, 사용자 재지시로 착수)
+
+dismiss만으로는 "오늘은 안전"일 뿐 구조는 그대로라는 지적을 받아, `resolveCmd`(및 동일 패턴을
+복제한 `scripts/_lib.mjs`·`generateGateScript` 템플릿) 자체를 고쳤다.
+
+### 직접 프로브로 실증(구현 전 필수 확인)
+
+`execFileSync('cmd.exe', ['/d','/s','/c','pnpm.cmd', ...args])`에 다양한 특수문자 조합을
+넣어 실제로 인젝션이 되는지 먼저 관찰:
+- 단순 `x & echo pwned` — **인젝션 안 됨**(Node 의 argv 인용이 `&`를 안전하게 감쌈).
+- `" & echo PWNED3 & "`(따옴표+앰퍼샌드 조합, CVE-2024-27980 과 같은 근본원인 클래스) —
+  **실제로 인젝션됨**(STDOUT 에 `PWNED3`가 진짜 찍힘, cmd.exe 가 인용 경계를 잘못 재해석).
+
+이 프로브 덕에 처음 작성한 RED 테스트(단순 `&`)가 "거짓 RED"(pnpm 자체 에러메시지의 우연한
+문자열 일치로 통과)였다는 걸 잡아내고, 진짜 취약점(따옴표 조합)으로 재작성했다.
+
+### 수정 (3곳, 동일 패턴)
+
+- `src/lib/exec.ts` — `resolveCmd`가 `{ok:true,bin,argv} | {ok:false,err}` 판별 유니언 반환.
+  Windows shim 경로에서 `CMD_SHELL_METACHARS = /[&|<>^%"\r\n]/` 매칭 인자가 있으면 거부.
+  "제대로 이스케이프"보다 "위험 문자 있으면 거부"(fail-closed) — cmd.exe 이스케이프는
+  반복적으로 CVE 를 낳아온 함정이라 정교한 이스케이프 시도보다 안전.
+- `scripts/_lib.mjs` `safeExec` — 동일 패턴.
+- `src/commands/goal.ts` `generateGateScript`(check-goal-N.mjs 템플릿) — `vhk goal sync`가
+  생성하는 ~90개 게이트 스크립트가 전부 이 함수에서 나오는 걸 발견, 템플릿(단일 지점)에
+  같은 가드 추가. **기존에 이미 생성된 90개 파일은 재생성 안 함(범위 밖, 재생성하려면
+  `vhk goal sync` 재실행 필요 — 별도 판단).**
+
+### 타입 설계 시행착오
+
+처음엔 `{bin,argv,rejected?:undefined} | {rejected:string}` 유니언 + truthiness 체크
+(`if (resolved.rejected)`)로 짰다가 tsc 가 좁히기 실패 — `string`은 빈 문자열이 falsy라
+"rejected 가 falsy" ≠ "rejected 가 undefined 타입"이라 완전한 discriminant가 아니었음.
+`'rejected' in resolved`로 바꿔도 여전히 실패(옵셔널 프로퍼티라 in 판정도 불완전). 최종적으로
+이 코드베이스 기존 관례(`ExecResult`)와 동일한 `ok: boolean` discriminant로 통일해 해결.
+
+### 게이트
+
+RED(진짜 인젝션 재현)→GREEN 전환 확인(exec.ts·`_lib.mjs`·goal.ts 각각), 회귀 없음(CVE-2024-27980
+회귀 테스트 포함 exec.test.ts 16/16). `tsc --noEmit`·`pnpm build`·`pnpm lint`·`pnpm test:run`
+2213/2213·`check-meta.mjs` 전부 green.
+
+### 교훈
+
+- **거짓 RED는 진짜 위험하다.** 첫 테스트(`x & echo pwned`)가 "통과"했을 때 그대로 믿었다면
+  존재하지도 않는 걸 "막았다"고 착각한 채 진짜 취약점(따옴표 조합)은 미수정으로 남았을 것.
+  RED 단계에서 "왜 실패했는가"를 반드시 직접 눈으로 확인해야 하는 이유가 실제로 재현됨.
+- **"오탐이라 dismiss"와 "구조가 안전하다"는 다른 주장이다.** 오늘 호출부가 안전한 것과
+  범용 함수 자체가 안전한 것은 별개 — 사용자가 이 구분을 정확히 짚어 재지시한 덕에 실제
+  잠재취약점(따옴표 인젝션)을 찾아 고쳤다.
 
 ## 교훈
 

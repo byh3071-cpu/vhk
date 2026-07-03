@@ -383,6 +383,26 @@ describe('goalSync — 누락 게이트 스크립트 백필 (goal 7)', () => {
     }
   })
 
+  // CodeQL #1·#3·#7·#9 dismiss 후속 하드닝(src/lib/exec.ts·scripts/_lib.mjs 와 동일 근거) —
+  // generateGateScript 가 만드는 run() 함수도 같은 cmd.exe 인용 탈출 위험 구조를 복제하므로
+  // 신규 생성분부터는 같은 방어(위험 문자 있는 인자 거부)를 갖춰야 한다.
+  it('생성된 check-goal-N.mjs 의 run() 이 cmd.exe shim 경로에 위험문자 인자 거부 가드를 포함', async () => {
+    const dir = tmpProject('sync-hardening')
+    makeGoalFile(dir, 0, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { goalSync } = await import('../src/commands/goal.js')
+      await goalSync()
+      const s0 = readFileSync(join(dir, 'scripts/check-goal-0.mjs'), 'utf-8')
+      // 구체적 거부 문구로 검증 — "" 처럼 흔한 문자 하나만 보면 기존(비하드닝) 코드에도
+      // 우연히 존재해 헛통과할 수 있어서, 하드닝 특유의 메시지 문자열로 좁힘.
+      expect(s0).toContain('안전하지 않은 인자 거부')
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('기존 스크립트(.mjs/.sh)는 덮어쓰지 않음 (idempotent)', async () => {
     const dir = tmpProject('sync-idem')
     makeGoalFile(dir, 0, 'DONE')
