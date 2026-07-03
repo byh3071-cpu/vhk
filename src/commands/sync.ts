@@ -16,7 +16,9 @@ interface RulesSection {
   content: string
 }
 
-const CURSORRULES_KEYS = ['코딩 규칙', '기술 스택', '아키텍처', '디자인', 'Anti-patterns', '커밋']
+// #90: '도메인' — init 커스터마이징 인터뷰가 쓰는 `## 도메인 규칙` 섹션을 코딩 타깃(.cursorrules 등)으로
+// 전파. CLAUDE.md는 toClaudeMd가 CURSORRULES_KEYS를 합집합하므로 자동 도달(CLAUDE_MD_KEYS 추가 불필요).
+const CURSORRULES_KEYS = ['코딩 규칙', '기술 스택', '아키텍처', '디자인', 'Anti-patterns', '커밋', '도메인']
 // #149: 'VHK 운영'(이슈 정책 등 운영 규약)을 매핑 — CLAUDE.md/AGENTS.md record 그룹으로 전파.
 // (코딩 타깃에는 안 들어감 — 운영 규약은 코딩 규칙이 아니므로 의도된 분리.)
 // 키를 'VHK 운영'으로 한정 — '운영'만 쓰면 '## 자동 운영 스크립트' 등 무관 섹션까지 substring 오탐.

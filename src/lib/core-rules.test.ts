@@ -1,8 +1,12 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import {
   renderCoreRuleset,
   applyMarkerBlock,
   generateCoreRulesContent,
+  loadCoreRuleset,
   CORE_RULES_START_TAG,
   CORE_RULES_END_TAG,
   type CoreRuleset,
@@ -95,5 +99,47 @@ describe('generateCoreRulesContent', () => {
     expect(result).toContain('되돌릴 수 없는 작업')
     expect(result).toContain('실패비용 high')
     expect(result).toContain('MCP ✓Connected')
+  })
+})
+
+describe('loadCoreRuleset — 소스 판정 (goal 91)', () => {
+  let origBrain: string | undefined
+
+  beforeEach(() => {
+    origBrain = process.env.PRIVATE_RULES_ROOT
+  })
+
+  afterEach(() => {
+    if (origBrain === undefined) delete process.env.PRIVATE_RULES_ROOT
+    else process.env.PRIVATE_RULES_ROOT = origBrain
+  })
+
+  it('PRIVATE_RULES_ROOT 미설정 → source=bundled', () => {
+    delete process.env.PRIVATE_RULES_ROOT
+    const loaded = loadCoreRuleset()
+    expect(loaded.source).toBe('bundled')
+  })
+
+  it('PRIVATE_RULES_ROOT 가 유효한 yaml 을 가리키면 → source=live, version=yaml 값', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-brain-'))
+    const yamlPath = path.join(dir, 'memory', 'core', 'core-ruleset.yaml')
+    fs.mkdirSync(path.dirname(yamlPath), { recursive: true })
+    fs.writeFileSync(yamlPath, 'version: "9.9.9"\nnon_negotiable:\n  - x\n', 'utf-8')
+    process.env.PRIVATE_RULES_ROOT = dir
+
+    const loaded = loadCoreRuleset()
+    expect(loaded.source).toBe('live')
+    expect(loaded.version).toBe('9.9.9')
+
+    fs.rmSync(dir, { recursive: true, force: true })
+  })
+
+  it('PRIVATE_RULES_ROOT 는 설정됐지만 yaml 이 없으면 → bundled 로 폴백(catch 분기)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-empty-'))
+    process.env.PRIVATE_RULES_ROOT = dir
+
+    expect(loadCoreRuleset().source).toBe('bundled')
+
+    fs.rmSync(dir, { recursive: true, force: true })
   })
 })

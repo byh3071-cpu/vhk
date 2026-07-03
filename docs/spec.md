@@ -1,8 +1,8 @@
 ---
 title: ".vhk/ Directory Specification"
-spec_version: "1.1"
+spec_version: "1.2"
 status: draft
-updated: 2026-06-10
+updated: 2026-07-03
 ---
 
 # `.vhk/` 디렉토리 규격 (Specification)
@@ -44,6 +44,9 @@ updated: 2026-06-10
 | `recall-log.jsonl` | JSONL | ❌ 로컬 전용 | `vhk recall` | recall 측정 로그 (RFC 0049) |
 | `.synced` | (마커) | ❌ 로컬 전용 | `vhk sync` | 마지막 sync 마커 |
 | `HARD_STOP` | (내용 없음) | ❌ 로컬 전용 | 게이트/사용자 | 존재하면 모든 자동화 즉시 중단 |
+| `hooks/customization-check.mjs` | JS | ✅ 커밋 | `vhk init` (씨앗) | SessionStart 커스터마이징 트리거 스크립트 (goal 89) |
+| `NEEDS_CUSTOMIZATION` | (내용 없음) | ❌ 로컬 전용 | `vhk init` (씨앗) | 존재하면 첫 세션에서 도메인 인터뷰 트리거(customization-done 없을 때만) |
+| `customization-done` | (내용 없음) | ❌ 로컬 전용 | AI (인터뷰 완료 후) | 인터뷰 완료 마커 — 재트리거 방지 |
 | `cloud.json` | JSON | ❌ 로컬 전용² | `vhk cloud push/pull` | 클라우드 백업 gist 포인터 `{ "gistId": "..." }` |
 | `backups/` `eval/` `reports/` `seo/` `evolve/` | 폴더 | ❌ 로컬 전용 | 각 기능 | §0 참조 (1.1 공식 인정) |
 
@@ -138,6 +141,9 @@ updated: 2026-06-10
 
 ### 변경 이력
 
+- **1.2 (2026-07-03, goal 89 — 커스터마이징 트리거)**: `.vhk/hooks/`(커밋) SessionStart 훅 스크립트 +
+  `NEEDS_CUSTOMIZATION`·`customization-done` 로컬 전용 마커 등록. `vhk init` 이 `.claude/settings.json`
+  에 SessionStart 훅을 병합해 첫 세션에서 도메인 인터뷰를 트리거한다. 파일 마이그레이션 없음 — 가산만.
 - **1.1 (2026-06-10, governance T4 — RFC 0038 후속)**: 하위 폴더 공식 인정 — 로컬 전용
   backups/eval/reports/seo/evolve + **커밋** events/(goal 55 원장 영속) · context/brief 는
   기본 커밋 + 프로젝트별 로컬 무시 오버라이드 공식 인정 · cloud.json 은 로컬 전용으로

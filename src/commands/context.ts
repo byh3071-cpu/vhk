@@ -18,6 +18,7 @@ import { getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
 import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
 import { TOP_LEVEL_COMMANDS } from '../lib/command-registry.js'
+import { loadCoreRuleset } from '../lib/core-rules.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
 
@@ -152,6 +153,17 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   for (const [key, value] of Object.entries(stack)) {
     lines.push(`- **${key}**: ${value}`)
   }
+  lines.push('')
+
+  const coreRules = loadCoreRuleset()
+  const coreVersionLabel = coreRules.version === 'unknown' ? '버전 미상' : `v${coreRules.version}`
+  lines.push('## 헌법(core-rules) 소스')
+  lines.push('')
+  lines.push(
+    coreRules.source === 'live'
+      ? `- live — PRIVATE_RULES_ROOT 라이브 상속 (${coreVersionLabel})`
+      : `- bundled — 번들 스냅샷 (${coreVersionLabel}) · PRIVATE_RULES_ROOT 미설정 또는 라이브 파일 읽기 실패, 최신 아닐 수 있음`
+  )
   lines.push('')
 
   lines.push('## 디렉토리 구조')
