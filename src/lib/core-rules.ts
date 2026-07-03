@@ -82,8 +82,10 @@ function buildStartTag(version: string, source: CoreRulesSource): string {
 // export: config.ts(goal 92)가 "지금 저장한 경로 자체가 유효한가"를 loadCoreRuleset()의
 // 전체 우선순위(env 먼저)와 별개로 직접 확인해야 해서 필요 — critic 지적(M2) 대응.
 export function tryLoadLive(brainRoot: string): LoadedCoreRuleset | null {
-  const yamlPath = path.join(brainRoot, 'memory', 'core', 'core-ruleset.yaml')
   try {
+    // path.join 도 try 안에 포함 — brainRoot 가 문자열이 아니면(홈 설정파일 수기 편집 손상 등)
+    // ERR_INVALID_ARG_TYPE 을 던지는데, 이 함수의 계약은 "실패 시 항상 null"이라 여기서 잡는다.
+    const yamlPath = path.join(brainRoot, 'memory', 'core', 'core-ruleset.yaml')
     const raw = fs.readFileSync(yamlPath, 'utf-8')
     const data = parseYaml(raw) as CoreRuleset
     return { data, source: 'live', version: data.version ?? 'unknown' }

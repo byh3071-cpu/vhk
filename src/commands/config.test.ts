@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { readHomeConfig } from '../lib/home-config.js'
+import { loadCoreRuleset } from '../lib/core-rules.js'
 import { configSetBrainRoot } from './config.js'
 
 // goal 92 — `vhk config set-brain-root <path>` 저장 직후 즉시 loadCoreRuleset() 재호출해
@@ -87,5 +88,37 @@ describe('configSetBrainRoot', () => {
     fs.rmSync(home, { recursive: true, force: true })
     fs.rmSync(newBrain, { recursive: true, force: true })
     fs.rmSync(envBrain, { recursive: true, force: true })
+  })
+
+  // critic 재검증(2026-07-03, main 병합 후) 발견: brainRootPath 를 path.resolve 없이 그대로
+  // 저장 + 저장 직후 검증도 "저장 명령 실행 시점의 cwd" 기준이라, 상대경로로 저장하면 그 순간엔
+  // "✅ 성공"이 뜨지만 나중에 다른 프로젝트 디렉터리(다른 cwd)에서 loadCoreRuleset() 이 같은
+  // 상대경로를 다르게 해석해 조용히 bundled 로 폴백 — M2 가 잡았던 "안내가 실제 결과와 어긋남"
+  // 클래스가 cwd 경로로 재현됨. path.resolve 로 저장 시점에 절대경로 정규화해 수정.
+  it('상대경로로 저장해도 절대경로로 정규화되어 이후 다른 cwd 에서도 안 깨짐', async () => {
+    const home = tmpHome()
+    const brainDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-relbrain-'))
+    writeBrainYaml(brainDir, '7.7.7')
+    const brainBasename = path.basename(brainDir)
+    const brainParent = path.dirname(brainDir)
+
+    const originalCwd = process.cwd()
+    try {
+      process.chdir(brainParent)
+      await configSetBrainRoot(brainBasename, home)
+    } finally {
+      process.chdir(originalCwd)
+    }
+
+    const saved = readHomeConfig(home)
+    expect(path.isAbsolute(saved?.brainRoot ?? '')).toBe(true)
+
+    // 복원된(=brainDir 와 무관한) cwd 에서도 live 로 로드돼야 cwd 독립성이 증명됨.
+    const loaded = loadCoreRuleset(home)
+    expect(loaded.source).toBe('live')
+    expect(loaded.version).toBe('7.7.7')
+
+    fs.rmSync(home, { recursive: true, force: true })
+    fs.rmSync(brainDir, { recursive: true, force: true })
   })
 })

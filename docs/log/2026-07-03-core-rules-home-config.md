@@ -47,3 +47,18 @@ RED 테스트로 두 버그 모두 먼저 재현 확인 후 수정(TDD).
 ### 교훈 (worktree 병렬화의 새로운 실패 모드)
 
 기존 메모리(`multi-session-worktree` — "같은 폴더 세션 2개 = git 충돌, worktree로 분리")는 **내 세션 자신**이 워크트리 없이 동시 체크아웃하는 상황만 다뤘다. 이번엔 그 반대 방향의 구멍이 드러남: 워크트리로 내 작업은 잘 격리했지만, **다른 세션이 공유 메인 체크아웃에서(워크트리 없이) 직접 브랜치를 바꾸는 것까지는 워크트리가 못 막는다** — `ExitWorktree`의 "원래 디렉터리로 복귀"가 브랜치를 고정하지 않기 때문. 워크트리 병렬작업 후 메인으로 머지할 때는 `git merge` 실행 직전에 항상 `git branch --show-current`로 실제 어느 브랜치에 있는지 재확인하는 습관이 필요 — 특히 여러 세션이 동시에 돌고 있다고 의심될 때.
+
+## 후속2 — 병합본 opus critic 재검증 + 3건 수정 (2026-07-03, 같은 날 이어서)
+
+병합 직후(커밋 `24034b7`) 병합된 최종 diff(`db8ded7..HEAD`)에 opus critic을 새로 돌려 독립 재검증. 6개 게이트 재실행은 전부 green, 그러나 진짜 결함 2건(Medium 1·Low 1) + 검증 스크립트 약점 1건 발견 — TDD로 전부 수정:
+
+- **[Medium] 상대경로 저장 시 cwd 의존**: `configSetBrainRoot`가 `brainRootPath`를 `path.resolve` 없이 그대로 저장 — 저장 시점 cwd 에선 맞지만 다른 프로젝트 디렉터리(다른 cwd)에서 `loadCoreRuleset()`이 같은 상대경로를 다르게 해석해 조용히 bundled 로 폴백. "안내가 실제 결과와 어긋남" 클래스(M2와 동일 계열)가 cwd 경로로 재현됨. `path.resolve()`로 저장 전 절대경로 정규화해 수정.
+- **[Low] 비문자열 brainRoot → 크래시**: `tryLoadLive`의 `path.join(brainRoot, ...)`이 try 블록 밖에 있어, `~/.vhk/config.json`을 손으로 손상 편집(예: `{"brainRoot": 123}`)하면 `ERR_INVALID_ARG_TYPE`이 `loadCoreRuleset`을 쓰는 모든 명령을 깨뜨림 — "손상 시 null 폴백" 계약 위반. `path.join`을 try 안으로 이동해 수정.
+- **[Low, 검증 스크립트] check-goal-92.mjs 헛통과 소지**: `atomicWriteFile` 사용 여부를 문자열 존재만으로 확인해 주석에만 있어도 통과. 실제 콜사이트(`atomicWriteFile(p,`) 패턴 매칭으로 강화. 관련해 두 신규 수정에 대한 회귀 가드도 게이트에 추가(3개→합계 assert 21→23개, 원 dev log의 "22개"는 표기 오류였음 — append-only라 원문은 안 고치고 여기 정정만 남김).
+
+RED 테스트로 두 코드 결함 모두 먼저 재현 확인(critic 예측과 정확히 일치하는 에러 메시지로 fail) 후 수정 — 이 세션 전체를 관통한 TDD 규율 유지.
+
+### 교훈
+
+- **"critic이 한 번 통과시킨 코드도 병합·리팩터 이후 다시 검증할 가치가 있다."** 이번 결함(상대경로 cwd 의존)은 최초 critic 라운드(M1/M2) 이후에 내가 직접 추가한 코드가 아니라 애초 구현에 있던 것 — 첫 critic 패스가 다른 각도(env override)에 집중하느라 놓쳤을 뿐, "한 번 검증받았으니 안전하다"는 가정 자체가 틀렸다.
+- **검증 스크립트 자신도 검증 대상이다.** `check-goal-92.mjs`처럼 "완료를 보증"하는 코드가 느슨하면 헛통과를 낳는다 — goals/_meta.md M.4("완료-스텁 0")가 스텁 여부만 보지 내용 강도는 안 보므로, 게이트 스크립트를 짤 때도 "이 assert가 진짜로 실패할 수 있는가"를 critic 마인드로 스스로 물어야 한다.

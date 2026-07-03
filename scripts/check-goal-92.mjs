@@ -59,10 +59,21 @@ const homeConfigTs = read('src/lib/home-config.ts')
 must(homeConfigTs?.includes('export function getHomeConfigPath'), 'home-config.ts 가 getHomeConfigPath export')
 must(homeConfigTs?.includes('export function readHomeConfig'), 'home-config.ts 가 readHomeConfig export')
 must(homeConfigTs?.includes('export function writeHomeConfig'), 'home-config.ts 가 writeHomeConfig export')
-must(homeConfigTs?.includes('atomicWriteFile'), 'home-config.ts 가 atomicWriteFile 사용 (raw writeFileSync 아님 — 손상 시 복구 불가한 사용자 설정값)')
+// critic 재검증 지적: 단어 존재만 보면 주석/import 만으로도 헛통과 — 실제 콜사이트(atomicWriteFile(p, ...)) 확인.
+must(/atomicWriteFile\(p,/.test(homeConfigTs ?? ''), 'home-config.ts 가 writeHomeConfig 내부에서 실제로 atomicWriteFile(p, ...) 호출 (raw writeFileSync 아님 — 손상 시 복구 불가한 사용자 설정값)')
 
 const coreRulesTs = read('src/lib/core-rules.ts')
 must(coreRulesTs?.includes('export function tryLoadLive'), 'core-rules.ts 가 tryLoadLive export (config.ts 가 독립적으로 재사용, critic M2 수정)')
+// critic 재검증 지적(main 병합 후): path.join 이 try 밖에 있으면 비문자열 brainRoot(손상된 홈
+// 설정파일)가 ERR_INVALID_ARG_TYPE 로 크래시 — "실패 시 항상 null" 계약 위반. try 블록이
+// yamlPath 대입보다 앞에 오는지 위치 비교로 확인(주석 줄 수에 안 흔들리는 방식).
+{
+  const fnStart = (coreRulesTs ?? '').indexOf('export function tryLoadLive')
+  const body = fnStart >= 0 ? coreRulesTs.slice(fnStart) : ''
+  const tryIdx = body.indexOf('try {')
+  const yamlIdx = body.indexOf('const yamlPath = path.join')
+  must(fnStart >= 0 && tryIdx >= 0 && yamlIdx > tryIdx, 'tryLoadLive — path.join 이 try 블록 안에 있음(비문자열 brainRoot 크래시 방지)')
+}
 must(
   /export function loadCoreRuleset\(homeDir: string = os\.homedir\(\)\)/.test(coreRulesTs ?? ''),
   'loadCoreRuleset() 이 homeDir 인자를 받음(기본값 os.homedir(), 하위호환)'
@@ -72,10 +83,16 @@ must(coreRulesTs?.includes("readHomeConfig(homeDir)"), 'loadCoreRuleset() 이 re
 const configCmdTs = read('src/commands/config.ts')
 must(configCmdTs?.includes('export async function configSetBrainRoot'), 'config.ts 가 configSetBrainRoot export')
 must(
-  configCmdTs?.includes('tryLoadLive(brainRootPath)') && !/^\s*loadCoreRuleset\(\)/m.test(configCmdTs?.split('const saved')[0] ?? ''),
+  configCmdTs?.includes('tryLoadLive(resolvedPath)') && !/^\s*loadCoreRuleset\(\)/m.test(configCmdTs?.split('const saved')[0] ?? ''),
   'configSetBrainRoot 이 저장한 경로 자체를 tryLoadLive 로 독립 판정 (critic M2 — loadCoreRuleset() 전체 결과로 오판정 안 함)'
 )
 must(configCmdTs?.includes('envOverrides'), 'configSetBrainRoot 이 env var 우선 여부를 별도로 계산해 3-way 피드백')
+// critic 재검증 지적(main 병합 후): 상대경로를 그대로 저장하면 저장 시점 cwd 에서만 맞아, 다른
+// cwd(다른 프로젝트)에서 loadCoreRuleset() 이 조용히 bundled 로 폴백 — path.resolve 정규화 확인.
+must(
+  configCmdTs?.includes('path.resolve(brainRootPath)') && configCmdTs?.includes('writeHomeConfig({ brainRoot: resolvedPath }'),
+  'configSetBrainRoot 이 저장 전 path.resolve 로 절대경로 정규화(cwd 의존성 제거)'
+)
 
 const configTestTs = read('src/commands/config.test.ts')
 must(
