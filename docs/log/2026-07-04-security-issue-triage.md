@@ -114,6 +114,18 @@ RED(진짜 인젝션 재현)→GREEN 전환 확인(exec.ts·`_lib.mjs`·goal.ts 
   범용 함수 자체가 안전한 것은 별개 — 사용자가 이 구분을 정확히 짚어 재지시한 덕에 실제
   잠재취약점(따옴표 인젝션)을 찾아 고쳤다.
 
+## 후속2 — 이슈 #289 재시도 (같은 날, 사용자 재지시)
+
+"닫을 수 있게 다시 시도해보고"라는 재지시를 받아, close 대신 실제 개선을 만들었다.
+`src/commands/context.ts`에 `hasWorkState` 플래그로 저장된 기억(memory v2)·Active Goal·
+Active Blockers 3개 섹션이 전부 비었는지 추적 → 전부 비면 `## 최근 활동 (git log)` 폴백
+섹션(최근 5커밋, `git log -5 --pretty=format:%h %s`)을 대신 보여준다. `gitOut`이 git
+미설치·커밋 0건이면 throw하는 계약이라 try/catch로 조용히 생략(크래시 없음 유지).
+
+`tests/context.test.ts`의 gh#289 재현 테스트를 "고쳐졌다"를 검증하는 방향으로 갱신
+(재현 확인용 부정 단언은 유지, 폴백 섹션 존재 + 커밋 SHA 패턴 포함 긍정 단언 추가).
+게이트 전부 green(2213/2213). close는 이 커밋이 main 에 반영된 뒤 별도로 실행.
+
 ## 교훈
 
 - **CodeQL의 "환경값" 정의는 `process.env`보다 넓다** — `process.cwd()`·파일명 등 OS 상태에서

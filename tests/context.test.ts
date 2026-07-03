@@ -86,9 +86,10 @@ describe('context', () => {
     expect(md).not.toContain('.git/')
   })
 
-  // gh#289 재현: goals/blockers/memory 가 전부 비어있는(신규·희소 프로젝트) 상태에서
-  // context.md 가 크래시 없이 생성되는지 + "작업상태" 관련 섹션이 실제로 어떻게 되는지 실측.
-  it('context — goals/blockers/memory 전부 비어있어도 크래시 없이 생성(gh#289 재현)', async () => {
+  // gh#289 수정: goals/blockers/memory 가 전부 비어있는(신규·희소 프로젝트) 상태에서도
+  // context.md 가 크래시 없이 생성되고, "작업상태" 폴백(최근 git 커밋)이 실제로 나오는지 확인.
+  // (최초 재현 시점엔 이 폴백이 없어 gh#289 제보가 그대로 유효했음 — 이번에 폴백을 추가해 수정.)
+  it('context — goals/blockers/memory 전부 비어있으면 최근 git 커밋을 폴백으로 보여준다(gh#289 수정)', async () => {
     mockExistsSync.mockReturnValue(false)
     mockReadFileSync.mockReturnValue('{}')
     mockReaddirSync.mockReturnValue([])
@@ -102,10 +103,13 @@ describe('context', () => {
     const md = String(call![1])
     // 크래시 없이 정적 섹션(기술스택·헌법소스 등)은 항상 나옴 — 세션 복원용 뼈대는 유지.
     expect(md).toContain('# 프로젝트 컨텍스트')
-    // Active Goal/Blockers/저장된 기억 섹션은 empty 조건부라 이 시나리오에선 전부 생략됨 —
-    // "작업상태·핵심결정 부재"라는 gh#289 제보가 (신규/희소 프로젝트 한정) 여전히 유효함을 실측 확인.
+    // Active Goal/Blockers/저장된 기억 섹션 자체는 여전히 empty 조건부라 생략되지만,
     expect(md).not.toContain('## Active Goal')
     expect(md).not.toContain('## Active Blockers')
+    // 이 vhk 레포 자체가 git 저장소라 실제 git log 가 폴백으로 잡혀야 함(mock 대상 아님 — gitOut
+    // 은 child_process 경유, 이 파일이 모킹하는 node:fs 와 무관하게 실제 실행됨).
+    expect(md).toContain('## 최근 활동')
+    expect(md).toMatch(/[0-9a-f]{7,}\s/) // git log --pretty=%h 짧은 SHA 형태가 실제로 들어있어야 함
     expect(md).not.toContain('## 저장된 기억')
   })
 

@@ -188,6 +188,11 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     lines.push('')
   }
 
+  // gh#289: 아래 3개 섹션(저장된 기억/Active Goal/Active Blockers)이 전부 empty 면 세션 복원용
+  // "작업상태" 신호가 0 이었다(신규·희소 프로젝트에서 goals/blockers/memory 시스템 미사용 시
+  // 재현 확인됨) — hasWorkState 로 추적해 전부 없으면 최근 git 커밋 폴백을 보여준다.
+  let hasWorkState = false
+
   try {
     // memory v2 4버킷 — active 만 누락 없이(버킷별 최근 5개). readMemory 가 v1·learnings 흡수까지
     // 처리하므로 memory.json 부재여도 learnings 흡수분이 여기서 노출(교훈 단일 출처).
@@ -196,6 +201,7 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
       lines.push('## 저장된 기억 (memory v2)')
       lines.push('')
       lines.push(...memLines)
+      hasWorkState = true
     }
   } catch {
     // memory.json 파싱 실패 → 무시
@@ -216,6 +222,7 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
       lines.push(`- **priority**: ${active.frontmatter.priority ?? '--'}`)
       lines.push(`- **file**: ${active.filePath}`)
       lines.push('')
+      hasWorkState = true
     }
   }
 
@@ -229,6 +236,25 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     lines.push('')
     for (const b of activeBlockers) lines.push(b)
     lines.push('')
+    hasWorkState = true
+  }
+
+  // gh#289 폴백: 위 3개 섹션이 전부 없으면(goals/blockers/memory 미사용 프로젝트) 최근 git
+  // 커밋을 대신 보여준다 — "무엇을 하고 있었는지" 최소한의 신호는 남겨 세션 복원에 보탬.
+  if (!hasWorkState) {
+    try {
+      const log = gitOut(['log', '-5', '--pretty=format:%h %s'], process.cwd()).trim()
+      if (log) {
+        lines.push('## 최근 활동 (git log — goals/blockers/memory 미사용 시 폴백)')
+        lines.push('')
+        lines.push('```')
+        lines.push(log)
+        lines.push('```')
+        lines.push('')
+      }
+    } catch {
+      // git 미설치·커밋 없음 등 → 조용히 생략(정적 섹션만으로도 크래시 없이 유지)
+    }
   }
 
   // compact: 상세 문서를 통째로 넣지 않고 "필요시 열람할 파일" 참조 링크만 제공(토큰 절감).
