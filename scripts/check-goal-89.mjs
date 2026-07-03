@@ -53,8 +53,32 @@ if (!skipDeep) {
 }
 
 // ─── goal 89 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+
+const initTs = read('src/commands/init.ts')
+must(initTs?.includes('ensureCustomizationMarker'), 'init.ts 에 ensureCustomizationMarker 존재')
+must(initTs?.includes('ensureSessionStartHook'), 'init.ts 에 ensureSessionStartHook 존재')
+must(
+  initTs?.includes('${CLAUDE_PROJECT_DIR}') && initTs?.includes('"${CLAUDE_PROJECT_DIR}/.vhk/hooks/customization-check.mjs"'),
+  '훅 command 가 ${CLAUDE_PROJECT_DIR} 절대경로 + 따옴표 보호 (실전검증 감사 2026-07-03 반영)'
+)
+must(
+  /SESSION_START_ENTRIES = \['startup', 'resume'\]/.test(initTs ?? ''),
+  'SessionStart matcher 가 파이프 아닌 startup·resume 단일값 2개 entry 로 분리'
+)
+
+const hookTs = read('src/templates/customization-hook.ts')
+must(hookTs?.includes('hookSpecificOutput') && hookTs?.includes('additionalContext'), 'customization-hook.ts 가 올바른 SessionStart 응답 스키마 사용')
+must(hookTs?.includes('customization-done'), 'customization-hook.ts 가 done 마커 생성을 지시')
+
+const initTest = read('tests/init.test.ts')
+must(
+  initTest?.includes("toEqual(['startup', 'resume'])") && initTest?.includes('CLAUDE_PROJECT_DIR'),
+  'init.test.ts 에 훅 신뢰성 보강(경로·matcher) 회귀 가드 존재'
+)
+
+const specMd = read('docs/spec.md')
+must(specMd?.includes('spec_version: "1.2"'), 'docs/spec.md 가 1.2 로 갱신됨')
 
 if (pass) { console.log('✅ goal 89 gate passes'); process.exit(0) }
 console.log('❌ goal 89 gate failed'); process.exit(1)
