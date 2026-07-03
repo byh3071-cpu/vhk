@@ -50,6 +50,7 @@ import { getUpdateInfo } from './lib/version-check.js'
 import { QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
 import { mode } from './commands/mode.js'
+import { configSetBrainRoot } from './commands/config.js'
 import { verify } from './commands/verify.js'
 import { cost } from './commands/cost.js'
 import { preflight } from './commands/preflight.js'
@@ -807,6 +808,18 @@ workCmd
   .alias('인수인계')
   .description('작업 중단 정리 — 인수인계 프롬프트 생성 후 클립보드 복사')
   .action(async () => { await workHandoff() })
+
+// goal 92 — YOHAN_BRAIN_ROOT 환경변수의 재시작 필요 문제를 피하는 파일기반 설정.
+const configCmd = program
+  .command('config')
+  .alias('설정')
+  .description('vhk 사용자 설정 (set-brain-root)')
+  .action(() => { configCmd.help() })
+
+configCmd
+  .command('set-brain-root <path>')
+  .description('헌법(core-rules) 라이브 소스 경로를 ~/.vhk/config.json 에 저장 — 재시작 없이 즉시 반영')
+  .action(async (path: string) => { await configSetBrainRoot(path) })
 
 const goalCmd = program
   .command('goal')

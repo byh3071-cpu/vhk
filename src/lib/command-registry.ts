@@ -24,6 +24,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   work: ['handoff'],
   worktree: ['add', 'check'],
   seo: ['init', 'submit', 'check', 'report', 'automate'],
+  config: ['set-brain-root'],
 }
 
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
@@ -43,6 +44,7 @@ export const CONTAINER_ALIASES: Record<string, string> = {
   진화: 'evolve',
   작업: 'work',
   워크트리: 'worktree',
+  설정: 'config',
 }
 
 /**
@@ -120,4 +122,5 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'evolve', desc: '패턴 → 룰 후보 제안·반영·undo' },
   { name: 'loop', desc: '자가진화 조율 1틱 — 다음 한 수 (읽기 전용)' },
   { name: 'seo', desc: 'SEO·수익 대시보드 (init: 사이트 등록 + 자격증명 보관)' },
+  { name: 'config', desc: 'vhk 사용자 설정 (set-brain-root: 헌법 라이브 소스, 재시작 불필요)' },
 ]
