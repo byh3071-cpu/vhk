@@ -53,8 +53,48 @@ if (!skipDeep) {
 }
 
 // ─── goal 91 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+
+const vhkDirTs = read('src/templates/vhk-dir.ts')
+must(
+  /core: \{ ?source: 'live' \| 'bundled'; ?version: string ?\}/.test(vhkDirTs ?? ''),
+  'vhk-dir.ts VHK_CONTEXT_SEED 시그니처에 4번째 인자(core: {source, version}) 존재'
+)
+must(vhkDirTs?.includes("version === 'unknown' ? '버전 미상'"), 'vhk-dir.ts — version=unknown 코스메틱 폴백 존재 (critic Low)')
+
+const initTs = read('src/commands/init.ts')
+must(initTs?.includes('loadCoreRuleset'), 'init.ts 가 loadCoreRuleset import')
+must(
+  /VHK_CONTEXT_SEED\(name, type \|\| 'unknown', stack, \{/.test(initTs ?? ''),
+  "init.ts generateFiles() 가 VHK_CONTEXT_SEED 4번째 인자 배선"
+)
+must(
+  initTs?.includes("coreRulesCheck.source === 'bundled'") && initTs?.includes('ko.init.coreRulesBundledWarn'),
+  'init() 꼬리 — source=bundled 일 때 경고 출력'
+)
+
+const injectBootstrapTs = read('src/lib/inject-bootstrap.ts')
+must(
+  /VHK_CONTEXT_SEED\(name, 'tier-s-ecosystem', \['see RULES\.md'\], \{/.test(injectBootstrapTs ?? ''),
+  'inject-bootstrap.ts generateTierSContextSeed() 도 VHK_CONTEXT_SEED 4번째 인자 배선 (2번째 호출처)'
+)
+
+const contextTs = read('src/commands/context.ts')
+must(contextTs?.includes("loadCoreRuleset"), 'context.ts 가 loadCoreRuleset import (vhk start 5단계 경로 커버)')
+must(contextTs?.includes('## 헌법(core-rules) 소스'), 'context.ts 가 헌법 소스 섹션을 렌더')
+
+const koTs = read('src/i18n/ko.ts')
+// critic 지적(2026-07-03): 초안 문구가 'vhk sync 를 다시 실행하세요'였으나 sync.ts 는
+// .agents/CORE-RULES.md 를 절대 안 건드림(SYNC_TARGETS 에 없음) — 실제 재생성기는
+// inject-bootstrap.ts 뿐이라 잘못된 안내였다. 회귀 가드로 정확한 명령을 고정.
+must(koTs?.includes('vhk inject-bootstrap --force'), "ko.ts coreRulesBundledWarn 이 올바른 재생성 명령 안내 (vhk sync 아님)")
+must(koTs?.includes('미설정 또는 라이브 파일 읽기 실패'), 'ko.ts coreRulesBundledWarn 이 "미설정" 단정 안 함 (읽기실패 케이스 포괄)')
+
+const warnTest = read('tests/init-core-rules-warn.test.ts')
+must(
+  warnTest?.includes('vhk inject-bootstrap --force') && warnTest?.includes("not.toContain('vhk sync')"),
+  'init-core-rules-warn.test.ts 에 올바른 명령 회귀 가드 테스트 존재'
+)
 
 if (pass) { console.log('✅ goal 91 gate passes'); process.exit(0) }
 console.log('❌ goal 91 gate failed'); process.exit(1)

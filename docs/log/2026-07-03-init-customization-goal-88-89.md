@@ -121,3 +121,34 @@ haiku 정찰 → opus 설계(sync.ts 8개 산출물 함수 전부 직접 대조,
 
 ## 다음
 goal 91(core-rules 폴백 가시화) 진행 예정.
+
+## 추가 — goal 91(core-rules 폴백 가시화) 구현 완료 · DONE · 4개 goal(88·89·90·91) 전체 완주
+
+opus 설계(핵심 발견 2개: `VHK_CONTEXT_SEED` 호출처 2곳·`vhk start` 5단계 `context()`가 시드를 덮어씀 → 직접 코드 대조로 검증 완료) → **사람 승인** → TDD(RED→GREEN 5사이클) → critic(opus, `general-purpose` 폴백) 적대검증 → **critic이 진짜 High 결함 발견** → 재검증(직접 코드 대조) → TDD로 수정 → 재게이트 → commit.
+
+### 변경
+- `src/templates/vhk-dir.ts` — `VHK_CONTEXT_SEED()` 4번째 인자(`core: {source, version}`) 추가, "## 헌법(core-rules) 소스" 섹션 렌더.
+- `src/commands/init.ts` — `generateFiles()` 시드 배선 + `init()` 꼬리 경고(`source==='bundled'`).
+- `src/lib/inject-bootstrap.ts` — `generateTierSContextSeed()` 2번째 호출처 동기화.
+- `src/commands/context.ts` — `vhk start` 5단계 경로에도 동일 섹션 별도 배선(`context()`가 매번 완전 덮어쓰므로 init 시드만으론 부족).
+- `src/i18n/ko.ts` — `coreRulesBundledWarn(version)` 신규 키.
+- `tests/init-core-rules-warn.test.ts`(신규)·`tests/context.test.ts`·`tests/init.test.ts`·`src/lib/core-rules.test.ts` — bundled/live 케이스·회귀가드·critic 수정 검증 테스트.
+- `scripts/check-goal-91.mjs` — 고유 검증 11개(정규식 기반, goal 90 교훈 재적용).
+- `goals/91-core-rules-fallback-visibility.md` — NOT_STARTED→DONE, 구현 결과·critic 대응 상세 기록.
+- `goals/README.md` — 인덱스 재생성.
+
+### critic이 찾은 진짜 결함 (게이트 전부 green인 상태에서 발견 — 3번째 반복 재현)
+**(High) 조치 안내 명령이 실제로 헌법 파일을 갱신하지 않음.** 초안 경고 문구가 "`vhk sync`를 다시 실행하세요"라고 안내했지만, `sync.ts`의 `SYNC_TARGETS`(7개 미러 파일 목록)를 grep해도 `.agents/CORE-RULES.md`/`CORE-RULES` 참조가 **0건** — sync는 이 파일을 절대 안 건드림. 실제 재생성기는 `inject-bootstrap.ts`의 `injectBootstrapAll` 뿐이고, 내부 `writeInjectFile`이 기존 파일 있고 `isCurrentCoreRules`(버전 태그 비교)가 false면 `--force`/`--yes` 없인 무조건 `skipped` — plain 재실행도 무력함을 코드로 직접 확인. 사용자가 지시대로 `vhk sync`를 실행하면 "✅ 완료" 출력을 보고 헌법이 갱신됐다고 **거짓 확신**하지만 실제 파일은 그대로 낡아있었음. 안내가 없는 것보다 나쁜 결함(오확신 유발) — `vhk inject-bootstrap --force`로 정정.
+
+추가로 Medium 1건("YOHAN_BRAIN_ROOT 미설정" 단정이 "설정은 됐지만 읽기 실패" 케이스를 놓침 — `context.ts`가 `vhk-dir.ts` 문구를 그대로 복제했다는 점도 지적)과 Low 2건(과거형 "생성됐어요"가 브라운필드 skip 케이스에서도 뜸·`version:'unknown'`→"vunknown" 코스메틱)도 함께 수정. 전부 RED→GREEN TDD로 반영.
+
+### 게이트
+`pnpm build`·`pnpm exec tsc --noEmit`·`pnpm lint` clean. `pnpm test:run` 2185/2185 pass. `check-goal-91.mjs` 고유 검증 11개 통과.
+
+### 교훈
+- **"조치 안내가 정확한가"는 코드가 green이어도 검증 안 되는 축이다.** 이번 결함은 로직·타입·테스트 어디에도 안 걸렸다 — 경고를 "띄우는 것" 자체는 완벽히 작동했지만, 띄운 문구 안의 **커맨드 하나가 틀렸다.** TDD는 "경고가 뜨는가"를 증명하지 "경고가 맞는 해결책을 말하는가"는 증명 못 한다 — critic이 sync.ts 소스까지 추적해서야 잡힘. 사용자 대면 문구(에러 메시지·경고·안내)는 로직과 별개로 "이 명령을 실제로 실행하면 뭐가 일어나는가"까지 코드로 추적해야 한다.
+- **문구 복제(vhk-dir.ts↔context.ts)가 버그도 함께 복제한다.** 이번 세션에서만 2번째(goal 90의 sync 라우팅 미탐지 섹션도 비슷한 급의 "매칭 규칙 미검증" 사례) — 같은 로직을 두 파일에 손으로 복붙하면 한쪽만 고치고 잊기 쉬움. import 제약(vhk-dir.ts 무의존 컨벤션) 때문에 공유 헬퍼로 안 뽑았지만, 최소한 두 곳 다 동시에 고쳤는지는 매번 grep으로 재확인해야 함.
+- **critic이 "게이트 다 green"인 4개 goal 중 3개(88 제외 — 89·90·91)에서 전부 실제 결함을 찾았다.** 표본이 작지만 이 세션 안에서는 "기계적으로 작은 작업"(88)만 critic이 클린 통과를 줬고, "사용자 대면 문구/설계 판단이 들어간 작업"(89·90·91)은 매번 뭔가 잡혔다 — 다음에 유사 작업 분류할 때 참고할 신호.
+
+## 다음
+4개 goal(88·89·90·91) 전부 완료. 사용자에게 최종 보고 예정. 세션 중 별도 이연 항목: PAT 번호 확정(사용자 확인 필요) · `rules-md.ts`의 `## 안전 규칙` 미매핑 부수 버그(goal 90에서 발견, 별도 goal 후보) · 기존 사주운세/축구 레포 retrofit(범위 밖, 재실행으로 나중에 가능).

@@ -81,7 +81,8 @@ export function generateCoreRulesFileContent(existing: string | null): string {
 export function generateTierSContextSeed(cwd: string): string {
   const base = path.basename(cwd)
   const name = base.replace(/-/g, ' ')
-  return VHK_CONTEXT_SEED(name, 'tier-s-ecosystem', ['see RULES.md'])
+  const cr = loadCoreRuleset()
+  return VHK_CONTEXT_SEED(name, 'tier-s-ecosystem', ['see RULES.md'], { source: cr.source, version: cr.version })
 }
 
 export function generateMcpJsonExampleContent(cwd: string): string {

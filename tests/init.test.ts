@@ -6,6 +6,7 @@ import path from 'node:path'
 import { generateFiles, enhancePackageScripts, ensureRootGitignore, ensureCustomizationMarker, ensureSessionStartHook } from '../src/commands/init.js'
 import { COMMANDS_MD_TEMPLATE } from '../src/templates/commands-md.js'
 import { CUSTOMIZATION_HOOK_TEMPLATE } from '../src/templates/customization-hook.js'
+import { VHK_CONTEXT_SEED } from '../src/templates/vhk-dir.js'
 import { parseRulesMd } from '../src/commands/sync.js'
 import { writeFile } from '../src/utils/file.js'
 
@@ -147,6 +148,28 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     expect(ctx).toContain('vhk context')
     expect(ctx).toContain('webapp')
     expect(ctx).toContain('Next.js')
+  })
+
+  it('VHK_CONTEXT_SEED 가 core-rules 소스를 표기한다 (live/bundled, goal 91)', () => {
+    const live = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'live', version: '9.9.9' })
+    expect(live).toContain('live')
+    expect(live).toContain('9.9.9')
+    const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: '0.1.0' })
+    expect(bundled).toContain('bundled')
+    expect(bundled).toContain('번들 스냅샷')
+  })
+
+  // critic 지적(2026-07-03): "YOHAN_BRAIN_ROOT 미설정"이라 단정하면 env는 설정됐지만
+  // yaml 읽기가 실패한 케이스(core-rules.ts:85 catch 분기)에서 사용자가 "설정했는데 왜
+  // 미설정이래?" 혼란에 빠진다 — 두 원인 다 포괄하는 문구인지 회귀 가드.
+  it('bundled 문구가 "미설정"으로 단정하지 않는다 (읽기실패 케이스도 포괄, goal 91 critic)', () => {
+    const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: '0.1.0' })
+    expect(bundled).toContain('읽기 실패')
+  })
+
+  it('version="unknown" 이면 "vunknown" 대신 사람이 읽을 표기를 쓴다 (goal 91 critic)', () => {
+    const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: 'unknown' })
+    expect(bundled).not.toContain('vunknown')
   })
 
   it('유형별로 씨앗 내용이 다르다 (프리셋)', () => {

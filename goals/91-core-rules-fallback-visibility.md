@@ -3,9 +3,10 @@ vhk_format: 1
 type: goal
 id: 91
 title: core-rules 폴백 가시화 — YOHAN_BRAIN_ROOT 미설정 시 조용한 구버전 스냅샷 사용을 경고 — P2
-status: NOT_STARTED
+status: DONE
 priority: P2
 created: 2026-07-03
+completed: 2026-07-03
 leads_to: "헌법도 자동 반영 안 됨" 불만의 유력 원인(조용한 폴백)을 가시화 — 최소 수정으로 독립 완료 가능
 ---
 
@@ -29,10 +30,31 @@ leads_to: "헌법도 자동 반영 안 됨" 불만의 유력 원인(조용한 �
 
 ## Completion Check
 
-- [ ] `source='bundled'`일 때 init/start 콘솔 출력에 경고 문구 포함
-- [ ] `source='live'`일 때 경고 없음(회귀 없음)
-- [ ] `.vhk/context.md`에 core-rules 소스 표기
-- [ ] 공통 게이트(_meta) + `check-goal-91.mjs`(status `NOT_STARTED` 단계라 스텁 허용)
+- [x] `source='bundled'`일 때 init/start 콘솔 출력에 경고 문구 포함
+- [x] `source='live'`일 때 경고 없음(회귀 없음)
+- [x] `.vhk/context.md`에 core-rules 소스 표기 (init 시드 + `vhk context`/`vhk start` 5단계 양쪽)
+- [x] 공통 게이트(_meta) + `check-goal-91.mjs`(고유 검증 6개로 채움)
+
+## 구현 결과 (2026-07-03)
+
+- `src/templates/vhk-dir.ts` `VHK_CONTEXT_SEED()` 4번째 인자(`core: {source, version}`) 추가 — 호출처 2곳(`init.ts`·`inject-bootstrap.ts`) 전부 갱신.
+- `src/commands/init.ts` — `generateFiles()`가 시드에 소스 배선 + `init()` 꼬리에서 `source==='bundled'`면 `log.warn` 경고.
+- `src/commands/context.ts` — `vhk start` 5단계(`context()`가 `.vhk/context.md`를 완전히 덮어씀)에도 동일 섹션 별도 배선.
+- `src/i18n/ko.ts` — `coreRulesBundledWarn(version)` 신규 키.
+
+### critic 적대검증이 찾은 진짜 결함과 수정 (구현 1차 완료 후)
+
+1. **(High) 조치 안내 명령이 틀림** — 초안 문구가 "`vhk sync`를 다시 실행하세요"라고 안내했지만, `sync.ts`의 `SYNC_TARGETS`(7개 미러 파일)는 `.agents/CORE-RULES.md`를 절대 건드리지 않음(grep 0건, 직접 확인). 실제 재생성기는 `inject-bootstrap.ts`의 `injectBootstrapAll`뿐이고, `writeInjectFile`이 `--force`/`--yes` 없으면 기존 파일을 `skipped`함(`isCurrentCoreRules`가 버전 태그로 판정하므로 plain 재실행도 무력함을 확인). 사용자가 지시대로 `vhk sync`를 실행하면 "완료" 메시지를 보고 헌법이 갱신됐다고 **거짓 확신**하지만 실제 파일은 그대로였음 — 문구를 `vhk inject-bootstrap --force`로 정정.
+2. **(Medium) "YOHAN_BRAIN_ROOT 미설정" 단정** — `loadCoreRuleset()`은 진짜 미설정과 "설정은 됐지만 yaml 읽기 실패"(catch 분기, `core-rules.ts:85`) 둘 다 `bundled`로 수렴하는데 문구가 "미설정"만 언급 — 후자 케이스면 사용자가 "설정했는데 왜 미설정이래?"에 빠짐. "미설정 또는 라이브 파일 읽기 실패"로 정정(3개소: `ko.ts`·`vhk-dir.ts`·`context.ts`, critic이 `context.ts`가 `vhk-dir.ts` 로직을 그대로 복제했다는 점도 지적해 양쪽 다 수정).
+3. **(Low) 과거형 "생성됐어요" 부정확** — 브라운필드 재-init에서 파일이 이미 있으면 write 루프가 skip하는데도 경고는 무조건 "생성됐어요"라 표현 — "사용되고 있어요"(상태 서술)로 정정, High #1 수정과 통합.
+4. **(Low) `version:'unknown'` → "vunknown" 표기** — yaml에 version 필드 없으면 "번들 스냅샷(vunknown)"으로 렌더 — `version==='unknown'` 분기로 "버전 미상" 표기.
+
+검증 통과 확인 항목(critic): 두 `VHK_CONTEXT_SEED` 호출처 전부 갱신(4번째 인자 필수라 누락 시 `tsc` 즉시 실패, 실제 exit 0 확인) · `log.warn` 이모지 자동 접두와 문구 내 중복 없음 · `start.ts` 순서상 `context()` 별도 수정이 불필요한 중복이 아님(2단계 init → 5단계 context가 덮어씀) · 이중 `loadCoreRuleset()` 호출(시드용/경고용) 사이 상태 변화 없어 타이밍 버그 없음 · 테스트가 실제 `console.log`→`log.warn`→`sink` 경로를 검증(우연 통과 아님) · `.vhk/context.md` 신규 섹션이 `drift.ts`의 sha 추출 정규식을 안 깸.
+
+out of scope로 명시 보류: context 드리프트 감지가 core 소스 변경 자체는 추적 안 함(goal 91 범위 밖, 새 섹션은 정적 마커 성격).
+
+### 게이트
+`pnpm build`·`pnpm exec tsc --noEmit`·`pnpm lint` clean. `pnpm test:run` 2185/2185 pass.
 
 ## Forbidden Actions (OUT)
 

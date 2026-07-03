@@ -19,7 +19,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { printSecurityWarnings } from '../lib/check-secure.js'
 import { log } from '../utils/logger.js'
 import { writeFile, fileExists } from '../utils/file.js'
-import { generateCoreRulesContent } from '../lib/core-rules.js'
+import { generateCoreRulesContent, loadCoreRuleset } from '../lib/core-rules.js'
 import { generateEcosystemMdcContent } from '../lib/inject-bootstrap.js'
 import { VISION_TEMPLATE } from '../templates/vision.js'
 import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
@@ -305,6 +305,11 @@ export async function init(options: InitOptions = {}) {
     log.warn(ko.init.missionScaffoldCorrupt)
   }
 
+  const coreRulesCheck = loadCoreRuleset()
+  if (coreRulesCheck.source === 'bundled') {
+    log.warn(ko.init.coreRulesBundledWarn(coreRulesCheck.version))
+  }
+
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
   if (options.fromNotion) {
@@ -340,6 +345,7 @@ export function generateFiles(
     tagline: description,
     ...prdContent,
   }
+  const coreRules = loadCoreRuleset()
 
   return {
     'CLAUDE.md': CLAUDE_MD_TEMPLATE(name, stackStr),
@@ -358,7 +364,10 @@ export function generateFiles(
     'BACKLOG.md': `# BACKLOG\n\n> v1 OUT 기능은 여기에 기록. 범위 수비 필수.\n\n## v1.1 후보\n\n- \n`,
     // .vhk/ 씨앗 — 규격: docs/spec.md (spec_version 1.1)
     '.vhk/README.md': VHK_README_TEMPLATE(),
-    '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack),
+    '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack, {
+      source: coreRules.source,
+      version: coreRules.version,
+    }),
     '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),
     // 증거 원장(events·ledger)에 merge=union — 멀티PC append 분기 자동 병합(A축). 추적 유지 전제.
     '.vhk/.gitattributes': VHK_GITATTRIBUTES_TEMPLATE(),

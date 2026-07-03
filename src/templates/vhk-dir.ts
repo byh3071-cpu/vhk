@@ -126,9 +126,15 @@ export function VHK_IGNORE_TEMPLATE(): string {
 export function VHK_CONTEXT_SEED(
   name: string,
   type: string,
-  stack: string[]
+  stack: string[],
+  core: { source: 'live' | 'bundled'; version: string }
 ): string {
   const stackList = stack.map(s => '- ' + s).join('\n')
+  const versionLabel = core.version === 'unknown' ? '버전 미상' : `v${core.version}`
+  const coreLine =
+    core.source === 'live'
+      ? `- live — YOHAN_BRAIN_ROOT 라이브 상속 (${versionLabel})`
+      : `- bundled — 번들 스냅샷 (${versionLabel}) · YOHAN_BRAIN_ROOT 미설정 또는 라이브 파일 읽기 실패, 최신 아닐 수 있음`
   return [
     '# ' + name + ' — 프로젝트 맥락',
     '',
@@ -139,6 +145,9 @@ export function VHK_CONTEXT_SEED(
     '',
     '## 기술 스택',
     stackList,
+    '',
+    '## 헌법(core-rules) 소스',
+    coreLine,
     '',
     '## 주요 결정사항',
     '- (아직 없음 — `vhk memory add` 로 기록)',

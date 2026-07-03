@@ -217,6 +217,13 @@ export const ko = {
     customizationMarkerDone: '🎯 .vhk/NEEDS_CUSTOMIZATION 생성 — 첫 세션에서 도메인 인터뷰 자동 트리거',
     customizationHookWired: '🪝 .claude/settings.json SessionStart 훅 배선 (커스터마이징 트리거)',
     customizationHookSkipped: '⚠️  .claude/settings.json 파싱 실패 — SessionStart 훅 배선 건너뜀(기존 파일 보존).',
+    coreRulesBundledWarn: (version: string) => {
+      const v = version === 'unknown' ? '버전 미상' : `v${version}`
+      return (
+        `YOHAN_BRAIN_ROOT 미설정 또는 라이브 파일 읽기 실패 — 헌법(core-rules)이 번들 스냅샷(${v})으로 사용되고 있어요. ` +
+        `최신이 아닐 수 있어요. 라이브로 갱신하려면 YOHAN_BRAIN_ROOT 설정 후 vhk inject-bootstrap --force 를 실행하세요.`
+      )
+    },
     adoptPrompt: (n: number, list: string) =>
       `📥 기존 규칙 파일 ${n}개 발견 (${list}). RULES.md로 가져올까요?`,
     adoptPreview: (n: number) =>
