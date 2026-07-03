@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { log } from '../../utils/logger.js'
 import { atomicWriteFile } from '../../lib/atomic-write.js'
 import { isInteractive } from '../../lib/interactive.js'
+import { ensureNotHardStopped } from '../../lib/hard-stop-guard.js'
 import { readSeoLatest, type SeoLatest } from './types.js'
 
 /**
@@ -108,6 +109,10 @@ export function renderSeoReportHtml(latest: SeoLatest): string {
 }
 
 export async function seoReport(opts: { open?: boolean; yes?: boolean } = {}, root: string = process.cwd()): Promise<void> {
+  // 실전재검증 감사(2026-07-03) 발견 — #335/#336(seo init/submit)과 동일한 가드 누락 패턴의
+  // 3번째 재발 후보였음. report.html 디스크 쓰기 전 차단(submit.ts·init.ts 와 동일하게 헤더보다 먼저).
+  if (!ensureNotHardStopped('seo report')) return
+
   log.bold('\n🖥️  vhk seo report — 무빌드 HTML 대시보드\n')
 
   const latest = readSeoLatest(root)
