@@ -38,6 +38,14 @@ URL Inspection은 2,000/일·600/분 한도가 있어 한도 가드가 필수.
 - [ ] vhk goal sync → check-goal-23.mjs → vhk goal check --id 23 통과
 - [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
 
+## 완료 처리 정정 (2026-07-03, 실전재검증 감사 중 발견)
+
+Completion Check 7개가 전부 `[ ]` 미체크인 채로 `status: DONE`이었다 — RFC 0054(2026-06-20)가 이 goal의 완료 범위를 재정의했는데 근거가 이 파일에 안 적혀 있었다. 실측 재확인 결과:
+
+- **실제로 된 것**: URL Inspection 한도 가드(2000/일·600/분, 순수 산수), `latest.json` 스키마 정의(`types.ts`).
+- **아직 안 된 것(RFC 0054 §7, D2 실행력 단계로 이관)**: GSC `searchanalytics.query`/`sitemaps`/`urlInspection` 실호출, GA4 `runReport` 실호출 — `check.ts`에 `fetch`/`axios`/`googleapis` 0줄. **더 근본적으로, `seoCheck()`가 `writeSeoLatest()`를 한 번도 호출하지 않아 실행해도 `latest.json` 자체가 안 만들어진다** — API 키 유무와 무관하게 로컬 파이프라인이 끊겨있음(단순 미연동보다 한 단계 더 미완성).
+- 위 Completion Check 박스는 다시 안 고친다(과거 이력 append-only) — 이 섹션이 정확한 현재 상태.
+
 ## 제외 범위
 - 수익·빙 수집(Goal 24) / HTML 렌더(Goal 25)
 - Universal Analytics API, Custom Search JSON API — 사용 금지(사망)
