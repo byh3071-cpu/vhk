@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-07-02
-- **버전:** v2.9.0 — 사실 확인은 package.json·CHANGELOG
-- **테스트:** ~2139 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
-- **Phase:** **[2026-07-01] 자가진화 복리 척추 완성 스프린트** — 병렬 실행 계획(vhk-goal-shimmying-moore) 실행: 밤샘 무인루프(vhk 실결함 2건 #432·#433)·**복리 척추 5개 전 항목 머지** — N3+N2(#434 `vhk win`+reinforce evolve, ⓒ)·N6(#435 `stats --trend`, ⓔ)·N1(#436 `loop --tick`, ⓐ)·N4(#437 objective 토큰 교집합, ⓑ)·N5(#438 `evolve digest`, ⓓ). 각 TDD + 다각 적대리뷰(반증·Workflow) + CI green. **폐회로**: win→reinforce→evolve digest→apply(사람)→RULES→receipt(objective 대조)→receipt-log→`stats --trend`→`loop --tick`. **이전**: 서브에이전트 정책 ADR-007·critic 쓰기구멍(memory 필드 확정). 상세 docs/state·docs/log·CHANGELOG.
+**마지막 갱신:** 2026-07-03
+- **버전:** v2.9.0 — 사실 확인은 package.json·CHANGELOG (미발행 누적 +4 커밋, 버전 안 올림)
+- **테스트:** 2206 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
+- **Phase:** **[2026-07-03] goal 88~92 완결 + RFC 0057(기억/복리/에이전트불가지론) 브레인스토밍 착수** — init 커스터마이징 트리거(88~90)·core-rules 폴백 가시화(91)·core-rules 자동화(92, `~/.vhk/config.json`) 전부 TDD+critic 2라운드 완결. SEO goal 22~26 재감사(RFC 0054 확인). RFC 0057 실측 감사(트리거계층 CC전용·`ecosystem.mdc` 모순문구·receipt agent필드 없음 확정) → 스코프 제안, **사용자 응답 대기 중 인계**. 상세 docs/state 최상단.
 - **블로커:** 없음
-- **진행 중(미완):** 없음 — 스프린트 요청분 전부 머지.
-- **다음 할 일:** **[2026-07-01] ✅ v2.8.0 발행 완료**(npm latest) · **ecosystem 6 PR 로컬 검증 완료**(pytest 170·typecheck·lint green → 사용자 머지 대기). **후속 3건 상세 핸드오프 → [docs/log/2026-07-01-followup-handoff.md](docs/log/2026-07-01-followup-handoff.md)**: ① 🔧**선재버그** evolve/goal/seo 한글 서브별칭 CLI 차단(`cli-args.ts:255`·중난이도·전 컨테이너) · ② 📊**measure-first**(도구 완비·`vhk memory eval --init` 사용자 대화형 라벨링 게이트) · ③ 🪝**N11 evolve-nudge Stop hook**(S·N1 `loop --tick` 재사용). 상세 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단.
-- **주의:** publish는 main에서만(#119)·사용자 직접(2FA=Windows 보안키→실 터미널 `npm publish --ignore-scripts`) / 직접 main push 차단 → PR 경유 / 로컬 게이트에 **`pnpm lint` 필수**(CI gate=lint 포함 — typecheck+test만으론 CI fail) / 적대리뷰 워크플로 에이전트 read-only 명시·`yohan-core:critic` 쓰기 열림(호출 시 쓰기·커밋 금지) / 동시세션 docs/state 충돌 주의
+- **진행 중(미완):** RFC 0057 브레인스토밍 — 스코프 제안(①`ecosystem.mdc` 모순 제거 ②receipt agent 필드 ③트리거 격차 문서화)까지 진행, **사용자 승인 대기**(brainstorming 스킬 HARD-GATE — 설계 승인 전 구현 금지). 다음 세션은 이 승인 질문부터.
+- **다음 할 일:** RFC 0057 스코프 승인받고 스펙 작성 → 구현. **push origin 안 함**(main 직접 push 가드 #119 — 로컬 커밋 4개, PR 경유 여부 사용자 판단) · npm publish 안 함(2FA, 사람만). 상세 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단.
+- **주의:** publish는 main에서만(#119)·사용자 직접(2FA=Windows 보안키→실 터미널 `npm publish --ignore-scripts`) / 직접 main push 차단 → PR 경유 / 로컬 게이트에 **`pnpm lint` 필수**(CI gate=lint 포함 — typecheck+test만으론 CI fail) / 적대리뷰 워크플로 에이전트 read-only 명시 / **워크트리 병합 직전 `git branch --show-current` 재확인**(다른 동시 세션이 공유 체크아웃 브랜치를 바꿀 수 있음, 2026-07-03 `vhk-readme-redesign` 오염 사고로 실증) / 동시세션 docs/state 충돌 주의
