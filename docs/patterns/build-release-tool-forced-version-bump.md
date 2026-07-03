@@ -4,7 +4,7 @@
 출처프로젝트: VHK (vhk-cli)
 태그: [npm, publish, release, semver, version-bump, CLI]
 발견일: 2026-06-03
-출처DevLog: Notion Dev Log `vhk-pattern-release-tool-forced-bump` (https://app.notion.com/p/00000000-0000-0000-0000-000000000000)
+출처DevLog: Notion Dev Log `vhk-pattern-release-tool-forced-bump`
 ---
 
 # 패턴: 릴리즈 CLI 가 버전을 항상 범프하면 pre-set 버전을 발행 못 한다
