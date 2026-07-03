@@ -1,14 +1,28 @@
 <!-- English README (round-2 launch asset). Korean README.md is the source of truth; keep in sync on release. -->
 
-# VHK - Vibe Harness Kit
+<div align="center">
 
-> **v2.9.0** — A full-cycle, agent-agnostic coding harness. AI models keep changing; VHK keeps your project from collapsing when you swap the agent — or when a stronger model replaces your main one entirely.
+# VHK — Vibe Harness Kit
 
-VHK is **not** a coding agent. It's the harness underneath them. The model is the swappable part; the **system — rules, spec, evidence, memory, structure — lives in your repo**. Whether Claude Code, Codex, Cursor, Copilot, Gemini, or whatever's next does the work, the rules, gates, and context stay the same. It carries a project full-cycle: scaffold → spec → build with evidence gates → ship → even draft marketing/ops.
+**A full-cycle, agent-agnostic coding harness that survives swapping the model underneath.**
 
-You don't have to memorize commands. Run `vhk` for a menu, or use natural language like `vhk save`, `vhk goal next`, `vhk preflight`.
+Wrap whatever agent you use — Claude Code, Cursor, Codex — in one loop of review · verify · memory.
+Rules compound as you go, so the project doesn't collapse when a better model replaces your main one. **Korean-first.**
 
-> Korean-first: the tool routes Korean natural language too (`vhk 저장해줘`). English docs are catching up — the Korean [README.md](README.md) is the fullest reference.
+[![CI](https://github.com/byh3071-cpu/vhk/actions/workflows/ci.yml/badge.svg)](https://github.com/byh3071-cpu/vhk/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@byh3071/vhk?logo=npm)](https://www.npmjs.com/package/@byh3071/vhk)
+![node](https://img.shields.io/node/v/@byh3071/vhk)
+![license](https://img.shields.io/badge/license-MIT-blue)
+![MCP](https://img.shields.io/badge/MCP-35_tools-8A2BE2)
+
+**[Quick Start](#install) · [VHK vs. a bare agent](#vhk-vs-a-bare-agent) · [Core loops](#core-loops)**
+
+</div>
+
+> [!NOTE]
+> VHK is **not** a coding agent. It wraps the ones you already use and pins "what we agreed to do · is it actually done · where the next session resumes" as files + CLI gates. Swap the model — the rules, memory, and gates stay in your repo.
+
+Run `vhk` for a menu, or natural language: `vhk save`, `vhk goal next`, `vhk preflight`. Korean-first (`vhk 저장해줘`); the Korean [README.md](README.md) is the fullest reference.
 
 ## Why VHK
 
@@ -21,6 +35,19 @@ You don't have to memorize commands. Run `vhk` for a menu, or use natural langua
 | The same mistakes repeat | Accumulate lessons + rule candidates | `vhk learn` |
 | Work continues from an unsafe state | 3 stacked blockers → `.vhk/HARD_STOP` | `vhk blocker` |
 | AI cost leaks unnoticed | Budget/usage guard (warn at 80%, block at 100%) | `vhk cost` |
+
+## VHK vs. a bare agent
+
+VHK doesn't replace your agent — it fills the layer above: the repetition, memory, and gates an agent can't hold on its own.
+
+| | Bare agent<br/>(Claude Code · Cursor alone) | Plain CI · eslint | **VHK** |
+| --- | --- | --- | --- |
+| Adversarial code review | on request, inconsistent | static rules only | **repeated gate** |
+| Execution-based verification | partial (claims) | tests only | **runs `verify`, records evidence** |
+| Rules & memory across model swaps | evaporate with the session | n/a | **portable rules · carried memory** |
+| Rules that self-accumulate | none | manual config | **auto-appended every session** |
+| Korean-first | English default | n/a | **Korean SoT + NL routing** |
+| Release gate enforcement | none | pass/fail | **preflight · goal gate loop** |
 
 ## Install
 
