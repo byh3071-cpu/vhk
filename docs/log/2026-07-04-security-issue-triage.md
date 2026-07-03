@@ -46,7 +46,22 @@ goals/next-task.md/CHANGELOG/소스코드와 교차검증 → 결과 보고 후 
 2. **알럿 6건 dismiss** — #4·#5·#1·#3·#7·#9, `false_positive` 사유 + 근거 코멘트와 함께
    `gh api ... -X PATCH -f state=dismissed`.
 3. **이슈 2건 close** — #271·#364, 근거 코멘트와 함께 `gh issue close`.
-4. **이슈 #289** — 재현 테스트로 실측 확인 후 close 여부 결정(별도 기록).
+4. **이슈 #289** — `tests/context.test.ts`에 재현 테스트 추가(goals/blockers/memory 전부
+   빈 상태로 `context()` 호출). **결과: close 보류, 이슈 유지.** 크래시는 없지만(정적
+   섹션은 항상 렌더), "## Active Goal"·"## Active Blockers"·"## 저장된 기억" 3개 섹션이
+   전부 조건부 생략을 실측 확인 — 신규/희소 프로젝트(goals·blockers·memory 미사용)에서는
+   context.md가 정적 프로젝트 구조 정보만 담고 "작업상태·핵심결정"은 여전히 0건. 이슈
+   원제보(cafe-pos-vhk 추정 시나리오)가 이 조건에서는 아직 유효 — 계획 문서의 "테스트
+   실패 시 close 대신 수정 전환" 원칙에 따라 close하지 않고 실측 결과를 이슈 코멘트로
+   남김(수정은 범위 밖 — 별도 판단 필요).
+
+## 결론 요약 (해결됨 vs 오탐 vs 유지 구분)
+
+- **실제 해결**: #6(코드수정)·#271·#364(이미 해결된 것 뒤늦은 close) = 3건
+- **애초에 문제 아님(오탐 확정)**: #4·#5 = 2건
+- **오늘 기준 안전, 구조적 잠재리스크는 미해소**: #1·#3·#7·#9 = 4건(dismiss했지만 `safeExecFile`의
+  Windows shim cmd.exe 래핑 자체를 하드닝하는 별도 작업은 이번 범위 밖)
+- **유지(실측으로 이슈 여전히 유효)**: #289 = 1건, close 안 함
 
 ## 교훈
 
