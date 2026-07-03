@@ -31,7 +31,9 @@ export function bumpVersion(current: string, type: BumpType): string {
  * - 버전 항목이 하나도 없으면 끝에 덧붙임.
  */
 export function insertChangelogStub(content: string, version: string, date: string): string {
-  const escaped = version.replace(/\./g, '\\.')
+  // CodeQL #6(js/incomplete-sanitization): `.`만 이스케이프하면 다른 정규식 메타문자
+  // (|·*·+ 등)가 그대로 남아 다른 버전 항목과 오매칭될 수 있다 — 메타문자 전체를 이스케이프.
+  const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   if (new RegExp(`^## \\[${escaped}\\]`, 'm').test(content)) return content
   const stub = `## [${version}] - ${date}\n\n_변경 내역 작성 필요._\n\n`
   const firstEntry = content.match(/^## \[\d+\.\d+\.\d+\]/m)
