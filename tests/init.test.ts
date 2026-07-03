@@ -418,6 +418,47 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
       fs.rmSync(dir, { recursive: true, force: true })
     })
 
+    // 실전 검증 감사(2026-07-03): 훅 command 가 상대경로(`node .vhk/hooks/...`)라
+    // Claude Code 가 SessionStart 훅을 어떤 cwd 로 spawn 하는지 보장 안 되면 "command not
+    // found"로 조용히 실패할 위험(공식 문서: 훅 command 경로는 ${CLAUDE_PROJECT_DIR} 또는
+    // 절대경로 사용 권장). 프로젝트 이동/클론 대비 상대경로였던 원래 의도는
+    // ${CLAUDE_PROJECT_DIR}(Claude Code 가 매번 실제 프로젝트 루트로 동적 치환)가 절대경로이면서도
+    // 그대로 만족한다 — 트레이드오프 없는 강화.
+    it('SessionStart 훅 command 가 ${CLAUDE_PROJECT_DIR} 로 cwd 무관하게 경로를 고정한다', () => {
+      const dir = mkTmp()
+      ensureSessionStartHook(dir)
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      expect(parsed.hooks.SessionStart[0].hooks[0].command).toContain('${CLAUDE_PROJECT_DIR}')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    // 공식 문서 예시(`"$CLAUDE_PROJECT_DIR"/...`)는 변수를 따옴표로 감싼다 — Windows 사용자
+    // 경로에 공백(예: "C:\Users\John Doe\...")이 있으면 미보호 시 셸이 단어분리해 command가
+    // 깨질 수 있음. 전체를 큰따옴표로 감싸 방지.
+    it('SessionStart 훅 command 가 경로 공백 대비 큰따옴표로 감싸져 있다', () => {
+      const dir = mkTmp()
+      ensureSessionStartHook(dir)
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      expect(parsed.hooks.SessionStart[0].hooks[0].command).toContain('"${CLAUDE_PROJECT_DIR}/.vhk/hooks/customization-check.mjs"')
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
+    // 공식 문서의 SessionStart matcher 예시는 전부 단일값(`"startup"`·`"compact"`)뿐 —
+    // 파이프 OR(`startup|resume`)가 SessionStart 에서도 동작하는지 문서로 100% 확정 못 함
+    // (claude-code-guide 조사, 2026-07-03). 문서에 실제로 나온 단일값 패턴 2개로 분리해
+    // 트리거 전체가 조용히 안 뜨는 catastrophic 실패 가능성을 원천 제거.
+    it('SessionStart 훅이 파이프 matcher 대신 startup·resume 각각 단일 entry 로 분리된다', () => {
+      const dir = mkTmp()
+      ensureSessionStartHook(dir)
+      const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
+      const matchers = parsed.hooks.SessionStart.map((e: { matcher: string }) => e.matcher)
+      expect(matchers).toEqual(['startup', 'resume'])
+      for (const entry of parsed.hooks.SessionStart) {
+        expect(entry.hooks[0].command).toContain('customization-check.mjs')
+      }
+      fs.rmSync(dir, { recursive: true, force: true })
+    })
+
     it('기존 훅(PreToolUse 등)이 있으면 보존하면서 SessionStart 만 병합한다', () => {
       const dir = mkTmp()
       fs.mkdirSync(path.join(dir, '.claude'), { recursive: true })
@@ -435,10 +476,10 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
 
     it('이미 배선돼 있으면 중복 추가하지 않는다', () => {
       const dir = mkTmp()
-      ensureSessionStartHook(dir)
+      ensureSessionStartHook(dir) // startup·resume 2개 entry 생성
       expect(ensureSessionStartHook(dir)).toBe('unchanged')
       const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
-      expect(parsed.hooks.SessionStart.length).toBe(1)
+      expect(parsed.hooks.SessionStart.length).toBe(2)
       fs.rmSync(dir, { recursive: true, force: true })
     })
 
@@ -462,9 +503,11 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
       )
       expect(ensureSessionStartHook(dir)).toBe('merged')
       const parsed = JSON.parse(fs.readFileSync(path.join(dir, '.claude', 'settings.json'), 'utf-8'))
-      expect(parsed.hooks.SessionStart.length).toBe(2)
+      // 기존 1개(clear) + 신규 2개(startup·resume, 파이프 matcher 분리) = 3개
+      expect(parsed.hooks.SessionStart.length).toBe(3)
       expect(parsed.hooks.SessionStart[0].hooks[0].command).toBe('echo other')
       expect(parsed.hooks.SessionStart[1].hooks[0].command).toContain('customization-check.mjs')
+      expect(parsed.hooks.SessionStart[2].hooks[0].command).toContain('customization-check.mjs')
       fs.rmSync(dir, { recursive: true, force: true })
     })
 

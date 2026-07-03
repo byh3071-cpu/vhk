@@ -507,11 +507,19 @@ export function ensureCustomizationMarker(projectDir: string): boolean {
   return true
 }
 
-const CUSTOMIZATION_HOOK_CMD = 'node .vhk/hooks/customization-check.mjs' // 상대경로 — 프로젝트 이동/클론 대비
-const SESSION_START_ENTRY = {
-  matcher: 'startup|resume',
+// ${CLAUDE_PROJECT_DIR} — Claude Code 가 훅 실행 시 실제 프로젝트 루트로 동적 치환(공식 권장 패턴).
+// 상대경로(cwd 의존)는 Claude Code 가 SessionStart 훅을 어떤 cwd 로 spawn 하는지 미보장이라
+// "command not found"로 조용히 실패할 위험 — 절대경로이면서도 프로젝트 이동/클론에 안전하다.
+// 큰따옴표로 전체 경로를 감쌈 — 프로젝트 경로에 공백(Windows에서 흔함, 예: "John Doe")이 있어도
+// 셸이 단어분리하지 않게 보호(공식 문서 예시도 변수를 따옴표로 감쌈).
+const CUSTOMIZATION_HOOK_CMD = 'node "${CLAUDE_PROJECT_DIR}/.vhk/hooks/customization-check.mjs"'
+// 공식 문서의 SessionStart matcher 예시는 전부 단일값('startup'·'compact')뿐 — 파이프 OR가
+// SessionStart 에서도 지원되는지 문서로 확정 안 됨. 단일값 2개 entry 로 분리해 트리거 전체가
+// 조용히 안 뜰 위험을 원천 제거(startup/resume 은 상호배타적이라 중복 실행 없음).
+const SESSION_START_ENTRIES = ['startup', 'resume'].map((matcher) => ({
+  matcher,
   hooks: [{ type: 'command', command: CUSTOMIZATION_HOOK_CMD, timeout: 10 }],
-}
+}))
 
 /**
  * goal 89 — 새 프로젝트의 .claude/settings.json 에 SessionStart 훅을 심는다.
@@ -527,7 +535,7 @@ export function ensureSessionStartHook(
     fs.mkdirSync(path.dirname(file), { recursive: true })
     fs.writeFileSync(
       file,
-      JSON.stringify({ hooks: { SessionStart: [SESSION_START_ENTRY] } }, null, 2) + '\n',
+      JSON.stringify({ hooks: { SessionStart: SESSION_START_ENTRIES } }, null, 2) + '\n',
       'utf-8'
     )
     return 'created'
@@ -571,7 +579,7 @@ export function ensureSessionStartHook(
   })
   if (already) return 'unchanged'
 
-  arr.push(SESSION_START_ENTRY)
+  arr.push(...SESSION_START_ENTRIES)
   hooks.SessionStart = arr
   root.hooks = hooks
   fs.writeFileSync(file, JSON.stringify(root, null, 2) + '\n', 'utf-8')

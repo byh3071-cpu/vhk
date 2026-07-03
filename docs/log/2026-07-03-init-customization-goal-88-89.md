@@ -188,3 +188,30 @@ opus 설계(핵심 발견 2개: `VHK_CONTEXT_SEED` 호출처 2곳·`vhk start` 5
 
 ## 다음
 goal 89 체감 검증(사람 손 필요) 대기 — 별도로 임시 프로젝트에서 `vhk init` 후 실제 Claude Code 세션을 열어 SessionStart 넛지 확인 필요. 확인되면 goal 89 Completion Check 47행 체크 + status `DONE` 전환. `inject-bootstrap --only core-rules` 스코프 플래그는 향후 goal 후보로만 기록(지금 미착수).
+
+## 추가 — 도메인 커스터마이징 신뢰도 심화 조사 (같은 날, 후속) — 훅 산출물 실측 + 공식 사양 대조
+
+사용자가 "도메인 커스터마이징 실제 신뢰도"를 더 파보자고 요청 — 임시 프로젝트에 실제로 `vhk init` 돌려서 산출물을 직접 검사 + `claude-code-guide` 에이전트로 Claude Code 공식 사양과 대조.
+
+### 실측 1 — 훅 산출물 자체는 정확히 작동
+스크래치 폴더에 `node dist/index.js init -y`로 실제 실행 → `.claude/settings.json`·`.vhk/hooks/customization-check.mjs` 생성 확인. 훅 스크립트를 직접 실행해 `hookSpecificOutput.additionalContext` JSON이 한 줄로 정확히 찍히는지, `customization-done` 마커 있을 때 무출력인지, exit code 0인지 전부 확인 — 스크립트 레벨은 결함 없음.
+
+### 실측 2 — claude-code-guide 공식 사양 대조에서 실전 신뢰성 갭 2건 발견
+1. **cwd 미보장**: 훅 command가 상대경로(`node .vhk/hooks/...`)였는데, Claude Code가 SessionStart 훅을 어떤 cwd로 spawn하는지 공식 문서에 명시가 없음. 문서가 명시적으로 권장하는 패턴(`${CLAUDE_PROJECT_DIR}` 또는 절대경로 사용, 예시: `"$CLAUDE_PROJECT_DIR"/.claude/hooks/...`)과 어긋남 — cwd가 프로젝트 루트가 아니면 "command not found"로 조용히 실패할 위험.
+2. **matcher 파이프 OR 미확정**: `"startup|resume"` 조합이 SessionStart matcher에서도 유효한지 공식 문서 예시엔 전부 단일값(`"startup"`·`"compact"`)만 있어 확정 못 함 — 안 되면 트리거 자체가 조용히 안 뜨는 catastrophic 실패.
+3. (부수 발견) 문서 예시가 변수를 따옴표로 감싸는 걸 보고 대조 중 발견: 경로 공백(Windows에서 흔함) 미보호.
+
+### 변경 (전부 TDD, 트레이드오프 없는 강화)
+- `src/commands/init.ts` — `CUSTOMIZATION_HOOK_CMD`를 `${CLAUDE_PROJECT_DIR}` 절대경로 + 큰따옴표로 교체. `SESSION_START_ENTRY`(단일 파이프 matcher) → `SESSION_START_ENTRIES`(startup/resume 단일값 2개 entry 배열)로 분리, 양쪽 호출처(`created`/`merged`) 갱신.
+- `tests/init.test.ts` — 신규 회귀가드 3개(CLAUDE_PROJECT_DIR·따옴표·2-entry 분리), 기존 2개는 새 구조(entry 개수 변화)에 맞게 단언 갱신(동작 축소 아님, idempotent/보존 로직 그대로).
+- `goals/89-customization-hook.md` — 보강 내역 기록, 체감 검증(47행)은 여전히 미이행으로 명시.
+
+### 게이트
+`pnpm build`·`pnpm exec tsc --noEmit`·`pnpm lint` clean. `pnpm test:run` 2189/2189 pass.
+
+### 남은 것 — 사람 손 필요
+문서 대조·산출물 실측 전부 끝났지만, **"실제 Claude Code 세션에서 진짜로 넛지가 뜨는가"는 여전히 증명 안 됨.** 이건 대화 세션 밖의 행동(실제 새 세션을 열어 육안 확인)이 필요해 이 세션에서 완결 불가 — goal 89의 47행 체감 검증 그대로 남음. 신뢰도는 "문서 사양과 어긋나는 부분은 다 고쳤다"까지 올라갔지 "실증됐다"까지는 아님.
+
+### 교훈
+- **"공식 문서와 대조"는 "실측"과 다른, 그러나 값어치 있는 별도 검증 축이다.** 이번엔 이 저장소 자신의 다른 훅 사례(PreToolUse/Stop)를 "이미 검증된 전례"로 근거 삼았던 원래 설계가, 사실은 다른 이벤트 타입이라 완전한 전례가 아니었다는 걸 공식 문서 대조로 알게 됐다. "같은 저장소에서 비슷한 패턴이 작동한다"는 것만으로 다른 이벤트 타입까지 안전하다고 넘겨짚으면 안 된다.
+- **문서가 예시로 보여주는 정확한 패턴을 그대로 따르는 게 가장 안전하다** — 파이프 matcher・상대경로・따옴표 미사용 셋 다 "이럴 것 같다"는 합리적 추론이었지 문서에 명시된 패턴은 아니었다. 이번에 전부 문서에 실제로 나온 패턴으로 교체.

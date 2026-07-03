@@ -52,6 +52,18 @@ leads_to: vhk init 직후 첫 세션에서 AI가 도메인 규칙 인터뷰를 �
 
 구현(`4db5d31`)·자동 게이트(build/tsc/test/lint)·critic 적대검증까지는 실제로 다 끝났으나, 이 goal 파일의 frontmatter/Completion Check 갱신이 구현 커밋에서 누락됐었다(`git show 4db5d31 -- goals/89-customization-hook.md` = 빈 diff). "완료됐다"고 사람에게 보고했던 것은 부정확했음 — 자동화 가능한 항목 6/7은 실측 재확인해 체크했지만, 자체적으로 "필수"라 못박은 47행 체감 검증은 실제로 한 번도 수행되지 않아 정직하게 미체크·`IN_PROGRESS`로 남긴다.
 
+## 훅 신뢰성 보강 (2026-07-03, 같은 감사의 후속 — claude-code-guide 공식 사양 대조)
+
+`claude-code-guide` 에이전트로 SessionStart 훅 스키마를 Claude Code 공식 문서 기준으로 대조한 결과, 코드가 이미 만들어둔 산출물 자체(JSON 포맷·이벤트명)는 정확했으나 실전 신뢰성에 영향을 줄 수 있는 갭 2건을 발견해 즉시 TDD로 고쳤다(전부 트레이드오프 없는 강화 — 기존 설계 의도를 해치지 않음):
+
+1. **cwd 미보장 위험**: `node .vhk/hooks/customization-check.mjs`(상대경로)는 Claude Code 가 SessionStart 훅을 어떤 cwd 로 spawn 하는지 문서로 확정 안 됨 — cwd 가 프로젝트 루트가 아니면 "command not found"로 조용히 실패할 수 있음. 공식 문서가 명시적으로 권장하는 `${CLAUDE_PROJECT_DIR}`(Claude Code 가 매번 실제 프로젝트 루트로 동적 치환)로 교체 — 원래 상대경로였던 이유(프로젝트 이동/클론 대비)를 절대경로이면서도 그대로 만족.
+2. **matcher 파이프 OR 미확정**: 공식 문서의 SessionStart matcher 예시는 전부 단일값(`"startup"`·`"compact"`)뿐이라 `"startup|resume"` 파이프 조합이 SessionStart 에서도 동작하는지 100% 확정 못 함 — 만약 안 되면 트리거 전체가 조용히 안 뜨는 catastrophic 실패. 단일값 2개 entry(`startup`/`resume`, 상호배타적이라 중복실행 없음)로 분리해 문서에 실제로 나온 패턴만 사용하도록 원천 제거.
+3. **(부수 발견) 경로 공백 미보호**: 공식 문서 예시(`"$CLAUDE_PROJECT_DIR"/...`)가 변수를 따옴표로 감싸는 걸 보고 대조하다 발견 — Windows 사용자 경로에 공백(흔함, 예: "John Doe")이 있으면 미보호 시 셸 단어분리로 command 가 깨질 수 있어 전체를 큰따옴표로 감쌈.
+
+`tests/init.test.ts`에 회귀 가드 테스트 3개 추가, 기존 2개 테스트는 새 2-entry 구조에 맞게 단언 갱신(구조 변경이지 동작 축소 아님 — `already` 멱등 체크·기존 훅 보존 로직은 그대로).
+
+**그럼에도 47행 체감 검증은 여전히 미이행이다.** 이번 보강은 "이 산출물이 Claude Code 공식 사양과 어긋나지 않는다"는 신뢰도를 올린 것이지, "실제 세션에서 진짜로 뜬다"를 증명한 게 아니다 — 문서 대조로는 못 잡는 마지막 검증(실제 세션 육안 확인)은 여전히 사람 손이 필요하다.
+
 ## Forbidden Actions (OUT)
 
 - 정식 Claude Code 플러그인화(marketplace.json 등) — 별도 후속 과제로 보류(이유: 전역 활성화는 "새 머신마다 깜빡함" 재발 구조가 있어 지금 이 버그의 근본원인과 같은 실패패턴을 배포 메커니즘 레벨에서 재현함).
