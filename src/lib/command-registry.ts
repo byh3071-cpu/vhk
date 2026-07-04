@@ -116,6 +116,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'blocker', desc: '블로커 기록 (3건 누적 시 HARD_STOP)' },
   { name: 'learn', desc: '교훈 기록 → memory v2 단일 SoT' },
   { name: 'win', desc: '성공 기록 → memory successes (reinforce 입력)' },
+  { name: 'autonomy-log', desc: '자율 루프 런 시작/종결 기록 (완주율 계측, #373)' },
   { name: 'watch', desc: '무인 세션 정지 감시 — idle 초과 시 텔레그램·콘솔 알림' },
   { name: 'resume', desc: '.vhk/HARD_STOP 해제 (--confirm 필요)' },
   { name: 'pattern', desc: '반복 패턴 감지·목록 (avoid/reinforce)' },

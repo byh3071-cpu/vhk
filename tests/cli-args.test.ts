@@ -63,6 +63,19 @@ describe('detectNaturalLanguageInput', () => {
       detectNaturalLanguageInput(['node', 'vhk', 'cloud', 'pull', '7af5d007e7f9'])
     ).toBeNull()
   })
+
+  // 이슈 #373: autonomy-log 는 전부 --옵션 플래그 스타일(watch 와 동일 패턴) — 옵션토큰이
+  // 있어도 NL 라우터가 문장을 가로채면 commander 액션이 안 돈다(#147 클래스 회귀 방지).
+  it('vhk autonomy-log --event start → null (commander 가 처리, 옵션값 포함)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'autonomy-log', '--event', 'start'])
+    ).toBeNull()
+  })
+  it('vhk 자율기록 --event complete --run-id abc → null (한글 별칭 + 옵션값)', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', '자율기록', '--event', 'complete', '--run-id', 'abc'])
+    ).toBeNull()
+  })
 })
 
 describe('read-json BOM', () => {
