@@ -21,6 +21,7 @@ import { readMission, checkMission, MISSION_PATH_REL, MISSION_SCAFFOLD_OBJECTIVE
 import { tokenize } from './pattern.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
+import { detectAgent } from '../lib/detect-agent.js'
 import {
   buildReceipt,
   renderReceiptMarkdown,
@@ -288,6 +289,8 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
       slug: localDate(),
       headSha,
       baseSha,
+      // RFC 0057 트랙②: 로컬 환경변수로 감지한 에이전트(순수 사후 attribution — decision 무관).
+      agent: detectAgent(),
     }
   )
 }
