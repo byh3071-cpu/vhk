@@ -6,6 +6,8 @@ import { readLedger, type LedgerEntry } from '../lib/evidence-ledger.js'
 import { readAiActions, type AiActionEntry } from '../lib/ai-actions-ledger.js'
 import { readQueue, type EvolveQueueItem } from './evolve.js'
 import { readReceiptLog, type ReceiptLogEntry } from '../lib/receipt-log.js'
+import { readEvolveLog, type EvolveLogEntry } from '../lib/evolve-log.js'
+import { readCheckLog, type CheckLogEntry } from '../lib/check-log.js'
 
 /**
  * Goal 61: vhk stats — 읽기전용 통계·대시보드 집계.
@@ -130,6 +132,87 @@ export function computeReceiptTrend(entries: ReceiptLogEntry[]): ReceiptTrend {
   }
 }
 
+export interface RejectReasonCount {
+  reason: string
+  count: number
+}
+
+export interface AdoptionStats {
+  /** applied / (applied+rejected) — '전체 큐 대비'(calcApplyRate) 가 아니라 '결정된 것 대비'. */
+  applied: RateStat
+  /** 기각 사유 분포 — 내림차순(동률은 가나다순). 사유 미입력은 "(사유 없음)" 버킷. */
+  rejectReasons: RejectReasonCount[]
+}
+
+/**
+ * #374(evolve 효과측정): evolve-log 기반 채택률 — calcApplyRate(전체 큐 대비)와 달리 pending 은
+ * 로그에 아예 없으므로(apply/reject 결정 시점에만 append) 분모가 자연히 "결정된 것"만 된다.
+ * 기각 사유 분포도 함께 — "왜 기각되는지" 실측(표본이 대부분 '(사유 없음)' 일 수 있음, 정직 표기).
+ */
+export function calcAdoptionStats(entries: EvolveLogEntry[]): AdoptionStats {
+  const total = entries.length
+  const applied = entries.filter((e) => e.applied).length
+  const reasonCounts = new Map<string, number>()
+  for (const e of entries) {
+    if (e.applied) continue
+    const key = e.rejectReason && e.rejectReason.trim() ? e.rejectReason.trim() : '(사유 없음)'
+    reasonCounts.set(key, (reasonCounts.get(key) ?? 0) + 1)
+  }
+  const rejectReasons = [...reasonCounts.entries()]
+    .map(([reason, count]) => ({ reason, count }))
+    .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason))
+  return {
+    applied: { count: applied, total, rate: total === 0 ? 0 : applied / total },
+    rejectReasons,
+  }
+}
+
+export interface CheckTrend {
+  total: number
+  /** 전체 평균 위반 총계. 표본 0 이면 null(모름을 0 으로 위장 안 함). */
+  avgTotal: number | null
+  /** 앞절반 vs 뒷절반 평균 위반수 비교. total<2 면 null. */
+  trend: {
+    earlierN: number
+    recentN: number
+    earlierAvg: number
+    recentAvg: number
+    /** recent - earlier. 양수=악화(위반 증가), 음수=개선. */
+    delta: number
+  } | null
+}
+
+/**
+ * #374(evolve 효과측정): check-log 시계열 — computeReceiptTrend 와 동일한 앞/뒤 절반 비교
+ * 알고리즘 재사용(정렬 → split → 평균 비교). evolve apply 전후로 `vhk check` 를 반복 실행하면
+ * 이 추세가 "룰 반영 후 실제로 위반이 줄었는지"의 근사 신호가 된다(정밀 전/후 매칭은 후속 검토).
+ */
+export function computeCheckTrend(entries: CheckLogEntry[]): CheckTrend {
+  const sorted = [...entries].sort((a, b) => a.ts.localeCompare(b.ts))
+  const total = sorted.length
+  if (total === 0) return { total: 0, avgTotal: null, trend: null }
+
+  const avg = (arr: CheckLogEntry[]): number => arr.reduce((s, e) => s + e.total, 0) / arr.length
+  const avgTotal = avg(sorted)
+
+  let trend: CheckTrend['trend'] = null
+  if (total >= 2) {
+    const mid = Math.floor(total / 2)
+    const earlier = sorted.slice(0, mid)
+    const recent = sorted.slice(mid)
+    const earlierAvg = avg(earlier)
+    const recentAvg = avg(recent)
+    trend = {
+      earlierN: earlier.length,
+      recentN: recent.length,
+      earlierAvg,
+      recentAvg,
+      delta: recentAvg - earlierAvg,
+    }
+  }
+  return { total, avgTotal, trend }
+}
+
 function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`
 }
@@ -227,5 +310,44 @@ function renderTrend(cwd: string): void {
     log.plain(chalk.dim('\n  추세: 표본 2개 미만 — 발행 더 누적 필요'))
   }
 
+  // #374(evolve 효과측정): evolve-log 채택률 + check-log 위반 추세 — 읽기 전용, 별도 소스.
+  renderEvolveEffect(cwd)
+
   printNextStep({ message: t('stats.trendNextMessage'), command: 'vhk receipt', cursorHint: t('stats.trendNextCursor') })
+}
+
+/** #374: 진화 제안 채택률(결정 기준) + RULES.md 위반수 추세 — 표본 부족은 정직 표기(0 위장 금지). */
+function renderEvolveEffect(cwd: string): void {
+  const adoption = calcAdoptionStats(readEvolveLog(cwd))
+  const checkTrend = computeCheckTrend(readCheckLog(cwd))
+
+  log.plain(chalk.cyan('\n🔄 진화 채택률(결정 기준)'))
+  if (adoption.applied.total === 0) {
+    log.plain(chalk.dim('  표본 없음 — vhk evolve apply/reject 로 결정 누적 필요'))
+  } else {
+    log.plain(
+      chalk.white(`  ${pct(adoption.applied.rate)}`) +
+        chalk.dim(` (반영 ${adoption.applied.count}/${adoption.applied.total})`),
+    )
+    if (adoption.rejectReasons.length > 0) {
+      log.plain(chalk.dim('  기각 사유 분포:'))
+      for (const r of adoption.rejectReasons) {
+        log.plain(chalk.dim(`    - ${r.reason}: ${r.count}건`))
+      }
+    }
+  }
+
+  log.plain(chalk.cyan('\n📐 RULES.md 위반수 추세'))
+  if (checkTrend.total === 0) {
+    log.plain(chalk.dim('  표본 없음 — vhk check 로 스냅샷 누적 필요'))
+  } else if (!checkTrend.trend) {
+    log.plain(chalk.dim(`  평균 위반 ${checkTrend.avgTotal ?? 0}건 (표본 ${checkTrend.total}개 — 추세 비교엔 2개 이상 필요)`))
+  } else {
+    const { delta, earlierAvg, recentAvg, earlierN, recentN } = checkTrend.trend
+    const arrow = delta > 0 ? '📈 악화' : delta < 0 ? '📉 개선' : '➡️  동일'
+    log.plain(
+      chalk.white(`  ${earlierAvg.toFixed(1)}건 → ${recentAvg.toFixed(1)}건`) +
+        chalk.dim(` (${arrow}, 앞 ${earlierN}개 vs 뒤 ${recentN}개)`),
+    )
+  }
 }

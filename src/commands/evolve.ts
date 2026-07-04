@@ -10,6 +10,7 @@ import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { readMemory, loadForMutation, writeMemory, type FailEntry } from './memory.js'
 import { sync } from './sync.js'
 import type { PatternEntryV19 } from './pattern.js'
+import { appendEvolveLog, buildEvolveLogEntry } from '../lib/evolve-log.js'
 
 /**
  * Goal 20: vhk evolve — 패턴 → RULES.md 반영 큐 & 순수 함수.
@@ -627,6 +628,13 @@ export async function evolveApply(idStr: string): Promise<void> {
   item.rulesBackupPath = backupPath
   writeQueue(cwd, queue)
 
+  // #374: 결정 이벤트(applied) 1줄 append — best-effort(로그 실패가 반영 판정을 막지 않음).
+  try {
+    appendEvolveLog(cwd, buildEvolveLogEntry(item, true, now))
+  } catch {
+    /* 원장 append 실패 비치명 — RULES.md 반영은 이미 완료됨 */
+  }
+
   // 소스 패턴 archived (18 status 선순환 재사용, 신규 status 금지)
   // memLoaded는 step 5에서 이미 로드됨 — 이중 I/O 없음
   if (srcPattern) {
@@ -648,7 +656,11 @@ export async function evolveApply(idStr: string): Promise<void> {
     alternative: 'vhk evolve undo — 되돌리기',
   })
 }
-export async function evolveReject(idStr: string): Promise<void> {
+/**
+ * #374: reason(선택) — 기각 사유를 evolve-log 에 남겨 "왜 기각됐는지" 분포를 실측한다.
+ * TTY 프롬프트가 아닌 위치인자로 받는다(MCP 모드 inquirer 금지 규칙 — 비대화형 유지).
+ */
+export async function evolveReject(idStr: string, reason?: string): Promise<void> {
   if (!ensureNotHardStopped('evolve reject')) return
   const cwd = process.cwd()
   const queue = readQueue(cwd)
@@ -673,6 +685,14 @@ export async function evolveReject(idStr: string): Promise<void> {
 
   item.status = 'rejected'
   writeQueue(cwd, queue)
+
+  // #374: 결정 이벤트(rejected) 1줄 append — best-effort(로그 실패가 기각 판정을 막지 않음).
+  const trimmedReason = reason?.trim()
+  try {
+    appendEvolveLog(cwd, buildEvolveLogEntry(item, false, new Date().toISOString(), trimmedReason || null))
+  } catch {
+    /* 원장 append 실패 비치명 — 기각 처리는 이미 완료됨 */
+  }
 
   console.log(chalk.green(`\n❌ 후보 기각됨: [${item.id}] ${item.draft}`))
   console.log(chalk.dim('   (A1: 다음 suggest에서 재제안 안 됨)'))
