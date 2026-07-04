@@ -97,7 +97,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | PR 직전 점검 | `vhk preflight --pr` | "PR 전 점검해" |
 | 테스트 전체 실행 | `vhk preflight --full` | "전체 테스트로 점검해" |
 
-> `preflight` 는 publish/PR 직전 **2FA·shim·worktree env·lint·타입·테스트·git·브랜치 8개**를 한 번에 점검합니다. 치명(🔴: env/lint/타입/테스트) 실패가 1개라도 있으면 `--force` 없이 차단(exit 1). 기본 테스트는 `vitest --changed`(통과분 캐시 스킵), `--full` 로 전체 실행. (읽기 전용 — 자동 수정은 후속)
+> `preflight` 는 publish/PR 직전 **2FA·shim·worktree env·lint·타입·테스트·git·브랜치·문서신선도 9개**를 한 번에 점검합니다. 치명(🔴: env/lint/타입/테스트) 실패가 1개라도 있으면 `--force` 없이 차단(exit 1). 문서신선도(`docs/state/next-task.md` 7일 이상 미갱신)는 경고만, 차단 안 함. 기본 테스트는 `vitest --changed`(통과분 캐시 스킵), `--full` 로 전체 실행. (읽기 전용 — 자동 수정은 후속)
 
 ## worktree 가드 (worktree)
 

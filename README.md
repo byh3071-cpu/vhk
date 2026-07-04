@@ -142,7 +142,7 @@ vhk blocker "테스트가 같은 원인으로 계속 실패"
 vhk verify     # tsc/lint/test/build/secure 게이트 실행 → .vhk/reports/latest.json
 vhk review     # 최신 증거와 goal 완료조건 교차검증
 vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale SHA·diff-cover)로 거짓완료 탐지 (LLM 0)
-vhk preflight  # 2FA·shim·env·lint·type·test·git·branch 출고 전 점검
+vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
 ```
 
 ### 4. 기억·패턴·자가진화 — 쓸수록 이 개발자에게 최적화
