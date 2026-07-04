@@ -26,6 +26,12 @@ describe('inject-bootstrap (E1-02 / E5-02 / E5-04)', () => {
     expect(content).toContain('vhk worktree')
   })
 
+  it('generateEcosystemMdcContent — 실행계층(에이전트 무관) vs 트리거계층(Claude 전용) 구분, "Claude-only" 정체성 모순 문구 제거 (RFC 0057 트랙①)', () => {
+    const content = generateEcosystemMdcContent()
+    expect(content).toContain('실행 계층(vhk 명령)은 에이전트 무관')
+    expect(content).not.toContain('Claude-only')
+  })
+
   it('injectBootstrapAll — tier S 4종 created → ecosystem unchanged on second run', () => {
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-inject-all-'))
     try {
