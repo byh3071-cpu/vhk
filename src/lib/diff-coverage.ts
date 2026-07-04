@@ -8,6 +8,12 @@ export interface FileDiffCoverage {
   uncoveredNew: number[]
   ratio: number // added===0 ? 1 : covered/added
   inCoverage: boolean // 커버리지 리포트에 이 파일이 존재했나(false = 테스트가 import 안 함 → coarse)
+  /**
+   * #375: branchPartial ∩ 추가라인(전체, considered 필터와 무관) — statement 는 covered 라도(단일줄
+   * if 오판정) 분기(true/false·암묵 else) 일부가 미실행이면 여기 잡힌다. inCoverage:false 나 branch
+   * 정보가 없으면 빈 배열(옵셔널 — 수동 리터럴 테스트 호환 위해 optional 로 유지, 함수는 항상 채움).
+   */
+  uncoveredBranch?: number[]
 }
 
 export interface DiffCoverageResult {
@@ -47,6 +53,9 @@ export function diffCoverage(
       else uncoveredNew.push(ln)
     }
     const addedN = considered.length
+    // #375: branch 미검증은 considered(executable 필터) 가 아니라 added 전체와 교집합 — statement
+    // 커버 오판정과 무관하게 branch 레벨 신호를 독립적으로 드러낸다. fc 없으면(branch 정보 판별 불가) 빈 배열.
+    const uncoveredBranch = fc ? addedSorted.filter((ln) => fc.branchPartial.has(ln)) : []
     files.push({
       file,
       added: addedN,
@@ -54,6 +63,7 @@ export function diffCoverage(
       uncoveredNew,
       ratio: addedN === 0 ? 1 : cnt / addedN,
       inCoverage,
+      uncoveredBranch,
     })
     totalAdded += addedN
     totalCovered += cnt

@@ -24,19 +24,35 @@ export function untrackedFeatureSources(lsFilesOut: string): string[] {
     .sort((a, b) => a.localeCompare(b))
 }
 
-/** diff-coverage 결과 → 표시 라인(순수, chalk 없음 — 테스트 용이). */
+/**
+ * diff-coverage 결과 → 표시 라인(순수, chalk 없음 — 테스트 용이).
+ * #375: statement 는 전부 covered(단일줄 if 같은 whole-line 오판정)라도 branch(uncoveredBranch)가
+ * 미검증이면 "모두 커버" 축하 메시지로 은폐하지 않는다 — branch 신호는 별도 라인으로 항상 드러낸다.
+ */
 export function formatReport(r: DiffCoverageResult): string[] {
   const lines: string[] = []
-  if (r.totalUncovered === 0) {
+  const anyBranchUncovered = r.files.some((f) => (f.uncoveredBranch?.length ?? 0) > 0)
+  if (r.totalUncovered === 0 && !anyBranchUncovered) {
     lines.push('✅ 이번 변경의 모든 추가 라인이 테스트로 커버됨 (미검증 변경분 0).')
     return lines
   }
-  const pct = Math.round(r.ratio * 100)
-  lines.push(`미검증 변경분 ${r.totalUncovered}라인 / 추가 ${r.totalAdded}라인 (커버 ${pct}%)`)
+  if (r.totalUncovered > 0) {
+    const pct = Math.round(r.ratio * 100)
+    lines.push(`미검증 변경분 ${r.totalUncovered}라인 / 추가 ${r.totalAdded}라인 (커버 ${pct}%)`)
+  } else {
+    lines.push(`추가 ${r.totalAdded}라인 statement 커버 100% — 단, 분기(branch) 미검증이 있습니다.`)
+  }
   for (const f of r.files) {
-    if (f.uncoveredNew.length === 0) continue
+    const hasStmt = f.uncoveredNew.length > 0
+    const hasBranch = (f.uncoveredBranch?.length ?? 0) > 0
+    if (!hasStmt && !hasBranch) continue
     const hint = f.inCoverage ? '' : '  ← 테스트가 이 파일을 import 안 함(전부 미검증)'
-    lines.push(`  ${f.file}: 미커버 ${f.uncoveredNew.length}/${f.added} → 라인 ${f.uncoveredNew.join(', ')}${hint}`)
+    if (hasStmt) {
+      lines.push(`  ${f.file}: 미커버 ${f.uncoveredNew.length}/${f.added} → 라인 ${f.uncoveredNew.join(', ')}${hint}`)
+    }
+    if (hasBranch) {
+      lines.push(`  ${f.file}: 분기 미검증 → 라인 ${f.uncoveredBranch!.join(', ')}`)
+    }
   }
   return lines
 }
