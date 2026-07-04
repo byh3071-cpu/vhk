@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
 import { stripBom } from './read-json.js'
 import type { VerifyReport, ReportStatus } from '../commands/verify.js'
+import type { AgentId } from './detect-agent.js'
 
 // Goal 45: 증거 원장.
 // latest.json 은 .vhk/reports/ → .vhk/.gitignore 로 휘발(로컬 전용). 그래서 레포만 보고
@@ -26,10 +27,18 @@ export interface LedgerEntry {
   sha: string | null
   shortSha: string | null
   dirty: boolean | null
+  /**
+   * RFC 0057 트랙②: 이 증거를 생성한 에이전트. 옵셔널 — 필드 추가 이전 과거 원장 라인(agent
+   * 프로퍼티 자체 없음)을 읽어도 타입이 깨지지 않게(하위호환).
+   */
+  agent?: AgentId
 }
 
-/** VerifyReport + version → 원장 한 줄(순수). */
-export function buildLedgerEntry(report: VerifyReport, version: string): LedgerEntry {
+/**
+ * VerifyReport + version → 원장 한 줄(순수 — 부수효과 0 유지). agent 기본값은 detectAgent() 호출이
+ * 아니라 정적 리터럴 'unknown' — 실제 감지(env 읽기)는 호출부(commands/verify.ts)가 담당한다.
+ */
+export function buildLedgerEntry(report: VerifyReport, version: string, agent: AgentId = 'unknown'): LedgerEntry {
   return {
     version,
     date: report.date,
@@ -37,6 +46,7 @@ export function buildLedgerEntry(report: VerifyReport, version: string): LedgerE
     sha: report.commit?.sha ?? null,
     shortSha: report.commit?.shortSha ?? null,
     dirty: report.commit?.dirty ?? null,
+    agent,
   }
 }
 

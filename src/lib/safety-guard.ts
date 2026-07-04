@@ -4,6 +4,7 @@ import type { SafetyMode } from './safety-mode.js'
 import { readMemory, recallForAction } from '../commands/memory.js'
 import { logRecall } from './recall-log.js'
 import { appendActionEntry } from './action-ledger.js'
+import { detectAgent, type AgentId } from './detect-agent.js'
 
 /**
  * 위험 작업 가드의 **단일 chokepoint**.
@@ -30,6 +31,11 @@ export interface GuardDeps {
   cwd?: string
   /** Goal 57: 위험 대상(파일/경로). 주어지면 isRiskyTarget 글롭 차원으로 가드 발동(액션 저위험이어도). */
   target?: string
+  /**
+   * RFC 0057 트랙②: 행동원장 attribution override(테스트/특수 호출용). 미지정 시 detectAgent()
+   * 로 자동 감지 — 기존 모든 호출부는 코드 수정 없이 자동으로 채워진다.
+   */
+  agent?: AgentId
 }
 
 export interface GuardedOutcome {
@@ -56,6 +62,8 @@ export async function runGuarded<T>(
       reason: res.outcome.reason,
       // Goal 57 plumbing: 위험 대상(deps.target)을 원장에 기록(미지정이면 JSON 직렬화에서 생략).
       target: deps.target,
+      // RFC 0057 트랙②: deps.agent(명시 override) 우선, 없으면 env 신호로 자동 감지.
+      agent: deps.agent ?? detectAgent(),
     })
   } catch {
     /* 원장 기록 실패는 무시 — 가드 본 기능 보호 */

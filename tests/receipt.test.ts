@@ -150,6 +150,68 @@ describe('buildReceipt — .json 영수증 구조', () => {
   })
 })
 
+describe('buildReceipt — agent 필드 (RFC 0057 트랙② — 에이전트불가지론 증명용 attribution)', () => {
+  it('meta.agent 지정 시 그대로 반영', () => {
+    const r = buildReceipt(cleanEvidence(), {
+      generatedAt: '2026-07-04T00:00:00.000Z',
+      date: '2026-07-04',
+      slug: 's',
+      headSha: 'abc1234def',
+      baseSha: 'abc1234def',
+      agent: 'claude-code',
+    })
+    expect(r.agent).toBe('claude-code')
+  })
+
+  it('meta.agent 생략 시 unknown 기본값(하위호환 — 구버전 호출부도 안전)', () => {
+    const r = buildReceipt(cleanEvidence(), {
+      generatedAt: '2026-07-04T00:00:00.000Z',
+      date: '2026-07-04',
+      slug: 's',
+      headSha: 'abc1234def',
+      baseSha: 'abc1234def',
+    })
+    expect(r.agent).toBe('unknown')
+  })
+})
+
+// 원칙1(불가침): "decision(판정) = 기계증거 전용, LLM 0" — decideReceipt(e: ReceiptEvidence) 는
+// agent 필드에 타입 레벨로 접근 불가능해야 한다(ReceiptEvidence 에 agent 를 추가하지 않음으로 강제).
+// 이 테스트는 그 원칙을 행동으로도 증명 — agent 만 다르고 나머지 evidence 가 완전히 동일하면
+// decision·reasons 가 완전히 동일해야 한다(missionChecksum 회귀 테스트와 동형 패턴).
+describe('decideReceipt — agent 는 decision·reasons 에 절대 무영향 (원칙1 증명)', () => {
+  it('agent 값만 다르고 나머지 evidence 동일(clean) → decision·reasons 완전히 동일', () => {
+    const meta = {
+      generatedAt: '2026-07-04T00:00:00.000Z',
+      date: '2026-07-04',
+      slug: 's',
+      headSha: 'abc1234def',
+      baseSha: 'abc1234def',
+    }
+    const withClaudeCode = buildReceipt(cleanEvidence(), { ...meta, agent: 'claude-code' as const })
+    const withUnknown = buildReceipt(cleanEvidence(), { ...meta, agent: 'unknown' as const })
+    expect(withClaudeCode.decision).toBe(withUnknown.decision)
+    expect(withClaudeCode.reasons).toEqual(withUnknown.reasons)
+  })
+
+  it('block 케이스에서도 agent 무관하게 동일 decision·reasons', () => {
+    const e = cleanEvidence()
+    e.dirty = true
+    const meta = {
+      generatedAt: '2026-07-04T00:00:00.000Z',
+      date: '2026-07-04',
+      slug: 's',
+      headSha: 'x',
+      baseSha: 'y',
+    }
+    const a = buildReceipt(e, { ...meta, agent: 'claude-code' as const })
+    const b = buildReceipt(e, { ...meta, agent: 'unknown' as const })
+    expect(a.decision).toBe(b.decision)
+    expect(a.decision).toBe('block')
+    expect(a.reasons).toEqual(b.reasons)
+  })
+})
+
 describe('renderReceiptMarkdown — PR/대화 붙여넣기 1블록', () => {
   it('decision 배지 + 게이트표 + 정직성 1줄을 포함', () => {
     const r = buildReceipt(cleanEvidence(), {
@@ -608,5 +670,21 @@ describe('verifyBaseSha / collectReceipt — baseSha 무결성(3-④)', () => {
     expect(r.base.sha).toBe(head)
     expect(r.evidence.staleKnown).toBe(true)
     expect(r.evidence.stale).toBe(false)
+  }, 30_000)
+
+  // RFC 0057 트랙②: collectReceipt(실 조립부) 가 detectAgent() 를 실제로 호출해 agent 를 채우는지.
+  // CLAUDECODE 를 강제로 설정해 검증 — buildReceipt 의 기본값('unknown')만으로는 통과 못 하고,
+  // collectReceipt 가 detectAgent() 결과를 meta 에 실제로 실어야만 'claude-code' 로 나온다.
+  it('agent 필드 — collectReceipt 가 detectAgent() 를 실제로 호출해 채운다(env 강제 후 검증)', () => {
+    const { dir } = makeRepo()
+    const orig = process.env.CLAUDECODE
+    try {
+      process.env.CLAUDECODE = '1'
+      const r = collectReceipt(dir)
+      expect(r.agent).toBe('claude-code')
+    } finally {
+      if (orig === undefined) delete process.env.CLAUDECODE
+      else process.env.CLAUDECODE = orig
+    }
   }, 30_000)
 })

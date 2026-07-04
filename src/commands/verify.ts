@@ -17,6 +17,7 @@ import { safeExecFile } from '../lib/exec.js'
 import { commitPaths } from '../lib/git-session.js'
 import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
 import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evidence-ledger.js'
+import { detectAgent } from '../lib/detect-agent.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -357,7 +358,8 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
   // Goal 45: 증거 원장 — 레포 추적되는 요약 한 줄(version/date/status/sha)을 .vhk/ledger.jsonl 에 append.
   // 비치명: 원장 실패해도 증거(latest.json)는 이미 기록됨.
   try {
-    appendLedgerEntry(cwd, buildLedgerEntry(report, readPackageVersion(cwd)))
+    // RFC 0057 트랙②: 로컬 환경변수로 감지한 에이전트(순수 사후 attribution)를 원장에 실어보낸다.
+    appendLedgerEntry(cwd, buildLedgerEntry(report, readPackageVersion(cwd), detectAgent()))
   } catch {
     /* 원장 기록 실패는 치명적 아님 */
   }

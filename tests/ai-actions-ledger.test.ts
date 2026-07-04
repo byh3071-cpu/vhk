@@ -69,4 +69,19 @@ describe('readAiActions', () => {
     expect(readAiActions(d)).toHaveLength(1)
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  // RFC 0057 트랙②: agent 필드 추가 이후에도, 필드 추가 이전(구버전)에 쓰인 줄과 이후(신버전)에
+  // 쓰인 줄이 같은 원장 파일에 섞여 있을 수 있다 — 둘 다 안전하게 파싱돼야 한다(하위호환).
+  it('agent 필드 있는 줄(신버전)과 없는 줄(구버전)이 섞여도 둘 다 정상 파싱', () => {
+    const d = tmp()
+    writeJsonl(d, [
+      JSON.stringify({ ...entry('publish', true), agent: 'claude-code' }),
+      JSON.stringify(entry('undo', false, 'no-confirm')), // agent 프로퍼티 자체 없음(구버전 라인)
+    ])
+    const out = readAiActions(d)
+    expect(out).toHaveLength(2)
+    expect(out[0].agent).toBe('claude-code')
+    expect(out[1].agent).toBeUndefined()
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })

@@ -28,6 +28,8 @@ describe('buildLedgerEntry', () => {
       sha: COMMIT.sha,
       shortSha: COMMIT.shortSha,
       dirty: false,
+      // RFC 0057 트랙②: agent 인자 생략 시 정적 기본값 'unknown'(순수함수 유지).
+      agent: 'unknown',
     })
   })
   it('commit 없으면(v1/비-git) sha 계열 null', () => {
@@ -35,6 +37,22 @@ describe('buildLedgerEntry', () => {
     expect(e.sha).toBeNull()
     expect(e.shortSha).toBeNull()
     expect(e.dirty).toBeNull()
+  })
+})
+
+describe('buildLedgerEntry — agent 필드 (RFC 0057 트랙②)', () => {
+  it('agent 인자 지정 시 반영', () => {
+    const r = buildReport([], 't', '2026-06-08', COMMIT)
+    const e = buildLedgerEntry(r, '2.4.3', 'claude-code')
+    expect(e.agent).toBe('claude-code')
+  })
+
+  // buildLedgerEntry 는 순수함수(부수효과 0) — 기본값은 detectAgent() 호출이 아니라 정적
+  // 리터럴 'unknown' 이어야 한다(실제 감지는 호출부인 verify.ts 가 담당).
+  it('agent 인자 생략 시 unknown 기본값', () => {
+    const r = buildReport([], 't', '2026-06-08', COMMIT)
+    const e = buildLedgerEntry(r, '2.4.3')
+    expect(e.agent).toBe('unknown')
   })
 })
 
