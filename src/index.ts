@@ -287,8 +287,9 @@ program
   .alias('린트')
   .argument('[target]', "예약 서브명령 'evals'(골든셋 채점기, goal G-B 예정) — 미구현/미인식은 안내 (#405)")
   .option('--goal <id>', 'goal id 지정 시 scripts/check-goal-<id>.sh 게이트 실행')
+  .option('--json', 'JSON 요약 출력 (CI/MCP용, #374)')
   .description('RULES.md 규칙 점검 — 코드 위반 검사 (또는 --goal <id> 로 goal 게이트)')
-  .action(async (target: string | undefined, opts: { goal?: string }) => { await check(opts, target) })
+  .action(async (target: string | undefined, opts: { goal?: string; json?: boolean }) => { await check(opts, target) })
 
 const secureCmd = program
   .command('secure')
@@ -989,10 +990,10 @@ evolveCmd
   .action(async (id: string) => { await evolveApply(id) })
 
 evolveCmd
-  .command('reject <id>')
+  .command('reject <id> [reason]')
   .alias('기각')
-  .description('후보 기각 (재제안 억제)')
-  .action(async (id: string) => { await evolveReject(id) })
+  .description('후보 기각 (재제안 억제) — [reason] 선택: 기각 사유 기록(#374 효과측정)')
+  .action(async (id: string, reason: string | undefined) => { await evolveReject(id, reason) })
 
 evolveCmd
   .command('undo')

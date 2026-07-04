@@ -132,6 +132,39 @@ export function checkGitClean(run: Runner): PreflightCheck {
     : check('git', 'warn', `uncommitted ${lines.length} files`, 'normal')
 }
 
+// #292-G5: docs/state/next-task.md 신선도 경고(severity 'normal' — 절대 차단 안 함).
+// blockers.md 는 대상에서 제외 — append-only 라 "블로커 없음"이 정상적으로 수십 일 지속 가능해
+// 같은 임계값을 적용하면 상시 오탐(false positive)이 된다(실측 확인, RFC/design 조사 참고).
+// mtime 은 워크트리 checkout 시각으로 리셋되므로 절대 쓰지 않고, 반드시 git 커밋시각(%ct)만 사용.
+export const DOCS_FRESHNESS_WARN_DAYS = 7
+export const DOCS_FRESHNESS_FILE = 'docs/state/next-task.md'
+
+export function checkDocsFreshness(
+  run: Runner,
+  opts: { thresholdDays?: number; now?: number } = {}
+): PreflightCheck {
+  const thresholdDays = opts.thresholdDays ?? DOCS_FRESHNESS_WARN_DAYS
+  const now = opts.now ?? Date.now()
+  const name = 'docs freshness'
+  const severity: Severity = 'normal'
+
+  const r = run('git', ['log', '-1', '--format=%ct', '--', DOCS_FRESHNESS_FILE])
+  const ts = r.ok ? Number(r.out.trim()) : NaN
+  if (!r.ok || !r.out.trim() || !Number.isFinite(ts) || ts <= 0) {
+    return check(name, 'skip', `${DOCS_FRESHNESS_FILE} git 이력 없음 — 판정 불가`, severity)
+  }
+  const ageDays = (now - ts * 1000) / 86_400_000
+  if (ageDays > thresholdDays) {
+    return check(
+      name,
+      'warn',
+      `${DOCS_FRESHNESS_FILE} 마지막 갱신 ${Math.floor(ageDays)}일 전(기준 ${thresholdDays}일) — vhk work handoff 로 갱신 확인`,
+      severity
+    )
+  }
+  return check(name, 'pass', `${DOCS_FRESHNESS_FILE} ${Math.floor(ageDays)}일 전 갱신`, severity)
+}
+
 export function checkBranch(run: Runner): PreflightCheck {
   const r = run('git', ['rev-parse', '--abbrev-ref', 'HEAD'])
   const branch = r.out.trim()
@@ -175,7 +208,7 @@ export function statusIcon(c: PreflightCheck): string {
   return c.severity === 'high' ? '🟠' : '🟡'
 }
 
-// ── 오케스트레이션: 8개 항목 점검(읽기 전용, Phase 1) ──
+// ── 오케스트레이션: 9개 항목 점검(읽기 전용, Phase 1) ──
 export function runPreflight(opts: PreflightOptions, deps: PreflightDeps): PreflightCheck[] {
   // #173: 패키지 스크립트 우선 해석. 모든 PM 이 `<pm> run <script>` 를 지원하므로 통일.
   const pm = deps.pm ?? 'npm'
@@ -212,5 +245,6 @@ export function runPreflight(opts: PreflightOptions, deps: PreflightDeps): Prefl
     checkTests(deps.run, { full: opts.full }, testCmd),
     checkGitClean(deps.run),
     checkBranch(deps.run),
+    checkDocsFreshness(deps.run),
   ]
 }

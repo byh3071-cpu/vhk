@@ -97,7 +97,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | PR 직전 점검 | `vhk preflight --pr` | "PR 전 점검해" |
 | 테스트 전체 실행 | `vhk preflight --full` | "전체 테스트로 점검해" |
 
-> `preflight` 는 publish/PR 직전 **2FA·shim·worktree env·lint·타입·테스트·git·브랜치 8개**를 한 번에 점검합니다. 치명(🔴: env/lint/타입/테스트) 실패가 1개라도 있으면 `--force` 없이 차단(exit 1). 기본 테스트는 `vitest --changed`(통과분 캐시 스킵), `--full` 로 전체 실행. (읽기 전용 — 자동 수정은 후속)
+> `preflight` 는 publish/PR 직전 **2FA·shim·worktree env·lint·타입·테스트·git·브랜치·문서신선도 9개**를 한 번에 점검합니다. 치명(🔴: env/lint/타입/테스트) 실패가 1개라도 있으면 `--force` 없이 차단(exit 1). 문서신선도(`docs/state/next-task.md` 7일 이상 미갱신)는 경고만, 차단 안 함. 기본 테스트는 `vitest --changed`(통과분 캐시 스킵), `--full` 로 전체 실행. (읽기 전용 — 자동 수정은 후속)
 
 ## worktree 가드 (worktree)
 
@@ -116,7 +116,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | 반복 패턴 감지 | `vhk pattern detect` | "패턴 찾아줘" |
 | 룰 후보 제안 | `vhk evolve suggest` | "규칙 제안해" |
 | 부정 예시 후보 수집 | `vhk evolve negatives` | "실패에서 하지 말 것 뽑아줘" |
-| 후보 목록 / 반영 / 기각 / 되돌리기 | `vhk evolve list` · `vhk evolve apply <id>` · `vhk evolve reject <id>` · `vhk evolve undo` | "규칙 반영해" |
+| 후보 목록 / 반영 / 기각 / 되돌리기 | `vhk evolve list` · `vhk evolve apply <id>` · `vhk evolve reject <id> [reason]` · `vhk evolve undo` | "규칙 반영해" |
 | 후보 묶음 초안(신뢰도별·읽기전용) | `vhk evolve digest` | "후보 묶어서 초안 보여줘" |
 
 ## SEO·수익 대시보드 (seo — Goals 21~26)
@@ -154,7 +154,7 @@ vhk doctor
 | `vhk init` | 하네스 파일 생성 |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63) |
-| `vhk check` | RULES.md 규칙 점검 |
+| `vhk check` | RULES.md 규칙 점검 (`--json` = 기계 소비용 요약 출력, #374) |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사) |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
 | `vhk ship` | 배포 체크리스트 + 회고 |
@@ -164,7 +164,7 @@ vhk doctor
 | `vhk restore` | sync 백업 복원 |
 | `vhk status` | 프로젝트 상태 대시보드 |
 | `vhk stats` | 통계 대시보드 — 패스율/차단율/진화 적용율 (읽기 전용) |
-| `vhk stats --trend` | receipt-log 시계열 추세 — 거짓완료 판정 추이 (읽기 전용) |
+| `vhk stats --trend` | receipt-log 시계열 추세(거짓완료 판정 추이) + evolve 채택률·RULES.md 위반수 추세 (#374, 읽기 전용) |
 | `vhk loop` | 자가진화 조율 1틱 — 닫힌 것/다음 한 수 (읽기 전용, 집행 0) |
 | `vhk diff` | Git 변경사항 한국어 요약 |
 | `vhk diff-cover` | 이번 변경이 테스트로 커버됐는지 측정 (자문형) |
