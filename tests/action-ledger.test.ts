@@ -170,6 +170,46 @@ describe('action-ledger — runGuarded 자동 기록 (chokepoint hook)', () => {
   })
 })
 
+// RFC 0057 트랙②: runGuarded 가 행동원장에 agent(누가 이 행동을 시켰나)를 실어보내는지.
+describe('action-ledger — runGuarded agent 필드 (RFC 0057 트랙②)', () => {
+  it('deps.agent 미지정 → env 신호로 자동 감지되어 기록됨(env 강제 후 검증)', async () => {
+    const d = tmp()
+    const orig = process.env.CLAUDECODE
+    try {
+      process.env.CLAUDECODE = '1'
+      await runGuarded('status', { channel: 'cli', mode: 'standard', cwd: d, log: () => {} }, async () => 'ok')
+      const e = readActionLedger(d)
+      expect(e).toHaveLength(1)
+      expect(e[0].agent).toBe('claude-code')
+    } finally {
+      if (orig === undefined) delete process.env.CLAUDECODE
+      else process.env.CLAUDECODE = orig
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  // env 감지 결과가 'claude-code' 가 될 상황을 일부러 만들고도 override 값('unknown')이 이겨야
+  // "deps.agent 가 감지보다 우선"이 실제로 증명된다(override 없을 때와 결과가 달라야 의미 있는 테스트).
+  it('deps.agent 명시 주입 시 env 감지보다 우선(강제 env=claude-code 상황에서도 override 값을 씀)', async () => {
+    const d = tmp()
+    const orig = process.env.CLAUDECODE
+    try {
+      process.env.CLAUDECODE = '1'
+      await runGuarded(
+        'status',
+        { channel: 'cli', mode: 'standard', cwd: d, log: () => {}, agent: 'unknown' },
+        async () => 'ok'
+      )
+      const e = readActionLedger(d)
+      expect(e[0].agent).toBe('unknown')
+    } finally {
+      if (orig === undefined) delete process.env.CLAUDECODE
+      else process.env.CLAUDECODE = orig
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('action-ledger — HARD_STOP 차단 기록', () => {
   it('ensureNotHardStopped 차단 → channel/guard=hardstop, ran=false, reason=hard-stop', () => {
     const origCwd = process.cwd()

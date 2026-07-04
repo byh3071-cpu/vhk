@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { buildReceipt, type ReceiptEvidence, type ReceiptMeta } from '../src/lib/receipt.js'
+import { buildReceipt, type Receipt, type ReceiptEvidence, type ReceiptMeta } from '../src/lib/receipt.js'
 import {
   buildReceiptLogEntry,
   readReceiptLog,
@@ -91,6 +91,31 @@ describe('buildReceiptLogEntry', () => {
     const e = buildReceiptLogEntry(r) as Record<string, unknown>
     expect(e.reasons).toBeUndefined()
     expect(JSON.stringify(e)).not.toContain('honesty')
+  })
+})
+
+describe('buildReceiptLogEntry — agent 필드 (RFC 0057 트랙②)', () => {
+  it('Receipt.agent 를 그대로 매핑', () => {
+    const r = buildReceipt(evidence(), meta({ agent: 'claude-code' }))
+    const e = buildReceiptLogEntry(r)
+    expect(e.agent).toBe('claude-code')
+  })
+
+  it('Receipt.agent 가 unknown 이면 그대로 unknown', () => {
+    const r = buildReceipt(evidence(), meta())
+    const e = buildReceiptLogEntry(r)
+    expect(e.agent).toBe('unknown')
+  })
+
+  // 하위호환: agent 필드 추가 이전(과거 append-only 로그에서 역직렬화됐을 수 있는) Receipt 객체는
+  // 프로퍼티 자체가 없다(undefined 가 아니라 키 부재) — buildReceiptLogEntry 가 이런 입력에도 죽지
+  // 않고 'unknown' 으로 안전 폴백해야 한다.
+  it('하위호환 — agent 프로퍼티 자체가 없는 구버전 Receipt 객체도 안전 처리(unknown 폴백)', () => {
+    const r = buildReceipt(evidence(), meta())
+    const legacy = { ...r } as Record<string, unknown>
+    delete legacy.agent
+    const e = buildReceiptLogEntry(legacy as Receipt)
+    expect(e.agent).toBe('unknown')
   })
 })
 

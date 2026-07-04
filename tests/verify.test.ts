@@ -15,7 +15,7 @@ import {
   REPORT_PATH_REL,
   type GateResult,
 } from '../src/commands/verify.js'
-import { buildLedgerEntry } from '../src/lib/evidence-ledger.js'
+import { buildLedgerEntry, readLedger } from '../src/lib/evidence-ledger.js'
 import { MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
 
 function gate(id: GateResult['id'], status: GateResult['status'], exitCode: number | null = 0): GateResult {
@@ -92,6 +92,26 @@ describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
     // reports/ 로컬 전용 등재
     expect(fs.readFileSync(path.join(d, '.vhk', '.gitignore'), 'utf-8')).toContain('reports/')
     fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  // RFC 0057 트랙② — verifyEvidence 가 .vhk/ledger.jsonl 에 append 하는 buildLedgerEntry 호출에
+  // detectAgent() 를 실제로 실어 보내는지. CLAUDECODE 를 강제해 검증(buildLedgerEntry 의 정적
+  // 기본값 'unknown' 만으로는 통과 못 하고, verify.ts 가 감지 결과를 3번째 인자로 넘겨야 한다).
+  it('RFC 0057 트랙② — 원장(.vhk/ledger.jsonl)에 agent 필드가 detectAgent() 결과로 기록됨', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '1.2.3' }), 'utf-8')
+    const orig = process.env.CLAUDECODE
+    try {
+      process.env.CLAUDECODE = '1'
+      verifyEvidence(d)
+      const ledger = readLedger(d)
+      expect(ledger).toHaveLength(1)
+      expect(ledger[0].agent).toBe('claude-code')
+    } finally {
+      if (orig === undefined) delete process.env.CLAUDECODE
+      else process.env.CLAUDECODE = orig
+      fs.rmSync(d, { recursive: true, force: true })
+    }
   })
 
   it('거짓 PASS 회귀 가드 — test 게이트 실패 시 status=FAIL + 해당 gate fail (실제 종료코드)', () => {
