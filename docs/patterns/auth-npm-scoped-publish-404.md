@@ -4,7 +4,7 @@
 출처프로젝트: VHK (vhk-cli)
 태그: [npm, publish, scoped-package, auth, 404, registry, 2FA]
 발견일: 2026-06-03
-출처DevLog: Notion Dev Log `vhk-pattern-npm-scoped-404-auth` (https://app.notion.com/p/3749740ab07281989d45eb0a9b681191)
+출처DevLog: Notion Dev Log `vhk-pattern-npm-scoped-404-auth`
 ---
 
 # 패턴: scoped npm publish 가 E404 면 십중팔구 인증 실패
