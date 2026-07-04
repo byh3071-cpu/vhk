@@ -40,6 +40,14 @@ Windows 작업 스케줄러로 submit+check+report 체인을 자동화한다.
 - [ ] vhk goal sync → check-goal-26.mjs → vhk goal check --id 26 통과
 - [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
 
+## 완료 처리 정정 (2026-07-03, 실전재검증 감사 중 발견)
+
+Completion Check 7개가 전부 `[ ]` 미체크인 채로 `status: DONE`이었다 — RFC 0054(2026-06-20)가 이 goal의 완료 범위를 재정의했는데 근거가 이 파일에 안 적혀 있었다. 실측 재확인 결과:
+
+- **실제로 된 것**: `sotKey()`(SoT 멱등 키 생성, 순수함수), `buildSchedulerCommand()`(Windows `schtasks` 명령 **문자열**을 만드는 것).
+- **아직 안 된 것(RFC 0054 §7, D2 실행력 단계로 이관)**: 스케줄러가 실제로 등록되지 않음(문자열만 화면 출력, 실행 0) — 사람이 복사해서 직접 붙여넣어야 함. **Notion 적재는 시도조차 안 함** — 이 저장소에 이미 있는 실제 Notion 연동 코드(`src/lib/notion-import.ts`, `new Client({auth: token})`)를 이 goal이 재사용하기로 Mandatory Reading에 명시했는데 실제로는 import조차 안 함. 얀덱스 "확장 슬롯 구현됨" 표시도 그 근거(IndexNow 핑)가 goal 22에서 실제로 안 보내지므로 다소 과장.
+- 위 Completion Check 박스는 다시 안 고친다(과거 이력 append-only) — 이 섹션이 정확한 현재 상태.
+
 ## 제외 범위
 - 다음/카카오·GBP 실제 구현(v2 슬롯) / 양방향 동기화
 - Notion 실시간 watch 모드

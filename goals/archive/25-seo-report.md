@@ -33,14 +33,22 @@ API로 안 되는 항목(광고조작·즉시색인·네이버수집 등)은 ⚠
 - latest.json 없을 때: 안내(check 선실행) or 명확 종료.
 
 ## Completion Check
-- [ ] `vhk seo report` → 오프라인 HTML 4블록 생성 (외부 CDN 의존 0)
-- [ ] 빙 AI 인용 미니섹션 렌더 (데이터 없으면 딥링크 폴백)
-- [ ] 못하는 항목 ⚠️ 배지 + '여기서 직접 하기' 딥링크 전수 표시
-- [ ] latest.json 없을 때 안내(check 선실행) or 명확 종료
-- [ ] --open 비대화형/CI/MCP에서 자동 스킵
-- [ ] 리포트 HTML에 secret 0
-- [ ] vhk goal sync → check-goal-25.mjs → vhk goal check --id 25 통과
-- [ ] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
+- [x] `vhk seo report` → 오프라인 HTML 4블록 생성 (외부 CDN 의존 0) — `tests/seo-report.test.ts` 9개(XSS 방어·손상 데이터 방어 포함)로 검증
+- [x] 빙 AI 인용 미니섹션 렌더 (데이터 없으면 딥링크 폴백)
+- [x] 못하는 항목 ⚠️ 배지 + '여기서 직접 하기' 딥링크 전수 표시
+- [x] latest.json 없을 때 안내(check 선실행) or 명확 종료
+- [x] --open 비대화형/CI/MCP에서 자동 스킵 (단, 대화형에서도 실제로 브라우저를 열진 않음 — 아래 정정 참조)
+- [x] 리포트 HTML에 secret 0
+- [x] vhk goal sync → check-goal-25.mjs → vhk goal check --id 25 통과
+- [x] 공통 게이트 통과 (typecheck + test + build), 기존 회귀 0
+
+## 완료 처리 정정 (2026-07-03, 실전재검증 감사 중 발견)
+
+이 goal은 실제로 대부분 구현됨(렌더링 엔진 자체는 진짜 완성도 높음, RFC 0054 무인범위 밖 항목 없음) — 다만 감사 중 2건 발견:
+
+1. **`--open` 문구 오해 소지**: "생성 후 기본 브라우저로 열기"라고 적혀 있지만, 실제로는 **대화형이어도** 브라우저를 안 연다("운영 단계에서 활성화됩니다" 메시지만 출력) — 비대화형 자동스킵이 아니라 모든 경우에 미구현.
+2. **HARD_STOP 가드 누락 발견 → 즉시 수정**: `report.ts`에 `ensureNotHardStopped`가 없어 HARD_STOP 활성 중에도 `.vhk/seo/report.html`을 무조건 디스크에 썼다 — #335/#336(goal 21·22가 이미 겪은 것과 동일한 근본원인)의 3번째 재발 후보였음. TDD로 즉시 수정(`ensureNotHardStopped('seo report')` 추가, `tests/seo-hardstop.test.ts`에 회귀 가드 추가) — 이 goal의 실제 실전 신뢰성이 이번 감사로 한 단계 올라감.
+3. 실전 사용 시 상위 파이프라인(goal 23/24)이 `latest.json`을 못 만들어서, 실전에서 report에 도달하면 거의 항상 "먼저 check 하라" 안내로 끝남 — report 자체 결함은 아니고 상류 문제.
 
 ## 제외 범위
 - Notion 적재/스케줄러(Goal 26) / 인터랙티브 차트 라이브러리(무빌드 원칙 위반)

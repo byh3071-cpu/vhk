@@ -293,6 +293,16 @@ describe('publishPreflight — git 수집 + default 브랜치 추출', () => {
     expect(insertChangelogStub(CL, '2.3.0', '2026-06-05')).toBe(CL)
   })
 
+  // CodeQL #6(js/incomplete-sanitization): escaped 가 `.`만 이스케이프하고 다른 정규식
+  // 메타문자(|·*·+ 등)는 그대로 둬서, 그 메타문자가 우연히 다른 기존 버전 항목과 오매칭될 수 있었다.
+  it('insertChangelogStub: 버전 문자열에 정규식 메타문자(|)가 있어도 다른 버전과 오매칭하지 않는다', async () => {
+    const { insertChangelogStub } = await import('../src/commands/publish.js')
+    // '|'가 이스케이프 안 되면 정규식이 최상위 alternation으로 쪼개져
+    // 기존 '## [2.3.0]' 줄의 '2.3.0]' 부분과 우연히 매칭 → 이미 있다고 오판정(스텁 미삽입) 재현.
+    const out = insertChangelogStub(CL, '1.0.0|2.3.0', '2026-06-05')
+    expect(out).toContain('## [1.0.0|2.3.0] - 2026-06-05')
+  })
+
   it('insertChangelogStub: 버전 항목이 하나도 없으면 끝에 덧붙임', async () => {
     const { insertChangelogStub } = await import('../src/commands/publish.js')
     const bare = '# Changelog\n\n## [Unreleased]\n'

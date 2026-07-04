@@ -3,13 +3,18 @@
  *
  * 소스 우선순위:
  *   1. YOHAN_BRAIN_ROOT 환경변수 → {root}/memory/core/core-ruleset.yaml (라이브)
- *   2. 없거나 읽기 실패 → 번들 스냅샷 사용 (npm 배포 환경 대응)
+ *   2. ~/.vhk/config.json 의 brainRoot(goal 92) → 위와 동일 경로 규칙 (라이브)
+ *      — env var는 설정해도 같은 세션에 반영 안 됨(Windows 재시작 필요)이라
+ *        재시작 없이 즉시 반영되는 파일기반 경로를 대안으로 추가.
+ *   3. 둘 다 없거나 읽기 실패 → 번들 스냅샷 사용 (npm 배포 환경 대응)
  */
 
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import { parse as parseYaml } from 'yaml'
 import { CORE_RULESET_SNAPSHOT } from '../templates/core-ruleset-snapshot.js'
+import { readHomeConfig } from './home-config.js'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -74,18 +79,34 @@ function buildStartTag(version: string, source: CoreRulesSource): string {
 // Load
 // ---------------------------------------------------------------------------
 
-export function loadCoreRuleset(): LoadedCoreRuleset {
-  const brainRoot = process.env.YOHAN_BRAIN_ROOT
-  if (brainRoot) {
+// export: config.ts(goal 92)가 "지금 저장한 경로 자체가 유효한가"를 loadCoreRuleset()의
+// 전체 우선순위(env 먼저)와 별개로 직접 확인해야 해서 필요 — critic 지적(M2) 대응.
+export function tryLoadLive(brainRoot: string): LoadedCoreRuleset | null {
+  try {
+    // path.join 도 try 안에 포함 — brainRoot 가 문자열이 아니면(홈 설정파일 수기 편집 손상 등)
+    // ERR_INVALID_ARG_TYPE 을 던지는데, 이 함수의 계약은 "실패 시 항상 null"이라 여기서 잡는다.
     const yamlPath = path.join(brainRoot, 'memory', 'core', 'core-ruleset.yaml')
-    try {
-      const raw = fs.readFileSync(yamlPath, 'utf-8')
-      const data = parseYaml(raw) as CoreRuleset
-      return { data, source: 'live', version: data.version ?? 'unknown' }
-    } catch {
-      // fall through to bundled
-    }
+    const raw = fs.readFileSync(yamlPath, 'utf-8')
+    const data = parseYaml(raw) as CoreRuleset
+    return { data, source: 'live', version: data.version ?? 'unknown' }
+  } catch {
+    return null
   }
+}
+
+export function loadCoreRuleset(homeDir: string = os.homedir()): LoadedCoreRuleset {
+  const envRoot = process.env.YOHAN_BRAIN_ROOT
+  if (envRoot) {
+    const loaded = tryLoadLive(envRoot)
+    if (loaded) return loaded
+  }
+
+  const configRoot = readHomeConfig(homeDir)?.brainRoot
+  if (configRoot) {
+    const loaded = tryLoadLive(configRoot)
+    if (loaded) return loaded
+  }
+
   return {
     data: CORE_RULESET_SNAPSHOT,
     source: 'bundled',

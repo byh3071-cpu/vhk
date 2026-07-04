@@ -76,6 +76,16 @@ describe('vhk init — core-rules 폴백 가시화 (goal 91)', () => {
     expect(joined).toContain('재시작')
   })
 
+  // goal 92: 재시작 문제를 원천 회피하는 vhk config set-brain-root 도 함께 안내(대안 병기).
+  it('경고 문구가 재시작 없이 즉시 반영되는 vhk config set-brain-root 대안도 안내한다', async () => {
+    delete process.env.YOHAN_BRAIN_ROOT
+    const { init } = await import('../src/commands/init.js')
+    await init({ yes: true, name: 'demo', description: 'd', type: 'cli' })
+
+    const joined = logs.join('\n')
+    expect(joined).toContain('vhk config set-brain-root')
+  })
+
   it('YOHAN_BRAIN_ROOT 유효 → 경고 없음(회귀 가드) + context.md 에 live 표기', async () => {
     const brainDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-brain-warn-'))
     const yamlPath = path.join(brainDir, 'memory', 'core', 'core-ruleset.yaml')

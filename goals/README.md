@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 12 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 7
+> 총 13 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 8
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -19,3 +19,4 @@
 | 89 | 커스터마이징 트리거 훅 — 마커·SessionStart 훅·settings.json 배선 — P1 | ✅ DONE | P1 | vhk init 직후 첫 세션에서 AI가 도메인 규칙 인터뷰를 알아서 시작하도록 코드로 강제 — "안 짚으면 스킵됨" 패턴의 트리거 지점을 봉인 |
 | 90 | sync 전파 정합성 — RULES.md 신규 섹션이 .cursorrules/CLAUDE.md까지 실제 도달하는가 — P1 | ✅ DONE | P1 | goal 89(커스터마이징 트리거)가 쓰는 인터뷰 답변이 실제로 도구별 산출물(.cursorrules·CLAUDE.md)까지 도달함을 코드로 보장 — 원래 버그("안 짚으면 스킵")의 사촌(조용히 반쪽 전파)을 차단 |
 | 91 | core-rules 폴백 가시화 — YOHAN_BRAIN_ROOT 미설정 시 조용한 구버전 스냅샷 사용을 경고 — P2 | ✅ DONE | P2 | "헌법도 자동 반영 안 됨" 불만의 유력 원인(조용한 폴백)을 가시화 — 최소 수정으로 독립 완료 가능 |
+| 92 | core-rules 자동화 — ~/.vhk/config.json 파일기반 브레인 경로 설정 — P2 | ✅ DONE | P2 | goal 91(폴백 가시화)이 남긴 "그래서 어떻게 고치나" 질문에 재시작 불필요한 실제 해결책 제공 |
