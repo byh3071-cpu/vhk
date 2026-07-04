@@ -6,7 +6,7 @@ title: Objective LLM 판정 — "목표를 실제로 달성했나"를 LLM judge�
 status: BLOCKED
 priority: P2
 created: 2026-06-25
-blocked_by: "RFC 0056 §2 정체성 결정 선행 필요 — '기계증거만(LLM 판단 0)' vs 'objective LLM을 opt-in 계층으로 허용' 중 하나 채택 전까지 착수 불가"
+blocked_by: "결정 완료(2026-07-04) — 착수 안 함. 근거: ①VHK 자체 출력물 중 주관적 품질판정이 필요한 케이스가 현재 0건(content/launch/ops/sell은 초안생성까지만, goal75~77 DONE) — 검증된 수요 없이 다른 프로젝트(youtube-summary) 패턴 선이식은 헛수고 리스크 ②opt-in 격리로 설계해도 'LLM 판단 0' 원칙에 첫 진입로가 생겨 향후 verify/receipt 침범 유혹의 전례가 됨(격리는 기술이 아니라 사람 규율에 의존). 재개 조건: VHK 자체 기능에서 주관적 품질채점이 실제로 필요한 구체 케이스가 생기면 그때 그 케이스 기준으로 재설계."
 leads_to: 결정론(scope/forbidden)으로 잡지 못하는 "목표 달성 여부" 판정 계층 확보 → 의도 검증 깊이 확장
 ---
 
@@ -36,7 +36,7 @@ RFC 0056 §2는 VHK의 정체성 한 문장을 다음과 같이 확정했다:
 1. **RFC 0056 §2 개정** — "기계증거-only" 조항을 완화해 "objective 달성 여부에 한해 LLM judge를 허용한다"는 정책을 §2에 명시. 정체성 슬로건("LLM 판단 0")도 함께 개정 필요. ADR이 뒤따라야 함.
 2. **Opt-in 계층 분리** — objective LLM을 VHK 핵심 증거(기계 결정론 루프)와 완전히 분리된 별도 계층으로 설계. receipt/decision에 영향을 주지 않고, 사용자가 명시 opt-in(`--evals`)해야 활성화되는 *advisory* 레이어로만 존재. 이 경우 RFC 0056 §2 개정 없이 정체성과 공존 가능.
 
-> 현재 상태: 위 두 갈래 모두 탐색 완료(방향 4로 식별), 설계·의사결정 미착수 — BLOCKED.
+> 현재 상태: 2026-07-04 결정 완료 — **착수 안 함**(재개조건은 위 blocked_by 참고). 아래 "탐색 완료" 서술은 결정 이전 기록으로 보존.
 
 ## 배경
 
