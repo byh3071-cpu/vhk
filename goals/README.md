@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 17 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 12
+> 총 19 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 14
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -23,4 +23,6 @@
 | 93 | ecosystem.mdc 정체성 모순 제거 — "Claude Code = primary" → 실행/트리거 계층 분리 — P2 | ✅ DONE | P2 | RFC 0057(에이전트 불가지론) 실측 감사가 확정한 3항목 중 트랙① 완결 — 트랙②(receipt agent 필드)·트랙③(트리거 격차 문서화)는 별도 goal/트랙에서 병렬 진행 |
 | 94 | agent attribution — receipt/ledger 4대 스키마에 에이전트 감지 필드 추가 — P2 | ✅ DONE | P2 | RFC 0057(기억/복리/에이전트불가지론) 트랙② 완료 — "누가 이 작업을 했는지" 실측 데이터 축적 시작(향후 stats/trend 분석 토대) |
 | 95 | RFC 0057 정식 문서화 + 트리거 격차 명시 — 순수 문서 트랙(트랙③) — P2 | ✅ DONE | P2 | VHK 정체성(에이전트 불가지론 + 자가진화 복리)의 실측 감사 결과를 근거 문서로 고정 — 트랙①(ecosystem.mdc 모순 제거)·트랙②(receipt agent 필드)가 참조할 SoT 확보 |
+| 96 | 문서 신선도 경고 — vhk preflight 에 docs/state/next-task.md 갱신주기 점검 추가 (#292-G5) — P2 | ✅ DONE | P2 | 이슈 #292(문서 신선도) G5 트랙 완료 — next-task.md 가 오래 안 갱신되면 preflight 가 경고(차단 아님) |
+| 97 | evolve 효과측정 — apply/reject 결정 로그 + check 위반수 스냅샷 (#374) | ✅ DONE | P2 | evolve 채택률·기각사유 분포·RULES.md 위반수 추세를 실측 데이터로 축적 시작 (vhk stats --trend 소비) |
 | 99 | 자율성완주율 측정 스키마 — vhk autonomy-log 런(run) 시작/종결 계측 — P2 | ✅ DONE | P2 | 이슈 #373의 로깅 스키마+커맨드 부분 완료(이슈 자체는 OPEN 유지) — vhk-auto 자율 |

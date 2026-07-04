@@ -8,6 +8,9 @@ import {
   checkTests,
   checkGitClean,
   checkBranch,
+  checkDocsFreshness,
+  DOCS_FRESHNESS_WARN_DAYS,
+  DOCS_FRESHNESS_FILE,
   summarizePreflight,
   runPreflight,
   detectHasLinter,
@@ -186,6 +189,61 @@ describe('#173 — 스크립트 우선 + 출력 증거', () => {
   })
 })
 
+// #292-G5: docs/state/next-task.md 신선도 경고(차단 아님). NOW/DAY 는 version-check.test.ts 패턴 차용
+// (고정 NOW 상수 + 오프셋 계산으로 결정론적 테스트, 실제 Date.now() 호출 없음).
+describe('checkDocsFreshness', () => {
+  const NOW = 1_700_000_000_000
+  const DAY = 24 * 60 * 60 * 1000
+  const gitLogKey = `git log -1 --format=%ct -- ${DOCS_FRESHNESS_FILE}`
+  const tsFor = (msAgo: number): string => String(Math.floor((NOW - msAgo) / 1000))
+
+  it('3일 전 갱신 → pass (normal)', () => {
+    const { run } = mockRunner({ [gitLogKey]: { ok: true, out: tsFor(3 * DAY) } })
+    const r = checkDocsFreshness(run, { now: NOW })
+    expect(r.status).toBe('pass')
+    expect(r.severity).toBe('normal')
+  })
+
+  it('정확히 임계값(7일) 경계 → pass (초과 아님, off-by-one 방지)', () => {
+    const { run } = mockRunner({
+      [gitLogKey]: { ok: true, out: tsFor(DOCS_FRESHNESS_WARN_DAYS * DAY) },
+    })
+    const r = checkDocsFreshness(run, { now: NOW })
+    expect(r.status).toBe('pass')
+  })
+
+  it('임계값 초과(10일) → warn (normal, critical 아님)', () => {
+    const { run } = mockRunner({ [gitLogKey]: { ok: true, out: tsFor(10 * DAY) } })
+    const r = checkDocsFreshness(run, { now: NOW })
+    expect(r.status).toBe('warn')
+    expect(r.severity).toBe('normal')
+  })
+
+  it('git log 실패(r.ok=false) → skip', () => {
+    const { run } = mockRunner({ [gitLogKey]: { ok: false, out: '', err: 'no such path' } })
+    const r = checkDocsFreshness(run, { now: NOW })
+    expect(r.status).toBe('skip')
+  })
+
+  it('출력 빈 문자열 → skip', () => {
+    const { run } = mockRunner({ [gitLogKey]: { ok: true, out: '' } })
+    const r = checkDocsFreshness(run, { now: NOW })
+    expect(r.status).toBe('skip')
+  })
+
+  it('출력 파싱 불가(숫자 아님) → skip', () => {
+    const { run } = mockRunner({ [gitLogKey]: { ok: true, out: 'not-a-number' } })
+    const r = checkDocsFreshness(run, { now: NOW })
+    expect(r.status).toBe('skip')
+  })
+
+  it('thresholdDays 커스텀 오버라이드(3일) — 5일 경과면 warn', () => {
+    const { run } = mockRunner({ [gitLogKey]: { ok: true, out: tsFor(5 * DAY) } })
+    const r = checkDocsFreshness(run, { now: NOW, thresholdDays: 3 })
+    expect(r.status).toBe('warn')
+  })
+})
+
 describe('checkGitClean', () => {
   it('변경 없음 → pass', () => {
     const { run } = mockRunner({ 'git status --porcelain': { ok: true, out: '' } })
@@ -263,6 +321,11 @@ describe('runPreflight', () => {
     'npx vitest --changed --run': { ok: true, out: '' },
     'git status --porcelain': { ok: true, out: '' },
     'git rev-parse --abbrev-ref HEAD': { ok: true, out: 'feat/29-preflight' },
+    // #292-G5: 오늘 커밋으로 mock — 항상 fresh(pass) 처리되어 기존 "정상환경 → blocked 아님" 회귀 없음.
+    [`git log -1 --format=%ct -- ${DOCS_FRESHNESS_FILE}`]: {
+      ok: true,
+      out: String(Math.floor(Date.now() / 1000)),
+    },
   })
   const deps = {
     run: okRunner.run,
@@ -271,9 +334,9 @@ describe('runPreflight', () => {
     worktreeEnv: (): PreflightCheck => ({ name: 'worktree env', status: 'pass', detail: 'ok', severity: 'critical' }),
   }
 
-  it('8개 항목을 점검한다', () => {
+  it('9개 항목을 점검한다', () => {
     const checks = runPreflight({}, deps)
-    expect(checks).toHaveLength(8)
+    expect(checks).toHaveLength(9)
   })
   it('정상 환경 → blocked 아님', () => {
     const checks = runPreflight({}, deps)
@@ -296,5 +359,23 @@ describe('runPreflight', () => {
     const checks = runPreflight({}, { ...deps, hasTsconfig: true })
     const tc = checks.find((c) => c.name === 'typecheck')
     expect(tc?.status).toBe('pass')
+  })
+
+  it('#292-G5: docs freshness 가 warn(오래됨)이어도 blocked 아님(severity normal)', () => {
+    const staleRunner = mockRunner({
+      'npm whoami': { ok: true, out: 'me' },
+      'npx tsc --noEmit': { ok: true, out: '' },
+      'npx vitest --changed --run': { ok: true, out: '' },
+      'git status --porcelain': { ok: true, out: '' },
+      'git rev-parse --abbrev-ref HEAD': { ok: true, out: 'feat/29-preflight' },
+      [`git log -1 --format=%ct -- ${DOCS_FRESHNESS_FILE}`]: {
+        ok: true,
+        out: String(Math.floor((Date.now() - 10 * 24 * 60 * 60 * 1000) / 1000)),
+      },
+    })
+    const checks = runPreflight({}, { ...deps, run: staleRunner.run })
+    const df = checks.find((c) => c.name === 'docs freshness')
+    expect(df?.status).toBe('warn')
+    expect(summarizePreflight(checks).blocked).toBe(false)
   })
 })
