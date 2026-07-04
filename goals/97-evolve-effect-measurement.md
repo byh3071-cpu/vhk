@@ -1,7 +1,7 @@
 ---
 vhk_format: 1
 type: goal
-id: 96
+id: 97
 title: evolve 효과측정 — apply/reject 결정 로그 + check 위반수 스냅샷 (#374)
 status: DONE
 priority: P2
@@ -10,7 +10,7 @@ completed: 2026-07-04
 leads_to: "evolve 채택률·기각사유 분포·RULES.md 위반수 추세를 실측 데이터로 축적 시작 (vhk stats --trend 소비)"
 ---
 
-# Goal 96: evolve 효과측정 (#374)
+# Goal 97: evolve 효과측정 (#374)
 
 > 출처: 이슈 #374 — "진화(evolve) 제안이 실제로 채택되는지, 반영 후 효과가 있는지 측정 0건"이라는
 > 격차 지적. 사전 조사(Design 단계, 읽기전용)로 `evolve.ts`(apply/reject 상태전이는 있으나 이벤트
@@ -76,7 +76,7 @@ leads_to: "evolve 채택률·기각사유 분포·RULES.md 위반수 추세를 �
       `tests/stats-evolve-effect.test.ts` · `tests/check-json-and-log.test.ts` ·
       `tests/evolve-reject-reason.test.ts` · `tests/evolve-apply-log.test.ts`(inquirer mock +
       `VHK_FORCE_INTERACTIVE` 로 TTY 필요 커맨드까지 통합 검증).
-- [x] 공통 게이트(_meta) + `check-goal-96.mjs`(고유 검증으로 채움).
+- [x] 공통 게이트(_meta) + `check-goal-97.mjs`(고유 검증으로 채움).
 
 ## 구현 결과 (2026-07-04)
 

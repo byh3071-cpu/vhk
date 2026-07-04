@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/check-goal-96.mjs — 자동 생성 (vhk goal sync).
+// scripts/check-goal-97.mjs — 자동 생성 (vhk goal sync).
 // 기본 게이트 = typecheck + (lint) + test + build. goal 고유 검증은 아래 구역에 추가.
 // sync 재실행해도 기존 파일은 덮어쓰지 않습니다 (idempotent).
 //
@@ -27,7 +27,7 @@ function run(cmd, args) {
 }
 
 if (existsSync('.vhk/HARD_STOP')) {
-  console.log('🛑 .vhk/HARD_STOP detected — refusing to run goal 96 gate.')
+  console.log('🛑 .vhk/HARD_STOP detected — refusing to run goal 97 gate.')
   process.exit(1)
 }
 
@@ -38,7 +38,7 @@ const scripts = pkg.scripts ?? {}
 const pm = existsSync('pnpm-lock.yaml') ? 'pnpm' : existsSync('yarn.lock') ? 'yarn' : 'npm'
 const skipDeep = process.env.VHK_GATES_SKIP_DEEP === '1'
 let pass = true
-const gate = (label, ok) => { console.log('[goal 96] ' + label + ': ' + (ok ? '✓' : '✗')); if (!ok) pass = false }
+const gate = (label, ok) => { console.log('[goal 97] ' + label + ': ' + (ok ? '✓' : '✗')); if (!ok) pass = false }
 const must = (cond, label) => { console.log((cond ? '    ✓ ' : '    ✗ ') + label); if (!cond) pass = false }
 
 // typecheck (스크립트 우선, 없으면 tsc --noEmit)
@@ -52,7 +52,7 @@ if (!skipDeep) {
   if (scripts.build) gate('build', run(pm, ['run', 'build']))
 }
 
-// ─── goal 96 고유 검증 (직접 추가) ───────────────────────────────
+// ─── goal 97 고유 검증 (직접 추가) ───────────────────────────────
 // #374: evolve 효과측정 — apply/reject 결정 로그(evolve-log.jsonl) + check 위반수 스냅샷
 // (check-log.jsonl) + stats 분석 확장(calcAdoptionStats/computeCheckTrend).
 const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
@@ -129,5 +129,5 @@ for (const f of [
   must(existsSync(f), `${f} 존재`)
 }
 
-if (pass) { console.log('✅ goal 96 gate passes'); process.exit(0) }
-console.log('❌ goal 96 gate failed'); process.exit(1)
+if (pass) { console.log('✅ goal 97 gate passes'); process.exit(0) }
+console.log('❌ goal 97 gate failed'); process.exit(1)

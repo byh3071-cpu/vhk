@@ -1,4 +1,4 @@
-# 2026-07-04 — #374: evolve 효과측정 (goal 96)
+# 2026-07-04 — #374: evolve 효과측정 (goal 97)
 
 > append-only. 추가만, 수정·삭제 금지.
 
@@ -45,7 +45,7 @@ RULES.md 위반 총계 스냅샷을 남기고(check-log.jsonl), 이 둘을 `vhk 
   (내림차순, 사유 없음은 "(사유 없음)" 버킷). `computeCheckTrend(entries)`: `computeReceiptTrend`와
   동일한 정렬→절반분할→평균비교 알고리즘 재사용, 앞/뒤 절반 평균 위반수 비교(delta 양수=악화).
   `vhk stats --trend`가 `renderEvolveEffect()`로 두 섹션 추가 렌더.
-- `goals/96-evolve-effect-measurement.md` + `scripts/check-goal-96.mjs` (신규).
+- `goals/97-evolve-effect-measurement.md` + `scripts/check-goal-97.mjs` (신규).
 - `COMMANDS.md` — `evolve reject <id> [reason]`·`check --json`·`stats --trend` 설명 갱신(동작
   변경 반영).
 
