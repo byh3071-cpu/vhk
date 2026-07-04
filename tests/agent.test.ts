@@ -131,3 +131,74 @@ describe('resume — --confirm 없으면 거부 (Forbidden 자동 호출 금지)
     expect(existsSync(join(dir, '.vhk/HARD_STOP'))).toBe(false)
   })
 })
+
+// 이슈 #373: autonomyLog() CLI 레이어 — start 는 runId 발급, 종결은 run-id 필수(없으면 기록 안 함).
+describe('autonomyLog — CLI 레이어 (이슈 #373 자율성완주율)', () => {
+  let origCwd: string
+  let dir: string
+  let origExitCode: number | string | undefined
+  beforeEach(() => {
+    origCwd = process.cwd()
+    origExitCode = process.exitCode
+    dir = tmpProject('autonomy-log')
+    process.chdir(dir)
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    process.chdir(origCwd)
+    process.exitCode = origExitCode
+    rmSync(dir, { recursive: true, force: true })
+    vi.restoreAllMocks()
+  })
+
+  it('start — runId 발급 + jsonl 에 1줄 append', async () => {
+    const { autonomyLog } = await import('../src/commands/agent.js')
+    await autonomyLog({ event: 'start' })
+    const content = readFileSync(join(dir, '.vhk/events/autonomy-run.jsonl'), 'utf-8')
+    const lines = content.trim().split('\n')
+    expect(lines).toHaveLength(1)
+    const parsed = JSON.parse(lines[0])
+    expect(parsed.event).toBe('start')
+    expect(typeof parsed.runId).toBe('string')
+    expect(parsed.runId.length).toBeGreaterThan(0)
+  })
+
+  it('complete — --run-id 있으면 종결 기록(ticks/interventions 반영)', async () => {
+    const { autonomyLog } = await import('../src/commands/agent.js')
+    await autonomyLog({ event: 'complete', runId: 'fixed-run-id', ticks: 4, interventions: 0 })
+    const content = readFileSync(join(dir, '.vhk/events/autonomy-run.jsonl'), 'utf-8')
+    const parsed = JSON.parse(content.trim().split('\n')[0])
+    expect(parsed).toMatchObject({ event: 'complete', runId: 'fixed-run-id', ticks: 4, interventions: 0 })
+  })
+
+  it('hardstop — --review-rejected 반영', async () => {
+    const { autonomyLog } = await import('../src/commands/agent.js')
+    await autonomyLog({ event: 'hardstop', runId: 'fixed-run-id', reviewRejected: true })
+    const content = readFileSync(join(dir, '.vhk/events/autonomy-run.jsonl'), 'utf-8')
+    const parsed = JSON.parse(content.trim().split('\n')[0])
+    expect(parsed).toMatchObject({ event: 'hardstop', runId: 'fixed-run-id', reviewRejected: true })
+  })
+
+  it('blocked — --run-id 로 종결 기록', async () => {
+    const { autonomyLog } = await import('../src/commands/agent.js')
+    await autonomyLog({ event: 'blocked', runId: 'fixed-run-id' })
+    const content = readFileSync(join(dir, '.vhk/events/autonomy-run.jsonl'), 'utf-8')
+    const parsed = JSON.parse(content.trim().split('\n')[0])
+    expect(parsed).toMatchObject({ event: 'blocked', runId: 'fixed-run-id' })
+  })
+
+  it('--run-id 없이 종결 이벤트(complete) 호출 시 exitCode=1, append 안 함', async () => {
+    const { autonomyLog } = await import('../src/commands/agent.js')
+    await autonomyLog({ event: 'complete' })
+    expect(existsSync(join(dir, '.vhk/events/autonomy-run.jsonl'))).toBe(false)
+    expect(process.exitCode).toBe(1)
+  })
+
+  it('--goal 생략 시 active goal 자동감지(activeGoalId 재사용)와 동일 관례 — goal 없어도 에러 없이 기록', async () => {
+    const { autonomyLog } = await import('../src/commands/agent.js')
+    await autonomyLog({ event: 'start' })
+    const content = readFileSync(join(dir, '.vhk/events/autonomy-run.jsonl'), 'utf-8')
+    const parsed = JSON.parse(content.trim().split('\n')[0])
+    expect(parsed.goal).toBeUndefined()
+  })
+})

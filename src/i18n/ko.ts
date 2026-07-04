@@ -592,6 +592,7 @@ export const ko = {
     learnTitle: '🧠 Learning 기록',
     winTitle: '🏆 성공 기록',
     resumeTitle: '▶️  HARD_STOP 해제',
+    autonomyLogTitle: '🤖 자율 루프 런 기록',
   },
   work: {
     workTitle: '🚀 vhk work — 작업 시작/이어하기',

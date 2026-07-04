@@ -11,6 +11,11 @@ import {
   BLOCKERS_PATH,
   HARD_STOP_BLOCKER_THRESHOLD,
 } from '../lib/state-files.js'
+import {
+  appendAutonomyEntry,
+  newAutonomyRunId,
+  type AutonomyEvent,
+} from '../lib/autonomy-log.js'
 import { recordLesson, recordSuccess } from './memory.js'
 import { selectActiveId } from './goal.js'
 
@@ -91,6 +96,52 @@ export async function win(content: string): Promise<void> {
   }
   console.log(chalk.green(`  ✅ 성공 기록 → memory successes (${entry.id})`))
   console.log(chalk.dim('  성공 패턴은 vhk pattern detect → vhk evolve 재사용 후보로 복리됩니다.'))
+}
+
+export interface AutonomyLogOptions {
+  event: AutonomyEvent
+  goal?: number
+  runId?: string
+  ticks?: number
+  interventions?: number
+  reviewRejected?: boolean
+}
+
+// 이슈 #373: vhk-auto SKILL.md 루프가 자율성완주율 분모/분자를 남기는 전용 커맨드.
+// start 는 runId 를 새로 발급 — 나머지 3개(complete/hardstop/blocked) 는 그 runId 로 종결한다.
+export async function autonomyLog(opts: AutonomyLogOptions): Promise<void> {
+  console.log(chalk.bold(`\n${ko.agent.autonomyLogTitle}\n`))
+  const goalId = opts.goal ?? activeGoalId()
+  if (opts.event === 'start') {
+    const runId = newAutonomyRunId()
+    appendAutonomyEntry(process.cwd(), {
+      ts: new Date().toISOString(),
+      runId,
+      goal: goalId,
+      event: 'start',
+    })
+    console.log(chalk.green(`  ✅ 런 시작 기록 — runId: ${runId}`))
+    console.log(chalk.dim('  이 runId 를 종결 이벤트(--run-id)에 그대로 넘기세요.'))
+    return
+  }
+  // 종결 이벤트(complete/hardstop/blocked) 는 run-id 없이는 어느 런인지 알 수 없어 기록하지
+  // 않는다 — blocker() 의 "빈 설명이면 기록 안 함" 방어 패턴과 동일 계약.
+  if (!opts.runId || !opts.runId.trim()) {
+    console.log(chalk.red('  ❌ --run-id 없이는 종결 이벤트를 기록할 수 없습니다.'))
+    console.log(chalk.dim('  예: vhk autonomy-log --event complete --run-id <id>'))
+    process.exitCode = 1
+    return
+  }
+  appendAutonomyEntry(process.cwd(), {
+    ts: new Date().toISOString(),
+    runId: opts.runId,
+    goal: goalId,
+    event: opts.event,
+    ticks: opts.ticks,
+    interventions: opts.interventions,
+    reviewRejected: opts.event === 'hardstop' ? opts.reviewRejected : undefined,
+  })
+  console.log(chalk.green(`  ✅ 런 종결 기록 — event: ${opts.event}, runId: ${opts.runId}`))
 }
 
 export interface ResumeOptions {

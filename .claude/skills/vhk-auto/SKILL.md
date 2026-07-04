@@ -24,12 +24,17 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
 - **INV-7** commit 만 자동. push·PR·머지·publish 는 절대 자동 금지.
 - **INV-8** 적대리뷰는 `/code-review` 스킬만 사용. cavecrew·Workflow 다중에이전트 쓰지 마라
   (이 환경에 없을 수 있음).
+- **INV-9** 루프 시작 시 `vhk autonomy-log --event start`로 runId를 발급받아 루프 내내
+  유지하고, 종결 분기에서 결과에 맞는 이벤트로 반드시 종결 기록한다(이슈 #373 자율성완주율
+  계측 — 시작만 있고 종결이 없으면 완주율 분모/분자가 둘 다 부정확해진다).
 
 ## 루프 (1회 호출 = active goal 카드 1개)
 0. **안전 확인**: `.vhk/HARD_STOP` 존재? → 있으면 즉시 중단, 사유 보고하고 종료. (INV-6)
 1. **앵커 재주입**: `vhk loop-brief` 와 `vhk remind` 실행 → 산출 파일
    (`.vhk/loop-brief.md`·`.vhk/remind.md`) 를 Read 해서 의도·치명규칙을 컨텍스트에 넣는다.
 2. **상태 파악**: `vhk work`(또는 `vhk goal next`) 실행 → 지금의 active goal 카드 1개를 식별한다.
+   **런 시작 기록**(INV-9): `vhk autonomy-log --event start [--goal <n>]` 실행 → 발급된
+   runId 를 루프 끝까지 들고 있는다(6번 종결 분기에서 그대로 쓴다).
 3. **개발**: 그 카드의 미션을 구현한다. test-first(실패 테스트 먼저 → 통과 구현) + 기존 코딩 규칙 준수.
 4. **결정론 게이트**: `vhk verify` 실행 → `.vhk/reports/latest.json` 을 읽는다.
    green(typecheck/test/build/secure 통과) = 진행 허가 / red = 게이트 실패 카운트 +1. (INV-1·INV-4)
@@ -40,12 +45,17 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
    - **합격**(verify green AND 적대 치명 0):
      1) `docs/log/<오늘날짜>-autopilot.md` 에 "무엇을 했고 검증 결과" 1줄 append + `git add`. (INV-5)
      2) 작은 commit 1개. **commit 만** — push/PR 금지. (INV-7)
-     3) goal 완주 → 정지 + 핵심 보고 → 종료.
+     3) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)
+     4) goal 완주 → 정지 + 핵심 보고 → 종료.
    - **critical 발견 또는 verify 연속 2회 red**:
      1) `.vhk/HARD_STOP` 파일을 사유와 함께 생성. (INV-6)
-     2) 핵심 보고 → 종료(사람이 `vhk resume --confirm` 하기 전엔 재진입 금지).
+     2) `vhk autonomy-log --event hardstop --run-id <runId> [...] [--review-rejected]`
+        (적대리뷰 critical 이 원인이면 `--review-rejected` 포함). (INV-9)
+     3) 핵심 보고 → 종료(사람이 `vhk resume --confirm` 하기 전엔 재진입 금지).
    - **3사이클 진전 없음**:
-     1) `vhk blocker "<증상>"` (독푸딩 중이면 `[dogfood]` 태그로 HARD_STOP 임계 우회 가능) → 종료.
+     1) `vhk blocker "<증상>"` (독푸딩 중이면 `[dogfood]` 태그로 HARD_STOP 임계 우회 가능).
+     2) `vhk autonomy-log --event blocked --run-id <runId> [...]`. (INV-9)
+     3) 종료.
 7. **보고**(두괄식, 핵심 먼저):
    `[결과 1줄] → [한 일] → [문제 있으면 핵심 + 이슈 초안 텍스트]`.
    이슈는 **초안 텍스트만** 제시한다 — 등록은 사람이 2단계 `vhk auto` 로 결정한다. (INV-2)

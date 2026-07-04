@@ -127,7 +127,7 @@ async function guardCliDefer(
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek, goalSync } from './commands/goal.js'
-import { blocker, learn, resume, win } from './commands/agent.js'
+import { blocker, learn, resume, win, autonomyLog } from './commands/agent.js'
 import { watch } from './commands/watch.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives, evolveDigest } from './commands/evolve.js'
@@ -899,6 +899,43 @@ program
   .alias('성공')
   .description('성공 기록 → memory successes (learn 의 성공 쌍둥이 — reinforce evolve 입력)')
   .action(async (content: string[]) => { await win(content.join(' ')) })
+
+program
+  // 이슈 #373: vhk-auto SKILL.md 루프 전용 — 자율성완주율(런 시작 대비 사람개입 없는 종결) 계측.
+  .command('autonomy-log')
+  .alias('자율기록')
+  .option('--event <event>', 'start|complete|hardstop|blocked')
+  .option('--goal <n>', 'goal id 지정 (생략 시 active goal 자동감지)')
+  .option('--run-id <id>', '종결 이벤트(complete/hardstop/blocked)에 필요 — start 가 발급한 runId')
+  .option('--ticks <n>', '이 런의 루프 tick 수')
+  .option('--interventions <n>', '이 런의 사람 개입 횟수')
+  .option('--review-rejected', 'hardstop 이 적대리뷰(critic) 거부로 인한 것인지')
+  .description('자율 루프 런(run) 시작/종결 기록 → .vhk/events/autonomy-run.jsonl (완주율 계측, #373)')
+  .action(
+    async (opts: {
+      event?: string
+      goal?: string
+      runId?: string
+      ticks?: string
+      interventions?: string
+      reviewRejected?: boolean
+    }) => {
+      const KNOWN_EVENTS = new Set(['start', 'complete', 'hardstop', 'blocked'])
+      if (!opts.event || !KNOWN_EVENTS.has(opts.event)) {
+        console.error(`❌ --event 는 start|complete|hardstop|blocked 중 하나여야 합니다 (입력값: ${opts.event ?? '(없음)'})`)
+        process.exitCode = 1
+        return
+      }
+      await autonomyLog({
+        event: opts.event as 'start' | 'complete' | 'hardstop' | 'blocked',
+        goal: opts.goal ? Number(opts.goal) : undefined,
+        runId: opts.runId,
+        ticks: opts.ticks ? Number(opts.ticks) : undefined,
+        interventions: opts.interventions ? Number(opts.interventions) : undefined,
+        reviewRejected: opts.reviewRejected,
+      })
+    }
+  )
 
 program
   // 트랙 A(신뢰): 2026-07-01 밤샘루프 무감지 사건 재발 방지 — 경량 폴러(에이전트 아님).
