@@ -4,10 +4,25 @@
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-07-03
-**Phase:** **[2026-07-03] goal 88~92 완결(init 커스터마이징+core-rules 자동화) + RFC 0057(기억/복리/에이전트불가지론) 착수** — 사용자가 VHK 정체성(풀사이클·에이전트 불가지론·자가진화 복리)을 명시 재확인 → SEO goal 재감사(RFC 0054 확인, 회귀 1건 수정) → goal 88~91(init 커스터마이징 트리거) 완결 → goal 92(core-rules `~/.vhk/config.json` 자동화) TDD 완결 + critic 2라운드(병합전 M1/M2 + 병합후 재검증 2건) 전부 수정 → RFC 0057 실측 감사(트리거계층 CC전용·`ecosystem.mdc` 모순문구·receipt agent필드 없음 확정) 후 스코프 제안, **사용자 부재중이라 다음 세션 인계**(아래 최상단 항목 참조). 사실값(버전·테스트수)은 package.json·CHANGELOG.
+**갱신:** 2026-07-04
+**Phase:** **[2026-07-04] RFC 0057 3트랙 머지 + 잔여이슈 8건 트리아지 완결(4개 실구현·머지, 4개 사용자결정)** — PR #449(RFC0057)·#450~454(측정스키마 4트랙+goal73 결정) 전부 main 병합·게이트 green. #292-G3(세션종료 자동캡처)만 스파이크 결과 대기 중. 상세는 아래 최상단 항목·[docs/log/2026-07-04-session-wrapup-issue-triage.md](../log/2026-07-04-session-wrapup-issue-triage.md).
 
 ## 다음 할 일 (measure-first 최우선)
+- **🆕🆕🆕🆕🆕🆕🆕🆕🆕 [2026-07-04 · RFC0057 머지 + 잔여이슈 8건 트리아지] main `9e0ded4`**
+  - **완료(전부 main 병합·게이트 green)**:
+    - PR #449 — RFC 0057 3트랙(`ecosystem.mdc` 모순 제거·receipt/ledger `agent` 필드·정식 문서화).
+    - PR #450(goal96, #292 G5 문서신선도 게이트)·#451(goal97, closes #374 evolve효과측정)·#452(goal98, closes #375 recall queryType+diff-cover branch)·#453(goal99, part of #373 자율성완주율 로깅) — Workflow 4트랙 병렬 design→implement→verify로 구현, 적대검증에서 실결함 2건(README/COMMANDS 카운트 stale·`--goal` 등 파괴적 숫자입력 무검증) 발견·수정 후 머지.
+    - PR #454 — goal 73(#276 LLM-judge) "착수 안 함" 결정 반영, 이슈 닫음.
+    - #374·#375·#276 → 이슈 **CLOSED**(완전 해결/결정 완료). #292·#373 → 이슈 OPEN 유지(부분완료, 코멘트로 잔여범위 명시).
+    - #279(launch/sell/ops 게이트) → 성격이 다른 5개 서브이슈(#455 HARD_STOP승인큐·#456 RULES상속검증·#457 secure게이트발행·#458 memory학습루프·#459 vhk cost)로 분리 후 원본 닫음. **#459가 가장 독립적 — 우선 착수 후보.**
+    - #426(노션 템플릿 동기화) → 재확인 결과 핵심 전제(AGENTS.md 미생성)가 이미 다른 작업(#133/#149/#249 계열)으로 해소돼있었음(`sync.ts` SYNC_TARGETS가 이미 자동생성 중, 실측 확인) → 사용자 우선순위 판단으로 닫음.
+    - #376·#292(Epic 본문) → 진행률 정정 코멘트만(코드 변경 없음).
+  - **⚠️ 알아둘 것 — 병렬 워크트리 goal번호 충돌**: 4트랙이 서로의 파일시스템을 못 봐서 #374와 #292-G5가 독립적으로 goal 96을 잡음(리넘버링 97로 해결) — 병렬배치에서 순번 자원은 사전배정 필요(교훈 상세: dev log 참고).
+  - **⚠️ 로컬 `git merge`로 main 직접 병합은 harness 클래시파이어가 차단** — PR 경유(`gh pr create` → CI green → `gh pr merge`)만 승인된 경로. 매 PR 병합 후 `goals/README.md` 자동생성 충돌 100% 발생(각 브랜치 독립 재생성) → `node scripts/gen-goals-index.mjs` 재실행이 표준 해결책.
+  - **🔜 다음 세션 최우선 — #292-G3 스파이크 결과 확인**: `scripts/spike-g3-process-wrap.mjs`(미커밋, 로컬) 사용자가 직접 터미널에서 실행해 Ctrl+C·색상·리사이즈·종료감지 5개 체크리스트 채점 예정. 결과에 따라 G3 강행/축소/보류 결정 → goal 등록.
+  - **다음 후보(우선순위순)**: ① #292-G3 스파이크 결과 반영 ② #459(vhk cost, 서브이슈 중 최독립) ③ #455~458(launch/sell/ops 나머지 4개, 순서는 사용자 판단) ④ measure-first(Recall@5·diff-cover 누적 — 오늘 #375로 스키마는 갖춰짐, 실사용 데이터 쌓이는 대로) ⑤ v2.9.0 이후 누적분 npm 발행(사용자 2FA).
+  - **미완(의도적으로 안 함)**: `scripts/spike-g3-process-wrap.mjs` 커밋 안 함(스파이크 결과 나오기 전) · publish 안 함(2FA, 사람만).
+  - 진입점: [docs/log/2026-07-04-session-wrapup-issue-triage.md](../log/2026-07-04-session-wrapup-issue-triage.md)(오케스트레이션 총괄) · 트랙별 상세는 `docs/log/2026-07-04-issue37{3,4,5}-*.md`·`2026-07-04-issue292-g5-doc-freshness.md`·`2026-07-04-rfc0057-track{1,2,3}-*.md`.
 - **🆕🆕🆕🆕🆕🆕🆕🆕 [2026-07-03 · goal 88~92 완결 + RFC 0057 착수/인계] main `1d5c8c9`**
   - **완료(전부 main 병합·게이트 green, push 안 함)**: goal 88(init docs 스캐폴딩)·89(커스터마이징 훅, 실제 `claude -p` 라이브 검증까지 완료)·90(sync 전파 정합성)·91(core-rules 폴백 가시화 — `vhk sync`가 아니라 `vhk inject-bootstrap --force`가 맞는 명령임을 critic이 잡음)·92(core-rules 자동화 — `~/.vhk/config.json` 파일기반 `brainRoot`, env var 재시작 문제 회피). SEO goal 22~26 재감사 — RFC 0054(자문형, LLM은 보고만·집행 코드 0)로 API 미연동은 **의도된 설계**임을 확인 + `seo report`에 누락된 HARD_STOP 가드 수정.
   - **critic이 실제로 잡은 결함(전부 TDD로 수정, 패턴 반복 확인됨)**: goal91 "vhk sync" 오안내 · goal92 M1(테스트 env 미격리) · M2(env가 다른 유효경로 가리키면 거짓 "성공" 표시) · 병합후 재검증 2건(상대경로 저장 시 cwd 의존으로 조용한 bundled 폴백·비문자열 brainRoot로 크래시) — **"안내 문구가 실제 결과와 어긋남" 클래스가 이 세션에서만 4회 재현**, 새 사용자 대면 메시지·성공판정 로직은 습관적으로 의심할 것.
