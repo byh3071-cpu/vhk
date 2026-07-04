@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { stripBom } from './read-json.js'
+import type { AgentId } from './detect-agent.js'
 
 // Goal 55(action-ledger, 별도 배치): AI 행동 원장 .vhk/events/ai-actions.jsonl 의 **reader**.
 //   Goal 61(stats) 집계용으로 본 배치에서 먼저 도입. 55 의 writer(runGuarded append)가
@@ -17,6 +18,11 @@ export interface AiActionEntry {
   reason: string
   target?: string
   sha?: string
+  /**
+   * RFC 0057 트랙②: 이 행동을 시킨 에이전트. action-ledger.ts(writer)의 동명 필드와 어긋나지
+   * 않게 동일하게 옵셔널 추가 — 필드 추가 이전 과거 라인(agent 프로퍼티 자체 없음)도 안전 파싱.
+   */
+  agent?: AgentId
 }
 
 /**

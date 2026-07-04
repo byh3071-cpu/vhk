@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, mkdirSync, appendFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { stripBom } from './read-json.js'
+import type { AgentId } from './detect-agent.js'
 
 // Goal 55: AI 행동 원장.
 // "AI 가 무엇을 실행/차단당했나" 를 레포 영속으로 남긴다 — 가드 chokepoint(runGuarded) 와
@@ -27,6 +28,12 @@ export interface AiActionEntry {
   target?: string
   /** 행동 시점 커밋 SHA — 있을 때만 */
   sha?: string
+  /**
+   * RFC 0057 트랙②: 이 행동을 시킨 에이전트(env 신호 자동 감지 또는 GuardDeps.agent override).
+   * 옵셔널 — 필드 추가 이전 과거 원장 라인(agent 프로퍼티 자체 없음)을 읽어도 타입이 깨지지
+   * 않게(하위호환).
+   */
+  agent?: AgentId
 }
 
 /** 행동 원장 파싱(JSONL). 손상 라인은 관용적으로 skip(원장이 한 줄 깨졌다고 읽기가 죽지 않음). */

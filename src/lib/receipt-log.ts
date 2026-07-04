@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { atomicWriteFile } from './atomic-write.js'
 import { stripBom } from './read-json.js'
 import type { Receipt, ReceiptDecision } from './receipt.js'
+import type { AgentId } from './detect-agent.js'
 import type { ReportStatus } from '../commands/verify.js'
 
 // N7 (RFC0056 측정 토대): vhk receipt 발행마다 decision·기계증거 요약을 영속화.
@@ -44,6 +45,11 @@ export interface ReceiptLogEntry {
   forbiddenHits: number | null
   /** scope 밖 변경 파일 수. mission 부재 → null. */
   scopeWarnings: number | null
+  /**
+   * RFC 0057 트랙②: 이 영수증을 만든 에이전트(Receipt.agent 를 그대로 복사). 옵셔널 — 필드
+   * 추가 이전 과거 로그 라인(agent 프로퍼티 자체 없음)을 읽어도 타입이 깨지지 않게(하위호환).
+   */
+  agent?: AgentId
 }
 
 /**
@@ -66,6 +72,9 @@ export function buildReceiptLogEntry(r: Receipt): ReceiptLogEntry {
     diffCoverUncovered: e.diffCover.measured ? e.diffCover.totalUncovered : null,
     forbiddenHits: intentKnown ? e.intent!.forbiddenHits : null,
     scopeWarnings: intentKnown ? e.intent!.scopeWarnings : null,
+    // RFC 0057 트랙②: Receipt.agent 를 그대로 복사(별도 감지 호출 불필요 — buildReceipt 가 이미 채움).
+    // r.agent 자체가 없는 구버전 Receipt(필드 추가 이전 역직렬화분)도 안전하게 'unknown' 폴백.
+    agent: r.agent ?? 'unknown',
   }
 }
 

@@ -15,6 +15,7 @@
 //   right but not quite"(미묘하게 틀린 코드)는 구조적으로 못 잡는다. 산출물 .md 하단에 이 경계를 박는다.
 
 import type { ReportStatus } from '../commands/verify.js'
+import type { AgentId } from './detect-agent.js'
 
 /** 영수증 판정 — 기계증거만(LLM 0). block: 실차단(red/dirty/stale/forbidden). caution: 약신호만. pass: 전부 clean·확인됨. */
 export type ReceiptDecision = 'block' | 'caution' | 'pass'
@@ -164,6 +165,11 @@ export interface ReceiptMeta {
   headSha: string | null
   /** 작업시작 기준선 SHA(미기록 → null). */
   baseSha: string | null
+  /**
+   * RFC 0057 트랙②: 이 영수증을 만든 에이전트(로컬 환경변수 감지, detectAgent()). 옵셔널 —
+   * 생략 시 buildReceipt 가 'unknown' 으로 채운다(하위호환, 구버전 호출부도 안전).
+   */
+  agent?: AgentId
 }
 
 export interface ReceiptCommit {
@@ -190,6 +196,14 @@ export interface Receipt {
   base: ReceiptCommit
   /** 정직성 경계 1줄. */
   honesty: string
+  /**
+   * RFC 0057 트랙②: 이 영수증을 만든 에이전트. **순수 사후 attribution 용 — decision 에 절대
+   * 반영 안 됨**(decideReceipt 는 ReceiptEvidence 만 받고, 그 타입엔 이 필드가 없다 — 원칙1
+   * "decision=기계증거 전용, LLM 0"을 타입 레벨로 강제). buildReceipt 는 항상 채워서 반환하지만
+   * (미상 → 'unknown', 추측 금지), 타입은 옵셔널로 둔다 — 필드 추가 전 과거 영수증 JSON(디스크에
+   * 이미 쓰인 .vhk/receipts/*.json)을 이 타입으로 취급해도 깨지지 않게(하위호환).
+   */
+  agent?: AgentId
 }
 
 function shortOf(sha: string | null): string | null {
@@ -209,6 +223,7 @@ export function buildReceipt(e: ReceiptEvidence, meta: ReceiptMeta): Receipt {
     head: { sha: meta.headSha, shortSha: shortOf(meta.headSha) },
     base: { sha: meta.baseSha, shortSha: shortOf(meta.baseSha) },
     honesty: HONESTY_LINE,
+    agent: meta.agent ?? 'unknown',
   }
 }
 
