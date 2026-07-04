@@ -8,17 +8,30 @@ import { pathToFileURL, fileURLToPath } from 'node:url'
 
 const SHIM_BINS = new Set(['pnpm', 'npm', 'npx', 'yarn'])
 
+// src/lib/exec.ts 의 CMD_SHELL_METACHARS 하드닝과 동일 근거 — cmd.exe /c 래핑 경로는
+// 따옴표+&|<>^% 조합으로 인용 경계를 탈출당할 수 있다(직접 프로브로 실증, CVE-2024-27980
+// 과 같은 근본원인 클래스). "제대로 이스케이프"보다 위험 문자 있으면 거부(fail-closed).
+const CMD_SHELL_METACHARS = /[&|<>^%"\r\n]/
+
 function resolveCmd(cmd, args) {
   if (process.platform === 'win32' && SHIM_BINS.has(cmd)) {
     // Windows: .cmd shim 직접 호출은 Node 20.12+ CVE-2024-27980 으로 spawnSync EINVAL.
     // cmd.exe /d /s /c 래핑해서 shell:false 유지하면서 동작.
+    const bad = args.find((a) => CMD_SHELL_METACHARS.test(a))
+    if (bad !== undefined) {
+      return {
+        rejected: `안전하지 않은 인자 거부 — Windows shim(${cmd}) 호출에 cmd.exe 특수문자 포함 인자가 있습니다: ${JSON.stringify(bad)}`,
+      }
+    }
     return { bin: 'cmd.exe', argv: ['/d', '/s', '/c', `${cmd}.cmd`, ...args] }
   }
   return { bin: cmd, argv: args }
 }
 
 export function safeExec(cmd, args) {
-  const { bin, argv } = resolveCmd(cmd, args)
+  const resolved = resolveCmd(cmd, args)
+  if (resolved.rejected) return { ok: false, err: resolved.rejected, out: '' }
+  const { bin, argv } = resolved
   try {
     const out = execFileSync(bin, argv, {
       encoding: 'utf-8',

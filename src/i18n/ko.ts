@@ -223,7 +223,8 @@ export const ko = {
         `PRIVATE_RULES_ROOT 미설정 또는 라이브 파일 읽기 실패 — 헌법(core-rules)이 번들 스냅샷(${v})으로 사용되고 있어요. ` +
         `최신이 아닐 수 있어요. 라이브로 갱신하려면 PRIVATE_RULES_ROOT 설정(Windows는 설정 후 터미널·VSCode 재시작 필수 — 안 하면 실행 중 프로세스에 반영 안 됨) 후 ` +
         `vhk inject-bootstrap --force 를 실행하세요. 이 명령은 ecosystem.mdc 등 다른 tier-S 파일도 최신 템플릿으로 되돌릴 수 있어요 — ` +
-        `직접 손으로 고친 적 있으면 먼저 git status로 확인하세요.`
+        `직접 손으로 고친 적 있으면 먼저 git status로 확인하세요. ` +
+        `재시작 없이 바로 적용하려면 대신 vhk config set-rules-root <경로> 를 실행하세요(1회 설정, 다음 실행부터 즉시 반영).`
       )
     },
     adoptPrompt: (n: number, list: string) =>
@@ -660,6 +661,21 @@ export const ko = {
       title: '⚙️ vhk seo automate — Notion 적재 + 스케줄러 + 확장 슬롯',
       notionBlocked: 'Notion 실 적재는 자격증명·연동이 필요합니다 — 운영 단계.',
     },
+  },
+  // goal 92 — PRIVATE_RULES_ROOT 재시작 필요 문제를 피하는 파일기반(~/.vhk/config.json) 설정.
+  config: {
+    setrulesRootTitle: '🧭 vhk config set-rules-root',
+    saved: (path: string) => `~/.vhk/config.json 에 저장: ${path}`,
+    liveConfirmed: (version: string) => `확인: 헌법(core-rules) 라이브 반영 성공 (v${version})`,
+    liveNote: '재시작 없이 지금부터 모든 vhk 명령에 즉시 적용됩니다.',
+    notFoundWarn: '경로는 저장했지만, 그 경로에서 아직 core-ruleset.yaml 을 못 읽었어요.',
+    notFoundHint: (path: string) => `${path}/memory/core/core-ruleset.yaml 파일이 있는지 확인하세요.`,
+    // critic 지적(M2, goal 92): PRIVATE_RULES_ROOT 가 다른 경로로 설정돼 있으면 방금 저장한
+    // 경로는 유효해도 지금 당장은 안 쓰인다 — "성공"이라고 말하면 거짓 확신을 준다.
+    envOverrideWarn: (envRoot: string) =>
+      `저장은 됐지만, 지금은 PRIVATE_RULES_ROOT 환경변수(${envRoot})가 우선 적용 중이라 방금 설정한 경로는 아직 안 쓰여요.`,
+    envOverrideHint: '환경변수를 해제하거나 같은 경로로 맞추면 이 설정이 바로 쓰입니다.',
+    nextHint: '헌법 소스를 다시 확인하려면:',
   },
 } as const
 

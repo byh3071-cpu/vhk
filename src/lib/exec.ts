@@ -23,15 +23,35 @@ export type ExecResult =
   | { ok: true; out: string }
   | { ok: false; err: string; out: string; stderr?: string }
 
+// resolveCmd 의 Windows shim 경로(cmd.exe /c)는 오늘 기준 실제 호출부(전부 코드 내부 리터럴
+// 인자)엔 안 걸리지만, safeExecFile 은 범용 함수라 미래 호출부가 cwd·파일명 등 오염된 값을
+// shim 바이너리 인자로 넘기면 위험해질 수 있다 — 직접 프로브로 실증: 따옴표+&|<>^%  조합이
+// cmd.exe 의 인용 경계를 탈출해 실제 명령 인젝션으로 이어짐(CVE-2024-27980 과 같은 근본원인
+// 클래스). "제대로 이스케이프"는 이 클래스에서 반복적으로 CVE 를 낳아온 함정이라(cmd.exe 자체
+// 파싱이 인용부호 안에서도 특별 취급하는 경우가 있음) — 위험 문자 있으면 아예 거부(fail-closed).
+const CMD_SHELL_METACHARS = /[&|<>^%"\r\n]/
+
+// resolveCmd 의 반환값: 정상 해석 또는 하드닝 거부. 예외 대신 값으로 표현해
+// safeExecFile* 세 함수의 "절대 throw 안 함" 계약을 그대로 유지한다. ok 로 구분(ExecResult 와
+// 동일 관례) — rejected?:undefined 같은 truthiness 기반 구분은 빈 문자열 케이스에서 TS 좁히기가
+// 안 먹어서(string 이 falsy 일 수 있어 완전한 discriminant 가 아님) ok 불리언으로 통일.
+type ResolvedCmd = { ok: true; bin: string; argv: string[] } | { ok: false; err: string }
+
 // Windows .cmd shim 호출은 Node 20.12+ / 21.7+ CVE-2024-27980 보안 강화로 execFileSync 직접 호출 시
 // spawnSync EINVAL. cmd.exe /d /s /c <shim>.cmd <args>로 래핑 — shell:false 유지하면서 동작.
 // /d: AutoRun 무시, /s: 따옴표 처리 강화, /c: 명령 실행 후 종료.
-// shim args는 publish/deploy 등 코드 내부 리터럴만 → cmd.exe argv parsing 안전.
-function resolveCmd(cmd: string, args: string[]): { bin: string; argv: string[] } {
+function resolveCmd(cmd: string, args: string[]): ResolvedCmd {
   if (process.platform === 'win32' && SHIM_BINARIES.has(cmd)) {
-    return { bin: 'cmd.exe', argv: ['/d', '/s', '/c', `${cmd}.cmd`, ...args] }
+    const bad = args.find((a) => CMD_SHELL_METACHARS.test(a))
+    if (bad !== undefined) {
+      return {
+        ok: false,
+        err: `안전하지 않은 인자 거부 — Windows shim(${cmd}) 호출에 cmd.exe 특수문자 포함 인자가 있습니다: ${JSON.stringify(bad)}`,
+      }
+    }
+    return { ok: true, bin: 'cmd.exe', argv: ['/d', '/s', '/c', `${cmd}.cmd`, ...args] }
   }
-  return { bin: platformCmd(cmd), argv: args }
+  return { ok: true, bin: platformCmd(cmd), argv: args }
 }
 
 // 기본 timeout 정책 — 외부 명령 hang 방지 backstop.
@@ -75,7 +95,9 @@ export function safeExecFile(
   args: string[],
   opts: SafeExecOptions = {}
 ): ExecResult {
-  const { bin, argv } = resolveCmd(cmd, args)
+  const resolved = resolveCmd(cmd, args)
+  if (!resolved.ok) return { ok: false, err: resolved.err, out: '' }
+  const { bin, argv } = resolved
   const env = opts.env ? { ...process.env, ...opts.env } : undefined
   const timeout = resolveTimeout(opts.timeoutMs, DEFAULT_EXEC_TIMEOUT_MS)
   try {
@@ -119,7 +141,9 @@ export async function safeExecFileAsync(
   args: string[],
   opts: SafeExecOptions = {}
 ): Promise<ExecResult> {
-  const { bin, argv } = resolveCmd(cmd, args)
+  const resolved = resolveCmd(cmd, args)
+  if (!resolved.ok) return { ok: false, err: resolved.err, out: '' }
+  const { bin, argv } = resolved
   const env = opts.env ? { ...process.env, ...opts.env } : undefined
   const timeout = resolveTimeout(opts.timeoutMs, DEFAULT_EXEC_TIMEOUT_MS)
   try {
@@ -170,7 +194,9 @@ export function safeExecFileStream(
   args: string[],
   opts: SafeExecStreamOptions = {}
 ): StreamResult {
-  const { bin, argv } = resolveCmd(cmd, args)
+  const resolved = resolveCmd(cmd, args)
+  if (!resolved.ok) return { ok: false, err: resolved.err }
+  const { bin, argv } = resolved
   // stream 은 기본 timeout 없음 (2FA OTP 입력 등 사용자 대기가 정상). opts 로만 opt-in.
   const timeout = opts.timeoutMs && opts.timeoutMs > 0 ? opts.timeoutMs : undefined
   try {

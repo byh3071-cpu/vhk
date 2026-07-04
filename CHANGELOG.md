@@ -4,6 +4,16 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- **init 커스터마이징 트리거 훅** (Goal 89) — `vhk init` 직후 `.vhk/NEEDS_CUSTOMIZATION` 마커 + `.claude/settings.json` SessionStart 훅 배선 → 첫 세션에서 AI가 도메인 규칙 인터뷰를 자동 시작. 실 라이브 세션(`claude -p --debug-file`)으로 훅 발화 검증 완료.
+- **`vhk config set-rules-root <path>`** (Goal 92) — `~/.vhk/config.json` 파일기반 core-rules 소스 설정. `PRIVATE_RULES_ROOT` 환경변수는 설정해도 이미 열린 터미널/Claude Code 세션엔 재시작 전까지 반영 안 되는데(Windows 프로세스 환경변수 상속 구조), 파일은 매 실행마다 디스크에서 새로 읽어 이 문제를 구조적으로 회피. `loadCoreRuleset()` 3단계 우선순위(env var → 홈 설정파일 → 번들 스냅샷). 저장 직후 즉시 3-way 피드백(무효 경로/env가 가려서 지금은 안 씀/성공). 한글별칭 `설정`.
+- **core-rules 폴백 가시화** (Goal 91) — `PRIVATE_RULES_ROOT` 미설정 또는 라이브 파일 읽기 실패 시 조용히 번들 스냅샷(구버전일 수 있음)으로 쓰이던 걸 `vhk init`/`vhk start` 콘솔 경고 + `.vhk/context.md` 표기로 가시화.
+
+### Fixed
+
+- **`vhk seo report`에 누락된 HARD_STOP 가드** — `#335`/`#336`과 같은 클래스(HARD_STOP 활성 중에도 파일 쓰기 진행)가 `report.ts`에 남아있던 것을 발견해 수정.
+
 ## [2.9.0] - 2026-07-02
 
 ### Added

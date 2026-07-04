@@ -129,6 +129,12 @@ Cursor에게 한국어로 말해도 됩니다.
 | 리포트 | `vhk seo report` | 기간 요약 |
 | 자동화 | `vhk seo automate` | 주기 실행 스캐폴드 |
 
+## 사용자 설정 (config — Goal 92)
+
+| 하고 싶은 것 | 터미널 명령 | 설명 |
+|-------------|-----------|------|
+| 헌법(core-rules) 라이브 소스 등록 | `vhk config set-rules-root <path>` | `~/.vhk/config.json`에 저장 — `PRIVATE_RULES_ROOT`와 달리 재시작 없이 다음 명령부터 즉시 반영 |
+
 ## 환경 점검
 
 ```bash

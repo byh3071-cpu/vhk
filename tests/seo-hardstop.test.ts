@@ -57,4 +57,27 @@ describe('seo 명령 HARD_STOP 가드 (#335/#336)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  // 실전재검증 감사(2026-07-03)에서 발견 — report.ts 만 #335/#336 과 동일한 가드 누락 패턴을
+  // 안 고치고 남아있었음(3번째 재발 후보). latest.json 이 있어야 report.ts 가 조기 종료 없이
+  // 실제 쓰기 경로까지 도달하므로, 가드가 그 경로를 진짜로 차단하는지 검증 가능.
+  it('HARD_STOP 활성 → seoReport 가 report.html 을 쓰지 않는다 (신규 발견)', async () => {
+    const dir = tmpProject('report-blocked')
+    writeHardStop(dir)
+    mkdirSync(join(dir, '.vhk', 'seo'), { recursive: true })
+    writeFileSync(
+      join(dir, '.vhk', 'seo', 'latest.json'),
+      JSON.stringify({ version: 1, collectedAt: '2026-07-03T00:00:00Z', domain: 'ex.com' }),
+      'utf-8'
+    )
+    process.chdir(dir)
+    try {
+      const { seoReport } = await import('../src/commands/seo/report.js')
+      await seoReport({ yes: true }, dir)
+      expect(existsSync(join(dir, '.vhk', 'seo', 'report.html'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
