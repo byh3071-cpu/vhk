@@ -88,3 +88,27 @@ NL 라우터 회귀 2개) · `goals/README.md`(재생성).
 - **이슈 원안이 항상 완전하지 않다.** 실제 실행 경로(SKILL.md 루프의 3가지 종결 분기)와
   대조하면 누락(4번째 `blocked` 이벤트)이 드러난다 — 설계를 코드로 옮기기 전에 "이 스키마가
   실제 실행되는 모든 종결 경로를 커버하는가"를 먼저 대조해야 한다.
+
+## 추가 — 적대검증 결함수정 (같은 날)
+
+적대적 검증(별도 에이전트)이 실버그 1건을 잡았다: `src/index.ts`의 `autonomy-log` 액션이
+`--goal`/`--ticks`/`--interventions` 를 `Number()`로 무검증 변환 — `--goal abc``→NaN(자동감지
+무력화, 문서상 "생략시 자동감지"와 다른 동작), `--goal " 1"`(공백패딩)→조용히 goal 1 로 오염.
+이 레포에 이미 있는 `#317`(`resolveGoalId`, `src/commands/goal.ts`)과 똑같은 실패유형인데
+이번 신규코드는 그 가드를 안 따랐다.
+
+수정: `src/commands/agent.ts`에 `parseAutonomyIntArg()`+`INVALID_AUTONOMY_ARG` 마커 추가
+(`/^\d+$/` 만 통과, `#317`과 동일 계약) — `src/index.ts`가 `Number()` 호출 전에 이걸로
+검증 후 거부시 exitCode=1. TDD로 RED(`parseAutonomyIntArg is not a function`)→GREEN(12개
+케이스: 정상 3 + 거부 8 + undefined 1) 확인. `tests/agent.test.ts`에 회귀 테스트 추가.
+
+`goals/99-autonomy-run-log.md`의 `leads_to` 문구도 정정 — "이슈 #373 완료"라고 과장했던 걸
+"로깅 스키마+커맨드까지만, 이슈 자체(분석 산출·승격임계)는 OPEN 유지"로 정확히 고침.
+
+게이트: `pnpm exec tsc --noEmit` clean · `pnpm build` green · `pnpm test:run` 2261/2261 green
+(신규 12케이스 포함) · `pnpm lint` clean.
+
+**교훈**: 이 레포에 이미 있는 방어 패턴(`#317`)을 신규 코드가 반복 안 하는 사례 — "숫자로
+변환하는 CLI 옵션은 전부 `/^\d+$/` 가드를 거친다"가 house rule 이라면, 신규 커맨드 작성 시
+과거 이슈 번호로 검색(`grep -rn "resolveGoalId\|파괴적.*강제변환"`)해서 유사 패턴이 있는지
+먼저 확인했어야 한다 — 처음부터 설계 단계에 넣었으면 이 재작업 자체가 불필요했다.

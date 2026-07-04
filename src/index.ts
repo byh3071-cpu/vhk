@@ -127,7 +127,7 @@ async function guardCliDefer(
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek, goalSync } from './commands/goal.js'
-import { blocker, learn, resume, win, autonomyLog } from './commands/agent.js'
+import { blocker, learn, resume, win, autonomyLog, parseAutonomyIntArg, INVALID_AUTONOMY_ARG } from './commands/agent.js'
 import { watch } from './commands/watch.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
 import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives, evolveDigest } from './commands/evolve.js'
@@ -926,12 +926,27 @@ program
         process.exitCode = 1
         return
       }
+      // #317 과 동일 가드: 'abc'→NaN, ' 1'(공백패딩)→조용히 1 로 오염되는 입력을 Number() 전에 차단.
+      const goalParsed = parseAutonomyIntArg(opts.goal)
+      const ticksParsed = parseAutonomyIntArg(opts.ticks)
+      const interventionsParsed = parseAutonomyIntArg(opts.interventions)
+      if (
+        goalParsed === INVALID_AUTONOMY_ARG ||
+        ticksParsed === INVALID_AUTONOMY_ARG ||
+        interventionsParsed === INVALID_AUTONOMY_ARG
+      ) {
+        console.error(
+          `❌ --goal/--ticks/--interventions 는 숫자만 허용합니다 (goal=${opts.goal ?? ''} ticks=${opts.ticks ?? ''} interventions=${opts.interventions ?? ''})`
+        )
+        process.exitCode = 1
+        return
+      }
       await autonomyLog({
         event: opts.event as 'start' | 'complete' | 'hardstop' | 'blocked',
-        goal: opts.goal ? Number(opts.goal) : undefined,
+        goal: goalParsed,
         runId: opts.runId,
-        ticks: opts.ticks ? Number(opts.ticks) : undefined,
-        interventions: opts.interventions ? Number(opts.interventions) : undefined,
+        ticks: ticksParsed,
+        interventions: interventionsParsed,
         reviewRejected: opts.reviewRejected,
       })
     }

@@ -19,6 +19,19 @@ import {
 import { recordLesson, recordSuccess } from './memory.js'
 import { selectActiveId } from './goal.js'
 
+/** #373 재검증: '--goal abc'→NaN, ' 1'(공백패딩)→조용히 1 로 오염되는 걸 막는 전용 마커
+ * (#317 resolveGoalId 와 동일 가드 — 원시 문자열 단계에서 /^\d+$/ 로만 통과시킨다). */
+export const INVALID_AUTONOMY_ARG = Symbol('invalid-autonomy-arg')
+
+/** --goal/--ticks/--interventions 원시 문자열을 Number() 변환 전에 검증(#317 과 동일 계약). */
+export function parseAutonomyIntArg(
+  raw: string | undefined
+): number | undefined | typeof INVALID_AUTONOMY_ARG {
+  if (raw === undefined) return undefined
+  if (!/^\d+$/.test(raw)) return INVALID_AUTONOMY_ARG
+  return Number(raw)
+}
+
 function activeGoalId(): number | undefined {
   const goals = listGoals('goals')
   const id = selectActiveId(goals)

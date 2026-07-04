@@ -202,3 +202,27 @@ describe('autonomyLog — CLI 레이어 (이슈 #373 자율성완주율)', () =>
     expect(parsed.goal).toBeUndefined()
   })
 })
+
+// 검증(적대적 재검토)에서 발견: --goal/--ticks/--interventions 가 index.ts 에서 Number() 로
+// 무검증 변환돼 'abc'→NaN(활성goal 자동감지 무력화), ' 1'(공백패딩)→조용히 1 로 오염되는 실버그.
+// #317(resolveGoalId, goal.ts)과 동일한 /^\d+$/ 가드를 여기도 적용해야 한다.
+describe('parseAutonomyIntArg — 파괴적 숫자 입력 차단 (#373 재검증)', () => {
+  it('생략(undefined)이면 undefined 통과', async () => {
+    const { parseAutonomyIntArg } = await import('../src/commands/agent.js')
+    expect(parseAutonomyIntArg(undefined)).toBeUndefined()
+  })
+
+  for (const good of ['0', '1', '12']) {
+    it(`'${good}' → 숫자로 정상 변환`, async () => {
+      const { parseAutonomyIntArg } = await import('../src/commands/agent.js')
+      expect(parseAutonomyIntArg(good)).toBe(Number(good))
+    })
+  }
+
+  for (const bad of ['', '   ', ' 1', 'abc', '1.5', '2zzz', '-1', '0x1']) {
+    it(`${JSON.stringify(bad)} → INVALID_AUTONOMY_ARG 거부`, async () => {
+      const { parseAutonomyIntArg, INVALID_AUTONOMY_ARG } = await import('../src/commands/agent.js')
+      expect(parseAutonomyIntArg(bad)).toBe(INVALID_AUTONOMY_ARG)
+    })
+  }
+})

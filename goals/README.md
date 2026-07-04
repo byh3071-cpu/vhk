@@ -23,4 +23,4 @@
 | 93 | ecosystem.mdc 정체성 모순 제거 — "Claude Code = primary" → 실행/트리거 계층 분리 — P2 | ✅ DONE | P2 | RFC 0057(에이전트 불가지론) 실측 감사가 확정한 3항목 중 트랙① 완결 — 트랙②(receipt agent 필드)·트랙③(트리거 격차 문서화)는 별도 goal/트랙에서 병렬 진행 |
 | 94 | agent attribution — receipt/ledger 4대 스키마에 에이전트 감지 필드 추가 — P2 | ✅ DONE | P2 | RFC 0057(기억/복리/에이전트불가지론) 트랙② 완료 — "누가 이 작업을 했는지" 실측 데이터 축적 시작(향후 stats/trend 분석 토대) |
 | 95 | RFC 0057 정식 문서화 + 트리거 격차 명시 — 순수 문서 트랙(트랙③) — P2 | ✅ DONE | P2 | VHK 정체성(에이전트 불가지론 + 자가진화 복리)의 실측 감사 결과를 근거 문서로 고정 — 트랙①(ecosystem.mdc 모순 제거)·트랙②(receipt agent 필드)가 참조할 SoT 확보 |
-| 99 | 자율성완주율 측정 스키마 — vhk autonomy-log 런(run) 시작/종결 계측 — P2 | ✅ DONE | P2 | 이슈 #373 완료 — vhk-auto 자율 루프의 완주율(런 시작 대비 사람개입 없는 종결)을 |
+| 99 | 자율성완주율 측정 스키마 — vhk autonomy-log 런(run) 시작/종결 계측 — P2 | ✅ DONE | P2 | 이슈 #373의 로깅 스키마+커맨드 부분 완료(이슈 자체는 OPEN 유지) — vhk-auto 자율 |
