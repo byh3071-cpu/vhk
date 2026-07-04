@@ -148,3 +148,66 @@ describe('scoreEval 정확매칭 회귀 (#322)', () => {
     expect(r.recallAt5).toBe(0)
   })
 })
+
+// #375: EvalLabel.queryType — lexical(키워드 일치) vs paraphrase(의역) 태깅. 하위호환(생략 가능) +
+//       queryType별 Recall@5 분해(byQueryType). 매칭 로직 자체는 안 바뀜(순수 스코어링 태깅만 추가).
+describe('EvalLabel.queryType (#375 — 하위호환 + 검증)', () => {
+  it('validateEvalLabels — queryType 있으면 그대로 보존', () => {
+    const labels = validateEvalLabels({
+      labels: [{ query: 'publish', expectIds: ['f1'], queryType: 'lexical' }],
+    })
+    expect(labels).toEqual([{ query: 'publish', expectIds: ['f1'], queryType: 'lexical' }])
+  })
+
+  it('validateEvalLabels — queryType 생략 → 필드 자체 없이 통과(하위호환)', () => {
+    const labels = validateEvalLabels({ labels: [{ query: 'publish', expectIds: ['f1'] }] })
+    expect(labels).toEqual([{ query: 'publish', expectIds: ['f1'] }])
+  })
+
+  it('validateEvalLabels — queryType 허용값(paraphrase) 통과', () => {
+    const labels = validateEvalLabels({
+      labels: [{ query: 'publish', expectIds: ['f1'], queryType: 'paraphrase' }],
+    })
+    expect(labels[0].queryType).toBe('paraphrase')
+  })
+
+  it('validateEvalLabels — queryType 허용값 외 문자열 → EvalFormatError', () => {
+    expect(() =>
+      validateEvalLabels({ labels: [{ query: 'publish', expectIds: ['f1'], queryType: 'fuzzy' }] })
+    ).toThrow(EvalFormatError)
+  })
+
+  it('validateEvalLabels — queryType 이 문자열 아님(숫자) → EvalFormatError', () => {
+    expect(() =>
+      validateEvalLabels({ labels: [{ query: 'publish', expectIds: ['f1'], queryType: 1 }] })
+    ).toThrow(EvalFormatError)
+  })
+})
+
+describe('scoreEval — byQueryType 분해 (#375)', () => {
+  it('queryType별 n·recallAt5 를 분리 집계, 누락 라벨은 unknown 버킷', () => {
+    const labels: EvalLabel[] = [
+      { query: 'publish', expectIds: ['f1'], queryType: 'lexical' }, // found (rank 1)
+      { query: '관계없는쿼리', expectIds: ['f2'], queryType: 'lexical' }, // 미발견
+      { query: 'publish', expectIds: ['f1'], queryType: 'paraphrase' }, // found
+      { query: 'CHANGELOG', expectIds: ['f2'] }, // 태깅 없음 → unknown, found
+    ]
+    const r = scoreEval(M, labels, NOW)
+    expect(r.byQueryType).toBeDefined()
+    expect(r.byQueryType!.lexical).toMatchObject({ n: 2, recallAt5: 0.5 })
+    expect(r.byQueryType!.paraphrase).toMatchObject({ n: 1, recallAt5: 1 })
+    expect(r.byQueryType!.unknown).toMatchObject({ n: 1, recallAt5: 1 })
+  })
+
+  it('빈 labels → byQueryType undefined(전체 n=0 과 동치)', () => {
+    const r = scoreEval(M, [], NOW)
+    expect(r.byQueryType).toBeUndefined()
+  })
+
+  it('전부 queryType 없으면 unknown 버킷만 n>0, lexical/paraphrase 는 n:0', () => {
+    const r = scoreEval(M, [{ query: 'publish', expectIds: ['f1'] }], NOW)
+    expect(r.byQueryType!.unknown).toMatchObject({ n: 1, recallAt5: 1 })
+    expect(r.byQueryType!.lexical).toMatchObject({ n: 0, recallAt5: 0 })
+    expect(r.byQueryType!.paraphrase).toMatchObject({ n: 0, recallAt5: 0 })
+  })
+})
