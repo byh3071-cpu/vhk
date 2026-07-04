@@ -63,6 +63,68 @@ describe('formatReport — diff-coverage 결과 → 표시 라인(순수)', () =
     }
     expect(formatReport(r).join('\n')).toMatch(/import|테스트 안|미import/)
   })
+
+  // #375: uncoveredBranch — statement 는 미검증(uncoveredNew)이면서 branch 도 미검증인 일반 케이스.
+  it('uncoveredBranch 있으면 "분기 미검증" 라인 추가로 표시', () => {
+    const r: DiffCoverageResult = {
+      files: [
+        {
+          file: 'src/commands/audit.ts',
+          added: 4,
+          covered: 2,
+          uncoveredNew: [3, 4],
+          uncoveredBranch: [3],
+          ratio: 0.5,
+          inCoverage: true,
+        },
+      ],
+      totalAdded: 4,
+      totalCovered: 2,
+      totalUncovered: 2,
+      ratio: 0.5,
+    }
+    const out = formatReport(r).join('\n')
+    expect(out).toContain('분기 미검증')
+    expect(out).toContain('3')
+  })
+
+  // #375 핵심 시나리오: statement 는 전부 covered(오판정, totalUncovered:0) 이지만 branch 는 미검증 —
+  // 기존엔 이 경우 무조건 "모두 커버" 축하 메시지로 은폐됐다. branch 미검증이 있으면 은폐하지 않는다.
+  it('statement 전부 covered 이나 branch 미검증 있으면 축하 메시지로 은폐하지 않음', () => {
+    const r: DiffCoverageResult = {
+      files: [
+        {
+          file: 'src/commands/audit.ts',
+          added: 1,
+          covered: 1,
+          uncoveredNew: [],
+          uncoveredBranch: [24],
+          ratio: 1,
+          inCoverage: true,
+        },
+      ],
+      totalAdded: 1,
+      totalCovered: 1,
+      totalUncovered: 0,
+      ratio: 1,
+    }
+    const out = formatReport(r).join('\n')
+    expect(out).toContain('분기 미검증')
+    expect(out).toContain('24')
+  })
+
+  it('uncoveredBranch 없으면(undefined/빈배열) 기존 출력과 동일 — "분기 미검증" 라인 없음', () => {
+    const r: DiffCoverageResult = {
+      files: [
+        { file: 'src/lib/a.ts', added: 4, covered: 2, uncoveredNew: [3, 4], uncoveredBranch: [], ratio: 0.5, inCoverage: true },
+      ],
+      totalAdded: 4,
+      totalCovered: 2,
+      totalUncovered: 2,
+      ratio: 0.5,
+    }
+    expect(formatReport(r).join('\n')).not.toContain('분기 미검증')
+  })
 })
 
 describe('diffCover — 오케스트레이션 분기(자문형·차단 0)', () => {
@@ -137,7 +199,7 @@ describe('diffCover — 오케스트레이션 분기(자문형·차단 0)', () =
   })
 
   it('정상 — 미검증 변경분 있어도 advisory(exit 0) + 보고', async () => {
-    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]) }
+    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]), branchPartial: new Set() }
     mockCov.mockReturnValue(new Map([['src/lib/a.ts', fc]]))
     await diffCover()
     expect(process.exitCode).not.toBe(1) // 측정 결과로는 차단 안 함
@@ -149,7 +211,7 @@ describe('diffCover — 오케스트레이션 분기(자문형·차단 0)', () =
 
   // #371: 측정 후 결과를 영속(append)한다 — 추세 분석 토대.
   it('#371 정상 측정 시 diff-cover 로그에 append 한다(영속화)', async () => {
-    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]) }
+    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]), branchPartial: new Set() }
     mockCov.mockReturnValue(new Map([['src/lib/a.ts', fc]]))
     await diffCover()
     expect(vi.mocked(buildDiffCoverEntries)).toHaveBeenCalledOnce()
@@ -158,7 +220,7 @@ describe('diffCover — 오케스트레이션 분기(자문형·차단 0)', () =
 
   // #371: 영속 실패는 본 측정/출력/exit 0 을 절대 막지 않는다(best-effort).
   it('#371 영속화 throw 해도 측정 출력·exit 0 불변(best-effort)', async () => {
-    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]) }
+    const fc: FileCoverage = { covered: new Set([10]), executable: new Set([10, 11]), branchPartial: new Set() }
     mockCov.mockReturnValue(new Map([['src/lib/a.ts', fc]]))
     vi.mocked(appendDiffCoverLog).mockImplementationOnce(() => {
       throw new Error('disk full')

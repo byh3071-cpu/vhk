@@ -69,6 +69,20 @@ export async function memoryEval(opts: { init?: boolean } = {}): Promise<void> {
     console.log(`  ${mark}  ${q.query}`)
   }
   console.log('')
+  // #375: queryType별(lexical/paraphrase/unknown) Recall@5 분해 — n>0 인 버킷만 표시(노이즈 차단).
+  if (r.byQueryType) {
+    const labelKo: Record<'lexical' | 'paraphrase' | 'unknown', string> = {
+      lexical: '키워드 일치',
+      paraphrase: '의역',
+      unknown: '미태깅',
+    }
+    for (const key of ['lexical', 'paraphrase', 'unknown'] as const) {
+      const b = r.byQueryType[key]
+      if (b.n === 0) continue
+      console.log(chalk.gray(`  · ${labelKo[key]}(${key}): Recall@5 ${pct(b.recallAt5)} (n=${b.n})`))
+    }
+    console.log('')
+  }
   if (r.verdict === 'sufficient') {
     console.log(chalk.green(`✅ Recall@5 ≥ ${pct(RECALL_EVAL_THRESHOLD)} — 키워드 회상 충분. ML(임베딩) 불필요.`))
   } else {

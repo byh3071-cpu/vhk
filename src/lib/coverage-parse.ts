@@ -3,10 +3,24 @@ import { relative } from 'node:path'
 import { isFeatureSource, toPosix } from './test-mapping.js'
 import { readJsonFile } from './read-json.js'
 
+/** branch location — 암묵 else 등 line 정보가 없는 경우 있음(istanbul 흔한 케이스). */
+interface V8BranchLocation {
+  start?: { line?: number }
+  end?: { line?: number }
+}
+
+interface V8Branch {
+  /** 분기 자체(if 문 등)의 위치 — location 에 line 이 없을 때 폴백용. */
+  loc?: V8BranchLocation
+  locations?: V8BranchLocation[]
+}
+
 interface V8FileCov {
   path?: string
   statementMap?: Record<string, { start: { line: number }; end: { line: number } }>
   s?: Record<string, number>
+  branchMap?: Record<string, V8Branch>
+  b?: Record<string, number[]>
 }
 
 export interface FileCoverage {
@@ -14,6 +28,13 @@ export interface FileCoverage {
   covered: Set<number>
   /** statementMap 의 모든 라인 — 실행가능(코드) 라인. import/주석/타입/빈줄/중괄호는 제외(노이즈 차단). */
   executable: Set<number>
+  /**
+   * #375: branchMap/b 기준 — 분기(if/삼항/switch 등)의 location 중 하나라도 hits===0 인 라인.
+   * 단일줄 if(예: "if (x) return 'a'")는 whole-statement 가 hit 되면 s 상 covered 로 오판정되지만,
+   * true/false(암묵 else 포함) 중 하나가 안 밟히면 여기 잡힌다 — statement 커버와 독립된 신호.
+   * required(항상 채움) — branchMap 이 없는 파일도 빈 Set 으로 정직 반환(크래시·undefined 전파 방지).
+   */
+  branchPartial: Set<number>
 }
 
 // #319/#321 의 #321: 리포트 파일이 *실재하나* JSON.parse 실패(잘림/빈 파일)인 손상 상태를
@@ -59,7 +80,23 @@ export function fileCoverageByFile(
         if (hit) covered.add(l)
       }
     }
-    out.set(rel, { covered, executable })
+
+    // #375: branchMap/b — 각 branch 의 locations[i] 중 hits[i]===0 인 것의 라인을 branchPartial 에 추가.
+    // location 에 line 정보가 없으면(암묵 else) branch 자체의 loc.start.line 으로 폴백.
+    const branchPartial = new Set<number>()
+    const branchMap = cov.branchMap ?? {}
+    const branchHits = cov.b ?? {}
+    for (const [k, branch] of Object.entries(branchMap)) {
+      const hits = branchHits[k] ?? []
+      const locations = branch.locations ?? []
+      locations.forEach((loc, i) => {
+        if ((hits[i] ?? 0) > 0) return // 이 location 은 실행됨
+        const line = loc.start?.line ?? branch.loc?.start?.line
+        if (typeof line === 'number') branchPartial.add(line)
+      })
+    }
+
+    out.set(rel, { covered, executable, branchPartial })
   }
   return out
 }
