@@ -9,8 +9,9 @@ import { ensureInteractive } from '../lib/interactive.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { readMemory, loadForMutation, writeMemory, type FailEntry } from './memory.js'
 import { sync } from './sync.js'
-import type { PatternEntryV19 } from './pattern.js'
+import { reconcilePatterns, type PatternEntryV19 } from './pattern.js'
 import { appendEvolveLog, buildEvolveLogEntry } from '../lib/evolve-log.js'
+import { parsePatMarkdown, failureToSeed, tsToSeed, renderSeedPreview, type SeedCandidate } from '../lib/seed-mine.js'
 
 /**
  * Goal 20: vhk evolve — 패턴 → RULES.md 반영 큐 & 순수 함수.
@@ -348,6 +349,127 @@ export function evolveNegatives(): void {
     message: '검토 후 유효한 ❌ 예시만 RULES.md 에 직접 추가하세요 (자동 편집 안 함).',
     command: 'vhk sync',
     cursorHint: 'RULES.md 에 부정 예시 추가해줘',
+  })
+}
+
+// ── goal 100: cold-start 역채굴 — memory.patterns 채우기(evolve 파이프라인 시동) ──────────────
+// memory.patterns=0 이면 evolveSuggest 가 activePatterns.length===0 에서 즉시 📭 return 한다
+// (아래 evolveSuggest 참조) — 즉 이 함수가 채우기 전까지 evolve 파이프라인은 시동조차 안 걸린다.
+// dry-run(기본): .vhk/seed-candidates.md 미리보기만, memory.patterns 미변경.
+// --write: reconcilePatterns(pattern.ts) 로 병합(멱등 — 재실행해도 중복 증가 없음).
+
+const SEED_CANDIDATES_PATH = join('.vhk', 'seed-candidates.md')
+
+export async function evolveSeed(opts: { write?: boolean; json?: boolean } = {}): Promise<void> {
+  const cwd = process.cwd()
+
+  // PAT 채굴 (docs/patterns/*.md) — 비-PAT 파일(README 등)은 parsePatMarkdown 이 null 반환해 자연 skip.
+  const patCandidates: SeedCandidate[] = []
+  const patDir = join(cwd, 'docs', 'patterns')
+  try {
+    if (existsSync(patDir)) {
+      for (const f of readdirSync(patDir)) {
+        if (!f.endsWith('.md')) continue
+        try {
+          const raw = readFileSync(join(patDir, f), 'utf-8')
+          const cand = parsePatMarkdown(raw, `docs/patterns/${f}`)
+          if (cand) patCandidates.push(cand)
+        } catch {
+          /* 개별 PAT 파일 읽기/파싱 실패 — 건너뜀(best-effort) */
+        }
+      }
+    }
+  } catch {
+    /* 디렉토리 읽기 실패 — graceful(빈 목록) */
+  }
+
+  // loadForMutation — 손상 시 중단(원본 보존). patternDetect(pattern.ts)와 동일 안전계약.
+  const loaded = loadForMutation(cwd)
+  if (!loaded.ok) {
+    console.log(chalk.red('❌ memory.json 손상 의심 — 채굴 중단(원본 보존). 백업 확인 후 재시도하세요.'))
+    process.exitCode = 1
+    return
+  }
+  const mem = loaded.mem
+  const failCandidates = mem.failures.map(failureToSeed)
+
+  // TS 채굴 (docs/troubleshooting/TS-*.md) — evolveNegatives 와 동일 스캔 로직.
+  const tsCandidates: SeedCandidate[] = []
+  const tsDir = join(cwd, 'docs', 'troubleshooting')
+  try {
+    if (existsSync(tsDir)) {
+      for (const f of readdirSync(tsDir)) {
+        if (!/^TS-\d+.*\.md$/i.test(f)) continue
+        try {
+          const title = extractTsTitle(stripBomStr(readFileSync(join(tsDir, f), 'utf-8')))
+          const id = /^(TS-\d+)/i.exec(f)?.[1] ?? f
+          if (title) tsCandidates.push(tsToSeed(id, title, `docs/troubleshooting/${f}`))
+        } catch {
+          /* 개별 TS 파일 읽기 실패 — 건너뜀 */
+        }
+      }
+    }
+  } catch {
+    /* 디렉토리 읽기 실패 — graceful(빈 목록) */
+  }
+
+  const allCandidates = [...patCandidates, ...failCandidates, ...tsCandidates]
+
+  if (!opts.write) {
+    const generatedAt = new Date().toLocaleString('ko-KR')
+    const preview = renderSeedPreview(allCandidates, generatedAt)
+    try {
+      if (!existsSync(join(cwd, '.vhk'))) mkdirSync(join(cwd, '.vhk'), { recursive: true })
+      writeFileSync(join(cwd, SEED_CANDIDATES_PATH), preview, 'utf-8')
+    } catch {
+      /* 쓰기 실패 → stdout 만 */
+    }
+
+    if (opts.json) {
+      console.log(JSON.stringify(allCandidates, null, 2))
+      return
+    }
+
+    console.log(chalk.bold('\n🌱 ' + t('evolve.seedPreviewTitle')))
+    console.log(chalk.gray('─'.repeat(40)))
+    console.log(
+      chalk.dim(
+        `  PAT ${patCandidates.length} · failures ${failCandidates.length} · TS ${tsCandidates.length} = 총 ${allCandidates.length}개 후보`
+      )
+    )
+    console.log(chalk.gray(`\n📄 저장: ${SEED_CANDIDATES_PATH} (memory.patterns 미변경 — dry-run)`))
+    printNextStep({
+      message: '이 미리보기는 memory.patterns 를 바꾸지 않았습니다. 실제 반영하려면 --write 를 붙이세요.',
+      command: 'vhk evolve seed --write',
+      cursorHint: 'evolve seed --write 로 patterns 채워줘',
+    })
+    return
+  }
+
+  // --write: reconcilePatterns 로 memory.patterns 병합(멱등 — 같은 signal 재발견 시 갱신만, 중복 추가 없음).
+  const now = new Date().toISOString()
+  const { added, updated } = reconcilePatterns(mem.patterns as PatternEntryV19[], allCandidates, now)
+  if (added > 0 || updated > 0) {
+    writeMemory(cwd, mem)
+  }
+
+  if (opts.json) {
+    console.log(JSON.stringify({ added, updated, total: mem.patterns.length }, null, 2))
+    return
+  }
+
+  console.log(chalk.bold('\n🌱 ' + t('evolve.seedWriteTitle')))
+  console.log(chalk.gray('─'.repeat(40)))
+  console.log(
+    chalk.dim(
+      `  PAT ${patCandidates.length} · failures ${failCandidates.length} · TS ${tsCandidates.length} = 총 ${allCandidates.length}개 후보`
+    )
+  )
+  console.log(chalk.dim(`  memory.patterns: 추가 ${added} · 갱신 ${updated} · 전체 ${mem.patterns.length}건`))
+  printNextStep({
+    message: 'memory.patterns 가 채워졌습니다. evolve suggest 로 룰 후보를 생성하세요.',
+    command: 'vhk evolve suggest',
+    cursorHint: 'evolve suggest 로 룰 후보 만들어줘',
   })
 }
 
