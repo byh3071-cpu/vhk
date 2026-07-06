@@ -20,7 +20,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   mode: ['lite', 'standard', 'strict'],
   mission: ['set', 'show', 'check', 'clear'],
   pattern: ['detect', 'list', 'dismiss'],
-  evolve: ['suggest', 'negatives', 'list', 'digest', 'apply', 'reject', 'undo'],
+  evolve: ['suggest', 'negatives', 'seed', 'list', 'digest', 'apply', 'reject', 'undo'],
   work: ['handoff'],
   worktree: ['add', 'check'],
   seo: ['init', 'submit', 'check', 'report', 'automate'],
