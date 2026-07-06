@@ -130,7 +130,7 @@ import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek,
 import { blocker, learn, resume, win, autonomyLog, parseAutonomyIntArg, INVALID_AUTONOMY_ARG } from './commands/agent.js'
 import { watch } from './commands/watch.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
-import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives, evolveDigest } from './commands/evolve.js'
+import { evolveSuggest, evolveList, evolveApply, evolveReject, evolveUndo, evolveNegatives, evolveDigest, evolveSeed } from './commands/evolve.js'
 import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './commands/seo/index.js'
 
 const program = new Command()
@@ -1020,6 +1020,14 @@ evolveCmd
   .alias('부정예시')
   .description('실패 패턴 → RULES.md ❌ 예시 후보 (.vhk/negative-candidates.md) — 자동 편집 0, 후보 제안만')
   .action(() => { evolveNegatives() })
+
+evolveCmd
+  .command('seed')
+  .alias('씨앗')
+  .option('--write', 'memory.patterns 에 실제 병합(기본은 dry-run 미리보기만)')
+  .option('--json', 'JSON 출력 (CI/MCP용)')
+  .description('cold-start 역채굴 — PAT·failures·TS → memory.patterns 채굴(.vhk/seed-candidates.md 미리보기, --write 로 실제 반영)')
+  .action(async (opts: { write?: boolean; json?: boolean }) => { await evolveSeed(opts) })
 
 evolveCmd
   .command('list')

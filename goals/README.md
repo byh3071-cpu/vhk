@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 20 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 15
+> 총 21 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 16
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -27,3 +27,4 @@
 | 97 | evolve 효과측정 — apply/reject 결정 로그 + check 위반수 스냅샷 (#374) | ✅ DONE | P2 | evolve 채택률·기각사유 분포·RULES.md 위반수 추세를 실측 데이터로 축적 시작 (vhk stats --trend 소비) |
 | 98 | 이슈 #375 재시도 — recall eval queryType 분해 + diff-cover branch 커버리지 스키마 — P2 | ✅ DONE | P2 | recall 검증(vhk memory eval)과 diff-cover 측정 신호가 더 정밀해져 "키워드 매칭인지 의역 매칭인지"·"단일줄 if 분기 미검증"을 감춘 채 넘어가는 회귀를 줄인다 |
 | 99 | 자율성완주율 측정 스키마 — vhk autonomy-log 런(run) 시작/종결 계측 — P2 | ✅ DONE | P2 | 이슈 #373의 로깅 스키마+커맨드 부분 완료(이슈 자체는 OPEN 유지) — vhk-auto 자율 |
+| 100 | cold-start 역채굴 — vhk evolve seed(PAT·failures·TS → memory.patterns) — P1 | ✅ DONE | P1 | memory.patterns 가 채워지면 evolve suggest→apply 파이프라인이 최초로 시동된다. |
