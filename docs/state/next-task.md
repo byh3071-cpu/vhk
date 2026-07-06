@@ -8,6 +8,7 @@
 **Phase:** **[2026-07-04] RFC 0057 3트랙 머지 + 잔여이슈 8건 트리아지 완결(4개 실구현·머지, 4개 사용자결정)** — PR #449(RFC0057)·#450~454(측정스키마 4트랙+goal73 결정) 전부 main 병합·게이트 green. #292-G3(세션종료 자동캡처)만 스파이크 결과 대기 중. 상세는 아래 최상단 항목·[docs/log/2026-07-04-session-wrapup-issue-triage.md](../log/2026-07-04-session-wrapup-issue-triage.md).
 
 ## 다음 할 일 (measure-first 최우선)
+- **🆕🆕🆕🆕🆕🆕🆕🆕🆕🆕 [2026-07-06 · Codex 감사 검증 + 정합성 백로그 RFC화] 미착수(문서만)** — Codex(GPT-5.4) vhk 강화 리포트(Notion `3949740ab07280e891e1d69295d3202e`)를 opus 7-에이전트 워크플로(`wf_94918d67-c2e`)로 실측 교차검증 → 핵심 진단 ~90% 사실 확정, 실행 백로그를 [docs/rfc/0058-codex-audit-remediation.md](../rfc/0058-codex-audit-remediation.md)로 정식화. **코드/문서 편집·PR·커밋·발행 0(작업지시서만).** 다음 착수 = RFC 0058 §2 **T1**(진실 드리프트 수정: ARCHITECTURE 수치 24→35·Node→22·테스트 356→2328 / RULES·CLAUDE.md 경로오기 `src/nlp-router.ts`→`src/lib/nlp-router.ts` / spec.md:114 "두 파일 JSON 배열" 잔재 / VISION DoD 체크박스 — 반나절·저위험). 이어서 T2(잔재 PR **#430**[기능 #434 병합됨]·**#445**[README #446 반영·오염브랜치] 닫기, **승인 필요**) · T3(goal status enum에 CANCELED/DEFERRED/OBSERVING 추가 — goal 73/79/50 오표기 근인) · T4(write-safety atomic 통일 config.json·context.md). §4(UX 6흐름 단순화·command manifest 단일 SoT 리팩터=GA breaking 위험)는 사용자 판단·별도 RFC 0059.
 - **🆕🆕🆕🆕🆕🆕🆕🆕🆕 [2026-07-04 · RFC0057 머지 + 잔여이슈 8건 트리아지] main `9e0ded4`**
   - **완료(전부 main 병합·게이트 green)**:
     - PR #449 — RFC 0057 3트랙(`ecosystem.mdc` 모순 제거·receipt/ledger `agent` 필드·정식 문서화).
