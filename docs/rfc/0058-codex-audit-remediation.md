@@ -78,15 +78,15 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 
 ### T1 — 진실 드리프트 수정 (반나절 · 위험 낮음 · 착수: 사용자 승인 즉시)
 문서만 손댐, 코드 로직 무변경.
-- [ ] `docs/ARCHITECTURE.md` 수치 갱신: MCP 24→35, Node ≥20→≥22, 테스트 356→현행(또는 "사실값은 package.json·CHANGELOG 참조"로 포인터화해 재드리프트 차단).
-- [ ] `RULES.md:24` `src/nlp-router.ts`→`src/lib/nlp-router.ts` 수정 → `vhk sync`로 파생물 재생성. CLAUDE.md 기술스택 동일 오기도 수정.
-- [ ] `docs/spec.md:114-115` "두 파일 모두 JSON 배열" 잔재 → memory.json은 v2 객체로 정정(refs.json만 배열).
-- [ ] `VISION.md:13-17` DoD 체크박스 `[ ]`→`[x]`(4개 다 구현 완료).
+- [x] `docs/ARCHITECTURE.md` 수치 갱신: MCP 24→35, Node ≥20→≥22, 테스트 356→현행(또는 "사실값은 package.json·CHANGELOG 참조"로 포인터화해 재드리프트 차단).
+- [x] `RULES.md:24` `src/nlp-router.ts`→`src/lib/nlp-router.ts` 수정 → `vhk sync`로 파생물 재생성. CLAUDE.md 기술스택 동일 오기도 수정.
+- [x] `docs/spec.md:114-115` "두 파일 모두 JSON 배열" 잔재 → memory.json은 v2 객체로 정정(refs.json만 배열).
+- [x] `VISION.md:13-17` DoD 체크박스 `[ ]`→`[x]`(4개 다 구현 완료).
 - **게이트:** `pnpm build; pnpm test; pnpm lint` (docs만이라 회귀 위험 극소, 그래도 sync 산출물 변동 확인).
 
 ### T2 — 잔재 PR 정리 (5분 · 위험 낮음 · 착수: 사용자 승인 — 외부작업)
-- [ ] PR #430 닫기(기능 이미 #434 main 병합). 브랜치 삭제 여부는 사용자 판단.
-- [ ] PR #445 처리: README는 #446 반영됨. #445 오염 브랜치라 살릴 goal 88~91 잔여 변경 없는지 최종 확인 후 닫기.
+- [x] PR #430 닫기(기능 이미 #434 main 병합). **2026-07-08 실측: 이미 CLOSED.**
+- [x] PR #445 처리: README는 #446 반영됨. **2026-07-08 실측: 이미 CLOSED.**
 - [ ] #461은 유지(정상 신규).
 - ⚠️ **PR 닫기 = 외부 상태 변경**이라 사용자 명시 승인 후에만. main 직접 push·발행은 이 RFC 범위 밖(가드 #119).
 
