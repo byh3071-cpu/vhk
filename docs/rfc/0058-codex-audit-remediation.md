@@ -100,7 +100,7 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 - **주의:** enum 소비처 전수 grep(스위치·필터 누락 시 런타임 오분류) — 등록 5지점 교훈과 동일한 다중 참조 리스크.
 
 ### T4 — write-safety 통일 (국소 · 위험 낮음 · 착수: 독립)
-- [x] `src/lib/config.ts`(config.json)·`src/commands/context.ts`(context.md)를 atomicWriteFile로 전환(손상 시 복구 어려운 영속 상태). — PR wave4
+- [x] `src/lib/config.ts`(config.json)·`src/commands/context.ts`(context.md)를 atomicWriteFile로 전환(손상 시 복구 어려운 영속 상태). — PR #475
 - [ ] env.ts·MCP server.ts:468의 .env.example·.gitignore는 영향도 낮음 → 후순위(선택).
 - [ ] 원장 락(action-ledger/autonomy-log)은 **당장 안 함** — O_APPEND 설계선택이고 멀티세션 실측 손상 사례 없음. OBSERVING으로 goal화하거나 이 RFC에 관찰항목으로 남김.
 
@@ -148,7 +148,7 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 | goal migrate + enum (#465/#469) | ✅ merged | vhk #472 |
 | sync/doctor ecosystem (#468) | ✅ merged | vhk #473 |
 | verify→learn + bootstrap cursor (#466/#467) | ✅ merged | vhk #474 |
-| T4 atomic write config/context | PR 대기 | vhk #475 |
+| T4 atomic write config/context | ✅ merged | vhk #475 |
 | brownfield `sync` 후 ecosystem.mdc 또는 AGENTS 참조 없음 | ✅ in main | `vhk sync` + inject-bootstrap |
 | brain HANDOFF Wave1 | ✅ merged | private-rules-repository #45 |
 | **npm publish** | **사람만 (2FA)** | `pnpm preflight` → `npm publish --ignore-scripts` |
@@ -157,6 +157,7 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 
 ## §6. 착수 상태 / 다음 단계
 
-- **현재: Wave 1~4 중 #475(T4)만 merge 대기.** #471~#474 + control-tower #20 + cc-skills #27 + brain #45 머지 완료.
-- **npm 발행:** exit checklist T4 merge 후 사용자 2FA로만 실행.
-- **가드:** 실제 편집·PR 닫기 전 사용자 승인 / main 직접 push 금지(PR 경유) / 발행은 사람만(2FA) / 로컬 게이트에 `pnpm lint` 필수.
+- **현재: Wave 1~4 코드·문서 PR 전부 main merge 완료 (2026-07-08).** exit checklist §5 전 항목 ✅ (npm 제외).
+- **npm 발행:** 사용자 2FA만 — `git pull` → `pnpm preflight` → `npm publish --ignore-scripts`.
+- **다음 RFC 백로그:** T5(preflight 드리프트)·T6(check-goal 부채)·§4(UX/manifest) — 별도 세션.
+- **가드:** main 직접 push 금지(PR 경유) / 발행은 사람만(2FA) / 로컬 게이트에 `pnpm lint` 필수.
