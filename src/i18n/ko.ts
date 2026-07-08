@@ -256,6 +256,23 @@ export const ko = {
     notProvided: '_(미입력 — 비대화형 실행)_',
     nonInteractiveNote: '비대화형 모드 — 회고 본문은 --summary / --next / --decisions / --blockers 플래그로 채울 수 있어요 (미지정 항목은 "미입력"으로 기록).',
     detectSkipNonInteractive: '비대화형 모드 — 문서 자동 생성은 대화형(vhk recap)에서만. 위 후보를 참고해 직접 기록하세요.',
+    workingTreeTitle: '📂 미커밋 변경 (working tree):',
+    autoDirtySummary: (n: number, sample: string) =>
+      `미커밋 변경 ${n}건${sample ? `: ${sample}${n > 5 ? ' …' : ''}` : ''}`,
+  },
+  bootstrapCursor: {
+    title: '🚀 VHK Cursor bootstrap (설치 + 배선)',
+    stepDoctor: '[1/6] vhk doctor',
+    stepGoalMigrate: '[2/6] vhk goal migrate --dry-run',
+    stepInject: '[3/6] vhk inject-bootstrap',
+    stepMcp: '[4/6] vhk mcp-init',
+    stepSync: '[5/6] vhk sync',
+    stepSkills: '[6/6] Cursor skills 설치',
+    stepVerify: '배선 검증 — vhk verify',
+    skillsCreated: (names: string[]) => `Cursor skills 생성: ${names.join(', ')}`,
+    skillsSkipped: (names: string[]) => `Cursor skills 이미 있음(건너뜀): ${names.join(', ')}`,
+    done: '✅ Cursor bootstrap 완료',
+    nextHint: 'goal/receipt/review/learn 루프를 vhk-gate skill 로 실행하세요.',
   },
   check: {
     title: '🔍 프로젝트 규칙 점검',
@@ -329,6 +346,7 @@ export const ko = {
     noCommit: 'git 커밋을 찾을 수 없습니다 — 작업시작 기준선을 기록하려면 커밋이 1개 이상 필요합니다.',
     markStartDone: '작업시작 기준선 SHA 기록 완료 (이후 stale 비교 기준):',
     nextBlockMessage: '🔴 기계증거가 "됐어요"와 모순 — 아직 완료 아님. 막힌 증거(red/dirty/stale/forbidden)부터 고치세요:',
+    learnBlockHint: 'receipt BLOCK — 막힌 증거 원인과 재발방지',
     nextCautionMessage: '🟡 실차단은 없으나 약신호 있음(수동 확인 권장). 보강 후 다시 떼세요:',
     nextPassMessage: '🟢 게으른 거짓완료 징후 없음(미묘한 오류는 못 잡음). 완료 처리하려면:',
     // Goal 87 방향 2-1: glob 미지원 문법 경고 — 거짓 안전을 caution 으로 드러냄.

@@ -1,6 +1,6 @@
 import { safeExecFile } from './exec.js'
 import { parsePorcelainLines } from './git-porcelain.js'
-import { filterSelfTrackedLines } from './self-tracked.js'
+import { filterSelfTrackedLines, porcelainPath } from './self-tracked.js'
 
 // Goal 46: git 접근 단일 통로화 — 직접 execFileSync 대신 safeExecFile 경유.
 // 얻는 것: timeout 백스톱 + 일관된 에러(실제 git stderr) + cwd 지원. 기존 throw 계약은 보존.
@@ -103,5 +103,25 @@ export function getCommitInfo(cwd: string = process.cwd()): CommitInfo | null {
     return { sha, shortSha: sha.slice(0, 7), dirty }
   } catch {
     return null
+  }
+}
+
+export interface WorkingTreeChange {
+  path: string
+  statusCode: string
+}
+
+/** 미커밋 working tree 변경(vhk 자기 산출 ledger 제외). recap 헤드리스 dirty 요약용. */
+export function getWorkingTreeChanges(cwd: string = process.cwd()): WorkingTreeChange[] {
+  try {
+    const lines = filterSelfTrackedLines(
+      parsePorcelainLines(gitOut(['status', '--porcelain', '--untracked-files=all'], cwd))
+    )
+    return lines.map((line) => ({
+      statusCode: line.slice(0, 2),
+      path: porcelainPath(line),
+    }))
+  } catch {
+    return []
   }
 }

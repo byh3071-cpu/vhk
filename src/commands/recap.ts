@@ -12,6 +12,7 @@ import { printSecurityWarnings } from '../lib/check-secure.js'
 import { isInteractive } from '../lib/interactive.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { localDate } from '../lib/date.js'
+import { getWorkingTreeChanges } from '../lib/git-repo.js'
 
 export type RecapOptions = {
   since?: string
@@ -44,8 +45,9 @@ export async function recap(options: RecapOptions = {}) {
   const since = options.since || localDate()
   const diff = await getSessionDiff(since)
   const commits = await getRecentCommits(10, since)
+  const workingTree = getWorkingTreeChanges()
 
-  if (diff.filesChanged === 0 && commits.length === 0) {
+  if (diff.filesChanged === 0 && commits.length === 0 && workingTree.length === 0) {
     console.log(chalk.yellow(ko.recap.noChanges))
     return
   }
@@ -74,12 +76,33 @@ export async function recap(options: RecapOptions = {}) {
     })
   }
 
+  if (workingTree.length > 0) {
+    console.log(chalk.bold(`\n${ko.recap.workingTreeTitle}`))
+    workingTree.slice(0, 15).forEach((w) => {
+      console.log(chalk.yellow(`  • ${w.path}`))
+    })
+    if (workingTree.length > 15) {
+      console.log(chalk.dim(`  ... 외 ${workingTree.length - 15}개`))
+    }
+  }
+
   console.log('')
   // #288: 비-TTY(헤드리스 AI·파이프) 또는 --yes 면 프롬프트 대신 플래그값(없으면 미입력 표식)으로
   // 회고를 구성한다. 과거엔 여기서 ensureInteractive 가 TTY_REQUIRED(exit 2)로 중단해 AI 워크플로가
   // 끊겼다(COMMANDS.md "오늘 한 일 정리해" 안내와 모순). 대화형 경로는 그대로 — 프롬프트 호출 금지
   // 규칙은 아래 비-TTY 분기(프롬프트 미호출)에서 지킨다.
   const interactive = isInteractive({ yes: options.yes })
+
+  const autoSummary =
+    !interactive && !options.summary?.trim() && workingTree.length > 0
+      ? ko.recap.autoDirtySummary(
+          workingTree.length,
+          workingTree
+            .slice(0, 5)
+            .map((w) => w.path)
+            .join(', ')
+        )
+      : undefined
 
   const answers = interactive
     ? await prompt<{ summary: string; decisions: string; nextTodo: string; blockers: string }>([
@@ -107,7 +130,7 @@ export async function recap(options: RecapOptions = {}) {
         },
       ])
     : {
-        summary: options.summary?.trim() || ko.recap.notProvided,
+        summary: options.summary?.trim() || autoSummary || ko.recap.notProvided,
         decisions: options.decisions?.trim() || '없음',
         nextTodo: options.next?.trim() || ko.recap.notProvided,
         blockers: options.blockers?.trim() || '없음',
