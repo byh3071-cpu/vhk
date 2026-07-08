@@ -49,6 +49,7 @@ import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
 import { QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
+import { bootstrapCursor } from './commands/bootstrap-cursor.js'
 import { mode } from './commands/mode.js'
 import { configSetBrainRoot } from './commands/config.js'
 import { verify } from './commands/verify.js'
@@ -240,6 +241,19 @@ program
   .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile|other)')
   .option('-y, --yes', '모든 확인 스킵 (자동 yes)')
   .action(start)
+
+const bootstrapCmd = program
+  .command('bootstrap')
+  .description('Cursor/에이전트 배선 bootstrap (#467)')
+
+bootstrapCmd
+  .command('cursor')
+  .description('Cursor 독푸딩 — doctor + goal migrate + inject-bootstrap + skills + verify')
+  .option('-y, --yes', '확인 스킵 (비대화형)')
+  .option('--skip-verify', '마지막 vhk verify 생략')
+  .action(async (opts: { yes?: boolean; skipVerify?: boolean }) => {
+    await bootstrapCursor({ yes: opts.yes, skipVerify: opts.skipVerify })
+  })
 
 // 2단계(저수준) — 문서/하네스만 생성. 일반 사용자는 'vhk start' 권장.
 program

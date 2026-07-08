@@ -5,6 +5,7 @@ import { CONTAINER_SUBCOMMANDS, CONTAINER_ALIASES } from './command-registry.js'
 export const KNOWN_COMMAND_TOKENS = new Set([
   'gate', '검증', '아이디어',
   'start', '시작', '새프로젝트',
+  'bootstrap',
   'init', '초기화', '만들기',
   'recap', '정리', '오늘',
   'sync', '맞추기', '규칙',
