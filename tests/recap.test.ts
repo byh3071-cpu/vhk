@@ -6,6 +6,11 @@ const mockGetSessionDiff = vi.fn()
 const mockGetRecentCommits = vi.fn()
 const mockPrompt = vi.fn()
 const mockWriteFileSync = vi.fn()
+const mockGetWorkingTreeChanges = vi.fn(() => [] as { path: string; statusCode: string }[])
+
+vi.mock('../src/lib/git-repo.js', () => ({
+  getWorkingTreeChanges: (...a: unknown[]) => mockGetWorkingTreeChanges(...a),
+}))
 
 vi.mock('../src/lib/git.js', () => ({
   isGitRepo: (...a: unknown[]) => mockIsGitRepo(...a),
@@ -62,6 +67,7 @@ function setTTY(value: boolean | undefined): boolean | undefined {
 describe('vhk recap', () => {
   beforeEach(() => {
     vi.resetAllMocks()
+    mockGetWorkingTreeChanges.mockReturnValue([])
     vi.spyOn(console, 'log').mockImplementation(() => {})
     vi.spyOn(console, 'error').mockImplementation(() => {})
     mockPrompt.mockResolvedValue({})
@@ -167,6 +173,25 @@ describe('vhk recap', () => {
 
       const content = mockWriteFileSync.mock.calls[0]?.[1] as string
       expect(content).toContain('미입력') // summary·nextTodo 가 미입력 표식
+    })
+
+    it('#466 미커밋 working tree → 헤드리스 summary 자동 채움', async () => {
+      mockGetWorkingTreeChanges.mockReturnValue([{ path: 'src/dirty.ts', statusCode: ' M' }])
+      mockGetSessionDiff.mockResolvedValue({
+        filesChanged: 0,
+        insertions: 0,
+        deletions: 0,
+        files: [],
+      })
+      mockGetRecentCommits.mockResolvedValue([{ hash: 'abc1234', message: 'fix: x' }])
+
+      const { recap } = await import('../src/commands/recap.js')
+      await recap({})
+
+      const content = mockWriteFileSync.mock.calls[0]?.[1] as string
+      expect(content).toContain('src/dirty.ts')
+      const summarySection = content.split('## 작업 요약')[1]?.split('## 결정 사항')[0] ?? ''
+      expect(summarySection).not.toContain('미입력')
     })
   })
 })

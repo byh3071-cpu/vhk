@@ -60,6 +60,9 @@ describe('verify — nextActions', () => {
   it('fail 이면 수정 힌트', () => {
     expect(buildNextActions([gate('test', 'fail', 1)]).join(' ')).toMatch(/실패|수정/)
   })
+  it('fail 이면 vhk learn 힌트 (#466)', () => {
+    expect(buildNextActions([gate('test', 'fail', 1)]).join(' ')).toMatch(/vhk learn/)
+  })
   it('skip 이면 스크립트 추가 힌트', () => {
     expect(buildNextActions([gate('build', 'skip', null)]).join(' ')).toMatch(/scripts|게이트/)
   })
