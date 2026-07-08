@@ -11,7 +11,14 @@ export interface CommitSummary {
   date: string // YYYY-MM-DD (KST 로컬 날짜)
 }
 
-export type GoalStatusLite = 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED'
+export type GoalStatusLite =
+  | 'NOT_STARTED'
+  | 'IN_PROGRESS'
+  | 'DONE'
+  | 'BLOCKED'
+  | 'CANCELED'
+  | 'DEFERRED'
+  | 'OBSERVING'
 
 export interface GoalState {
   id: number

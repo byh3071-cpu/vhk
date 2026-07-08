@@ -7,7 +7,7 @@
  * 드리프트 가드 테스트가 실패해 R1(자연어 라우터가 명령 가로채기) 재발을 사전에 잡는다.
  */
 export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
-  goal: ['list', 'next', 'peek', 'check', 'init', 'done', 'sync', 'drift'],
+  goal: ['list', 'next', 'peek', 'check', 'init', 'done', 'sync', 'drift', 'migrate'],
   cost: ['add', 'check', 'budget'],
   ref: ['add', 'list', 'open'],
   memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate', 'eval'],

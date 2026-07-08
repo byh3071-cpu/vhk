@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 50
 title: 커버리지 측정 + diff-coverage 게이트 — 미검증 경로 가시화 — P1
-status: IN_PROGRESS
+status: DEFERRED
 priority: P1
 created: 2026-06-08
 leads_to: 테스트 4→5 · 1162 pass에 분모 부여

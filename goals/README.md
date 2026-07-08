@@ -2,16 +2,16 @@
 
 # goals/ 인덱스
 
-> 총 21 goal — IN_PROGRESS 2 · NOT_STARTED 2 · BLOCKED 1 · DONE 16
+> 총 21 goal — DEFERRED 1 · NOT_STARTED 2 · CANCELED 1 · OBSERVING 1 · DONE 16
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
 |--:|------|:----:|:--------:|-----------|
-| 50 | 커버리지 측정 + diff-coverage 게이트 — 미검증 경로 가시화 — P1 | 🔄 IN_PROGRESS | P1 | 테스트 4→5 · 1162 pass에 분모 부여 |
+| 50 | 커버리지 측정 + diff-coverage 게이트 — 미검증 경로 가시화 — P1 |  DEFERRED | P1 | 테스트 4→5 · 1162 pass에 분모 부여 |
 | 62 | docs-first 작업 의례 — 문서 선행 갱신 + docs-diff 산출물 (자문형) — P2 | ⬜ NOT_STARTED | P2 | 스펙-코드 드리프트 사전 차단 · RFC 0051(사후 감지)의 사전 보완 |
 | 65 | pre-commit L2 기록 집행 — 조건부(우회 실측 시에만 착수) — P2 | ⬜ NOT_STARTED | P2 | 기록 집행 우회 경로 0 (ADR-001 L2 트리거 이행) |
-| 73 | Objective LLM 판정 — "목표를 실제로 달성했나"를 LLM judge로 평가 (`vhk check --evals`) | ⛔ BLOCKED | P2 | 결정론(scope/forbidden)으로 잡지 못하는 "목표 달성 여부" 판정 계층 확보 → 의도 검증 깊이 확장 |
-| 79 | verify 로컬 환경의존 테스트 분리 — 선조사 후 범위 재조정(확실한 것만) — P0 | 🔄 IN_PROGRESS | P0 | 로컬 verify 신뢰 — 선조사로 회귀 0 확인, 확실한 조치만 적용 |
+| 73 | Objective LLM 판정 — "목표를 실제로 달성했나"를 LLM judge로 평가 (`vhk check --evals`) |  CANCELED | P2 | 결정론(scope/forbidden)으로 잡지 못하는 "목표 달성 여부" 판정 계층 확보 → 의도 검증 깊이 확장 |
+| 79 | verify 로컬 환경의존 테스트 분리 — 선조사 후 범위 재조정(확실한 것만) — P0 |  OBSERVING | P0 | 로컬 verify 신뢰 — 선조사로 회귀 0 확인, 확실한 조치만 적용 |
 | 85 | receipt/verify dirty 판정에서 자기 산출 추적파일 제외 (#315 자기참조 봉인) — P0 | ✅ DONE | P0 | receipt가 자기 ledger 때문에 늘 block되는 자기모순 제거 (RFC 0056 T1 선결) |
 | 86 | vhk receipt MVP — 4대 기계증거를 영수증 1장으로 (RFC 0056 T1) — P0 | ✅ DONE | P0 | 에이전트 "됐어요"를 기계증거 영수증으로 — 거짓완료 탐지 90일 쐐기 |
 | 87 | 의도 대조 — receipt/review가 mission(시킨 것)을 검증에 반영 (의도 장갑 손바닥) — P0 | ✅ DONE | P0 | "AI가 시킨 대로(scope/forbidden) 했나"를 자동 판정 — 경쟁사 못 하는 해자(남들은 의도를 모름) 실현 |

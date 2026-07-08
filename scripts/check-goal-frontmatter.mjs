@@ -11,7 +11,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { isMainModule, parseFlatFrontmatter, ensureNoHardStop } from './_lib.mjs'
 
-const STATUSES = new Set(['NOT_STARTED', 'IN_PROGRESS', 'DONE', 'BLOCKED'])
+const STATUSES = new Set(['NOT_STARTED', 'IN_PROGRESS', 'DONE', 'BLOCKED', 'CANCELED', 'DEFERRED', 'OBSERVING'])
 const VERSION_RE = /^v?\d+\.\d+(\.\d+)?$/
 
 /** flat frontmatter 객체 → {errors, warnings}. type!=='goal' 은 호출 전에 걸러진다. */

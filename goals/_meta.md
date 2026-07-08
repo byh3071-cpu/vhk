@@ -39,7 +39,7 @@ version: v1.1
 5. **README.md / COMMANDS.md** 명령어 표에 신규 명령어가 반영됨.
 6. **완료(DONE) 표시된 goal 은 비스텁 게이트를 가진다** (Goal 60, M.4). status `DONE`
    인데 `check-goal-<id>.mjs` 가 미싱이거나 빈 스캐폴드(`고유 검증 (직접 추가)` 마커만)면
-   "헛통과 DONE" — `check-meta` 가 FAIL. `NOT_STARTED`/`IN_PROGRESS`/`BLOCKED` 은 제외
+   "헛통과 DONE" — `check-meta` 가 FAIL. `NOT_STARTED`/`IN_PROGRESS`/`BLOCKED`/`CANCELED`/`DEFERRED`/`OBSERVING` 은 제외
    (미구현/진행 중/미주장 — 스텁 게이트 정상. IN_PROGRESS 완화: 머지 시 in-flight goal 오탐 방지).
 
 각 condition 은 source-of-truth 로부터 enumerate 된다:
