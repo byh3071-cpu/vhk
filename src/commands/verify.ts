@@ -271,6 +271,15 @@ export function buildNextActions(gates: GateResult[]): string[] {
       actions.push(`${g.label} 불완전 — ${g.detail ?? '한도로 일부 미스캔'}. 한도 완화/대상 축소 후 재검증 권장`)
     }
   }
+  const failed = gates.filter((g) => g.status === 'fail')
+  if (failed.length > 0) {
+    const first = failed[0]
+    const lesson =
+      first.id === 'secure'
+        ? '시크릿 유출 수정 후 재검증'
+        : `${first.label} 실패 수정 — 원인·재발방지`
+    actions.push(`교훈 기록 — vhk learn "${lesson}"`)
+  }
   if (actions.length === 0) actions.push('검증 통과 — vhk save 로 저장하세요.')
   return actions
 }
