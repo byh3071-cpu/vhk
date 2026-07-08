@@ -8,6 +8,7 @@ import { printNextStep } from '../lib/next-step.js'
 import { normalizeForCompare } from '../lib/drift.js'
 import { saveBackup, pruneBackups, ensureVhkIgnored } from '../lib/backup.js'
 import { atomicWriteFile } from '../lib/atomic-write.js'
+import { injectBootstrapAll, ECOSYSTEM_MDC_REL } from '../lib/inject-bootstrap.js'
 import { PREAMBLE_TITLE } from '../lib/rules-import.js'
 import { isInteractive, promptOrDefault } from '../lib/interactive.js'
 
@@ -346,8 +347,17 @@ export function resolveAgentCompactRel(rootDir: string): string | null {
   return null
 }
 
+/** AGENTS.md 가 ecosystem.mdc 를 참조하는지 (brownfield drift 감지). */
+export function agentsMdReferencesEcosystemMd(content: string): boolean {
+  return content.includes('ecosystem.mdc')
+}
+
 /** E6-01: tier S/A child AGENTS.md — ecosystem cross-repo block (Loop Protocol 직후 고정 삽입). */
-export function agentsMdEcosystemBlock(): string[] {
+export function agentsMdEcosystemBlock(rootDir?: string): string[] {
+  if (rootDir) {
+    const ecoPath = path.join(rootDir, ECOSYSTEM_MDC_REL)
+    if (!fs.existsSync(ecoPath)) return []
+  }
   return [
     '## Ecosystem (cross-repo)',
     '',
@@ -370,6 +380,7 @@ export function toAgentsMd(
   projectName: string,
   /** null = compact 안내 생략. undefined = 레거시 테스트 기본(경로 문자열 포함). */
   compactRel: string | null | undefined = 'docs/context/agent-compact.md',
+  rootDir?: string,
 ): string {
   const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
   const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
@@ -406,7 +417,7 @@ export function toAgentsMd(
     '- 교훈·결정·실패·성공은 `vhk memory`(memory v2 4버킷, 단일 출처).',
     '- 게이트(tsc / test:run / build) 통과해야만 `vhk goal done`.',
     '',
-    ...agentsMdEcosystemBlock(),
+    ...agentsMdEcosystemBlock(rootDir),
   )
 
   for (const section of orderedMapped) {
@@ -543,7 +554,7 @@ export function buildSyncPlan(
     const exists = fs.existsSync(fullPath)
     const newContent =
       target.path === 'AGENTS.md'
-        ? toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir))
+        ? toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir), rootDir)
         : target.generate(sections, projectName)
     // drift = 정규화 후 비교. 공백/EOL(CRLF)-only 차이는 의도적으로 drift 아님(거짓경보·백업 churn 방지)
     // → 그 차이는 백업 없이 덮어써질 수 있으나 규칙 본문은 절대 손실 안 됨(범위 한정).
@@ -652,6 +663,20 @@ export async function syncCore(
   fs.mkdirSync(path.join(rootDir, '.vhk'), { recursive: true })
   atomicWriteFile(path.join(rootDir, SYNCED_MARKER_REL), new Date().toISOString() + '\n')
   ensureVhkIgnored(rootDir, '.synced')
+
+  // #468 brownfield: ecosystem.mdc 없으면 inject-bootstrap 으로 생성 후 AGENTS 재생성
+  const ecoPath = path.join(rootDir, ECOSYSTEM_MDC_REL)
+  if (!fs.existsSync(ecoPath)) {
+    const injected = injectBootstrapAll(rootDir, { yes: true })
+    if (
+      (injected.ecosystem === 'created' || injected.ecosystem === 'updated')
+      && written.includes('AGENTS.md')
+    ) {
+      const agentsPath = path.join(rootDir, 'AGENTS.md')
+      const refreshed = toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir), rootDir)
+      fs.writeFileSync(agentsPath, refreshed, 'utf-8')
+    }
+  }
 
   return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan, unmapped, claudeMigration }
 }
