@@ -296,6 +296,8 @@ export const ko = {
     goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,
     goalSchemaSkipped: (n: number) => `⚠️ 스키마 불일치로 무시된 goal 파일 ${n}개`,
     goalSchemaEmpty: (n: number) => `⚠️ goals/*.md ${n}개 있으나 파싱된 goal 0개 — type/id 누락 가능`,
+    ecosystemMdcTitle: 'Ecosystem rule file',
+    ecosystemMdcMissing: '⚠️ AGENTS.md references .cursor/rules/ecosystem.mdc but file is missing',
   },
   preflight: {
     title: '🛫 Preflight — 출고 전 안전점검',

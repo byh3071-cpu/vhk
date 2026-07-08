@@ -21,6 +21,8 @@ import { buildVhkDiag } from '../doctor/diagnostics/vhk.js'
 import { buildMcpDiag, mcpToolCount } from '../doctor/diagnostics/mcp.js'
 import { buildAuditDiag } from '../doctor/diagnostics/audit.js'
 import { findSkippedGoalFiles, listGoals } from '../lib/goal-frontmatter.js'
+import { ECOSYSTEM_MDC_REL } from '../lib/inject-bootstrap.js'
+import { agentsMdReferencesEcosystemMd } from './sync.js'
 import { readSelectedPM } from '../doctor/pm.js'
 import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
@@ -190,6 +192,7 @@ export async function doctor(opts: DoctorOptions = {}) {
 
   // Goal frontmatter — silent skip 감지 (#465)
   let goalSchemaWarn = false
+  let ecosystemMdcWarn = false
   const goalsDir = path.join(cwd, 'goals')
   if (fs.existsSync(goalsDir)) {
     console.log('')
@@ -216,6 +219,19 @@ export async function doctor(opts: DoctorOptions = {}) {
       console.log(chalk.dim('    → vhk goal migrate [--dry-run]'))
     } else {
       console.log(chalk.green(`    ${ko.doctor.goalSchemaOk(parsed.length)}`))
+    }
+  }
+
+  const agentsPath = path.join(cwd, 'AGENTS.md')
+  const ecoPath = path.join(cwd, ECOSYSTEM_MDC_REL)
+  if (fs.existsSync(agentsPath)) {
+    const agentsContent = fs.readFileSync(agentsPath, 'utf-8')
+    if (agentsMdReferencesEcosystemMd(agentsContent) && !fs.existsSync(ecoPath)) {
+      ecosystemMdcWarn = true
+      console.log('')
+      console.log(chalk.bold(`  ${ko.doctor.ecosystemMdcTitle}`))
+      console.log(chalk.yellow(`    ${ko.doctor.ecosystemMdcMissing}`))
+      console.log(chalk.dim('    → vhk inject-bootstrap 또는 vhk sync'))
     }
   }
 
@@ -252,6 +268,11 @@ export async function doctor(opts: DoctorOptions = {}) {
   if (opts.strict && goalSchemaWarn) {
     console.log('')
     console.log(chalk.red.bold('  ❌ --strict: goal frontmatter 스키마 경고 → 실패 처리 (vhk goal migrate)'))
+    process.exitCode = 1
+  }
+  if (opts.strict && ecosystemMdcWarn) {
+    console.log('')
+    console.log(chalk.red.bold('  ❌ --strict: ecosystem.mdc 누락 → 실패 처리 (vhk inject-bootstrap)'))
     process.exitCode = 1
   }
 }
