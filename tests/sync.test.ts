@@ -134,6 +134,28 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     expect(block).toContain('vhk sync')
   })
 
+  it('agentsMdEcosystemBlock — rootDir 에 ecosystem.mdc 없으면 빈 배열 (#468)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-eco-'))
+    try {
+      expect(agentsMdEcosystemBlock(dir)).toEqual([])
+      fs.mkdirSync(path.join(dir, '.cursor', 'rules'), { recursive: true })
+      fs.writeFileSync(path.join(dir, '.cursor', 'rules', 'ecosystem.mdc'), 'test\n', 'utf-8')
+      expect(agentsMdEcosystemBlock(dir).length).toBeGreaterThan(0)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('toAgentsMd — rootDir without ecosystem.mdc omits Ecosystem block', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-agents-eco-'))
+    try {
+      const out = toAgentsMd(parseRulesMd(SAMPLE_RULES), 'P', null, dir)
+      expect(out).not.toContain('## Ecosystem (cross-repo)')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('toAgentsMd — compactRel null 이면 agent-compact 포인터 생략 (tier S dead link 방지)', () => {
     const out = toAgentsMd(parseRulesMd(SAMPLE_RULES), 'P', null)
     expect(out).not.toContain('agent-compact')
