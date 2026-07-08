@@ -4,13 +4,13 @@ import {
   readFileSync,
   readdirSync,
   statSync,
-  writeFileSync,
 } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
+import { atomicWriteFile } from '../lib/atomic-write.js'
 import { readMemory, activeMemoryLines } from './memory.js'
 import { listGoals } from '../lib/goal-frontmatter.js'
 import { selectActiveId } from './goal.js'
@@ -292,7 +292,7 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   lines.push('')
 
   mkdirSync('.vhk', { recursive: true })
-  writeFileSync(CONTEXT_PATH, lines.join('\n'), 'utf-8')
+  atomicWriteFile(CONTEXT_PATH, lines.join('\n'))
 
   console.log(chalk.green(`\n✅ ${CONTEXT_PATH} 생성 완료!`))
   console.log(chalk.gray(`   기술 스택 ${Object.keys(stack).length}개 감지`))
