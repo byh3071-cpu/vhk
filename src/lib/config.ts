@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { readJsonFile } from './read-json.js'
+import { atomicWriteFile } from './atomic-write.js'
 import { type SafetyMode, DEFAULT_SAFETY_MODE, isSafetyMode } from './safety-mode.js'
 
 /**
@@ -45,5 +46,5 @@ export function readConfig(rootDir: string = process.cwd()): VhkConfig {
 
 export function writeConfig(config: VhkConfig, rootDir: string = process.cwd()): void {
   mkdirSync(join(rootDir, CONFIG_DIR), { recursive: true })
-  writeFileSync(join(rootDir, CONFIG_PATH), JSON.stringify(config, null, 2) + '\n', 'utf-8')
+  atomicWriteFile(join(rootDir, CONFIG_PATH), JSON.stringify(config, null, 2) + '\n')
 }
