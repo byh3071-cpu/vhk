@@ -292,6 +292,10 @@ export const ko = {
     driftRuleWarn: (files: string) =>
       `⚠️ RULES.md와 어긋난 규칙 파일: ${files} — vhk sync 를 다시 실행하세요`,
     driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
+    goalSchemaTitle: 'Goal frontmatter',
+    goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,
+    goalSchemaSkipped: (n: number) => `⚠️ 스키마 불일치로 무시된 goal 파일 ${n}개`,
+    goalSchemaEmpty: (n: number) => `⚠️ goals/*.md ${n}개 있으나 파싱된 goal 0개 — type/id 누락 가능`,
   },
   preflight: {
     title: '🛫 Preflight — 출고 전 안전점검',
@@ -572,6 +576,7 @@ export const ko = {
     checkTitle: '✅ Goal 게이트 검증',
     doneTitle: '🏁 Goal 완료 처리',
     syncTitle: '🔄 Goal 게이트 스크립트 동기화',
+    migrateTitle: '🔧 Goal frontmatter migrate',
     duplicateId: (ids: string) =>
       `⚠ 중복된 goal id: ${ids} — 같은 id 파일이 여러 개면 첫 매치만 사용됩니다. id 를 유일하게 고치세요.`,
     skippedFiles: (n: number) =>
