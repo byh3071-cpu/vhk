@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { ko } from '../i18n/ko.js'
@@ -13,6 +13,9 @@ import {
   findDuplicateIds,
   findSkippedGoalFiles,
   updateFrontmatterStatus,
+  planGoalFileMigrate,
+  normalizeLegacyStatus,
+  GOAL_STATUSES,
   type GoalStatus,
   type ParsedGoal,
 } from '../lib/goal-frontmatter.js'
@@ -27,6 +30,16 @@ const STATUS_ICON: Record<GoalStatus, string> = {
   IN_PROGRESS: '🟡',
   DONE: '✅',
   BLOCKED: '🛑',
+  CANCELED: '⛔',
+  DEFERRED: '⏸',
+  OBSERVING: '👁',
+}
+
+function effectiveGoalStatus(fm: ParsedGoal['frontmatter']): GoalStatus | undefined {
+  const raw = fm.status
+  if (raw == null) return undefined
+  const s = String(raw)
+  return normalizeLegacyStatus(s) ?? (GOAL_STATUSES.includes(s as GoalStatus) ? (s as GoalStatus) : undefined)
 }
 
 // #329: --id 없이 active goal 이 null 일 때, goalNext(VHK-017)와 동일하게 0개/전부완료를 구분 안내.
@@ -45,12 +58,12 @@ function reportNoActiveGoal(goals: ParsedGoal[]): boolean {
 // active goal 선택: IN_PROGRESS 우선, 없으면 첫 NOT_STARTED.
 // (BLOCKED 는 자동 선택 안 함 — 사람이 풀어야 함.)
 export function selectActiveId(goals: ParsedGoal[]): number | null {
-  const ip = goals.find((g) => g.frontmatter.status === 'IN_PROGRESS')
+  const ip = goals.find((g) => effectiveGoalStatus(g.frontmatter) === 'IN_PROGRESS')
   if (ip && typeof ip.frontmatter.id === 'number') return ip.frontmatter.id
-  const ns = goals.find(
-    (g) =>
-      g.frontmatter.status === 'NOT_STARTED' || g.frontmatter.status === undefined
-  )
+  const ns = goals.find((g) => {
+    const s = effectiveGoalStatus(g.frontmatter)
+    return s === 'NOT_STARTED' || s === undefined
+  })
   if (ns && typeof ns.frontmatter.id === 'number') return ns.frontmatter.id
   return null
 }
@@ -83,7 +96,7 @@ export async function goalList(): Promise<void> {
   }
   for (const g of goals) {
     const fm = g.frontmatter
-    const status = (fm.status ?? 'NOT_STARTED')
+    const status = (effectiveGoalStatus(fm) ?? 'NOT_STARTED')
     const icon = STATUS_ICON[status] ?? '?'
     const id = String(fm.id).padStart(2)
     const pri = String(fm.priority ?? '--').padEnd(3)
@@ -109,7 +122,7 @@ function printSkippedGoalWarnings(skipped: ReturnType<typeof findSkippedGoalFile
     for (const s of skipped) {
       console.log(chalk.yellow(`    - goals/${s.file}: ${s.reason}`))
     }
-    console.log(chalk.dim('    필수: type: goal + 숫자 id. 스키마 전체: goals/_meta.md'))
+    console.log(chalk.dim('    필수: type: goal + 숫자 id. 스키마 전체: goals/_meta.md · vhk goal migrate'))
   }
 }
 
@@ -603,4 +616,57 @@ export async function goalSync(): Promise<GoalSyncResult> {
     })
   }
   return result
+}
+
+export async function goalMigrate(opts: { dryRun?: boolean } = {}): Promise<void> {
+  if (!ensureNotHardStopped('goal migrate')) return
+  const dryRun = opts.dryRun === true
+  console.log(chalk.bold(`\n${ko.goal.migrateTitle}${dryRun ? ' (dry-run)' : ''}\n`))
+  let entries: string[]
+  try {
+    entries = readdirSync(GOALS_DIR)
+  } catch {
+    console.log(chalk.yellow('  📭 goals/ 디렉토리가 없습니다.'))
+    return
+  }
+  const plans: { file: string; actions: string[]; path: string; nextContent: string }[] = []
+  for (const name of entries) {
+    if (!name.endsWith('.md') || name === '_meta.md') continue
+    const fp = join(GOALS_DIR, name)
+    let content: string
+    try {
+      content = readFileSync(fp, 'utf-8')
+    } catch {
+      continue
+    }
+    const plan = planGoalFileMigrate(fp, content)
+    if (!plan) continue
+    plans.push({ file: name, actions: plan.actions, path: fp, nextContent: plan.nextContent })
+  }
+  if (plans.length === 0) {
+    console.log(chalk.green('  ✓ migrate 대상 없음 (이미 표준 스키마)'))
+    return
+  }
+  for (const p of plans) {
+    console.log(chalk.cyan(`  goals/${p.file}`))
+    for (const a of p.actions) console.log(chalk.dim(`    · ${a}`))
+    if (!dryRun) atomicWriteFile(p.path, p.nextContent)
+  }
+  console.log('')
+  console.log(
+    chalk.bold(`  📊 ${dryRun ? 'would migrate' : 'migrated'}=${plans.length}`),
+  )
+  if (dryRun) {
+    printNextStep({
+      message: '미리보기만 — 적용하려면:',
+      command: 'vhk goal migrate',
+      cursorHint: 'goal migrate 실행해줘',
+    })
+  } else {
+    printNextStep({
+      message: 'migrate 완료 — 목록 확인:',
+      command: 'vhk goal list',
+      cursorHint: 'goal list 보여줘',
+    })
+  }
 }

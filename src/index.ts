@@ -126,7 +126,7 @@ async function guardCliDefer(
   )
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
-import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalNext, goalPeek, goalSync } from './commands/goal.js'
+import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalMigrate, goalNext, goalPeek, goalSync } from './commands/goal.js'
 import { blocker, learn, resume, win, autonomyLog, parseAutonomyIntArg, INVALID_AUTONOMY_ARG } from './commands/agent.js'
 import { watch } from './commands/watch.js'
 import { patternDetect, patternList, patternDismiss } from './commands/pattern.js'
@@ -878,6 +878,13 @@ goalCmd
   .alias('드리프트')
   .description('goal 상태↔코드 드리프트 점검 — 구현됐는데 NOT_STARTED 인 goal 탐지 (read-only, 발견 시 exit 1)')
   .action(async () => { await goalDrift() })
+
+goalCmd
+  .command('migrate')
+  .alias('마이그레이트')
+  .option('--dry-run', '변경 미리보기만 (파일 미수정)')
+  .description('goal frontmatter 표준화 — type:goal · legacy status 정규화 (idempotent)')
+  .action(async (opts: { dryRun?: boolean }) => { await goalMigrate(opts) })
 
 program
   // #147: variadic — 따옴표 없는 다단어 본문도 받는다 (vhk blocker sync 중단 증상). join 으로 원문 복원.

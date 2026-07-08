@@ -3,7 +3,24 @@ import { join } from 'node:path'
 import { stripBom } from './read-json.js'
 
 // VHK goals/<n>-<name>.md frontmatter 표준. vspec/vooster 호환.
-export type GoalStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'DONE' | 'BLOCKED'
+export type GoalStatus =
+  | 'NOT_STARTED'
+  | 'IN_PROGRESS'
+  | 'DONE'
+  | 'BLOCKED'
+  | 'CANCELED'
+  | 'DEFERRED'
+  | 'OBSERVING'
+
+export const GOAL_STATUSES: readonly GoalStatus[] = [
+  'NOT_STARTED',
+  'IN_PROGRESS',
+  'DONE',
+  'BLOCKED',
+  'CANCELED',
+  'DEFERRED',
+  'OBSERVING',
+] as const
 export type GoalPriority = 'P0' | 'P1' | 'P2'
 export type GoalType = 'goal' | 'meta'
 
@@ -70,6 +87,114 @@ function parseSimpleYaml(yaml: string): GoalFrontmatter {
     }
   }
   return out
+}
+
+/** legacy / 비표준 status → GoalStatus. 매핑 불가면 null. */
+export function normalizeLegacyStatus(raw: string): GoalStatus | null {
+  const trimmed = raw.trim()
+  if (GOAL_STATUSES.includes(trimmed as GoalStatus)) return trimmed as GoalStatus
+  const key = trimmed.toLowerCase().replace(/\s+/g, '_')
+  const map: Record<string, GoalStatus> = {
+    active: 'IN_PROGRESS',
+    done: 'DONE',
+    pending: 'NOT_STARTED',
+    canceled: 'CANCELED',
+    cancelled: 'CANCELED',
+    deferred: 'DEFERRED',
+    observing: 'OBSERVING',
+    blocked: 'BLOCKED',
+    not_started: 'NOT_STARTED',
+    in_progress: 'IN_PROGRESS',
+  }
+  return map[key] ?? null
+}
+
+export function inferGoalIdFromFilename(name: string): number | null {
+  const m = name.match(/^(\d+)-/)
+  if (!m) return null
+  const n = Number(m[1])
+  return Number.isFinite(n) ? n : null
+}
+
+export interface GoalMigrateAction {
+  file: string
+  actions: string[]
+}
+
+/** 단일 goal 파일 migrate 계획. 변경 없으면 null. */
+export function planGoalFileMigrate(filePath: string, content: string): {
+  actions: string[]
+  nextContent: string
+} | null {
+  const name = filePath.replace(/^.*[/\\]/, '')
+  if (name === '_meta.md') return null
+  const { frontmatter } = parseFrontmatter(content)
+  if (frontmatter.type === 'meta') return null
+
+  const patch: Record<string, string | number> = {}
+  const actions: string[] = []
+
+  if (frontmatter.type !== 'goal') {
+    patch.type = 'goal'
+    actions.push("type: goal 추가")
+  }
+
+  if (typeof frontmatter.id !== 'number') {
+    const inferred = inferGoalIdFromFilename(name)
+    if (inferred != null) {
+      patch.id = inferred
+      actions.push(`id: ${inferred} (파일명)`)
+    }
+  }
+
+  const rawStatus = frontmatter.status
+  if (typeof rawStatus === 'string') {
+    const normalized = normalizeLegacyStatus(rawStatus)
+    if (normalized && normalized !== rawStatus) {
+      patch.status = normalized
+      actions.push(`status: ${rawStatus} → ${normalized}`)
+    }
+  }
+
+  if (actions.length === 0) return null
+
+  let nextContent = content
+  for (const [key, value] of Object.entries(patch)) {
+    nextContent = patchGoalFrontmatter(nextContent, key, value)
+  }
+  return { actions, nextContent }
+}
+
+/** frontmatter 단일 필드 추가/갱신 (status 전용 updateFrontmatterStatus 의 일반형). */
+export function patchGoalFrontmatter(
+  content: string,
+  key: string,
+  value: string | number,
+): string {
+  const normalized = stripBom(content)
+  const m = normalized.match(FRONTMATTER_RE)
+  if (!m) return content
+  const fmRaw = m[1]
+  const body = m[2] ?? ''
+  const lines = fmRaw.split(/\r?\n/)
+  let hadKey = false
+  const rendered = typeof value === 'number' ? String(value) : value
+
+  const updated = lines.map((raw) => {
+    const trimmed = raw.trim()
+    if (!trimmed || trimmed.startsWith('#')) return raw
+    const idx = trimmed.indexOf(':')
+    if (idx <= 0) return raw
+    const lineKey = trimmed.slice(0, idx).trim()
+    if (lineKey === key) {
+      hadKey = true
+      return `${key}: ${rendered}`
+    }
+    return raw
+  })
+
+  if (!hadKey) updated.push(`${key}: ${rendered}`)
+  return `---\n${updated.join('\n')}\n---\n${body}`
 }
 
 export function parseGoalFile(filePath: string): ParsedGoal | null {

@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 73
 title: Objective LLM 판정 — "목표를 실제로 달성했나"를 LLM judge로 평가 (`vhk check --evals`)
-status: BLOCKED
+status: CANCELED
 priority: P2
 created: 2026-06-25
 blocked_by: "결정 완료(2026-07-04) — 착수 안 함. 근거: ①VHK 자체 출력물 중 주관적 품질판정이 필요한 케이스가 현재 0건(content/launch/ops/sell은 초안생성까지만, goal75~77 DONE) — 검증된 수요 없이 다른 프로젝트(youtube-summary) 패턴 선이식은 헛수고 리스크 ②opt-in 격리로 설계해도 'LLM 판단 0' 원칙에 첫 진입로가 생겨 향후 verify/receipt 침범 유혹의 전례가 됨(격리는 기술이 아니라 사람 규율에 의존). 재개 조건: VHK 자체 기능에서 주관적 품질채점이 실제로 필요한 구체 케이스가 생기면 그때 그 케이스 기준으로 재설계."

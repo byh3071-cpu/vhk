@@ -20,6 +20,7 @@ import { diagOs } from '../doctor/diagnostics/os.js'
 import { buildVhkDiag } from '../doctor/diagnostics/vhk.js'
 import { buildMcpDiag, mcpToolCount } from '../doctor/diagnostics/mcp.js'
 import { buildAuditDiag } from '../doctor/diagnostics/audit.js'
+import { findSkippedGoalFiles, listGoals } from '../lib/goal-frontmatter.js'
 import { readSelectedPM } from '../doctor/pm.js'
 import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
@@ -187,6 +188,37 @@ export async function doctor(opts: DoctorOptions = {}) {
     console.log(chalk.yellow(`    ${ko.doctor.driftContextWarn}`))
   }
 
+  // Goal frontmatter — silent skip 감지 (#465)
+  let goalSchemaWarn = false
+  const goalsDir = path.join(cwd, 'goals')
+  if (fs.existsSync(goalsDir)) {
+    console.log('')
+    console.log(chalk.bold(`  ${ko.doctor.goalSchemaTitle}`))
+    const parsed = listGoals(goalsDir)
+    const skipped = findSkippedGoalFiles(goalsDir)
+    let mdCount = 0
+    try {
+      mdCount = fs.readdirSync(goalsDir).filter((n) => n.endsWith('.md') && n !== '_meta.md').length
+    } catch {
+      mdCount = 0
+    }
+    if (skipped.length > 0) {
+      goalSchemaWarn = true
+      console.log(chalk.yellow(`    ${ko.doctor.goalSchemaSkipped(skipped.length)}`))
+      for (const s of skipped.slice(0, 5)) {
+        console.log(chalk.yellow(`      - goals/${s.file}: ${s.reason}`))
+      }
+      if (skipped.length > 5) console.log(chalk.dim(`      … 외 ${skipped.length - 5}건`))
+      console.log(chalk.dim('    → vhk goal migrate [--dry-run]'))
+    } else if (mdCount > 0 && parsed.length === 0) {
+      goalSchemaWarn = true
+      console.log(chalk.yellow(`    ${ko.doctor.goalSchemaEmpty(mdCount)}`))
+      console.log(chalk.dim('    → vhk goal migrate [--dry-run]'))
+    } else {
+      console.log(chalk.green(`    ${ko.doctor.goalSchemaOk(parsed.length)}`))
+    }
+  }
+
   console.log('')
   if (anyFail) {
     // 치명(fail) — 도구 부재 등. exit 1.
@@ -215,6 +247,11 @@ export async function doctor(opts: DoctorOptions = {}) {
   if (opts.strict && ruleDrifted) {
     console.log('')
     console.log(chalk.red.bold('  ❌ --strict: 규칙 드리프트 발견 → 실패 처리 (vhk sync 로 동기화 후 다시 실행)'))
+    process.exitCode = 1
+  }
+  if (opts.strict && goalSchemaWarn) {
+    console.log('')
+    console.log(chalk.red.bold('  ❌ --strict: goal frontmatter 스키마 경고 → 실패 처리 (vhk goal migrate)'))
     process.exitCode = 1
   }
 }

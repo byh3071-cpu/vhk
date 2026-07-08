@@ -3,7 +3,7 @@ vhk_format: 1
 type: goal
 id: 79
 title: verify 로컬 환경의존 테스트 분리 — 선조사 후 범위 재조정(확실한 것만) — P0
-status: IN_PROGRESS
+status: OBSERVING
 priority: P0
 created: 2026-06-20
 leads_to: 로컬 verify 신뢰 — 선조사로 회귀 0 확인, 확실한 조치만 적용
