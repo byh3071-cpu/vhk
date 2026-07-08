@@ -21,7 +21,7 @@
 - @modelcontextprotocol/sdk + zod (MCP)
 - pnpm (패키지 매니저)
 - src/i18n/ko.ts (한국어 i18n)
-- src/nlp-router.ts (자연어 라우팅)
+- src/lib/nlp-router.ts (자연어 라우팅)
 
 ## 코딩 규칙
 

@@ -1,6 +1,6 @@
 # Architecture — vhk
 
-> 마지막 갱신: 2026-05-30 (v1.4.0)
+> 마지막 갱신: 2026-07-08 (RFC 0058 T1 — 수치는 package.json·CHANGELOG·`pnpm test` 출력이 SoT)
 >
 > VHK CLI 의 내부 구조. 외부 사용자 가이드는 [README.md](../README.md), 운영/기록 규칙은 [CLAUDE.md](../CLAUDE.md) 참조.
 
@@ -10,7 +10,7 @@
 ┌───────────────────────────────────────────────────────────┐
 │  사용자 / Cursor / Claude Desktop                          │
 └──────────────┬─────────────────────────┬──────────────────┘
-               │ CLI                     │ MCP (stdio, 24 tool)
+               │ CLI                     │ MCP (stdio; tool 수는 package.json·CLAUDE.md SoT)
                ▼                         ▼
         ┌──────────────┐         ┌──────────────────┐
         │  src/index.ts │         │  src/mcp/server  │
@@ -39,13 +39,13 @@
 
 | 영역 | 선택 | 비고 |
 |------|------|------|
-| 런타임 | Node.js ≥ 20 | ESM 출력 |
+| 런타임 | Node.js ≥ 22 | ESM 출력 (`package.json` engines) |
 | 언어 | TypeScript (strict) | tsup 번들 |
 | CLI 프레임워크 | `commander` | `program.command()` 단위 |
 | 프롬프트 UX | `inquirer` | TTY 전용 (MCP 모드 차단) |
 | 출력 | `chalk`, `ora` | 색상 + 스피너 |
 | MCP | `@modelcontextprotocol/sdk` | stdio transport |
-| 테스트 | `vitest` | 356 pass |
+| 테스트 | `vitest` | `pnpm test` 통과 수가 SoT (문서에 고정 숫자 적지 않음) |
 | 패키지 매니저 | `pnpm` | `pnpm build` / `pnpm test` |
 
 ## 3. 레이어별 책임
@@ -61,7 +61,7 @@
 
 ### 3.2 MCP 레이어 — [src/mcp/](../src/mcp/)
 
-- `server.ts` — `@modelcontextprotocol/sdk` stdio 서버. 24 tool 노출.
+- `server.ts` — `@modelcontextprotocol/sdk` stdio 서버. MCP tool 수는 `getMcpToolCount()` / package.json SoT.
 - 핸들러 패턴: `runVhkCli(args, headline)` 헬퍼로 CLI 실행을 wrap (인터랙티브 프롬프트 차단)
 - 제외 커맨드 (TTY 필수): `gate`, `init`, `start`, `design palette`, `theme`, `goal`
 - 핸들러 내부 `process.exit()` 금지 — MCP 클라이언트 세션 강제 종료 위험
