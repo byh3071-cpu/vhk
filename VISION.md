@@ -11,10 +11,10 @@ AI 코딩 세션을 목표·증거·기억·규칙으로 묶는 한국어 CLI
 vhk가 없으면 LLM은 매 세션 방향을 잃는다. vhk가 있으면 100번째 턴도 1번째와 같은 의도를 유지한다.
 
 ## Definition of Done (v1 출시 기준)
-- [ ] `vhk init` 한 번으로 목표·규칙·컨텍스트·기억 구조 생성
-- [ ] `vhk check` 로 게이트 통과 증거 자동 수집
-- [ ] `vhk memory` 로 교훈·결정·실패·성공 4버킷 관리
-- [ ] `pnpm publish` 이전 모든 게이트(typecheck·lint·test·build) 통과
+- [x] `vhk init` 한 번으로 목표·규칙·컨텍스트·기억 구조 생성
+- [x] `vhk check` 로 게이트 통과 증거 자동 수집
+- [x] `vhk memory` 로 교훈·결정·실패·성공 4버킷 관리
+- [x] `pnpm publish` 이전 모든 게이트(typecheck·lint·test·build) 통과
 
 ## Non-goals (범위 수비)
 - UI/대시보드 — CLI 전용, 시각화는 Notion·MCP 위임
