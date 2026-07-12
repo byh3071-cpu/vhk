@@ -162,7 +162,7 @@ vhk doctor
 | `vhk gate` | 아이디어 검증 |
 | `vhk start` | 새 프로젝트 시작 마법사 |
 | `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
-| `vhk init` | 하네스 파일 생성 |
+| `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선(세션일지 없는 코드 커밋 차단, `[skip-record]` 우회 — RFC 0061) |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63) |
 | `vhk check` | RULES.md 규칙 점검 (`--json` = 기계 소비용 요약 출력, #374) |
