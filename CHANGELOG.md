@@ -2,10 +2,14 @@
 
 VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식, [Semantic Versioning](https://semver.org/lang/ko/).
 
-## [Unreleased]
+## [2.11.0] - 2026-07-13
 
 ### Added
 
+- **기록 집행 커밋훅(record-net)** (RFC 0061 T1~T3) — 새 프로젝트가 `vhk init` 만 하면 세션일지 없는 실질 코드변경 커밋이 git `commit-msg` 훅에서 차단된다. git 훅이라 Claude Code·Cursor·Codex 어디서 커밋해도 동작(도구 불가지론).
+  - **3겹 그물**: ①규칙 선언(RULES·CLAUDE 템플릿에 handoff 의례·집행 체계 명시) ②커밋훅(결정적 검사만 차단 — src/** 스테이지 + 오늘·어제 일지 미스테이지, 에러는 AI 작업지시서·`[skip-record]` 우회) ③세션종료 수확(`vhk work handoff` 의례 배출).
+  - **정직한 경계**: merge/pull·cherry-pick·revert·rebase 는 화이트리스트 통과(병합엔 새 일지가 없는 게 정상), amend·같은 날 후속 커밋은 HEAD 의 일지 인정, `core.hooksPath`(husky 등) 감지 시 거짓 배선 대신 수동 통합 안내, node 부재·게이트 결함은 fail-open. 기존 commit-msg 훅은 불가침(`vhk:record-net` 마커 소유권).
+  - 적대검증(critic) 2라운드 실측 통과 — merge 차단 지옥·amend false-block·husky 거짓 성공을 라운드 1에서 잡아 수정.
 - **`vhk init` 기록 온보딩** (RFC 0060) — 새 프로젝트 첫걸음의 세 구멍을 닫음.
   - **채움 마커**: PRD·ARCHITECTURE 의 빈 칸이 개발자 은어 `**FILL**` 이던 것을 `[여기에 작성: 구체 질문]` 관행 마커 + 상단 "AI 추측 금지" 가드로 교체(비개발자가 뭘 채울지 질문으로 읽음).
   - **첫 세션 인터뷰 2단계**: 도메인 규칙(1단계) 뒤에 PRD·ARCHITECTURE 슬롯을 사용자 답변으로만 채우는 2단계 추가(핵심 5±2·컨펌·옵트아웃·VISION 미터치).
