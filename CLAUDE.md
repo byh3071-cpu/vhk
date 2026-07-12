@@ -152,7 +152,7 @@ tags: [process, constitution]
 - **버전:** v2.10.0 — 사실 확인은 package.json·CHANGELOG (독푸딩 Wave 1 발행 완료: npm·태그·Release·노션 전부 정합)
 - **테스트:** 2353 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
 - **Phase:** **[2026-07-13] 독푸딩 init 감사 → v2.10.0 발행 완결 + Wave 2 RFC 승인 대기** — vhk init 템플릿 배출 독푸딩에서 죽은 안내문·발행격차 P1 2건 수정 후 v2.10.0 발행(npm latest 50th·git 태그·GitHub Release·노션 10곳 정합). 노션 oh-my-agent "필수→선택" 강등(vhk 불가지론·사용자 미사용·Codex 권고). Wave 2 RFC 0060(init 기록 온보딩)·0061(기록 집행 3겹 그물) Draft 작성·머지. 상세 docs/state 최상단.
-- **블로커:** 없음
-- **진행 중(미완):** Wave 2 RFC 0060·0061 = Draft·구현 HARD-GATE(승인 필요). 다음 세션은 이 둘 승인받고 스펙→구현. 별도 숙제 = "vhk 강화가 뭔지"(Codex 권고 실체) 브레인스토밍.
-- **다음 할 일:** RFC 0060·0061 승인 → 스펙 → 구현. **npm publish 안 함**(2FA, 사람만 — 이번 v2.10.0은 발행 완료) · main 직접 push 차단 → PR 경유. 상세 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단.
+- **블로커:** 외부의존 2건 유지(blockers.md — goal-50 실데이터, SEO 22~26 자격증명·둘 다 [skip-hardstop] 사람 대기). 진행 차단 아님.
+- **진행 중(미완):** Wave 2 RFC 0060·0061 = Draft·구현 HARD-GATE(승인 필요, 0060 T1은 별도 세션 착수됨). 별도 숙제 = "vhk 강화가 뭔지"(Codex 권고 실체) 브레인스토밍.
+- **다음 할 일:** **[docs/state/roadmap.md](docs/state/roadmap.md) 분기층 Phase 0~4가 순서 SoT**(2026-07-13 재편 — 출고→정합화+계측→감사층/0062→Wave 2→확장판정). 세션 단위 상세는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. npm publish 안 함(v2.10.0 발행 완료) · main 직접 push 차단 → PR 경유.
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA=Windows 보안키→실 터미널 `npm publish --ignore-scripts`) / 직접 main push 차단 → PR 경유 / 로컬 게이트에 **`pnpm lint` 필수**(CI gate=lint 포함 — typecheck+test만으론 CI fail) / 적대리뷰 워크플로 에이전트 read-only 명시 / **워크트리 병합 직전 `git branch --show-current` 재확인**(다른 동시 세션이 공유 체크아웃 브랜치를 바꿀 수 있음, 2026-07-03 `vhk-readme-redesign` 오염 사고로 실증) / 동시세션 docs/state 충돌 주의

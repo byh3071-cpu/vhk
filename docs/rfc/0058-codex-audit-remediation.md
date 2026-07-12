@@ -1,6 +1,6 @@
 # RFC 0058 — Codex 감사 기반 정합성·구조 정리 백로그
 
-> 상태: Draft (실행 미착수 — 사용자 승인 후 트랙별 진행) · 작성: 2026-07-06
+> 상태: Partially Implemented — T1(#471)·T2(#430/#445 close)·T3(#472)·T4(#475) 완료 · 잔여 = T5(드리프트 자동감지 → RFC 0062)·T6(check-goal 부채)·§4 유보 · 작성: 2026-07-06
 > 출처: Codex(GPT-5.4) vhk 강화 분석 리포트(Notion `00000000-0000-0000-0000-000000000000`, 2026-07-05) + opus 7-에이전트 검증 워크플로 실측 교차검증(`workflow_example`, 2026-07-06)
 > 연동: RFC 0057(Agent-Agnostic Compounding) · `docs/ARCHITECTURE.md` · `VISION.md` · `docs/spec.md` · `RULES.md` · `src/lib/preflight.ts` · `src/lib/goal-frontmatter.ts` · `src/lib/atomic-write.ts` · `src/lib/command-registry.ts` · `docs/state/next-task.md`
 
@@ -106,7 +106,7 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 
 ### T5 — 재발방지: preflight 드리프트 감지 (중 · 위험 중 · 별도 RFC)
 - [ ] `vhk sync --check` 또는 preflight에 "문서 수치 vs 실측(package.json·getMcpToolCount 등) 대조" 추가 설계. severity 결정(경고/차단).
-- 설계 필요 → **별도 RFC 0059로 분리**. T1이 수동 1회 수정이면 T5는 자동 재발방지.
+- 설계 필요 → **별도 RFC 0062로 분리**(⚠️ 0059는 §4 UX단순화·command manifest용으로 next-task(2026-07-06)가 선점 — 채번 충돌 방지, 2026-07-13 정정). T1이 수동 1회 수정이면 T5는 자동 재발방지.
 
 ### T6 — check-goal 스크립트 부채 정리 (저위험 정리 · 착수: 독립)
 - [ ] archive된 goal(goals/archive/*)의 check-goal-*.mjs를 `scripts/archive/`(감사 보존)로 이동, 활성 goal 게이트만 scripts/에 유지.
