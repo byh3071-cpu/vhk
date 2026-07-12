@@ -365,6 +365,20 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
     expect(script).toContain('vhk sync')
   })
 
+  // RFC 0060 T2: 인터뷰 2단계 — 도메인 규칙(1단계) 뒤에 PRD·ARCHITECTURE 슬롯 채우기(2단계).
+  it('훅 템플릿 2단계 — PRD·ARCHITECTURE 슬롯을 사용자 답변으로만 채우고 VISION 은 건드리지 않는다', () => {
+    const script = CUSTOMIZATION_HOOK_TEMPLATE()
+    expect(script).toContain('docs/PRD.md')
+    expect(script).toContain('docs/ARCHITECTURE.md')
+    expect(script).toContain('[여기에 작성:')
+    // 사용자 답변만 — 추측 창작 금지
+    expect(script).toContain('추측')
+    // VISION.md 는 인터뷰 대상 제외(사용자 직접 작성 문서)
+    expect(script).toContain('VISION.md')
+    // 옵트아웃 — 개발하며 채우기 존중
+    expect(script).toMatch(/개발하며|나중에|건너/)
+  })
+
   describe('ensureCustomizationMarker', () => {
     function mkTmp(): string {
       return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-cmark-'))

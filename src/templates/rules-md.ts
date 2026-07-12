@@ -26,6 +26,7 @@ export function RULES_MD_TEMPLATE(name: string, description: string, stack: stri
     '- try-catch 필수, 빈 catch 금지',
     '- console.log 프로덕션 제거',
     '- 파일명은 kebab-case',
+    '- 문서의 [여기에 작성: …] 칸은 사용자와 대화로 채운다 — AI 추측으로 채우지 않기 (PRD·ARCHITECTURE 등)',
     '',
     '## 안전 규칙',
     '- 고위험 작업(매매·송금·발송·삭제·배포·publish)은 LLM 결정경로에서 제외 — 룰+하드리밋으로 구현 (PAT-003)',
