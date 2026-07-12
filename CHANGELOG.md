@@ -4,6 +4,15 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- **`vhk init` 기록 온보딩** (RFC 0060) — 새 프로젝트 첫걸음의 세 구멍을 닫음.
+  - **채움 마커**: PRD·ARCHITECTURE 의 빈 칸이 개발자 은어 `**FILL**` 이던 것을 `[여기에 작성: 구체 질문]` 관행 마커 + 상단 "AI 추측 금지" 가드로 교체(비개발자가 뭘 채울지 질문으로 읽음).
+  - **첫 세션 인터뷰 2단계**: 도메인 규칙(1단계) 뒤에 PRD·ARCHITECTURE 슬롯을 사용자 답변으로만 채우는 2단계 추가(핵심 5±2·컨펌·옵트아웃·VISION 미터치).
+  - **init 자동 sync + 설치 점검 영수증**: 그린필드/adopt 승인 시 `AGENTS.md` 등 도구별 규칙 파일을 즉시 파생(Codex·Zed 등이 첫 세션부터 규칙 인식). 브라운필드 거절 시 기존 파일 보존. 영수증은 디스크 읽기검증(거짓완료 금지).
+  - **트리거 격차 계승**(RFC 0057 §7): 마커 규칙을 `RULES.md` → sync 로 전 도구 파일 전파 → SessionStart 훅이 없는 에이전트(Cursor·Codex)도 파일 규칙으로 백업 트리거.
+  - **`vhk check` 슬롯 카운트**: PRD·ARCHITECTURE 의 미완성 `[여기에 작성:]` 수를 콘솔·`--json fillSlots` 로 노출(온보딩 진행 측정).
+
 ## [2.10.0] - 2026-07-12
 
 ### Fixed
