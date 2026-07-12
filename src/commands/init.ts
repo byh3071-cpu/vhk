@@ -26,6 +26,8 @@ import { fetchPrdFromNotion } from '../notion/fetch-prd.js'
 import type { PrdContent } from '../types/prd.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { detectExistingRuleFiles, buildAdoptedRules } from '../lib/rules-import.js'
+import { syncCore } from './sync.js'
+import { collectInstallReceipt, formatInstallReceipt } from '../lib/install-receipt.js'
 import { detectProjectStack, detectManifestLangs } from '../lib/stack-detect.js'
 import { isInteractive } from '../lib/interactive.js'
 import { scaffoldMission, writeMission, readMission, MISSION_PATH_REL } from './mission.js'
@@ -230,9 +232,14 @@ export async function init(options: InitOptions = {}) {
 
   // adopt 모드(브라운필드) — 기존 도구별 규칙 파일을 RULES.md(SoT)로 가져온다.
   let adoptedRules: string | null = null
+  // RFC 0060 T3: 자동 sync 는 "덮을 남의 파일이 없을 때(그린필드)"거나 "사용자가 adopt 를 승인"했을
+  // 때만 켠다. 브라운필드에서 adopt 를 거절하면 false → 기존 도구 규칙 파일을 건드리지 않는다.
+  let allowAutoSync = false
   if (!options.fromNotion) {
     const existingRules = detectExistingRuleFiles(cwd)
-    if (existingRules.length > 0) {
+    if (existingRules.length === 0) {
+      allowAutoSync = true
+    } else {
       if (isInteractive(options)) {
         const { adopt } = await prompt([{
           type: 'confirm',
@@ -245,6 +252,7 @@ export async function init(options: InitOptions = {}) {
         }])
         if (adopt) {
           adoptedRules = buildAdoptedRules(existingRules, answers.name)
+          allowAutoSync = true
           console.log(chalk.dim(`  ${ko.init.adoptPreview(existingRules.length)}`))
         }
       } else if (!fileExists(path.join(cwd, 'RULES.md'))) {
@@ -252,12 +260,18 @@ export async function init(options: InitOptions = {}) {
         // thin 템플릿이 SoT 가 돼 알맹이 .cursorrules/CLAUDE.md 를 빈약하게 덮어쓰는 함정 방지.
         // (RULES.md 가 이미 있으면 건드리지 않음 — 아래 write 루프가 보존.)
         adoptedRules = buildAdoptedRules(existingRules, answers.name)
+        allowAutoSync = true
         console.log(
           chalk.cyan(`  기존 규칙 파일 ${existingRules.length}개 감지 → RULES.md 로 자동 병합(adopt)`)
         )
         console.log(chalk.dim(`  ${ko.init.adoptPreview(existingRules.length)}`))
       }
     }
+  }
+
+  if (options.fromNotion) {
+    // fromNotion = 노션 PRD 로 새로 만든 프로젝트 → 그린필드 취급(덮을 남의 파일 없음).
+    allowAutoSync = true
   }
 
   const files = generateFiles(answers.name, answers.description, stack, prdContent, answers.type)
@@ -310,7 +324,22 @@ export async function init(options: InitOptions = {}) {
     log.warn(ko.init.coreRulesBundledWarn(coreRulesCheck.version))
   }
 
+  // RFC 0060 T3: 그린필드/adopt 승인 시 자동 sync — RULES.md(SoT)에서 AGENTS.md 등 도구별
+  // 규칙 파일을 즉시 파생(Codex·Zed 등이 첫 세션부터 규칙을 본다). syncCore 가 덮기 전 자동 백업하고,
+  // 신규 파일은 항상 쓰되 drift 파일만 confirmOverwrite 로 확인한다(여기선 게이트 통과 → 허용).
+  // 실패해도 init 산출물은 보존하고 경고만 — 사용자는 vhk sync 로 수동 복구 가능.
+  if (allowAutoSync) {
+    try {
+      await syncCore(cwd, { yes: true }, async () => true)
+      log.success('규칙 파생 완료 — AGENTS.md 등 도구별 규칙 파일 생성')
+    } catch (e) {
+      log.warn(`규칙 파생(sync) 실패 — 산출물은 보존됨. 수동 실행: vhk sync (${e instanceof Error ? e.message : String(e)})`)
+    }
+  }
+
   console.log(chalk.bold.green(`\n${ko.init.done}`))
+  // RFC 0060 T3: 설치 점검 영수증 — "썼다"가 아니라 디스크에서 읽어 확인한 현황(거짓완료 금지).
+  console.log('\n' + formatInstallReceipt(collectInstallReceipt(cwd)))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
   if (options.fromNotion) {
     console.log(`  1. ${ko.init.notionReviewHint}`)

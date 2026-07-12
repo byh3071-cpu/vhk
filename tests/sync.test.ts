@@ -13,6 +13,9 @@ import {
   toClaudeMd,
   claudeMdMigration,
   toAgentsMd,
+} from '../src/commands/sync.js'
+import { RULES_MD_TEMPLATE } from '../src/templates/rules-md.js'
+import {
   agentsMdEcosystemBlock,
   resolveAgentCompactRel,
   truncateForAntigravity,
@@ -354,5 +357,17 @@ describe('vhk sync — goal 90: 도메인 규칙 섹션이 .cursorrules + CLAUDE
     expect(r.migrated).toBe(true)
     expect(r.removed).toContain('도메인 규칙') // 알려진 트레이드오프 — 위 주석 참조
     expect(r.preserved).toContain('현재 상태') // 무관 사용자 섹션은 그대로 보존됨(과확장 아님)
+  })
+
+  // RFC 0060 T4: [여기에 작성:] 마커 규칙을 RULES.md(코딩 규칙)에 넣어 sync 가 전 도구 파일로
+  // 전파 → SessionStart 훅이 없는 에이전트(Cursor·Codex)도 파일 안 규칙으로 "빈칸은 대화로" 백업 트리거.
+  describe('RFC 0060 T4 — 마커 규칙 전 에이전트 전파', () => {
+    it('RULES.md 마커 규칙이 sync 로 .cursorrules·AGENTS.md 에 전파된다', () => {
+      const rules = RULES_MD_TEMPLATE('P', 'desc', 'Next.js')
+      expect(rules).toContain('[여기에 작성:')
+      const sections = parseRulesMd(rules)
+      expect(toCursorrules(sections, 'P')).toContain('[여기에 작성:')
+      expect(toAgentsMd(sections, 'P')).toContain('[여기에 작성:')
+    })
   })
 })
