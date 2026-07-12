@@ -148,11 +148,11 @@ tags: [process, constitution]
 > 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
-**마지막 갱신:** 2026-07-03
-- **버전:** v2.10.0 — 사실 확인은 package.json·CHANGELOG (Wave 1: init 죽은 안내문 정직화 + 누적 미발행분 발행)
-- **테스트:** 2206 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
-- **Phase:** **[2026-07-03] goal 88~92 완결 + RFC 0057(기억/복리/에이전트불가지론) 브레인스토밍 착수** — init 커스터마이징 트리거(88~90)·core-rules 폴백 가시화(91)·core-rules 자동화(92, `~/.vhk/config.json`) 전부 TDD+critic 2라운드 완결. SEO goal 22~26 재감사(RFC 0054 확인). RFC 0057 실측 감사(트리거계층 CC전용·`ecosystem.mdc` 모순문구·receipt agent필드 없음 확정) → 스코프 제안, **사용자 응답 대기 중 인계**. 상세 docs/state 최상단.
+**마지막 갱신:** 2026-07-13
+- **버전:** v2.10.0 — 사실 확인은 package.json·CHANGELOG (독푸딩 Wave 1 발행 완료: npm·태그·Release·노션 전부 정합)
+- **테스트:** 2353 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
+- **Phase:** **[2026-07-13] 독푸딩 init 감사 → v2.10.0 발행 완결 + Wave 2 RFC 승인 대기** — vhk init 템플릿 배출 독푸딩에서 죽은 안내문·발행격차 P1 2건 수정 후 v2.10.0 발행(npm latest 50th·git 태그·GitHub Release·노션 10곳 정합). 노션 oh-my-agent "필수→선택" 강등(vhk 불가지론·사용자 미사용·Codex 권고). Wave 2 RFC 0060(init 기록 온보딩)·0061(기록 집행 3겹 그물) Draft 작성·머지. 상세 docs/state 최상단.
 - **블로커:** 없음
-- **진행 중(미완):** RFC 0057 브레인스토밍 — 스코프 제안(①`ecosystem.mdc` 모순 제거 ②receipt agent 필드 ③트리거 격차 문서화)까지 진행, **사용자 승인 대기**(brainstorming 스킬 HARD-GATE — 설계 승인 전 구현 금지). 다음 세션은 이 승인 질문부터.
-- **다음 할 일:** RFC 0057 스코프 승인받고 스펙 작성 → 구현. **push origin 안 함**(main 직접 push 가드 #119 — 로컬 커밋 4개, PR 경유 여부 사용자 판단) · npm publish 안 함(2FA, 사람만). 상세 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단.
+- **진행 중(미완):** Wave 2 RFC 0060·0061 = Draft·구현 HARD-GATE(승인 필요). 다음 세션은 이 둘 승인받고 스펙→구현. 별도 숙제 = "vhk 강화가 뭔지"(Codex 권고 실체) 브레인스토밍.
+- **다음 할 일:** RFC 0060·0061 승인 → 스펙 → 구현. **npm publish 안 함**(2FA, 사람만 — 이번 v2.10.0은 발행 완료) · main 직접 push 차단 → PR 경유. 상세 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단.
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA=Windows 보안키→실 터미널 `npm publish --ignore-scripts`) / 직접 main push 차단 → PR 경유 / 로컬 게이트에 **`pnpm lint` 필수**(CI gate=lint 포함 — typecheck+test만으론 CI fail) / 적대리뷰 워크플로 에이전트 read-only 명시 / **워크트리 병합 직전 `git branch --show-current` 재확인**(다른 동시 세션이 공유 체크아웃 브랜치를 바꿀 수 있음, 2026-07-03 `vhk-readme-redesign` 오염 사고로 실증) / 동시세션 docs/state 충돌 주의
