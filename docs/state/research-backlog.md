@@ -51,8 +51,8 @@
 |---|---|---|---|---|
 | **Recall@5 실측** (ML 도입 Kill-gate) | 측정 | 사용자 실쿼리 Recall@5가 <0.7 반복인가(ML 정당) ≥0.7인가(키워드 충분, 영구보류) | `vhk memory eval --init` 대화형 라벨링(사람만) + 실쿼리 누적 선결 | RFC 0049:46·91 · dogfood-audit:51 |
 | **diff-coverage 실측** (review.ts 사각지대) | 측정 | 실작업 diff ≥5건에서 "테스트 green인데 새 로직 미검증 라인"이 과반 >0인가 ≈0인가 | 실작업 코드 diff ≥5건 누적 필요(합성·소급 배치 금지) | RFC 0050:58·62 · review.ts:39 · goal 50 |
-| **vhk-auto 자율성 측정 프로토콜** | 자율성 | 완주율·개입횟수·실패유형을 무엇으로 수치화? D2 첫 트리거 | RFC 0054에 "측정"이 정성 서술뿐 — **프로토콜 정의 자체가 없음** | RFC 0054:59·62 · vhk-auto SKILL |
-| **진화 루프 효과 측정** | 측정 | evolve/memory가 실제로 다음 세션 품질을 올리나(채택률·재발감소) | "효과·채택률 측정" docs 전체 0건. "진화 먼저" 경로의 전제 | RFC 0054 · goal 20 |
+| ~~**vhk-auto 자율성 측정 프로토콜**~~ | 자율성 | ~~완주율·개입횟수·실패유형을 무엇으로 수치화? D2 첫 트리거~~ | 해소(2026-07-04): goal 99(#453)가 autonomy-run 로깅 스키마 정의 — 잔여는 실구동 표본 누적(#373 OPEN) | RFC 0054:59·62 · goal 99 |
+| ~~**진화 루프 효과 측정**~~ | 측정 | ~~evolve/memory가 실제로 다음 세션 품질을 올리나(채택률·재발감소)~~ | 해소(2026-07-04): goal 97(#451)이 evolve-log·채택률 스키마 정의(`stats.ts` calcAdoptionStats) — 잔여는 실사용 누적 | RFC 0054 · goal 97 |
 | **검증 집행력 갭(D5)** | 결정 | check 자동규칙 2개·mission scope 무제한을 어디까지 코드강제? (정규식 92% 형태검증) | 도그푸딩 핵심통찰 "약점=설계 아닌 집행 갭". measure-first로 갱신 누수 관측 선결 | dogfood-audit:54 · RFC 0053:40 · goal 53 |
 | **공급망·발행 보안** | 외부 | npm provenance·audit·의존성 신뢰 게이트를 어떻게 세우나 | SOUL "공급망 리스크 금지"인데 집행 도구 0. **트리거 없이 지금 조사 가능** | SOUL · package.json · RFC 0054 |
 
@@ -67,6 +67,7 @@
 | cost 가드 요율표 최신성 | 외부 | claude-api 스킬로 모델 ID·가격·컨텍스트 검증 → 참조표 |
 | MCP 35 tools 타 클라이언트 호환 | 외부 | Cursor·Cline 등에서 연결→발견→호출 e2e 1회 실측 |
 | CLI 출력 접근성(NO_COLOR·색약·스크린리더) | 품질 | `NO_COLOR=1 vhk verify`·비TTY 파이프 1회 실측 |
+| 프롬프트-커맨드 대조(에이전트 의도↔실행 명령 검증) | 아이디어 | goal 87(mission↔변경파일 대조)과의 차별점 정의 → 실현성·LLM-0 원칙 부합 조사. ※ 외부 서술(블로그)이 "도입 검토 목록 등재"를 선(先)주장 — 실제 등재는 2026-07-13 이 행이 최초(정직 소급) |
 | `.vhk` 런타임 로그 프라이버시 | 품질 | 로그 4종 필드 인벤토리 + 쿼리원문·diff 민감정보 혼입 평가 |
 | 신규 사용자 온보딩(명령 50+개 압도감) | 결정 | gh·vite의 progressive disclosure 외부조사 → 옵션 3안 |
 
@@ -117,16 +118,16 @@
 |---|---|---|---|---|---|---|
 | **Recall@5 ML 도입**(RFC0049) | 오너 실쿼리 + 정답라벨 **+ 쿼리유형** | `recall-log{query,hitIds,topScore,ts}` + `eval{query,expectIds}` **+ 신규 `queryType: lexical\|paraphrase`** | ≥30 라벨, 패러프레이즈 비율 고정 | 며칠 `vhk recall` 실사용 → `memory eval --init` | 토이 60→71%(구성취약) | b + **스키마에 queryType 추가**(세션 발견: 구성이 verdict 좌우) |
 | **diff-cov 게이트 승격**(RFC0050) | 실작업 diff별 미검증 라인 **+ 분기커버** | PR별 `{date,files,added,uncoveredLine,uncoveredBranch,classify}` | ≥5 diff, 며칠 분산 | 본체 작업 PR마다 `test --coverage`→`diff-cover` | 토이 3/10(라인만) | b + **branch-cov 추가**(세션: 라인커버는 단일줄 분기 과소계상) |
-| **자율성→실행력 D2**(RFC0054) | vhk-auto 1회전 결과 | `autonomy-run{runId,goal,completed,interventions,hardStop,reviewRejected,ticks}` | ≥N회(임계 미정) | /vhk-auto 실구동 로그 | **0(스키마 없음)** | **a — 스키마·임계 정의가 1순위** |
+| **자율성→실행력 D2**(RFC0054) | vhk-auto 1회전 결과 | `autonomy-run{runId,goal,completed,interventions,hardStop,reviewRejected,ticks}` | ≥N회(임계 미정) | /vhk-auto 실구동 로그 | 스키마 有(goal 99, 2026-07-04)·표본 0 | b — 실구동 누적(임계는 미정) |
 | **"진화 먼저" 전제**(RFC0054§4) | evolve 채택률 + 사후 위반감소 | `evolve-log{suggId,applied,rejectReason}` + 전후 `check` 위반수 | 며칠 누적 | evolve 실사용 + 위반 추세 | **0(측정 없음)** | a + b |
 | **JIT 경고 임계 튜닝** | 위험행동별 경보/오경보 | recall-log 재사용 + `{action,alerted,wasFalseAlarm}` | 위험행동 다수 | recall 데이터 파이프 공유 | 0 | b(Recall과 동일 파이프) |
 | **AI 차단율**(goal61) | guarded 행동 결과 | `ai-actions.jsonl{action,blocked}` | 더 많은 운영량 | 평소 운영 누적 | 8줄(0/8) | b(표본 빈약) |
-| **거짓완료 탐지**(RFC0056 receipt) | 거짓완료 사건 1건+ | `{claim,evidence,verdict:false-complete}` | 90일 1건 적발 | receipt MVP + 실작업 | 0/8 | a(receipt 미구현) + b |
+| **거짓완료 탐지**(RFC0056 receipt) | 거짓완료 사건 1건+ | `{claim,evidence,verdict:false-complete}` | 90일 1건 적발 | receipt MVP + 실작업 | receipt 구현됨(goal 86 DONE)·적발 표본 0 | b(90일 측정 개시 대기) |
 
 ### 2. 한 줄 요약 — 지금 "데이터분석"을 막는 진짜 순서
 1. **(c) 영속 고치기** — 본체 memory.json 미영속 + recall-log gitignore. 안 고치면 뭘 쌓아도 샌다.
-2. **(a) 스키마 2개 정의** — 자율성 완주율·진화 효과(측정 대상이 아예 없음).
-3. **스키마 보강 2개** — recall에 `queryType`, diff-cov에 `branch` (세션이 발견한 결함 반영).
+2. ~~**(a) 스키마 2개 정의** — 자율성 완주율·진화 효과(측정 대상이 아예 없음).~~ 해소(2026-07-04): goal 99(#453)·goal 97(#451).
+3. ~~**스키마 보강 2개** — recall에 `queryType`, diff-cov에 `branch` (세션이 발견한 결함 반영).~~ 해소(2026-07-04): goal 98(#452).
 4. **(b) 오너 실사용 며칠** — recall·diff·ai-actions 표본 누적. **이건 사람만**.
 
 → **핵심: 데이터분석 이전에 "데이터가 쌓이고·정의되고·안 새는" 파이프부터.** 토이 도그푸딩이 (a)(b) 방법은 증명했고, 결함(구성취약·라인커버한계·영속버그)도 드러냄. 남은 건 본체에 파이프 깔고 오너가 며칠 굴리는 것.

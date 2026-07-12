@@ -1,6 +1,6 @@
 # RFC 0055 — VHK Proof Protocol: AI 작업 신뢰 원장
 
-> 상태: Draft · 작성: 2026-06-22 · 출처: "VHK가 Git처럼 잡을 수 있는 문제" 제품 전략 논의
+> 상태: Superseded — RFC 0056(Evidence Receipt)이 계승, 본 문서는 아카이브(0056·0057이 archived로 지칭) · 작성: 2026-06-22 · 출처: "VHK가 Git처럼 잡을 수 있는 문제" 제품 전략 논의
 > 목적: VHK를 코딩 에이전트가 아니라 **AI 작업의 의도·증거·완료 여부를 추적하는 신뢰 원장**으로 재정의하고,
 >       이를 실제 제품/프로토콜/티켓 단위로 쪼갠다.
 > 연동: README의 "목표·증거·기억·규칙" 포지션 · RFC 0052(풀사이클 뒷단) · RFC 0054(자율형 진화) · `.vhk/ledger.jsonl` · `verify/review/preflight/testmap/mission/work`.
