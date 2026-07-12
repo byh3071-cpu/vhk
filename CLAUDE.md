@@ -149,7 +149,7 @@ tags: [process, constitution]
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
 **마지막 갱신:** 2026-07-03
-- **버전:** v2.9.0 — 사실 확인은 package.json·CHANGELOG (미발행 누적 +4 커밋, 버전 안 올림)
+- **버전:** v2.10.0 — 사실 확인은 package.json·CHANGELOG (Wave 1: init 죽은 안내문 정직화 + 누적 미발행분 발행)
 - **테스트:** 2206 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
 - **Phase:** **[2026-07-03] goal 88~92 완결 + RFC 0057(기억/복리/에이전트불가지론) 브레인스토밍 착수** — init 커스터마이징 트리거(88~90)·core-rules 폴백 가시화(91)·core-rules 자동화(92, `~/.vhk/config.json`) 전부 TDD+critic 2라운드 완결. SEO goal 22~26 재감사(RFC 0054 확인). RFC 0057 실측 감사(트리거계층 CC전용·`ecosystem.mdc` 모순문구·receipt agent필드 없음 확정) → 스코프 제안, **사용자 응답 대기 중 인계**. 상세 docs/state 최상단.
 - **블로커:** 없음
