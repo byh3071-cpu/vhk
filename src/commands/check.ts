@@ -7,6 +7,7 @@ import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
 import { goalCheck } from './goal.js'
 import { appendCheckLog, buildCheckLogEntry } from '../lib/check-log.js'
+import { countFillSlots } from '../lib/install-receipt.js'
 
 export interface CheckOptions {
   goal?: string
@@ -119,8 +120,11 @@ async function checkRules(opts: CheckOptions = {}) {
     /* 원장 append 실패 비치명 — check 본 판정은 이미 계산됨 */
   }
 
+  // RFC 0060 T1b: PRD·ARCHITECTURE 잔여 [여기에 작성:] 슬롯 카운트 — 온보딩 진행 측정.
+  const fillSlots = countFillSlots(cwd)
+
   if (opts.json) {
-    console.log(JSON.stringify(summary, null, 2))
+    console.log(JSON.stringify({ ...summary, fillSlots }, null, 2))
     if (summary.errors > 0) process.exitCode = 1
     return
   }
@@ -154,6 +158,15 @@ async function checkRules(opts: CheckOptions = {}) {
   }
 
   console.log('')
+
+  // RFC 0060 T1b: 아직 못 채운 기획·설계 슬롯을 노출(진행 측정 + 다음 행동 유도).
+  if (fillSlots.total > 0) {
+    console.log(
+      chalk.yellow(`  📝 미완성 슬롯 ${fillSlots.total}개`) +
+      chalk.dim(` — docs/PRD.md ${fillSlots.prd} · docs/ARCHITECTURE.md ${fillSlots.architecture} ([여기에 작성:] 대화로 채우기)`)
+    )
+    console.log('')
+  }
 
   if (summary.violations.length === 0) {
     // VHK-011: "모든 규칙 통과" 거짓안심 금지 — 자동 검증된 부분만 통과라고 명시.

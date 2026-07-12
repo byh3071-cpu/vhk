@@ -83,6 +83,22 @@ RFC [0060](../rfc/0060-init-record-onboarding.md) 승인(사용자) → 4트랙 
 
 ## RFC 0060 완료 (T1~T4)
 - T1 마커 · T2 인터뷰 2단계 · T3 자동sync+영수증 · T4 트리거 계승 — 전부 TDD+실 init 검증.
-- **유보**: T1b(`vhk check` 잔여 슬롯 카운트, RFC §4 성공기준·§7 열린결정3) — 선택 트랙, 별도 iteration. init 온보딩 핵심(채우기 쉽게 + 배선 완비 + 정직 보고)은 T1~T4로 달성.
+- T1~T4 = PR #481 (main `55852b8`).
+
+## T1b — `vhk check` 잔여 슬롯 카운트 (RFC §4 성공기준 달성)
+
+### 변경
+- `src/lib/install-receipt.ts` — `countFillSlots(rootDir)`: PRD·ARCHITECTURE 의 `[여기에 작성:` 개수(순수).
+- `src/commands/check.ts` — 규칙 렌더 뒤 "📝 미완성 슬롯 N개" 콘솔 라인 + `--json` 에 `fillSlots` 필드(하위호환 추가).
+- 테스트: countFillSlots 2 · check JSON.
+
+### 효과 (실 check)
+- init 직후 `vhk check` → "📝 미완성 슬롯 13개 — PRD 9 · ARCHITECTURE 4", `--json` `fillSlots:{prd:9,architecture:4,total:13}`.
+- **§4 성공기준 "vhk check 가 잔여 슬롯 수 카운트(측정 가능)" 달성** — 사용자가 온보딩 진행을 숫자로 확인, 채울수록 감소.
+
+### 게이트
+- tsc 0 · lint 0 · install-receipt·check 테스트 green · 실 check 콘솔·JSON 검증.
+
+## RFC 0060 최종 — T1~T4 + T1b 전부 완료. init 기록 온보딩 클로저.
 - T4 — 트리거 격차 계승(RFC 0057 §7): 마커 규칙 문구 → sync 전 에이전트 전파.
 - T1b(선택) — `vhk check` 잔여 슬롯 카운트.
