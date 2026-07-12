@@ -68,8 +68,21 @@ RFC [0060](../rfc/0060-init-record-onboarding.md) 승인(사용자) → 4트랙 
 ### 게이트
 - tsc 0 · lint 0 · init 49 test · 실 init 2케이스(그린필드/브라운필드) behavior 검증 · 전체 스위트 회귀 0(4건 수정 후).
 
-## 다음 (RFC 0060 잔여)
-- T4 — 트리거 격차 계승(RFC 0057 §7): 마커 규칙 문구를 RULES.md에 넣어 sync 로 전 에이전트 전파.
-- T1b(선택) — `vhk check` 잔여 슬롯 카운트.
+## T4 — 트리거 격차 계승 (RFC 0057 §7)
+
+### 변경
+- `src/templates/rules-md.ts` — 코딩 규칙에 한 줄: "문서의 [여기에 작성: …] 칸은 사용자와 대화로 채운다 — AI 추측으로 채우지 않기". RULES.md(SoT) → sync 전파.
+- `tests/sync.test.ts` — 마커 규칙이 toCursorrules·toAgentsMd 로 전파 검증.
+
+### 효과 (실 init 실측)
+- 자동 sync(T3) 후 `.cursorrules`·`AGENTS.md`·`CLAUDE.md` **전부**에 마커 규칙 전파 확인.
+- **트리거 격차 백업 달성**: SessionStart 훅이 Claude Code 전용이라 Cursor·Codex 등은 자동 온보딩을 못 받지만, 이제 파일 안 규칙으로 "빈칸은 대화로 채워라(추측 금지)"를 읽는다. RFC 0057 §7이 "미해결 설계공백"으로 남긴 격차를 **축소**(소멸 아님 — 에이전트가 규칙을 따를지는 품질 의존, RFC 0060 §3 T4 정직 표기 그대로).
+
+### 게이트
+- tsc 0 · lint 0 · sync 37 test · 실 init 3파일 전파 확인.
+
+## RFC 0060 완료 (T1~T4)
+- T1 마커 · T2 인터뷰 2단계 · T3 자동sync+영수증 · T4 트리거 계승 — 전부 TDD+실 init 검증.
+- **유보**: T1b(`vhk check` 잔여 슬롯 카운트, RFC §4 성공기준·§7 열린결정3) — 선택 트랙, 별도 iteration. init 온보딩 핵심(채우기 쉽게 + 배선 완비 + 정직 보고)은 T1~T4로 달성.
 - T4 — 트리거 격차 계승(RFC 0057 §7): 마커 규칙 문구 → sync 전 에이전트 전파.
 - T1b(선택) — `vhk check` 잔여 슬롯 카운트.
