@@ -12,6 +12,8 @@ import { ARCHITECTURE_TEMPLATE } from '../templates/architecture.js'
 import { ADR_TEMPLATE } from '../templates/adr-template.js'
 import { RFC_README_TEMPLATE, PATTERNS_README_TEMPLATE } from '../templates/docs-readme.js'
 import { CUSTOMIZATION_HOOK_TEMPLATE } from '../templates/customization-hook.js'
+import { RECORD_CHECK_TEMPLATE } from '../templates/record-hook.js'
+import { installRecordCommitMsgHook } from '../lib/record-hook.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
 import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE, VHK_GITATTRIBUTES_TEMPLATE, VHK_IGNORE_TEMPLATE } from '../templates/vhk-dir.js'
 import { ko } from '../i18n/ko.js'
@@ -401,6 +403,8 @@ export function generateFiles(
     // 증거 원장(events·ledger)에 merge=union — 멀티PC append 분기 자동 병합(A축). 추적 유지 전제.
     '.vhk/.gitattributes': VHK_GITATTRIBUTES_TEMPLATE(),
     '.vhk/hooks/customization-check.mjs': CUSTOMIZATION_HOOK_TEMPLATE(),
+    // RFC 0061 T1 — 기록 집행 판정 본체(버전관리). 배선은 writeInitExtras 의 commit-msg shim.
+    '.vhk/hooks/record-check.mjs': RECORD_CHECK_TEMPLATE(),
     '.vhkignore': VHK_IGNORE_TEMPLATE(),
     // core-ruleset 마커블록 상속 — PRIVATE_RULES_ROOT 있으면 라이브, 없으면 번들 스냅샷
     '.agents/CORE-RULES.md': generateCoreRulesContent(null),
@@ -518,6 +522,23 @@ async function writeInitExtras(projectDir: string, noninteractive = false) {
   const hookResult = ensureSessionStartHook(projectDir)
   if (hookResult === 'created' || hookResult === 'merged') {
     log.success(ko.init.customizationHookWired)
+  }
+
+  // RFC 0061 T1 — 기록 집행 커밋훅. git 이 실행하는 훅이라 도구 불가지론(어떤 에이전트 커밋도 잡음).
+  // 선택 기능이라 실패(권한 등)해도 init 전체를 중단하지 않는다 — missionScaffold 와 동일 방어.
+  try {
+    const recordHook = installRecordCommitMsgHook(projectDir)
+    if (recordHook === 'installed' || recordHook === 'updated') {
+      log.success(ko.init.recordHookWired)
+    } else if (recordHook === 'respected-existing') {
+      log.warn(ko.init.recordHookRespected)
+    } else if (recordHook === 'hooks-path-set') {
+      log.warn(ko.init.recordHookHooksPath)
+    } else {
+      log.warn(ko.init.recordHookNoGit)
+    }
+  } catch (e) {
+    log.warn(`${ko.init.recordHookFailed} ${e instanceof Error ? e.message : String(e)}`)
   }
 }
 

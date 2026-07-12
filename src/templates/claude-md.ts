@@ -44,6 +44,7 @@ export function CLAUDE_MD_TEMPLATE(name: string, stack: string): string {
     '',
     '## 세션 종료',
     '세션 종료 시 `vhk recap` (한국어: "오늘 한 일 정리해") → 요약 생성 → docs/log/ 저장',
+    '긴 세션·인수인계는 `vhk work handoff` — 미기록 ADR/트러블슈팅 후보까지 자동 수확',
     '',
     '## 종료 전 체크리스트',
     '해당 사항 있을 때만: ① 기술 결정 → ADR ② 에러 해결 → 트러블슈팅 ③ 새 배움 → TIL',

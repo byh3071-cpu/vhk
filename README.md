@@ -190,7 +190,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 
 | 영역 | 명령 | 용도 |
 | --- | --- | --- |
-| 시작 | `vhk`, `vhk gate`, `vhk start`, `vhk init` | 메뉴, 아이디어 검증, 새 프로젝트 마법사, 하네스 초기화 |
+| 시작 | `vhk`, `vhk gate`, `vhk start`, `vhk init` | 메뉴, 아이디어 검증, 새 프로젝트 마법사, 하네스 초기화(+기록 집행 커밋훅 배선 — 세션일지 없는 코드 커밋 차단, `[skip-record]` 우회) |
 | 규칙/맥락 | `vhk sync`, `vhk context`, `vhk context-show`, `vhk brief`, `vhk loop-brief`, `vhk remind`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, 루프 1틱 의도 앵커, 치명 규칙 재주입, 세션 시작/인수인계 |
 | 풀사이클 뒷단 | `vhk content`, `vhk launch`, `vhk ops`, `vhk sell` | 콘텐츠/런칭/운영/판매 초안 프롬프트 생성 (초안만, 게시·발송·결제는 사람이) |
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 드리프트 관리 |

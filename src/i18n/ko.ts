@@ -217,6 +217,11 @@ export const ko = {
     customizationMarkerDone: '🎯 .vhk/NEEDS_CUSTOMIZATION 생성 — 첫 세션에서 도메인 인터뷰 자동 트리거',
     customizationHookWired: '🪝 .claude/settings.json SessionStart 훅 배선 (커스터마이징 트리거)',
     customizationHookSkipped: '⚠️  .claude/settings.json 파싱 실패 — SessionStart 훅 배선 건너뜀(기존 파일 보존).',
+    recordHookWired: '🪝 .git/hooks/commit-msg 기록 집행 훅 배선 — 세션일지 없는 코드 커밋 차단([skip-record] 우회 가능)',
+    recordHookRespected: '⚠️  기존 commit-msg 훅 발견(vhk 소유 아님) — 보존하고 기록 집행 훅 배선 건너뜀. 통합하려면 기존 훅에 node .vhk/hooks/record-check.mjs 호출을 추가하세요.',
+    recordHookNoGit: '⚠️  기록 집행 훅 미배선 — git 저장소가 없거나 worktree/bare 저장소입니다. 일반 저장소면 git init 후 vhk init 재실행 시 자동 배선됩니다.',
+    recordHookHooksPath: '⚠️  core.hooksPath 설정 감지(husky 등) — .git/hooks 는 git 이 무시하므로 기록 집행 훅 미배선. 해당 훅 디렉터리의 commit-msg 에 node .vhk/hooks/record-check.mjs 호출을 수동 추가하세요.',
+    recordHookFailed: '⚠️  기록 집행 훅 배선 실패(선택 기능 — init 은 계속):',
     coreRulesBundledWarn: (version: string) => {
       const v = version === 'unknown' ? '버전 미상' : `v${version}`
       return (
