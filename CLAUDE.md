@@ -149,10 +149,10 @@ tags: [process, constitution]
 > ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
 
 **마지막 갱신:** 2026-07-13
-- **버전:** v2.11.0 — 사실 확인은 package.json·CHANGELOG (Wave 2 완주: RFC 0060 init 기록 온보딩 + RFC 0061 record-net 커밋훅. **npm 발행 = 사람 2FA 대기**)
-- **테스트:** 2353 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
-- **Phase:** **[2026-07-13] 독푸딩 init 감사 → v2.10.0 발행 완결 + Wave 2 RFC 승인 대기** — vhk init 템플릿 배출 독푸딩에서 죽은 안내문·발행격차 P1 2건 수정 후 v2.10.0 발행(npm latest 50th·git 태그·GitHub Release·노션 10곳 정합). 노션 oh-my-agent "필수→선택" 강등(vhk 불가지론·사용자 미사용·Codex 권고). Wave 2 RFC 0060(init 기록 온보딩)·0061(기록 집행 3겹 그물) Draft 작성·머지. 상세 docs/state 최상단.
+- **버전:** v2.11.0 — 사실 확인은 package.json·CHANGELOG (**발행 완결**: npm latest·git 태그·GitHub Release·노션 정합 전부 v2.11.0)
+- **테스트:** 2387 pass(로컬) · **MCP tools:** 35 — 사실값은 package.json·CHANGELOG
+- **Phase:** **[2026-07-13] 로드맵 재정렬 + Wave 2 완주 + v2.11.0 발행 완결** — 3관점 플랜+skeptic 검증으로 로드맵 재편(roadmap.md=분기층 SoT, Phase 0~4) → 문서 정합화(#482)·계측 재가동(receipt 90일 개시·계측 DB 순수 VHK 첫 행) → RFC 0060(#481·#483, 별도 세션)+0061(#485, critic 2라운드) 병렬 완주 → v2.11.0 발행. 신규 도그푸딩 이슈 #488(eval --init 이 recall 미스 쿼리 라벨 불가 — 측정 편향). 상세 docs/state 최상단.
 - **블로커:** 외부의존 2건 유지(blockers.md — goal-50 실데이터, SEO 22~26 자격증명·둘 다 [skip-hardstop] 사람 대기). 진행 차단 아님.
-- **진행 중(미완):** Wave 2 RFC 0060·0061 = Draft·구현 HARD-GATE(승인 필요, 0060 T1은 별도 세션 착수됨). 별도 숙제 = "vhk 강화가 뭔지"(Codex 권고 실체) 브레인스토밍.
-- **다음 할 일:** **v2.11.0 npm publish(사람 2FA — 실 터미널 `npm publish --ignore-scripts`)** → 태그·Release·노션 정합. 이후 순서 SoT = **[docs/state/roadmap.md](docs/state/roadmap.md)** Phase 2(RFC 0062·#457 report-mode·GTM). 세션 단위 상세는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. main 직접 push 차단 → PR 경유.
+- **진행 중(미완):** Recall 라벨링이 #488 로 dead-end(수정 후 재시도) · G3 육안 3항목(색상·Ctrl+C·리사이즈) 사람 채점 대기(종료감지·통과는 실측 완료). 별도 숙제 = "vhk 강화가 뭔지"(Codex 권고 실체) 브레인스토밍.
+- **다음 할 일:** 순서 SoT = **[docs/state/roadmap.md](docs/state/roadmap.md)** **Phase 2** — RFC 0062(드리프트 자동감지) 초안 → #457 report-mode(preflight.ts 접촉은 #457 먼저 직렬) → #455/#456/#458 → GTM(준비=AI·게시=사람). #488 수정도 후보. 세션 단위 상세는 **[docs/state/next-task.md](docs/state/next-task.md)** 최상단. main 직접 push 차단 → PR 경유.
 - **주의:** publish는 main에서만(#119)·사용자 직접(2FA=Windows 보안키→실 터미널 `npm publish --ignore-scripts`) / 직접 main push 차단 → PR 경유 / 로컬 게이트에 **`pnpm lint` 필수**(CI gate=lint 포함 — typecheck+test만으론 CI fail) / 적대리뷰 워크플로 에이전트 read-only 명시 / **워크트리 병합 직전 `git branch --show-current` 재확인**(다른 동시 세션이 공유 체크아웃 브랜치를 바꿀 수 있음, 2026-07-03 `vhk-readme-redesign` 오염 사고로 실증) / 동시세션 docs/state 충돌 주의
