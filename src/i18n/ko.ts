@@ -202,11 +202,11 @@ export const ko = {
     skipped: (filePath: string) => `${filePath} — 건너뜀`,
     done: '🎉 프로젝트 뼈대가 준비됐어요!',
     nextSteps: '다음에 할 일:',
-    fillHint: 'CLAUDE.md · .cursorrules에서 👉 여기를 채워주세요 표시를 찾아 채우세요',
+    fillHint: 'CLAUDE.md · RULES.md의 프로젝트 설명·기술 스택이 맞는지 확인하세요 (첫 세션을 열면 AI가 도메인 규칙을 인터뷰로 채워줘요)',
     prdHint: 'docs/PRD.md에 1차 버전에 넣을 기능·빼는 기능을 적어 보세요',
     notionFetching: '📡 노션 기획 페이지 불러오는 중...',
     notionDone: (name: string) => `노션에서 가져오기 완료: ${name}`,
-    notionReviewHint: 'docs/PRD.md를 읽고 👉 여기를 채워주세요 항목을 채우세요',
+    notionReviewHint: 'docs/PRD.md를 읽고 비어있는 항목을 채우세요',
     gitHintLabel: '터미널에 복사할 명령 (아래 박스 복붙):',
     gitHintCommand: 'git init && git add . && git commit -m "feat: 프로젝트 시작"',
     startDev: '이제 개발해 보세요! 🚀',
@@ -256,6 +256,23 @@ export const ko = {
     notProvided: '_(미입력 — 비대화형 실행)_',
     nonInteractiveNote: '비대화형 모드 — 회고 본문은 --summary / --next / --decisions / --blockers 플래그로 채울 수 있어요 (미지정 항목은 "미입력"으로 기록).',
     detectSkipNonInteractive: '비대화형 모드 — 문서 자동 생성은 대화형(vhk recap)에서만. 위 후보를 참고해 직접 기록하세요.',
+    workingTreeTitle: '📂 미커밋 변경 (working tree):',
+    autoDirtySummary: (n: number, sample: string) =>
+      `미커밋 변경 ${n}건${sample ? `: ${sample}${n > 5 ? ' …' : ''}` : ''}`,
+  },
+  bootstrapCursor: {
+    title: '🚀 VHK Cursor bootstrap (설치 + 배선)',
+    stepDoctor: '[1/6] vhk doctor',
+    stepGoalMigrate: '[2/6] vhk goal migrate --dry-run',
+    stepInject: '[3/6] vhk inject-bootstrap',
+    stepMcp: '[4/6] vhk mcp-init',
+    stepSync: '[5/6] vhk sync',
+    stepSkills: '[6/6] Cursor skills 설치',
+    stepVerify: '배선 검증 — vhk verify',
+    skillsCreated: (names: string[]) => `Cursor skills 생성: ${names.join(', ')}`,
+    skillsSkipped: (names: string[]) => `Cursor skills 이미 있음(건너뜀): ${names.join(', ')}`,
+    done: '✅ Cursor bootstrap 완료',
+    nextHint: 'goal/receipt/review/learn 루프를 vhk-gate skill 로 실행하세요.',
   },
   check: {
     title: '🔍 프로젝트 규칙 점검',
@@ -292,6 +309,12 @@ export const ko = {
     driftRuleWarn: (files: string) =>
       `⚠️ RULES.md와 어긋난 규칙 파일: ${files} — vhk sync 를 다시 실행하세요`,
     driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
+    goalSchemaTitle: 'Goal frontmatter',
+    goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,
+    goalSchemaSkipped: (n: number) => `⚠️ 스키마 불일치로 무시된 goal 파일 ${n}개`,
+    goalSchemaEmpty: (n: number) => `⚠️ goals/*.md ${n}개 있으나 파싱된 goal 0개 — type/id 누락 가능`,
+    ecosystemMdcTitle: 'Ecosystem rule file',
+    ecosystemMdcMissing: '⚠️ AGENTS.md references .cursor/rules/ecosystem.mdc but file is missing',
   },
   preflight: {
     title: '🛫 Preflight — 출고 전 안전점검',
@@ -323,6 +346,7 @@ export const ko = {
     noCommit: 'git 커밋을 찾을 수 없습니다 — 작업시작 기준선을 기록하려면 커밋이 1개 이상 필요합니다.',
     markStartDone: '작업시작 기준선 SHA 기록 완료 (이후 stale 비교 기준):',
     nextBlockMessage: '🔴 기계증거가 "됐어요"와 모순 — 아직 완료 아님. 막힌 증거(red/dirty/stale/forbidden)부터 고치세요:',
+    learnBlockHint: 'receipt BLOCK — 막힌 증거 원인과 재발방지',
     nextCautionMessage: '🟡 실차단은 없으나 약신호 있음(수동 확인 권장). 보강 후 다시 떼세요:',
     nextPassMessage: '🟢 게으른 거짓완료 징후 없음(미묘한 오류는 못 잡음). 완료 처리하려면:',
     // Goal 87 방향 2-1: glob 미지원 문법 경고 — 거짓 안전을 caution 으로 드러냄.
@@ -572,6 +596,7 @@ export const ko = {
     checkTitle: '✅ Goal 게이트 검증',
     doneTitle: '🏁 Goal 완료 처리',
     syncTitle: '🔄 Goal 게이트 스크립트 동기화',
+    migrateTitle: '🔧 Goal frontmatter migrate',
     duplicateId: (ids: string) =>
       `⚠ 중복된 goal id: ${ids} — 같은 id 파일이 여러 개면 첫 매치만 사용됩니다. id 를 유일하게 고치세요.`,
     skippedFiles: (n: number) =>

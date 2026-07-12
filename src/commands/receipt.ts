@@ -386,7 +386,7 @@ export async function receipt(opts: ReceiptOptions = {}): Promise<void> {
       message: ko.receipt.nextBlockMessage,
       command: 'vhk verify',
       cursorHint: '막힌 증거부터 고쳐줘',
-      alternative: r.reasons[0],
+      alternative: `vhk learn "${ko.receipt.learnBlockHint}"`,
     })
   } else if (r.decision === 'caution') {
     printNextStep({

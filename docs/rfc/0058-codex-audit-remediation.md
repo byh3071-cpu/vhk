@@ -78,29 +78,29 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 
 ### T1 — 진실 드리프트 수정 (반나절 · 위험 낮음 · 착수: 사용자 승인 즉시)
 문서만 손댐, 코드 로직 무변경.
-- [ ] `docs/ARCHITECTURE.md` 수치 갱신: MCP 24→35, Node ≥20→≥22, 테스트 356→현행(또는 "사실값은 package.json·CHANGELOG 참조"로 포인터화해 재드리프트 차단).
-- [ ] `RULES.md:24` `src/nlp-router.ts`→`src/lib/nlp-router.ts` 수정 → `vhk sync`로 파생물 재생성. CLAUDE.md 기술스택 동일 오기도 수정.
-- [ ] `docs/spec.md:114-115` "두 파일 모두 JSON 배열" 잔재 → memory.json은 v2 객체로 정정(refs.json만 배열).
-- [ ] `VISION.md:13-17` DoD 체크박스 `[ ]`→`[x]`(4개 다 구현 완료).
+- [x] `docs/ARCHITECTURE.md` 수치 갱신: MCP 24→35, Node ≥20→≥22, 테스트 356→현행(또는 "사실값은 package.json·CHANGELOG 참조"로 포인터화해 재드리프트 차단). — PR #471
+- [x] `RULES.md:24` `src/nlp-router.ts`→`src/lib/nlp-router.ts` 수정 → `vhk sync`로 파생물 재생성. CLAUDE.md 기술스택 동일 오기도 수정.
+- [x] `docs/spec.md:114-115` "두 파일 모두 JSON 배열" 잔재 → memory.json은 v2 객체로 정정(refs.json만 배열).
+- [x] `VISION.md:13-17` DoD 체크박스 `[ ]`→`[x]`(4개 다 구현 완료).
 - **게이트:** `pnpm build; pnpm test; pnpm lint` (docs만이라 회귀 위험 극소, 그래도 sync 산출물 변동 확인).
 
 ### T2 — 잔재 PR 정리 (5분 · 위험 낮음 · 착수: 사용자 승인 — 외부작업)
-- [ ] PR #430 닫기(기능 이미 #434 main 병합). 브랜치 삭제 여부는 사용자 판단.
-- [ ] PR #445 처리: README는 #446 반영됨. #445 오염 브랜치라 살릴 goal 88~91 잔여 변경 없는지 최종 확인 후 닫기.
+- [x] PR #430 닫기(기능 이미 #434 main 병합). **2026-07-08 실측: 이미 CLOSED.**
+- [x] PR #445 처리: README는 #446 반영됨. **2026-07-08 실측: 이미 CLOSED.**
 - [ ] #461은 유지(정상 신규).
 - ⚠️ **PR 닫기 = 외부 상태 변경**이라 사용자 명시 승인 후에만. main 직접 push·발행은 이 RFC 범위 밖(가드 #119).
 
 ### T3 — Goal 상태 enum 확장 (0.5~1일 · 위험 낮음 · 착수: T1 후)
 근본원인 수리. 4값 → 종결/관찰/유보 표현 추가.
-- [ ] `src/lib/goal-frontmatter.ts:6` GoalStatus에 `CANCELED`(또는 REJECTED)·`DEFERRED`·`OBSERVING` 추가.
-- [ ] `scripts/check-goal-frontmatter.mjs:14` STATUSES Set·`:23` 에러 메시지 동기화.
-- [ ] `scripts/check-goal-20.mjs:56` VALID_GOAL_STATUSES·`src/daily/types.ts:14` GoalStatusLite·`goals/_meta.md:42` 열거 동기화.
-- [ ] 재라벨: goal 73→CANCELED, 79→OBSERVING, 50→DEFERRED. 활성 큐에서 종결/관찰건 분리.
-- [ ] TDD: 신규 상태 허용/거부 테스트 추가. critic 통과.
+- [x] `src/lib/goal-frontmatter.ts:6` GoalStatus에 `CANCELED`(또는 REJECTED)·`DEFERRED`·`OBSERVING` 추가. — PR #472
+- [x] `scripts/check-goal-frontmatter.mjs:14` STATUSES Set·`:23` 에러 메시지 동기화.
+- [x] `scripts/check-goal-20.mjs:56` VALID_GOAL_STATUSES·`src/daily/types.ts:14` GoalStatusLite·`goals/_meta.md:42` 열거 동기화.
+- [x] 재라벨: goal 73→CANCELED, 79→OBSERVING, 50→DEFERRED. 활성 큐에서 종결/관찰건 분리.
+- [x] TDD: 신규 상태 허용/거부 테스트 추가. critic 통과.
 - **주의:** enum 소비처 전수 grep(스위치·필터 누락 시 런타임 오분류) — 등록 5지점 교훈과 동일한 다중 참조 리스크.
 
 ### T4 — write-safety 통일 (국소 · 위험 낮음 · 착수: 독립)
-- [ ] `src/lib/config.ts:48`(config.json)·`src/commands/context.ts:295`(context.md)를 atomicWriteFile로 전환(손상 시 복구 어려운 영속 상태).
+- [x] `src/lib/config.ts`(config.json)·`src/commands/context.ts`(context.md)를 atomicWriteFile로 전환(손상 시 복구 어려운 영속 상태). — PR #475
 - [ ] env.ts·MCP server.ts:468의 .env.example·.gitignore는 영향도 낮음 → 후순위(선택).
 - [ ] 원장 락(action-ledger/autonomy-log)은 **당장 안 함** — O_APPEND 설계선택이고 멀티세션 실측 손상 사례 없음. OBSERVING으로 goal화하거나 이 RFC에 관찰항목으로 남김.
 
@@ -133,13 +133,31 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 
 - **UX 6핵심흐름 단순화**(start→work→verify→receipt→save→handoff 전면, 나머지 고급메뉴): 등록세(5지점)는 실재하나 "비개발자가 헷갈린다"는 **사용 데이터 없음**(단일 사용자=백요한). 제품 방향 결정 → 사용자 판단.
 - **선언형 command manifest 단일 SoT**(5지점 → 1소스 파생): 효과 크나 **GA breaking 위험 최상**(발행된 npm `@byh3071/vhk`, package.json 시그니처 불변 정책). 맨 마지막·TDD·critic 다회·별도 RFC.
-- **#455~459 신규 기능 재평가**: 구조 정상화(T1~T4) 후로 유보(Codex Phase 3 동의).
+- **#455~459 신규 기능 재평가**: 구조 정상화(T1~T4) 후로 유보(Codex Phase 3 동의). **#459(`vhk cost`)는 Goal 56에서 이미 구현됨** (`src/commands/cost.ts` add/check/budget) — 이슈 본문 stale.
 
 ---
 
-## §5. 착수 상태 / 다음 단계
+## §5. Exit checklist (Wave 1~4 · npm 발행 전)
 
-- **현재: 미착수.** 이 문서는 검증된 작업지시서(근거 file:line 포함)일 뿐. 코드·문서 편집 0, PR 0, 발행 0.
-- **권장 착수 순서:** T1(+T2 승인 시) → T3 → T4 → (T5·T6 독립) → §4는 별도 세션.
-- **다음 세션 진입점:** 이 RFC §2 백로그에서 T1부터. `docs/state/next-task.md`에 포인터 추가 여부는 사용자 판단(현재 next-task 최상단은 RFC 0057 관련).
-- **가드:** 실제 편집·PR 닫기 전 사용자 승인 / main 직접 push 금지(PR 경유) / 발행은 사람만(2FA) / 로컬 게이트에 `pnpm lint` 필수.
+| 항목 | 상태 | PR/근거 |
+|---|---|---|
+| control-tower `keepPageIds=[]` no-op | ✅ merged | yohan-control-tower #20 |
+| cc-skills CRLF + 0.3.2 | ✅ merged | yohan-cc-skills #27 |
+| RFC 0058 T1 docs | ✅ merged | vhk #471 |
+| RFC 0058 T2 (#430/#445 closed) | ✅ 확인 | gh issue view |
+| goal migrate + enum (#465/#469) | ✅ merged | vhk #472 |
+| sync/doctor ecosystem (#468) | ✅ merged | vhk #473 |
+| verify→learn + bootstrap cursor (#466/#467) | ✅ merged | vhk #474 |
+| T4 atomic write config/context | ✅ merged | vhk #475 |
+| brownfield `sync` 후 ecosystem.mdc 또는 AGENTS 참조 없음 | ✅ in main | `vhk sync` + inject-bootstrap |
+| brain HANDOFF Wave1 | ✅ merged | yohan-brain #45 |
+| **npm publish** | **사람만 (2FA)** | `pnpm preflight` → `npm publish --ignore-scripts` |
+
+---
+
+## §6. 착수 상태 / 다음 단계
+
+- **현재: Wave 1~4 코드·문서 PR 전부 main merge 완료 (2026-07-08).** exit checklist §5 전 항목 ✅ (npm 제외).
+- **npm 발행:** 사용자 2FA만 — `git pull` → `pnpm preflight` → `npm publish --ignore-scripts`.
+- **다음 RFC 백로그:** T5(preflight 드리프트)·T6(check-goal 부채)·§4(UX/manifest) — 별도 세션.
+- **가드:** main 직접 push 금지(PR 경유) / 발행은 사람만(2FA) / 로컬 게이트에 `pnpm lint` 필수.

@@ -17,6 +17,14 @@ Cursor에게 한국어로 말해도 됩니다.
 
 > `vhk sync` 대상(7): `.cursorrules` · `.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/vhk-rules.md` · `AGENTS.md` · `GEMINI.md`(Gemini CLI) · `.clinerules/vhk-rules.md`(Cline) + `CLAUDE.md`(하이브리드). 모두 RULES.md 단일소스에서 생성.
 
+## Cursor bootstrap (#467)
+
+| 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
+|-------------|-----------|------------------|
+| Cursor 독푸딩 (설치+배선) | `vhk bootstrap cursor` (`-y`, `--skip-verify`) | "VHK 독푸딩 해줘" |
+
+> doctor → goal migrate --dry-run → inject-bootstrap → mcp-init → sync → `.cursor/skills/vhk-*` 5종 → verify(선택). brownfield Cursor 마이그레이션용.
+
 | 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |
 | 배포 | `vhk 배포` | "배포해" |
 
@@ -25,6 +33,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
 | goals/ 스캐폴딩 | `vhk goal init` | (대상 프로젝트에서 직접) |
+| goal frontmatter 마이그레이션 | `vhk goal migrate` (`--dry-run`) | "goal 스키마 맞춰줘" |
 | goal 목록 | `vhk goal list` | "목표 목록" |
 | 다음 goal | `vhk goal next` | "다음 목표" |
 | 다음 goal 미리보기(읽기전용) | `vhk goal peek` | "목표 미리보기" |
@@ -152,6 +161,7 @@ vhk doctor
 |------|---------|
 | `vhk gate` | 아이디어 검증 |
 | `vhk start` | 새 프로젝트 시작 마법사 |
+| `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
 | `vhk init` | 하네스 파일 생성 |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63) |

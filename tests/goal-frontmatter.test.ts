@@ -8,6 +8,8 @@ import {
   listGoals,
   updateFrontmatterStatus,
   findDuplicateIds,
+  normalizeLegacyStatus,
+  planGoalFileMigrate,
   type ParsedGoal,
 } from '../src/lib/goal-frontmatter.js'
 
@@ -194,5 +196,37 @@ describe('findDuplicateIds', () => {
 
   it('빈 입력은 빈 배열', () => {
     expect(findDuplicateIds([])).toEqual([])
+  })
+})
+
+describe('normalizeLegacyStatus', () => {
+  it('maps legacy active to IN_PROGRESS', () => {
+    expect(normalizeLegacyStatus('active')).toBe('IN_PROGRESS')
+  })
+
+  it('passes through standard enum', () => {
+    expect(normalizeLegacyStatus('DONE')).toBe('DONE')
+  })
+
+  it('returns null for unknown', () => {
+    expect(normalizeLegacyStatus('weird')).toBeNull()
+  })
+})
+
+describe('planGoalFileMigrate', () => {
+  it('adds type goal and normalizes legacy status', () => {
+    const content = `---
+id: 99
+status: active
+title: test
+---
+
+body`
+    const plan = planGoalFileMigrate('goals/99-test.md', content)
+    expect(plan).not.toBeNull()
+    expect(plan!.actions.some((a) => a.includes('type: goal'))).toBe(true)
+    expect(plan!.actions.some((a) => a.includes('IN_PROGRESS'))).toBe(true)
+    expect(plan!.nextContent).toContain('type: goal')
+    expect(plan!.nextContent).toContain('status: IN_PROGRESS')
   })
 })

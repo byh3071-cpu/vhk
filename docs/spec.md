@@ -111,8 +111,9 @@ updated: 2026-07-03
 ]
 ```
 
-> 두 파일 모두 **JSON 배열 루트**이며, 파일 끝에 개행 1개를 둔다.
-> 파싱 실패·비배열이면 빈 배열 `[]` 로 간주한다(관대한 읽기).
+> `refs.json` 은 **JSON 배열 루트**이며, 파일 끝에 개행 1개를 둔다.
+> `memory.json` 은 v2 **객체** 루트(`{ schemaVersion, decisions, failures, successes, patterns }`) — 배열 아님.
+> 파싱 실패·형식 불일치 시 관대한 읽기 규칙은 각 명령(`vhk memory` 등) SoT.
 
 ## 3. `HARD_STOP` 규칙
 

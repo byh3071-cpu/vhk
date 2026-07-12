@@ -7,7 +7,7 @@
  * 드리프트 가드 테스트가 실패해 R1(자연어 라우터가 명령 가로채기) 재발을 사전에 잡는다.
  */
 export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
-  goal: ['list', 'next', 'peek', 'check', 'init', 'done', 'sync', 'drift'],
+  goal: ['list', 'next', 'peek', 'check', 'init', 'done', 'sync', 'drift', 'migrate'],
   cost: ['add', 'check', 'budget'],
   ref: ['add', 'list', 'open'],
   memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate', 'eval'],
@@ -25,6 +25,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   worktree: ['add', 'check'],
   seo: ['init', 'submit', 'check', 'report', 'automate'],
   config: ['set-brain-root'],
+  bootstrap: ['cursor'],
 }
 
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
@@ -59,6 +60,7 @@ export const CONTAINER_ALIASES: Record<string, string> = {
 export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> = [
   { name: 'gate', desc: '아이디어 검증' },
   { name: 'start', desc: '새 프로젝트 시작 마법사' },
+  { name: 'bootstrap', desc: 'Cursor/에이전트 배선 bootstrap (cursor)' },
   { name: 'init', desc: '하네스 파일 생성' },
   { name: 'recap', desc: '오늘 한 일 정리 + ADR 분리' },
   { name: 'sync', desc: 'RULES.md → 규칙 파일 동기화' },
