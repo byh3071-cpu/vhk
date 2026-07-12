@@ -4,6 +4,13 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-07-12
+
+### Fixed
+
+- **`vhk init` 죽은 안내문 정직화** (독푸딩 Wave 1) — init 완료 후 "다음에 할 일" 1번이 `CLAUDE.md · .cursorrules에서 👉 여기를 채워주세요 표시를 찾아 채우세요`라 안내했으나, 어떤 생성 파일에도 그 마커가 없어 비개발자가 첫걸음부터 헛수색했다. 실제 흐름(스택/설명은 이미 채워져 확인만·도메인 규칙은 첫 세션 인터뷰 자동)에 맞게 문구를 교체하고, `--from-notion` 경로의 동일 마커 안내(`notionReviewHint`)도 정정. 안내문이 존재하지 않는 마커를 재도입하지 못하게 회귀 테스트로 잠금.
+- **누적 미발행분 발행** — Goal 88~100·RFC 0057/0058 등 v2.9.0 이후 21커밋이 npm 미반영 상태였던 것을 v2.10.0으로 묶어 발행(아래 항목들).
+
 ### Added
 
 - **init 커스터마이징 트리거 훅** (Goal 89) — `vhk init` 직후 `.vhk/NEEDS_CUSTOMIZATION` 마커 + `.claude/settings.json` SessionStart 훅 배선 → 첫 세션에서 AI가 도메인 규칙 인터뷰를 자동 시작. 실 라이브 세션(`claude -p --debug-file`)으로 훅 발화 검증 완료.

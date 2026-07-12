@@ -9,6 +9,7 @@ import { CUSTOMIZATION_HOOK_TEMPLATE } from '../src/templates/customization-hook
 import { VHK_CONTEXT_SEED } from '../src/templates/vhk-dir.js'
 import { parseRulesMd } from '../src/commands/sync.js'
 import { writeFile } from '../src/utils/file.js'
+import { ko } from '../src/i18n/ko.js'
 
 const EXPECTED_FILES = [
   'CLAUDE.md',
@@ -529,6 +530,20 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
       fs.writeFileSync(settingsPath, '[]', 'utf-8')
       expect(ensureSessionStartHook(dir)).toBe('skipped')
       fs.rmSync(dir, { recursive: true, force: true })
+    })
+  })
+
+  // Wave 1(v2.10.0): init 안내문이 실제 템플릿에 없는 마커를 가리키던 "죽은 안내" 회귀 방지.
+  // 과거 fillHint/notionReviewHint 가 '👉 여기를 채워주세요' 를 찾으라 했으나 어떤 생성 파일에도
+  // 그 마커가 없어 사용자가 첫걸음부터 헛수색했다. 안내문이 존재하지 않는 마커를 재도입하지 못하게 잠근다.
+  describe('init 안내문 — 존재하지 않는 채움 마커 참조 금지', () => {
+    it('fillHint·notionReviewHint 는 실재하지 않는 마커(👉·여기를 채워주세요)를 가리키지 않는다', () => {
+      const deadMarkers = ['👉', '여기를 채워주세요']
+      for (const hint of [ko.init.fillHint, ko.init.notionReviewHint]) {
+        for (const marker of deadMarkers) {
+          expect(hint).not.toContain(marker)
+        }
+      }
     })
   })
 })
