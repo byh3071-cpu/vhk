@@ -9,7 +9,7 @@
 ## 지금
 - **사람 큐:** PR #464 머지 클릭(rebase 완료·MERGEABLE) · PR #461 판정 · G3 스파이크 TTY 채점(`scripts/spike-g3-process-wrap.mjs`) · Recall 라벨 시작(`vhk memory eval --init`, 실쿼리만·건수 강제 금지) · SEO 키 발급 신청만(투입은 Phase 2 GTM 주간) · RFC 0061 승인 여부(0060 T1은 별도 세션 착수됨)
 - **AI 큐:** Phase 1 계측 스위치온(receipt 적발률 90일 개시·주간 `vhk stats --trend`→계측 DB) → Phase 2 준비(RFC 0062 초안·#457 report-mode — preflight.ts 접촉은 #457 먼저 직렬)
-- **최근 이력:** [07-13 로드맵 재편](../log/2026-07-13-roadmap-realign-p1.md) · [07-12 독푸딩 Wave1 + v2.10.0 발행](../log/2026-07-12-dogfood-init-wave1.md) · [07-08 Wave 1~4 머지](../log/2026-07-08-wave1-4-merge-closure.md) · [07-07 RSI 결정·전수감사](../log/2026-07-07-rsi-decision-and-next-phase-audit.md)(#464)
+- **최근 이력:** [07-13 RFC 0060 완료(init 기록 온보딩 T1~T4+T1b)](../log/2026-07-13-rfc-0060-init-onboarding.md)(#481·#483) · [07-13 로드맵 재편](../log/2026-07-13-roadmap-realign-p1.md) · [07-12 독푸딩 Wave1 + v2.10.0 발행](../log/2026-07-12-dogfood-init-wave1.md) · [07-08 Wave 1~4 머지](../log/2026-07-08-wave1-4-merge-closure.md) · [07-07 RSI 결정·전수감사](../log/2026-07-07-rsi-decision-and-next-phase-audit.md)(#464)
 
 ## 블로커
 - [blockers.md](blockers.md) 활성 2건(goal-50 실데이터 · SEO 22~26 자격증명) — [skip-hardstop] 사람 대기, 진행 차단 아님.
