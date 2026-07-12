@@ -41,7 +41,35 @@ RFC [0060](../rfc/0060-init-record-onboarding.md) 승인(사용자) → 4트랙 
 ### 게이트
 - init.test.ts 45 pass(신규 T2 검증 1). 훅 생성 `.mjs`를 `node --check` → **문법 OK**(런타임 훅이라 필수). 2단계 지시(PRD·VISION·마커) 포함 실측.
 
-## 다음 (RFC 0060 잔여 트랙)
-- T3 — init 자동 sync(그린필드/adopt승인만) + 설치 점검 영수증(읽기검증). **중위험(파일 덮기) — 착수 전 확인.**
+## T3 — init 자동 sync + 설치 점검 영수증 (사용자 "가" 승인)
+
+### 실측 기반 안전 설계
+- 재사용점 `syncCore(rootDir, opts, confirmOverwrite)` — confirmOverwrite 콜백으로 비대화 안전, drift 파일만 확인·신규는 항상 씀, **덮기 전 자동 백업**(saveBackup).
+- 게이트 `allowAutoSync`: 그린필드(`detectExistingRuleFiles===0`) 또는 adopt 승인(대화형/비대화 자동) 또는 fromNotion 시만 true. 브라운필드 adopt 거절 → false → sync 스킵.
+
+### 변경
+- `src/lib/install-receipt.ts`(신규) — `collectInstallReceipt`(순수 읽기검증: SYNC_TARGETS+CLAUDE+RULES 실재·기록폴더 5종·인터뷰 대기) + `formatInstallReceipt`(실무 톤).
+- `src/commands/init.ts` — `allowAutoSync` 게이트 배선 + coreRules 후 `syncCore` 자동 실행(그린필드/adopt만) + done 뒤 영수증 출력. sync 실패해도 산출물 보존·경고만.
+- 테스트: install-receipt 4 · init 통합.
+
+### 3중 안전장치 (실 init 실측)
+1. **그린필드/adopt 게이트** — 브라운필드(기존 RULES.md) `-y init` → sync 스킵, 기존 `.cursorrules`(USER-ORIGINAL) **보존 확인** ✅
+2. syncCore 자동 백업(그린필드 케이스)
+3. 영수증 읽기검증 — 그린필드 "9/9·5/5 ✅", 브라운필드 스킵 "3/9 ⚠️ + vhk sync 복구" (거짓완료 안 함, 있는 그대로)
+
+### 성과
+- **핵심 목적 달성**: 그린필드 init에서 **AGENTS.md 즉시 생성(54줄)** → Codex·Zed 등이 첫 세션부터 규칙 인식(RFC 동기의 "init 후 규칙 안 보임" 해소).
+
+### 회귀 4건 발견·수정 (전체 스위트에서 표면화)
+1. **install-receipt → sync mock 충돌** (start·init-other-type 3건): `install-receipt`가 `SYNC_TARGETS` 를 `commands/sync.js` 에서 import → sync 를 `vi.mock` 하는 테스트에서 export 소실로 `collectInstallReceipt` 터짐. → 규칙 파일 경로를 install-receipt 자체 상수로 하드코딩(GA 안정 경로, sync 의존 제거). 폴더 생성 부작용 아니었음(에러였음).
+2. **sync 로그 'vhk sync' 오염** (init-core-rules-warn): goal 91 테스트가 "core-rules 경고는 vhk sync 아닌 inject-bootstrap 안내" 검증(`not.toContain('vhk sync')`). 내 자동sync 성공 로그의 `(vhk sync)` 문구가 전체 출력 오염. → 로그에서 `(vhk sync)` 제거.
+3. **CLAUDE.md 스택 포맷 변화** (init-other-type): 자동sync 후 CLAUDE.md 가 RULES.md 파생이 되며 스택이 "A + B + C" 조합 → 리스트 형태로. **정보 손실 아님**(실측: 스택은 CLAUDE.md 리스트·RULES.md·ARCHITECTURE.md 전부 보존). 테스트가 init-템플릿 포맷("+")을 기대 → 자동sync 현실에 맞게 갱신(CLAUDE.md 토큰 존재 + 정확 조합은 sync 비대상 ARCHITECTURE.md 에서 확인). 테스트 약화 아님 — 스택 보존을 더 강하게 검증.
+
+### 게이트
+- tsc 0 · lint 0 · init 49 test · 실 init 2케이스(그린필드/브라운필드) behavior 검증 · 전체 스위트 회귀 0(4건 수정 후).
+
+## 다음 (RFC 0060 잔여)
+- T4 — 트리거 격차 계승(RFC 0057 §7): 마커 규칙 문구를 RULES.md에 넣어 sync 로 전 에이전트 전파.
+- T1b(선택) — `vhk check` 잔여 슬롯 카운트.
 - T4 — 트리거 격차 계승(RFC 0057 §7): 마커 규칙 문구 → sync 전 에이전트 전파.
 - T1b(선택) — `vhk check` 잔여 슬롯 카운트.
