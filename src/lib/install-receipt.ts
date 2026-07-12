@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 // RFC 0060 T3: init 자동 sync 후 "다 준비됐나"를 디스크 실측(읽기검증)으로 보고한다.
@@ -52,6 +52,21 @@ export function collectInstallReceipt(rootDir: string): InstallReceipt {
     recordDirsTotal: RECORD_DIRS.length,
     interviewPending,
   }
+}
+
+// RFC 0060 T1b: PRD·ARCHITECTURE 에 남은 [여기에 작성:] 슬롯 수를 센다. vhk check 가 노출해
+// "얼마나 채웠나"를 측정 가능하게(§4 성공기준). 마커 문자열은 T1 의 관행 마커와 정확히 일치.
+const FILL_MARKER = '[여기에 작성:'
+
+export function countFillSlots(rootDir: string): { prd: number; architecture: number; total: number } {
+  const count = (rel: string): number => {
+    const full = path.join(rootDir, rel)
+    if (!existsSync(full)) return 0
+    return readFileSync(full, 'utf-8').split(FILL_MARKER).length - 1
+  }
+  const prd = count('docs/PRD.md')
+  const architecture = count('docs/ARCHITECTURE.md')
+  return { prd, architecture, total: prd + architecture }
 }
 
 /** 설치 점검 영수증을 사람이 읽는 실무 톤 문자열로. 전문용어 대신 "규칙 파일/기록 폴더". */
