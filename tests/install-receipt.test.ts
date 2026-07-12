@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { collectInstallReceipt, formatInstallReceipt } from '../src/lib/install-receipt.js'
+import { collectInstallReceipt, formatInstallReceipt, countFillSlots } from '../src/lib/install-receipt.js'
 
 function mkTmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-receipt-'))
@@ -50,6 +50,36 @@ describe('install-receipt (RFC 0060 T3)', () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
+  })
+
+  // RFC 0060 T1b: vhk check 가 잔여 [여기에 작성:] 슬롯을 카운트(진행 측정).
+  describe('countFillSlots', () => {
+    it('PRD·ARCHITECTURE 의 [여기에 작성:] 개수를 센다', () => {
+      const dir = mkTmp()
+      try {
+        fs.mkdirSync(path.join(dir, 'docs'), { recursive: true })
+        fs.writeFileSync(path.join(dir, 'docs', 'PRD.md'), '[여기에 작성: a]\n채워짐\n[여기에 작성: b]')
+        fs.writeFileSync(path.join(dir, 'docs', 'ARCHITECTURE.md'), '[여기에 작성: c]')
+        const s = countFillSlots(dir)
+        expect(s.prd).toBe(2)
+        expect(s.architecture).toBe(1)
+        expect(s.total).toBe(3)
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
+
+    it('파일 없거나 다 채워지면 0', () => {
+      const dir = mkTmp()
+      try {
+        expect(countFillSlots(dir).total).toBe(0)
+        fs.mkdirSync(path.join(dir, 'docs'), { recursive: true })
+        fs.writeFileSync(path.join(dir, 'docs', 'PRD.md'), '다 채워진 문서')
+        expect(countFillSlots(dir).total).toBe(0)
+      } finally {
+        fs.rmSync(dir, { recursive: true, force: true })
+      }
+    })
   })
 
   it('영수증 문자열 — 실무 톤, 누락 시 복구 명령 노출', () => {
