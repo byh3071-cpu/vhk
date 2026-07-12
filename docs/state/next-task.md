@@ -4,10 +4,15 @@
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 수동 편집
 > 직후 해당 명령 실행 주의. 소실 시 복구: `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-07-08
-**Phase:** **RFC 0058 Wave 1~4 main merge 완료** — npm publish만 남음 (사람 2FA)
+**갱신:** 2026-07-13
+**Phase:** **v2.10.0 발행 완료(npm·태그·Release·노션 정합) + 독푸딩 Wave 2 RFC 승인 대기**
 
 ## 다음 할 일 (measure-first 최우선)
+- **🆕🆕🆕 [2026-07-13 · 독푸딩 init 감사 → v2.10.0 발행 완료] 세션 마감** — vhk init 템플릿 배출 독푸딩(`/dogfood`)에서 P1 2건 발견·수정 후 **v2.10.0 발행 완결**. 진입점 [docs/log/2026-07-12-dogfood-init-wave1.md](../log/2026-07-12-dogfood-init-wave1.md).
+  - **✅ 발행 체인 전부 정합**: npm `2.10.0` latest(50th) · git 태그 `v2.10.0`(수동 보강 — npm publish는 태그 안 붙임) · GitHub Release(태그 push→workflow 자동생성) · README 3곳 · 노션 본체 callout(v2.7.0→v2.10.0·47→50 versions).
+  - **✅ 노션 스타터킷 정합 10곳**: 팩트3(MCP30→35·`secure guard` 없음→scan·learnings v2 동결) + 버전2 + **구조전환5**(START HERE·Phase2매핑·삼중하네스callout·세팅순서·폴더주석). **oh-my-agent 강등 결정**: 사용자 미사용 + Codex "vhk 강화 권고" + vhk 불가지론 → 필수단계에서 빼고 "선택(안 써도 됨)"으로. vhk는 규칙·기록·게이트만 흡수, 에이전트팀은 미흡수(실측 확정).
+  - **🔜 Wave 2 RFC 2개 = Draft·구현 HARD-GATE(승인 필요)**: [RFC 0060](../rfc/0060-init-record-onboarding.md)(`[여기에 작성:]` 마커+인터뷰2단계+자동sync+설치점검영수증, 트리거격차는 0057§7 계승) · [RFC 0061](../rfc/0061-record-enforcement-net.md)(기록집행 3겹 그물: 규칙선언·커밋훅·세션종료수확). **다음 세션 = 이 둘 승인받고 스펙→구현.**
+  - **🔜 미탐구 숙제**: "vhk 강화가 구체적으로 뭔지"(Codex 권고의 실체) — oh-my-agent/claude 대비 vhk를 뭘로 강화할지 별도 브레인스토밍 필요.
 - **🆕 [2026-07-08 · Wave 1~4 merge 완료] VHK·cc-skills·control-tower salvage + RFC 0058 T1~T4** — 전 PR squash merge·CI green 확인 후 머지. 진입점 [docs/log/2026-07-08-wave1-4-merge-closure.md](../log/2026-07-08-wave1-4-merge-closure.md). **다음 = npm publish (집에서 2FA)** · measure-first · #455~458 · T5/T6.
 - **✅ Wave 요약 (merged):** CT #20 orphan guard · CC #27 CRLF/0.3.2 · vhk #471 T1 docs · #472 goal migrate/enum · #473 #468 sync/doctor · #474 #466/#467 learn+bootstrap cursor · #475 T4 atomic write · brain #45 HANDOFF.
 - **✅ [2026-07-07 · goal 100 완결] `vhk evolve seed` — PR #463 main 머지 완료** — cold-start 역채굴·게이트 green(2342 test). 다른 머신은 각자 `evolve seed --write` 재실행 필요(memory.json gitignored). 진입점 [docs/log/2026-07-07-goal-100-evolve-seed-coldstart.md](../log/2026-07-07-goal-100-evolve-seed-coldstart.md).
