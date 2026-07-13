@@ -3,13 +3,13 @@
 > "지금 무엇부터"의 **세션층** SoT — 본문 15줄 상한, 역사는 링크로 밀어냄. 순서(Phase)의 SoT = [roadmap.md](roadmap.md), 사실값(버전·테스트)은 package.json·CHANGELOG.
 > ⚠️ `vhk goal next`/`vhk work`가 이 파일을 스텁으로 **전체 덮어쓸 수 있음** — 소실 시 `git restore docs/state/next-task.md`.
 
-**갱신:** 2026-07-13 (심야 3차)
-**Phase:** [roadmap.md](roadmap.md) **Phase 0~1·3 ✅ 완결** — Wave 2 양축(0060 #481·#483 / 0061 #485) + **v2.11.0 발행 완결**(npm latest·태그·Release·노션 정합, e2e 도그푸딩 영수증 첨부). 다음 = **Phase 2**.
+**갱신:** 2026-07-13 (오후 — Phase 2 코어 완주)
+**Phase:** [roadmap.md](roadmap.md) **Phase 0~1·3 ✅ + Phase 2 코어 ✅** — 5트랙 병렬 완주(RFC 0062 #498 · #457 report-mode #492 · #455 가드 #497 · #456 상속 #495 · #458 recall 주입 #496 · 한글 서브별칭 #494 · #488 수정 #490). 각 트랙 critic 적대검증(불통과→수정 2회 포함) 후 머지. 잔여 = **GTM**(게시=사람)·T6·goal 65 판정.
 
 ## 지금
-- **사람 큐:** G3 육안 3항목만(색상·Ctrl+C 래퍼 생존·리사이즈 — 종료감지/통과는 실측 완료) · Recall 라벨은 **#488 수정 후 재시도**(eval --init 이 recall 미스 쿼리 라벨 불가 — 첫 시도 라벨 0 dead-end) · SEO 키 발급(가이드는 07-13 세션 보고, 투입은 GTM 주간)
-- **AI 큐:** Phase 2 — RFC 0062(드리프트 자동감지) 초안 → #457 report-mode(preflight.ts 접촉은 #457 먼저 직렬) → #455/#456/#458 → #488 수정 → GTM 준비(quickstart·데모)
-- **최근 이력:** [07-13 v2.11.0 릴리즈](../log/2026-07-13-v2.11.0-release.md)(#487·태그·Release·노션 정합·#488 발견) · [07-13 RFC 0061 완주](../log/2026-07-13-rfc0061-record-net.md)(#485) · [07-13 RFC 0060 완료](../log/2026-07-13-rfc-0060-init-onboarding.md)(#481·#483) · [07-13 로드맵 재편](../log/2026-07-13-roadmap-realign-p1.md)(#482) · [07-12 독푸딩 Wave1 + v2.10.0 발행](../log/2026-07-12-dogfood-init-wave1.md)
+- **사람 큐:** ① **#455 종결 판단**(가드 구현 완료 — "승인 큐"는 자문형 구조상 무의미가 critic 판정, 수용 시 close) ② G3 육안 3항목(색상·Ctrl+C·리사이즈) ③ **Recall 라벨 재시도 가능**(#488 수정 머지됨 — `vhk memory eval --init`, 이제 미스도 라벨 가능) ④ GTM 게시 판단(Show HN·블로그 정정 — 초안은 AI 준비 예정) ⑤ SEO 키 발급(투입은 GTM 주간)
+- **AI 큐:** GTM 준비(README 30초 quickstart·거짓완료 적발 데모·이슈템플릿 자발제출) → T6 부채정리 → goal 65 흡수판정 브리핑 → Phase 4(트리거 불가지론화 Cursor 스파이크)
+- **최근 이력:** [07-13 Phase 2 코어 5트랙](../log/2026-07-13-phase2-leg1.md)(#490·#492·#494~#498) · [07-13 v2.11.0 릴리즈](../log/2026-07-13-v2.11.0-release.md) · [07-13 RFC 0061 완주](../log/2026-07-13-rfc0061-record-net.md)(#485) · [07-13 RFC 0060 완료](../log/2026-07-13-rfc-0060-init-onboarding.md)(#481·#483·#491) · [07-13 로드맵 재편](../log/2026-07-13-roadmap-realign-p1.md)(#482)
 
 ## 블로커
 - [blockers.md](blockers.md) 활성 2건(goal-50 실데이터 · SEO 22~26 자격증명) — [skip-hardstop] 사람 대기, 진행 차단 아님.
