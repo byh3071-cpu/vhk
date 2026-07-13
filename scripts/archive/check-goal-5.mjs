@@ -20,7 +20,7 @@ function grepRepo(re) {
   return false;
 }
 for (const id of [0, 1, 2, 3, 4]) {
-  const s = "scripts/check-goal-" + id + ".mjs";
+  const s = "scripts/archive/check-goal-" + id + ".mjs";
   if (!existsSync(join(root, s))) { fail.push(s + " 없음"); continue; }
   try { execSync("node " + s, { cwd: root, stdio: "pipe" }); ok.push("check-goal-" + id + " 통과"); }
   catch { fail.push("check-goal-" + id + " 실패"); }

@@ -8,10 +8,10 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
-import { findCompletedStubGates, isStubGate } from './_lib.mjs'
+import { findCompletedStubGates, isStubGate } from '../_lib.mjs'
 
 // repo root 고정 — 고유 검증이 goals/·scripts/ 를 상대경로로 읽음(check-goal-1.mjs 패턴).
-process.chdir(resolve(dirname(fileURLToPath(import.meta.url)), '..'))
+process.chdir(resolve(dirname(fileURLToPath(import.meta.url)), '../..'))
 
 const SHIM = new Set(['pnpm', 'npm', 'npx', 'yarn'])
 function run(cmd, args) {
@@ -68,7 +68,7 @@ must(/findCompletedStubGates\(/.test(meta), 'check-meta.mjs 가 M.4 에서 findC
 
 // 3) 34-38(DONE-스텁이었던 게이트)이 이제 비스텁(헛통과 DONE 해소).
 for (const id of [34, 35, 36, 37, 38]) {
-  const gc = read(`scripts/check-goal-${id}.mjs`)
+  const gc = read(`scripts/archive/check-goal-${id}.mjs`)
   must(gc != null && !isStubGate(gc), `check-goal-${id}.mjs 비스텁(고유 검증 채움)`)
 }
 

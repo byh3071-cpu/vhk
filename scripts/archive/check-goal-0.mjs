@@ -5,10 +5,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join, resolve } from 'node:path'
-import { safeExec, ensureNoHardStop } from './_lib.mjs'
+import { safeExec, ensureNoHardStop } from '../_lib.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const ROOT = resolve(HERE, '..')
+const ROOT = resolve(HERE, '../..')
 process.chdir(ROOT)
 
 ensureNoHardStop('goal 0')
