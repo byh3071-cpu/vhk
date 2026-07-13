@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.js'
 
 /**
@@ -66,6 +67,7 @@ function readVisionWhat(): string | undefined {
 }
 
 export function launch(): void {
+  if (!ensureNotHardStopped('launch')) return // #455: HARD_STOP 활성 시 프롬프트 산출물(.vhk) 쓰기 차단
   console.log(chalk.bold('\n🚀 ' + t('launch.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
