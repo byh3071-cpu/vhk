@@ -4,6 +4,7 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.js'
 
 /**
  * goal 75 — 풀사이클 뒷단 둘째 트랙(launch). RFC 0052 §4·§5.
@@ -14,11 +15,13 @@ import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 export interface LaunchInput {
   what?: string // 제품 한 줄 (VISION.md What)
+  rules?: string[] // RULES.md 치명 규칙(#456) — undefined = RULES.md 없음(정직 안내로 표기)
 }
 
 /**
  * 런칭 게시물 초안 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
- * good/bad 예시쌍(✅/❌) + 수치 하드리밋(≤3 변형·X 280자) + 치명 규칙(사람 승인 전 게시·발송 금지).
+ * good/bad 예시쌍(✅/❌) + 수치 하드리밋(≤3 변형·X 280자) + 치명 규칙(사람 승인 전 게시·발송 금지)
+ * + 프로젝트 RULES.md 치명 규칙 상속(#456 — 런타임 주입, 복붙 0).
  */
 export function buildLaunchPrompt(input: LaunchInput): string {
   const what = input.what?.trim() || '(VISION.md 의 What 미정 — vhk init 후 채우기)'
@@ -46,6 +49,8 @@ export function buildLaunchPrompt(input: LaunchInput): string {
     '- 사람 승인 전에는 어디에도 게시·발송하지 마세요 (이 명령은 초안만 만듭니다)',
     '- 게시 전 보안 게이트(#457): 초안을 파일로 저장하고 `vhk secure scan <파일>` 을 실행 — CRITICAL/HIGH 0 확인 후에만 게시하세요',
     '',
+    ...buildRulesInheritLines(input.rules),
+    '',
     '모든 응답은 한국어로.',
   ].join('\n')
 }
@@ -66,7 +71,7 @@ export function launch(): void {
   console.log(chalk.bold('\n🚀 ' + t('launch.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildLaunchPrompt({ what: readVisionWhat() })
+  const prompt = buildLaunchPrompt({ what: readVisionWhat(), rules: readCriticalRules() })
   emitPrompt(prompt, 'launch-prompt.md', '런칭 게시물 프롬프트')
 
   // 후속 트랙 vhk sell(goal 77)은 미구현 — command 힌트는 구현된 ops(76)까지만(댕글링 전방참조 금지).

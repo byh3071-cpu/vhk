@@ -166,6 +166,43 @@ describe('detectNaturalLanguageInput — pattern/evolve 라우팅 (회귀: Goal 
   })
 })
 
+describe('detectNaturalLanguageInput — 한글 서브별칭 경로 가드 (R1 합류: 전 컨테이너)', () => {
+  // 실증 결함 클래스: 한글 서브별칭이 CONTAINER_SUBCOMMAND_ALIASES 에 없어 R1 가드를 못 통과 →
+  // NL 라우터가 가로채 서브커맨드·인자 유실 (2026-07-01 evolve 선재버그 + #457 보안 스캔 인자 유실).
+  it('vhk 목표 다음 → null (commander 가 goal next 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '목표', '다음'])).toBeNull()
+  })
+  it('vhk 진화 제안 → null (commander 가 evolve suggest 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '진화', '제안'])).toBeNull()
+  })
+  it('vhk 기억 목록 → null (commander 가 memory list 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '기억', '목록'])).toBeNull()
+  })
+  it('vhk 진화 반영 <id> → null (인자 보존)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '진화', '반영', 'r1'])).toBeNull()
+  })
+  it('vhk 기억 삭제 <index> → null (인자 보존)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '기억', '삭제', '3'])).toBeNull()
+  })
+  it('vhk 워크트리 추가 <branch> → null (인자 보존)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '워크트리', '추가', 'feat-x'])).toBeNull()
+  })
+  it('vhk 작업 인수인계 → null (commander 가 work handoff 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '작업', '인수인계'])).toBeNull()
+  })
+  it('vhk 클라우드 올리기 → null (commander 가 cloud push 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '클라우드', '올리기'])).toBeNull()
+  })
+  // 회귀: 별칭은 컨테이너별로 격리 — '점검' 은 worktree check 의 별칭이지 goal 것이 아니다.
+  it('회귀: vhk 목표 점검 → 여전히 자연어 (goal 에 점검 별칭 없음, cross-container 오염 금지)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '목표', '점검'])).toBe('목표 점검')
+  })
+  // 회귀: 서브별칭이 아닌 한국어는 여전히 NL 로 흐른다.
+  it('회귀: vhk 보안 확인 → 여전히 자연어 (확인은 서브별칭 아님)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '보안', '확인'])).toBe('보안 확인')
+  })
+})
+
 describe('detectNaturalLanguageInput — freeform 인자 명령 NLP 가로채기 금지 (#147)', () => {
   // 실결함: learn/blocker 는 자유형식 본문을 받는데, 본문에 'sync' 같은 NLP 키워드가
   // 들어가면 라우터가 가로채 vhk sync 가 실행되고 learn()/blocker() 가 안 돔.

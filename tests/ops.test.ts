@@ -39,3 +39,20 @@ describe('ops — buildOpsPrompt 순수함수 (goal 76)', () => {
     expect(p).toContain('❌')
   })
 })
+
+// #456: 산출물이 프로젝트 RULES.md 치명 규칙을 상속 — 하드코딩 복붙 아닌 런타임 주입(드리프트 0).
+describe('ops — RULES.md 치명 규칙 상속 (#456)', () => {
+  it('rules 주입 시 프롬프트에 규칙 + RULES.md 출처 표기 포함', async () => {
+    const { buildOpsPrompt } = await import('../src/commands/ops.js')
+    const p = buildOpsPrompt({ what: 'x', rules: ['게이트 실패 상태에서 done 처리 금지'] })
+    expect(p).toContain('RULES.md')
+    expect(p).toContain('- 게이트 실패 상태에서 done 처리 금지')
+  })
+
+  it('rules 미주입(RULES.md 없음) → 정직한 안내 + 기존 구조 유지', async () => {
+    const { buildOpsPrompt } = await import('../src/commands/ops.js')
+    const p = buildOpsPrompt({ what: 'x' })
+    expect(p).toContain('RULES.md 없음')
+    expect(p).toContain('회고') // 현행 동작 유지
+  })
+})
