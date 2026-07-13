@@ -40,3 +40,20 @@ describe('launch — buildLaunchPrompt 순수함수 (goal 75)', () => {
     expect(p).toContain('❌')
   })
 })
+
+// #456: 산출물이 프로젝트 RULES.md 치명 규칙을 상속 — 하드코딩 복붙 아닌 런타임 주입(드리프트 0).
+describe('launch — RULES.md 치명 규칙 상속 (#456)', () => {
+  it('rules 주입 시 프롬프트에 규칙 + RULES.md 출처 표기 포함', async () => {
+    const { buildLaunchPrompt } = await import('../src/commands/launch.js')
+    const p = buildLaunchPrompt({ what: 'x', rules: ['publish 는 main 에서만 + 사람 승인'] })
+    expect(p).toContain('RULES.md')
+    expect(p).toContain('- publish 는 main 에서만 + 사람 승인')
+  })
+
+  it('rules 미주입(RULES.md 없음) → 정직한 안내 + 기존 구조 유지', async () => {
+    const { buildLaunchPrompt } = await import('../src/commands/launch.js')
+    const p = buildLaunchPrompt({ what: 'x' })
+    expect(p).toContain('RULES.md 없음')
+    expect(p).toContain('체크리스트') // 현행 동작 유지
+  })
+})
