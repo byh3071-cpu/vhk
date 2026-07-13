@@ -508,6 +508,17 @@ export const ko = {
   memory: {
     addTitle: '기억 추가',
     listTitle: '기억 목록',
+    // #488: eval --init — recall 후보 0 쿼리도 라벨링 가능(자동 skip = 미스가 평가셋에서 구조적 제외 → 상향 편향).
+    evalInit: {
+      noCandidates: '(recall 후보 0 — 전체 기억에서 정답을 고르면 miss 라벨로 기록됩니다)',
+      selectPrompt: '정답 기억 번호 (쉼표 구분 · m=전체 목록에서 선택 · 엔터=skip):',
+      pickerEmpty: '(기억이 비어 있어 정답을 고를 수 없습니다 — skip)',
+      pickerFilterPrompt: '키워드 필터 (엔터=전체 목록):',
+      pickerNoMatch: (kw: string) => `"${kw}" 매칭 0건 — 다른 키워드를 입력하세요.`,
+      pickerMore: (n: number) => `…외 ${n}개 — 키워드로 좁히세요 (f=필터 다시).`,
+      pickerSelectPrompt: '정답 기억 번호 (쉼표 구분 · f=필터 다시 · 엔터=정답 없음 skip):',
+      pickerInvalidSkip: '(유효한 번호 없음 — 정답 없음으로 skip)',
+    },
   },
   mcp: {
     initTitle: 'Cursor MCP 연동 설정',

@@ -1,8 +1,15 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import chalk from 'chalk'
+import { t } from '../i18n/ko.js'
 import { prompt } from '../lib/prompt.js'
-import { readMemory, recallMemories, type FailEntry } from './memory.js'
+import {
+  readMemory,
+  recallMemories,
+  type FailEntry,
+  type MemoryFileV2,
+  type PatternEntry,
+} from './memory.js'
 import {
   scoreEval,
   validateEvalLabels,
@@ -30,6 +37,98 @@ interface EvalFile {
 function entryText(e: { content?: string; lesson?: string; id: string }): string {
   const f = e as FailEntry
   return e.content || f.lesson || e.id
+}
+
+// ── #488: 후보 0/히트 밖 정답 라벨링용 전체 기억 픽커 ──
+// recall 이 못 찾은 정답(=miss)을 평가셋에 남길 수 있어야 Recall@5 분모·분자가 정직해진다.
+// patterns 는 recall 코퍼스(orderedAll) 밖이라 여기서 골라도 항상 miss — 그게 recall 의
+// 실제 사각지대이므로 숨기지 않고 라벨 가능하게 둔다(구조적 제외 = 상향 편향의 재생산).
+
+/** 한 화면에 보여줄 최대 항목 수 — 초과분은 키워드 필터로 좁히게 안내. */
+const PICKER_PAGE_SIZE = 20
+
+interface PickItem {
+  id: string
+  label: string
+}
+
+function patternText(p: PatternEntry): string {
+  const summary = typeof p.summary === 'string' ? p.summary : ''
+  const signal = typeof p.signal === 'string' ? p.signal : ''
+  return summary || signal || p.id
+}
+
+/** 4버킷 전체(decisions→failures→successes→patterns)를 픽커 항목으로 평탄화. */
+function listAllPickItems(mem: MemoryFileV2): PickItem[] {
+  const items: PickItem[] = []
+  const push = (bucketKo: string, id: string, text: string, tags: string[]): void => {
+    const tagSuffix = tags.length > 0 ? ` [${tags.join(', ')}]` : ''
+    items.push({ id, label: `(${bucketKo}) ${text}${tagSuffix}` })
+  }
+  for (const e of mem.decisions) push('결정', e.id, entryText(e), e.tags)
+  for (const e of mem.failures) push('실패', e.id, entryText(e), e.tags)
+  for (const e of mem.successes) push('성공', e.id, entryText(e), e.tags)
+  for (const p of mem.patterns) {
+    const tags = Array.isArray(p.tags) ? p.tags.filter((x): x is string => typeof x === 'string') : []
+    push('패턴', p.id, patternText(p), tags)
+  }
+  return items
+}
+
+/**
+ * 전체 기억에서 expected id 를 대화형으로 고른다(목록이 길면 키워드 필터).
+ * 빈 입력 = "정답 없음(쿼리 무효)" → 빈 배열(skip). CLI 전용 — 호출부가 TTY 가드 통과 후에만 도달.
+ */
+async function pickExpectedFromAll(mem: MemoryFileV2): Promise<string[]> {
+  const all = listAllPickItems(mem)
+  if (all.length === 0) {
+    console.log(chalk.dim(`   ${t('memory.evalInit.pickerEmpty')}`))
+    return []
+  }
+  let filter = ''
+  let askFilter = all.length > PICKER_PAGE_SIZE
+  // 필터↔선택 루프 — 종료는 사용자 명시(빈 입력=정답 없음 / 번호 선택)로만. 'f' = 재필터.
+  for (;;) {
+    if (askFilter) {
+      const { kw } = await prompt<{ kw: string }>([
+        { type: 'input', name: 'kw', message: t('memory.evalInit.pickerFilterPrompt') },
+      ])
+      filter = String(kw || '').trim().toLowerCase()
+      askFilter = false
+    }
+    const filtered = filter
+      ? all.filter((it) => `${it.label} ${it.id}`.toLowerCase().includes(filter))
+      : all
+    if (filtered.length === 0) {
+      console.log(chalk.yellow(`   ${t('memory.evalInit.pickerNoMatch', filter)}`))
+      askFilter = true
+      continue
+    }
+    const shown = filtered.slice(0, PICKER_PAGE_SIZE)
+    shown.forEach((it, i) => console.log(`   [${i + 1}] ${it.label}`))
+    if (filtered.length > shown.length) {
+      console.log(chalk.dim(`   ${t('memory.evalInit.pickerMore', filtered.length - shown.length)}`))
+    }
+    const { ans } = await prompt<{ ans: string }>([
+      { type: 'input', name: 'ans', message: t('memory.evalInit.pickerSelectPrompt') },
+    ])
+    const raw = String(ans || '').trim()
+    if (raw === '') return [] // 정답 없음(쿼리 무효) — 이 경우만 skip 이 정당하다(#488).
+    if (raw.toLowerCase() === 'f') {
+      askFilter = true
+      continue
+    }
+    const ids = raw
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isInteger(n) && n >= 1 && n <= shown.length)
+      .map((n) => shown[n - 1].id)
+    if (ids.length === 0) {
+      console.log(chalk.dim(`   ${t('memory.evalInit.pickerInvalidSkip')}`))
+      return []
+    }
+    return [...new Set(ids)]
+  }
 }
 
 export async function memoryEval(opts: { init?: boolean } = {}): Promise<void> {
@@ -110,19 +209,29 @@ async function memoryEvalInit(): Promise<void> {
   for (const query of queries.slice(-20)) {
     const hits = recallMemories(mem, query, 5)
     console.log(chalk.cyan(`\n🔎 "${query}"`))
+    let ids: string[]
     if (hits.length === 0) {
-      console.log(chalk.dim('   (후보 없음 — skip)'))
-      continue
+      // #488: 후보 0 을 자동 skip 하면 recall 미스가 평가셋에서 구조적으로 제외돼 Recall@5 가
+      //       상향 편향 → kill-gate 판정 무력화. 전체 기억에서 정답을 고르게 해 miss 라벨로 남긴다.
+      console.log(chalk.dim(`   ${t('memory.evalInit.noCandidates')}`))
+      ids = await pickExpectedFromAll(mem)
+    } else {
+      hits.forEach((h, i) => console.log(`   [${i + 1}] ${entryText(h.entry)}`))
+      const { ans } = await prompt<{ ans: string }>([
+        { type: 'input', name: 'ans', message: t('memory.evalInit.selectPrompt') },
+      ])
+      const raw = String(ans || '').trim()
+      if (raw.toLowerCase() === 'm') {
+        // #488: 정답이 top-5 밖일 때도 지정 가능 — 히트에 없는 expected 는 채점에서 그대로 miss.
+        ids = await pickExpectedFromAll(mem)
+      } else {
+        ids = raw
+          .split(',')
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => Number.isInteger(n) && n >= 1 && n <= hits.length)
+          .map((n) => hits[n - 1].entry.id)
+      }
     }
-    hits.forEach((h, i) => console.log(`   [${i + 1}] ${entryText(h.entry)}`))
-    const { ans } = await prompt<{ ans: string }>([
-      { type: 'input', name: 'ans', message: '정답 기억 번호 (쉼표 구분, 없으면 엔터로 skip):' },
-    ])
-    const ids = String(ans || '')
-      .split(',')
-      .map((s) => parseInt(s.trim(), 10))
-      .filter((n) => Number.isInteger(n) && n >= 1 && n <= hits.length)
-      .map((n) => hits[n - 1].entry.id)
     if (ids.length > 0) labels.push({ query, expectIds: [...new Set(ids)] })
   }
 
