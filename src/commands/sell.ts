@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
+import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.js'
 
@@ -14,8 +15,12 @@ import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.
 
 export interface SellInput {
   what?: string // 제품 한 줄 (VISION.md What)
+  lessons?: string[] // #458: 과거 교훈 회상 라인(≤3·각 1줄) — 없으면 섹션 생략
   rules?: string[] // RULES.md 치명 규칙(#456) — undefined = RULES.md 없음(정직 안내로 표기)
 }
+
+// #458: 판매/가격 관련 기억을 끌어올 고정 회상 쿼리(결정적 — LLM 0).
+const SELL_RECALL_QUERY = '판매 가격 결제 환불 과금'
 
 /**
  * 가격 페이지 카피·FAQ 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
@@ -30,6 +35,7 @@ export function buildSellPrompt(input: SellInput): string {
     '[제품 한 줄]',
     what,
     '',
+    ...lessonsSectionLines(input.lessons ?? []),
     '[먼저 — 판매 준비 체크리스트를 점검해 빠진 항목만 표로 알려주세요]',
     '- 가격 (금액 + 과금 주기: 월/연/일회성)',
     '- 결제수단 (예: Stripe·Lemon Squeezy·계좌이체 중 후보 — 연동은 사람이 직접)',
@@ -69,7 +75,11 @@ export function sell(): void {
   console.log(chalk.bold('\n💰 ' + t('sell.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildSellPrompt({ what: readVisionWhat(), rules: readCriticalRules() })
+  const prompt = buildSellPrompt({
+    what: readVisionWhat(),
+    lessons: recallLessonLines(process.cwd(), SELL_RECALL_QUERY),
+    rules: readCriticalRules(),
+  })
   emitPrompt(prompt, 'sell-prompt.md', '판매 카피 프롬프트')
 
   // sell = 뒷단 4트랙 마지막 — 다음 터미널 명령 없음(content→launch→ops→sell 체인 끝).

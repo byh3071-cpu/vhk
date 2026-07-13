@@ -41,6 +41,37 @@ describe('launch — buildLaunchPrompt 순수함수 (goal 75)', () => {
   })
 })
 
+// #458: 교훈 누적(vhk learn/win 지시) + 과거 교훈 recall 주입
+describe('launch — 교훈 누적·recall 주입 (#458)', () => {
+  it('런칭 세션 교훈을 vhk learn / vhk win 으로 기록하라는 지시 포함(자문형 누적)', async () => {
+    const { buildLaunchPrompt } = await import('../src/commands/launch.js')
+    const p = buildLaunchPrompt({ what: 'x' })
+    expect(p).toContain('vhk learn')
+    expect(p).toContain('vhk win')
+  })
+
+  it('lessons 주입 시 [과거 교훈] 섹션 + bullet 렌더', async () => {
+    const { buildLaunchPrompt } = await import('../src/commands/launch.js')
+    const p = buildLaunchPrompt({ what: 'x', lessons: ['(실패) 새벽 게시는 반응 0'] })
+    expect(p).toContain('과거 교훈')
+    expect(p).toContain('- (실패) 새벽 게시는 반응 0')
+  })
+
+  it('lessons 미주입·빈 배열이면 [과거 교훈] 섹션 생략', async () => {
+    const { buildLaunchPrompt } = await import('../src/commands/launch.js')
+    expect(buildLaunchPrompt({ what: 'x' })).not.toContain('과거 교훈')
+    expect(buildLaunchPrompt({ what: 'x', lessons: [] })).not.toContain('과거 교훈')
+  })
+
+  it('하드리밋 — lessons 4개를 줘도 ≤3개만 렌더(프롬프트 비대 금지)', async () => {
+    const { buildLaunchPrompt } = await import('../src/commands/launch.js')
+    const p = buildLaunchPrompt({ what: 'x', lessons: ['a1', 'b2', 'c3', 'd4'] })
+    expect(p).toContain('- a1')
+    expect(p).toContain('- c3')
+    expect(p).not.toContain('- d4')
+  })
+})
+
 // #456: 산출물이 프로젝트 RULES.md 치명 규칙을 상속 — 하드코딩 복붙 아닌 런타임 주입(드리프트 0).
 describe('launch — RULES.md 치명 규칙 상속 (#456)', () => {
   it('rules 주입 시 프롬프트에 규칙 + RULES.md 출처 표기 포함', async () => {

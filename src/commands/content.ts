@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
+import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.js'
 
@@ -14,8 +15,12 @@ import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.
 
 export interface ContentInput {
   what?: string // 제품 한 줄 (VISION.md What)
+  lessons?: string[] // #458: 과거 교훈 회상 라인(≤3·각 1줄) — 없으면 섹션 생략
   rules?: string[] // RULES.md 치명 규칙(#456) — undefined = RULES.md 없음(정직 안내로 표기)
 }
+
+// #458: 콘텐츠/마케팅 관련 기억을 끌어올 고정 회상 쿼리(결정적 — LLM 0).
+const CONTENT_RECALL_QUERY = '콘텐츠 블로그 글 SEO 마케팅'
 
 /**
  * 콘텐츠 초안 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
@@ -30,6 +35,7 @@ export function buildContentPrompt(input: ContentInput): string {
     '[제품 한 줄]',
     what,
     '',
+    ...lessonsSectionLines(input.lessons ?? []),
     '[해주세요 — 초안만, 직접 게시·발송 금지]',
     '1. 블로그 글 1편 개요 (제목 + 소제목 3개 이하)',
     '2. X(트위터) 스레드 초안 (3트윗 이하)',
@@ -64,7 +70,11 @@ export function content(): void {
   console.log(chalk.bold('\n📝 ' + t('content.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildContentPrompt({ what: readVisionWhat(), rules: readCriticalRules() })
+  const prompt = buildContentPrompt({
+    what: readVisionWhat(),
+    lessons: recallLessonLines(process.cwd(), CONTENT_RECALL_QUERY),
+    rules: readCriticalRules(),
+  })
   emitPrompt(prompt, 'content-prompt.md', '콘텐츠 초안 프롬프트')
 
   printNextStep({
