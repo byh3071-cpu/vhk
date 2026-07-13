@@ -43,6 +43,7 @@ export function buildLaunchPrompt(input: LaunchInput): string {
     '❌ 나쁜 예: 채널마다 메시지가 따로 놀거나 과장으로 분량만 늘리기',
     '- 결과물 ≤3종(게시물 1 + 변형 묶음), X 변형은 280자 이하',
     '- 사람 승인 전에는 어디에도 게시·발송하지 마세요 (이 명령은 초안만 만듭니다)',
+    '- 게시 전 보안 게이트(#457): 초안을 파일로 저장하고 `vhk secure scan <파일>` 을 실행 — CRITICAL/HIGH 0 확인 후에만 게시하세요',
     '',
     '모든 응답은 한국어로.',
   ].join('\n')

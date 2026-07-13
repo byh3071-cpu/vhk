@@ -28,6 +28,21 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   bootstrap: ['cursor'],
 }
 
+/**
+ * 컨테이너별 서브커맨드 한글 별칭 → 영문. commander 에는 `.alias('스캔')` 로 등록돼 있지만
+ * R1 가드(isRealSubcommandPath)가 영문 집합만 봐서 `보안 스캔 <파일>` 이 NL 라우터에 삼켜져
+ * **인자가 유실**되던 결함(#457 적대검증 중대-1). ⚠️ 전 컨테이너 한글 서브별칭 합류는
+ * 별도 PR(2026-07-01 선재버그, cli-args:255 노트) — 여기선 보안 게이트 경로만 우선 합류.
+ */
+export const CONTAINER_SUBCOMMAND_ALIASES: Record<string, Record<string, string>> = {
+  secure: { 스캔: 'scan' },
+}
+
+/** 컨테이너의 서브커맨드 한글 별칭을 영문으로 정규화(별칭 아니면 그대로). */
+export function resolveSubcommandAlias(container: string, sub: string): string {
+  return CONTAINER_SUBCOMMAND_ALIASES[container]?.[sub] ?? sub
+}
+
 /** 한국어 별칭 → 영문 컨테이너 명령. 별칭도 같은 서브커맨드 집합을 공유한다. */
 export const CONTAINER_ALIASES: Record<string, string> = {
   목표: 'goal',

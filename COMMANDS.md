@@ -166,7 +166,7 @@ vhk doctor
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63) |
 | `vhk check` | RULES.md 규칙 점검 (`--json` = 기계 소비용 요약 출력, #374) |
-| `vhk secure` | 보안 스캔 (시크릿 유출 검사) |
+| `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
 | `vhk ship` | 배포 체크리스트 + 회고 |
 | `vhk doctor` | 개발 환경 점검 (+ `--strict` 드리프트 게이트) |

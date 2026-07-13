@@ -309,13 +309,14 @@ const secureCmd = program
   .command('secure')
   .alias('보안')
   .description('보안 도구 모음 — scan: 시크릿·키 유출 검사')
-  .action(secure)
+  .action(async () => { await secure() })
 
 secureCmd
   .command('scan')
   .alias('스캔')
-  .description('시크릿/키 유출 스캔')
-  .action(secure)
+  .argument('[paths...]', '발행물 초안 등 특정 파일만 스캔 (#457 게시 전 게이트 — 미지정 시 프로젝트 전체)')
+  .description('시크릿/키 유출 스캔 — 경로 지정 시 초안 파일 단위(.md 포함)')
+  .action(async (paths: string[]) => { await secure(paths) })
 
 const cloudCmd = program
   .command('cloud')
