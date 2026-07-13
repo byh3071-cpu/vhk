@@ -92,7 +92,7 @@ Cursor에게 한국어로 말해도 됩니다.
 | 목록 | `vhk memory list [--type failure] [--all]` | "기억 보여줘" |
 | 보관(선순환) | `vhk memory archive <번호>` | "이거 보관해" |
 | 삭제 / 해결 / 보관해제 | `vhk memory remove <번호>` · `vhk memory resolve <번호>` · `vhk memory unarchive <번호>` | "이 기억 지워/해결/복원" |
-| recall 품질 평가 | `vhk memory eval [--init]` | "기억 검색 평가해" (RFC 0049) |
+| recall 품질 평가 | `vhk memory eval [--init]` | "기억 검색 평가해" (RFC 0049 · #488: 후보 0 쿼리도 전체 기억에서 정답 지정 가능 — 히트 밖 정답은 miss 라벨) |
 | v1→v2 변환 | `vhk memory migrate` | — |
 
 > **v2.0 BREAKING**: 평면 memory.json → 4버킷(결정/실패/성공/패턴). **조회 명령(`vhk memory list`·`context`·`brief`) 첫 실행 시에도 v1→v2 자동 마이그레이션 + `.v1.bak` 원본 백업**(어느 명령으로 먼저 실행해도 동일). **교훈은 `vhk learn`·`vhk memory add --type failure --lesson` 단일 SoT** (구 `docs/state/learnings.md` 분리 폐지·흡수). 보관(archive)된 항목은 패턴·진화에서 제외(선순환).
