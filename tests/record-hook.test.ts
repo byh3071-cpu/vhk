@@ -194,6 +194,19 @@ describe('record-check.mjs 실행 통합 (실제 git 픽스처)', () => {
     expect(runCheck('feat: follow-up or amend')).toBe(0)
   })
 
+  it('첫 커밋(HEAD 없음) 차단 시 fatal HEAD stderr 노이즈가 없다 (도그푸딩 P2)', () => {
+    // 커밋 0개 = HEAD 없음. src 변경 + 일지 없음 → 차단은 정상이되, HEAD 를 참조하는
+    // 완화 로직이 git fatal("ambiguous argument 'HEAD'")을 stderr 로 흘려 사용자가
+    // 정상 차단을 실패로 오해하던 문제. HEAD 존재를 조용히 먼저 확인해 노이즈 제거.
+    fs.writeFileSync(path.join(repo, 'src', 'a.ts'), 'export const a = 1\n')
+    git('add', 'src/a.ts')
+    fs.writeFileSync(msgFile, 'feat: first commit')
+    const r = spawnSync(process.execPath, [script, msgFile], { cwd: repo, encoding: 'utf-8' })
+    expect(r.status).not.toBe(0) // 여전히 차단(기능 불변)
+    expect(r.stderr ?? '').not.toContain('ambiguous argument')
+    expect(r.stderr ?? '').not.toContain('fatal')
+  })
+
   it('차단 사유는 AI 작업지시서 형태(stderr) — 일지 작성·재커밋 지시 포함', () => {
     fs.writeFileSync(path.join(repo, 'src', 'a.ts'), 'export const a = 1\n')
     git('add', 'src/a.ts')

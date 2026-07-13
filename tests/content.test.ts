@@ -64,3 +64,21 @@ describe('content — 과거 교훈 recall 주입 (#458)', () => {
     expect(p).not.toContain('- d4')
   })
 })
+
+// #456: 산출물이 프로젝트 RULES.md 치명 규칙을 상속 — 하드코딩 복붙 아닌 런타임 주입(드리프트 0).
+describe('content — RULES.md 치명 규칙 상속 (#456)', () => {
+  it('rules 주입 시 프롬프트에 규칙 + RULES.md 출처 표기 포함', async () => {
+    const { buildContentPrompt } = await import('../src/commands/content.js')
+    const p = buildContentPrompt({ what: 'x', rules: ['`execSync` 신규 사용 금지', 'publish 는 main 에서만'] })
+    expect(p).toContain('RULES.md')
+    expect(p).toContain('- `execSync` 신규 사용 금지')
+    expect(p).toContain('- publish 는 main 에서만')
+  })
+
+  it('rules 미주입(RULES.md 없음) → 정직한 안내 + 기존 구조 유지', async () => {
+    const { buildContentPrompt } = await import('../src/commands/content.js')
+    const p = buildContentPrompt({ what: 'x' })
+    expect(p).toContain('RULES.md 없음')
+    expect(p).toContain('블로그') // 현행 동작 유지
+  })
+})

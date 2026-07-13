@@ -4,6 +4,8 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
 import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.js'
 
 /**
  * goal 74 — 풀사이클 뒷단 첫 트랙(content). RFC 0052 §4.
@@ -14,6 +16,7 @@ import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
 export interface ContentInput {
   what?: string // 제품 한 줄 (VISION.md What)
   lessons?: string[] // #458: 과거 교훈 회상 라인(≤3·각 1줄) — 없으면 섹션 생략
+  rules?: string[] // RULES.md 치명 규칙(#456) — undefined = RULES.md 없음(정직 안내로 표기)
 }
 
 // #458: 콘텐츠/마케팅 관련 기억을 끌어올 고정 회상 쿼리(결정적 — LLM 0).
@@ -21,7 +24,8 @@ const CONTENT_RECALL_QUERY = '콘텐츠 블로그 글 SEO 마케팅'
 
 /**
  * 콘텐츠 초안 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
- * good/bad 예시쌍(✅/❌) + 수치 하드리밋(≤3종·글자수) + 치명 규칙(사람 승인 전 게시·발송 금지).
+ * good/bad 예시쌍(✅/❌) + 수치 하드리밋(≤3종·글자수) + 치명 규칙(사람 승인 전 게시·발송 금지)
+ * + 프로젝트 RULES.md 치명 규칙 상속(#456 — 런타임 주입, 복붙 0).
  */
 export function buildContentPrompt(input: ContentInput): string {
   const what = input.what?.trim() || '(VISION.md 의 What 미정 — vhk init 후 채우기)'
@@ -44,6 +48,8 @@ export function buildContentPrompt(input: ContentInput): string {
     '- 사람 승인 전에는 어디에도 게시·발송하지 마세요 (이 명령은 초안만 만듭니다)',
     '- 게시 전 보안 게이트(#457): 초안을 파일로 저장하고 `vhk secure scan <파일>` 을 실행 — CRITICAL/HIGH 0 확인 후에만 게시하세요',
     '',
+    ...buildRulesInheritLines(input.rules),
+    '',
     '모든 응답은 한국어로.',
   ].join('\n')
 }
@@ -60,10 +66,15 @@ function readVisionWhat(): string | undefined {
 }
 
 export function content(): void {
+  if (!ensureNotHardStopped('content')) return // #455: HARD_STOP 활성 시 프롬프트 산출물(.vhk) 쓰기 차단
   console.log(chalk.bold('\n📝 ' + t('content.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildContentPrompt({ what: readVisionWhat(), lessons: recallLessonLines(process.cwd(), CONTENT_RECALL_QUERY) })
+  const prompt = buildContentPrompt({
+    what: readVisionWhat(),
+    lessons: recallLessonLines(process.cwd(), CONTENT_RECALL_QUERY),
+    rules: readCriticalRules(),
+  })
   emitPrompt(prompt, 'content-prompt.md', '콘텐츠 초안 프롬프트')
 
   printNextStep({

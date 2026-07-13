@@ -4,6 +4,8 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
 import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.js'
 
 /**
  * goal 76 — 풀사이클 뒷단 셋째 트랙(ops). RFC 0052 §4·§5.
@@ -15,6 +17,7 @@ import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
 export interface OpsInput {
   what?: string // 제품 한 줄 (VISION.md What)
   lessons?: string[] // #458: 과거 교훈 회상 라인(≤3·각 1줄) — 없으면 섹션 생략
+  rules?: string[] // RULES.md 치명 규칙(#456) — undefined = RULES.md 없음(정직 안내로 표기)
 }
 
 // #458: 운영 회고 관련 기억을 끌어올 고정 회상 쿼리(결정적 — LLM 0).
@@ -22,7 +25,8 @@ const OPS_RECALL_QUERY = '운영 회고 피드백 사용자 유지 피벗'
 
 /**
  * 운영 회고·다음 결정 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
- * good/bad 예시쌍(✅/❌) + 수치 하드리밋(액션 ≤3개) + 치명 규칙(사람 승인 전 제품 중단·삭제 금지).
+ * good/bad 예시쌍(✅/❌) + 수치 하드리밋(액션 ≤3개) + 치명 규칙(사람 승인 전 제품 중단·삭제 금지)
+ * + 프로젝트 RULES.md 치명 규칙 상속(#456 — 런타임 주입, 복붙 0).
  */
 export function buildOpsPrompt(input: OpsInput): string {
   const what = input.what?.trim() || '(VISION.md 의 What 미정 — vhk init 후 채우기)'
@@ -49,6 +53,8 @@ export function buildOpsPrompt(input: OpsInput): string {
     '- 결과물은 회고 1편 + 다음 결정 1개로 압축, 액션은 ≤3개',
     '- 사람 승인 전에는 제품 중단·삭제·대량 변경을 실행하지 마세요 (이 명령은 회고·제안 초안만 만듭니다)',
     '',
+    ...buildRulesInheritLines(input.rules),
+    '',
     '모든 응답은 한국어로.',
   ].join('\n')
 }
@@ -65,10 +71,15 @@ function readVisionWhat(): string | undefined {
 }
 
 export function ops(): void {
+  if (!ensureNotHardStopped('ops')) return // #455: HARD_STOP 활성 시 프롬프트 산출물(.vhk) 쓰기 차단
   console.log(chalk.bold('\n🛠️ ' + t('ops.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildOpsPrompt({ what: readVisionWhat(), lessons: recallLessonLines(process.cwd(), OPS_RECALL_QUERY) })
+  const prompt = buildOpsPrompt({
+    what: readVisionWhat(),
+    lessons: recallLessonLines(process.cwd(), OPS_RECALL_QUERY),
+    rules: readCriticalRules(),
+  })
   emitPrompt(prompt, 'ops-prompt.md', '운영 회고 프롬프트')
 
   // sell(goal 77)로 체인 — content→launch→ops→sell 흐름 완성. 제품 중단·피벗·결제는 사람이 직접(헌법).

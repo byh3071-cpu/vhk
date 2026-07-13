@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { program } from '../src/index.js'
-import { CONTAINER_SUBCOMMANDS, CONTAINER_ALIASES, TOP_LEVEL_COMMANDS } from '../src/lib/command-registry.js'
+import {
+  CONTAINER_SUBCOMMANDS,
+  CONTAINER_ALIASES,
+  CONTAINER_SUBCOMMAND_ALIASES,
+  resolveSubcommandAlias,
+  TOP_LEVEL_COMMANDS,
+} from '../src/lib/command-registry.js'
 import { detectNaturalLanguageInput, KNOWN_COMMAND_TOKENS } from '../src/lib/cli-args.js'
 
 // R1 드리프트 가드: commander 정의(index.ts)와 R1 가드의 단일 소스(command-registry)가
@@ -80,6 +86,66 @@ describe('R1 드리프트 가드 — command-registry 단일 소스', () => {
         KNOWN_COMMAND_TOKENS.has(alias),
         `한글 별칭 '${alias}' 가 KNOWN_COMMAND_TOKENS 에 없음 → 한글 서브커맨드가 자연어로 둔갑`
       ).toBe(true)
+    }
+  })
+})
+
+// 서브커맨드 별칭 드리프트 가드: commander 의 `.alias('한글')` 실등록과
+// CONTAINER_SUBCOMMAND_ALIASES 가 어긋나면 실패한다.
+// 실증 2회: 2026-07-01 선재버그(evolve 한글 서브별칭 전부 NL 라우터에 차단) +
+// #457 적대검증 중대-1(`보안 스캔 <파일>` 인자 유실 → 유출 파일 "깨끗" 오보고).
+// 원인 클래스 = 레지스트리가 영문 서브명만 알아서 한글 별칭 경로가 R1 가드를 못 통과.
+describe('R1 드리프트 가드 — 서브커맨드 한글 별칭 (CONTAINER_SUBCOMMAND_ALIASES 단일 소스)', () => {
+  it('commander 의 모든 서브커맨드 별칭이 registry 에서 정규화됨 (누락 = 한글 경로가 NL 로 새서 인자 유실)', () => {
+    const missing: string[] = []
+    for (const container of program.commands) {
+      for (const sub of container.commands) {
+        for (const alias of sub.aliases()) {
+          if (resolveSubcommandAlias(container.name(), alias) !== sub.name()) {
+            missing.push(`${container.name()}.${sub.name()} ← '${alias}'`)
+          }
+        }
+      }
+    }
+    expect(
+      missing,
+      `CONTAINER_SUBCOMMAND_ALIASES 누락(commander 엔 등록됨): ${missing.join(', ')}`
+    ).toEqual([])
+  })
+
+  it('registry 의 모든 별칭이 commander 실등록과 1:1 (유령 별칭 0)', () => {
+    for (const [containerName, aliases] of Object.entries(CONTAINER_SUBCOMMAND_ALIASES)) {
+      const cmd = program.commands.find((c) => c.name() === containerName)
+      expect(cmd, `registry 의 '${containerName}' 가 commander 컨테이너가 아님`).toBeDefined()
+      for (const [alias, canonical] of Object.entries(aliases)) {
+        const sub = cmd!.commands.find((c) => c.name() === canonical)
+        expect(
+          sub,
+          `${containerName}.${canonical} 가 commander 에 없음 (별칭 '${alias}' 의 대상 = 유령)`
+        ).toBeDefined()
+        expect(
+          sub!.aliases(),
+          `'${alias}' 가 commander ${containerName}.${canonical} 의 실제 별칭이 아님 (발명된 별칭)`
+        ).toContain(alias)
+        // R1 가드(isRealSubcommandPath)는 정규화 결과를 CONTAINER_SUBCOMMANDS 로 대조하므로
+        // 별칭 대상이 거기 없으면 별칭이 조용히 무효가 된다 — 일관성 강제.
+        expect(
+          CONTAINER_SUBCOMMANDS[containerName],
+          `별칭 '${alias}' 의 대상 '${canonical}' 이 CONTAINER_SUBCOMMANDS.${containerName} 에 없음`
+        ).toContain(canonical)
+      }
+    }
+  })
+
+  it('별칭 키가 같은 컨테이너의 영문 서브명을 가리지 않음 (shadow 0)', () => {
+    for (const [containerName, aliases] of Object.entries(CONTAINER_SUBCOMMAND_ALIASES)) {
+      const subs = CONTAINER_SUBCOMMANDS[containerName] ?? []
+      for (const alias of Object.keys(aliases)) {
+        expect(
+          subs,
+          `'${containerName}' 별칭 키 '${alias}' 가 영문 서브명과 충돌 — resolve 가 실제 경로를 뒤바꿈`
+        ).not.toContain(alias)
+      }
     }
   })
 })

@@ -208,7 +208,10 @@ export const ko = {
     notionDone: (name: string) => `노션에서 가져오기 완료: ${name}`,
     notionReviewHint: 'docs/PRD.md를 읽고 비어있는 항목을 채우세요',
     gitHintLabel: '터미널에 복사할 명령 (아래 박스 복붙):',
-    gitHintCommand: 'git init && git add . && git commit -m "feat: 프로젝트 시작"',
+    // vhk init 을 git init 뒤에 한 번 더: 기록 집행 훅(.git/hooks/commit-msg, RFC 0061)은 .git 이
+    // 있어야 배선된다. git 없이 init 한 사용자가 이 명령을 복붙하면 재실행으로 훅이 자동 배선돼
+    // 첫 커밋부터 세션일지 집행이 걸린다(도그푸딩 P1: 재실행 안내 부재로 집행 그물을 통째로 놓침).
+    gitHintCommand: 'git init && vhk init && git add . && git commit -m "feat: 프로젝트 시작"',
     startDev: '이제 개발해 보세요! 🚀',
     commandsMdDone: '📋 COMMANDS.md 생성',
     scriptsDone: '📦 package.json scripts 추가',
@@ -396,6 +399,10 @@ export const ko = {
     checkDrift: (p: string) => `↯ ${p} — 생성본과 다름 (직접 수정 또는 sync 미실행)`,
     checkMissing: (p: string) => `∅ ${p} — 파일 없음 (sync 가 생성할 타겟)`,
     checkFail: (n: number) => `❌ drift ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
+    driftDocsTitle: (n: number) => `📡 문서-실측 드리프트 ${n}건 (warn — RFC 0062)`,
+    driftDocsClean: '📡 문서-실측 드리프트 없음 (RFC 0062 warn 검사)',
+    driftDocsWarnNote: 'warn 모드 — 차단하지 않습니다. 문서를 실측에 맞게 고치거나, 오탐이면 그대로 두세요(오탐률 계측 중).',
+    driftDocsError: (msg: string) => `(문서 드리프트 검사 내부 오류 — 건너뜀: ${msg})`,
     cursorrulesDone: '✅ .cursorrules 맞춤 완료',
     claudeDone: '✅ CLAUDE.md 맞춤 완료',
     windsurfDone: '✅ .windsurfrules 맞춤 완료',

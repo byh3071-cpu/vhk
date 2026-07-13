@@ -4,6 +4,8 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
 import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { buildRulesInheritLines, readCriticalRules } from '../lib/rules-inherit.js'
 
 /**
  * goal 77 — 풀사이클 뒷단 넷째(마지막) 트랙(sell). RFC 0052 §4·§5.
@@ -14,6 +16,7 @@ import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
 export interface SellInput {
   what?: string // 제품 한 줄 (VISION.md What)
   lessons?: string[] // #458: 과거 교훈 회상 라인(≤3·각 1줄) — 없으면 섹션 생략
+  rules?: string[] // RULES.md 치명 규칙(#456) — undefined = RULES.md 없음(정직 안내로 표기)
 }
 
 // #458: 판매/가격 관련 기억을 끌어올 고정 회상 쿼리(결정적 — LLM 0).
@@ -21,7 +24,8 @@ const SELL_RECALL_QUERY = '판매 가격 결제 환불 과금'
 
 /**
  * 가격 페이지 카피·FAQ 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
- * good/bad 예시쌍(✅/❌) + 수치 하드리밋(FAQ ≤3개) + 치명 규칙(사람 승인 전 결제·과금 연동 금지).
+ * good/bad 예시쌍(✅/❌) + 수치 하드리밋(FAQ ≤3개) + 치명 규칙(사람 승인 전 결제·과금 연동 금지)
+ * + 프로젝트 RULES.md 치명 규칙 상속(#456 — 런타임 주입, 복붙 0).
  */
 export function buildSellPrompt(input: SellInput): string {
   const what = input.what?.trim() || '(VISION.md 의 What 미정 — vhk init 후 채우기)'
@@ -49,6 +53,8 @@ export function buildSellPrompt(input: SellInput): string {
     '- 사람 승인 전에는 결제·과금·구독을 연동·실행하지 마세요 (이 명령은 카피 초안만 만듭니다)',
     '- 게시 전 보안 게이트(#457): 카피 초안을 파일로 저장하고 `vhk secure scan <파일>` 을 실행 — CRITICAL/HIGH 0 확인 후에만 게시하세요',
     '',
+    ...buildRulesInheritLines(input.rules),
+    '',
     '모든 응답은 한국어로.',
   ].join('\n')
 }
@@ -65,10 +71,15 @@ function readVisionWhat(): string | undefined {
 }
 
 export function sell(): void {
+  if (!ensureNotHardStopped('sell')) return // #455: HARD_STOP 활성 시 프롬프트 산출물(.vhk) 쓰기 차단
   console.log(chalk.bold('\n💰 ' + t('sell.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildSellPrompt({ what: readVisionWhat(), lessons: recallLessonLines(process.cwd(), SELL_RECALL_QUERY) })
+  const prompt = buildSellPrompt({
+    what: readVisionWhat(),
+    lessons: recallLessonLines(process.cwd(), SELL_RECALL_QUERY),
+    rules: readCriticalRules(),
+  })
   emitPrompt(prompt, 'sell-prompt.md', '판매 카피 프롬프트')
 
   // sell = 뒷단 4트랙 마지막 — 다음 터미널 명령 없음(content→launch→ops→sell 체인 끝).

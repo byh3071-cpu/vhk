@@ -63,3 +63,20 @@ describe('sell — 과거 교훈 recall 주입 (#458)', () => {
     expect(p).not.toContain('- d4')
   })
 })
+
+// #456: 산출물이 프로젝트 RULES.md 치명 규칙을 상속 — 하드코딩 복붙 아닌 런타임 주입(드리프트 0).
+describe('sell — RULES.md 치명 규칙 상속 (#456)', () => {
+  it('rules 주입 시 프롬프트에 규칙 + RULES.md 출처 표기 포함', async () => {
+    const { buildSellPrompt } = await import('../src/commands/sell.js')
+    const p = buildSellPrompt({ what: 'x', rules: ['토큰/시크릿 코드·커밋 평문 노출 금지'] })
+    expect(p).toContain('RULES.md')
+    expect(p).toContain('- 토큰/시크릿 코드·커밋 평문 노출 금지')
+  })
+
+  it('rules 미주입(RULES.md 없음) → 정직한 안내 + 기존 구조 유지', async () => {
+    const { buildSellPrompt } = await import('../src/commands/sell.js')
+    const p = buildSellPrompt({ what: 'x' })
+    expect(p).toContain('RULES.md 없음')
+    expect(p).toContain('FAQ') // 현행 동작 유지
+  })
+})

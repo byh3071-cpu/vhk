@@ -164,7 +164,7 @@ vhk doctor
 | `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
 | `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선(세션일지 없는 코드 커밋 차단, `[skip-record]` 우회 — RFC 0061) |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
-| `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63) |
+| `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63 + 문서-실측 드리프트 warn: 버전·MCP수·RFC헤더 모순·블로커 모순, RFC 0062) |
 | `vhk check` | RULES.md 규칙 점검 (`--json` = 기계 소비용 요약 출력, #374) |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
@@ -212,10 +212,10 @@ vhk doctor
 | `vhk brief` | 프로젝트 요약 보고서 생성 |
 | `vhk loop-brief` | 루프 1틱 앵커 생성 (의도+goal1+교훈+STOP → `.vhk/loop-brief.md`) |
 | `vhk remind` | 치명 규칙 재주입 (RULES.md NON-NEGOTIABLE/Forbidden 압축 → `.vhk/remind.md`) |
-| `vhk content` | 콘텐츠 초안 프롬프트 생성 (풀사이클 뒷단 — 콘텐츠/마케팅 → `.vhk/content-prompt.md`) · 과거 교훈 ≤3 자동 회상 주입(#458) |
-| `vhk launch` | 런칭 게시물 프롬프트 생성 (풀사이클 뒷단 — 런칭 → `.vhk/launch-prompt.md`) · `ship`=코드 npm 배포와 구분 · 과거 교훈 ≤3 자동 회상 주입 + `vhk learn/win` 기록 지시(#458) |
-| `vhk ops` | 운영 회고 프롬프트 생성 (풀사이클 뒷단 — 운영 → `.vhk/ops-prompt.md`) · 유지/피벗/아카이브 회고, 중단·삭제는 사람이 · 과거 교훈 ≤3 자동 회상 주입 + `vhk learn/win` 기록 지시(#458) |
-| `vhk sell` | 판매 카피 프롬프트 생성 (풀사이클 뒷단 — 판매 → `.vhk/sell-prompt.md`) · 가격 페이지·FAQ 초안, 결제·과금은 사람이 · 과거 교훈 ≤3 자동 회상 주입(#458) |
+| `vhk content` | 콘텐츠 초안 프롬프트 생성 (풀사이클 뒷단 — 콘텐츠/마케팅 → `.vhk/content-prompt.md`) · RULES.md 치명 규칙 상속 · 과거 교훈 ≤3 자동 회상 주입(#458) |
+| `vhk launch` | 런칭 게시물 프롬프트 생성 (풀사이클 뒷단 — 런칭 → `.vhk/launch-prompt.md`) · `ship`=코드 npm 배포와 구분 · RULES.md 치명 규칙 상속 · 과거 교훈 ≤3 자동 회상 주입 + `vhk learn/win` 기록 지시(#458) |
+| `vhk ops` | 운영 회고 프롬프트 생성 (풀사이클 뒷단 — 운영 → `.vhk/ops-prompt.md`) · 유지/피벗/아카이브 회고, 중단·삭제는 사람이 · RULES.md 치명 규칙 상속 · 과거 교훈 ≤3 자동 회상 주입 + `vhk learn/win` 기록 지시(#458) |
+| `vhk sell` | 판매 카피 프롬프트 생성 (풀사이클 뒷단 — 판매 → `.vhk/sell-prompt.md`) · 가격 페이지·FAQ 초안, 결제·과금은 사람이 · RULES.md 치명 규칙 상속 · 과거 교훈 ≤3 자동 회상 주입(#458) |
 | `vhk work` | AI 작업 시작/이어하기 (+ handoff) |
 | `vhk goal` | Goal 단계별 미션 관리 |
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |
