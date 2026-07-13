@@ -1,5 +1,5 @@
 import { routeNaturalLanguage } from './nlp-router.js'
-import { CONTAINER_SUBCOMMANDS, CONTAINER_ALIASES } from './command-registry.js'
+import { CONTAINER_SUBCOMMANDS, CONTAINER_ALIASES, resolveSubcommandAlias } from './command-registry.js'
 
 /** Commander에 등록된 서브커맨드·별칭 (첫 토큰) */
 export const KNOWN_COMMAND_TOKENS = new Set([
@@ -130,7 +130,11 @@ const COMMAND_SUBCOMMANDS: Record<string, readonly string[]> = (() => {
 function isRealSubcommandPath(first: string, second: string | undefined): boolean {
   if (second === undefined) return false
   const subs = COMMAND_SUBCOMMANDS[first]
-  return subs !== undefined && subs.includes(second)
+  if (subs === undefined) return false
+  // #457 중대-1: `보안 스캔 <파일>` 처럼 서브커맨드 '한글 별칭'도 실경로 — 영문만 보면
+  // NL 라우터가 가로채 파일 인자를 유실(유출 파일을 "깨끗"으로 오보고). 별칭을 정규화해 대조.
+  const canonical = CONTAINER_ALIASES[first] ?? first
+  return subs.includes(resolveSubcommandAlias(canonical, second))
 }
 
 /**

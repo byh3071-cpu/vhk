@@ -1,6 +1,7 @@
 import fs from 'node:fs'
+import path from 'node:path'
 import { SECRET_PATTERNS, maskSecret, type SecretFinding } from './secret-patterns.js'
-import { walkProjectFiles } from './scan-files.js'
+import { walkProjectFiles, MAX_SCAN_FILE_BYTES } from './scan-files.js'
 
 export const MAX_SECRET_FINDINGS = 200
 const MAX_LINE_CHARS = 4_000
@@ -136,6 +137,74 @@ export function scanProjectForSecrets(cwd: string): ProjectSecretScan {
   )
 
   return { findings, scannedFiles, truncated: reasons.size > 0, truncationReasons: [...reasons] }
+}
+
+export type DraftScanResult = {
+  findings: SecretFinding[]
+  scannedFiles: number
+  /** 스캔 못 한 입력의 사유(없음·디렉터리·읽기 실패) — 조용한 통과 금지(#457 정직성). */
+  errors: string[]
+}
+
+/**
+ * #457 — 명시 경로(발행물 초안) 스캔. 전체 스캔과 달리 확장자 필터를 두지 않는다:
+ * 초안은 대부분 .md 인데 SCAN_EXTENSIONS 가 md 를 제외해 발행물이 사각이었음.
+ * v1 은 파일만 받는다(디렉터리는 errors 로 안내) — 발행 직전 초안 몇 개가 대상이라 walk 불필요.
+ */
+export function scanFilesForSecrets(paths: string[], cwd: string): DraftScanResult {
+  const findings: SecretFinding[] = []
+  const errors: string[] = []
+  let scannedFiles = 0
+
+  // 같은 파일 중복 지정 시 findings·계측이 2중으로 잡히는 것 방지(적대검증 경미-3).
+  for (const p of [...new Set(paths)]) {
+    const abs = path.isAbsolute(p) ? p : path.join(cwd, p)
+    let stat: fs.Stats
+    try {
+      stat = fs.statSync(abs)
+    } catch {
+      errors.push(`${p}: 파일 없음`)
+      continue
+    }
+    if (stat.isDirectory()) {
+      errors.push(`${p}: 디렉터리는 아직 미지원 — 초안 파일을 직접 지정하세요`)
+      continue
+    }
+    if (stat.size > MAX_SCAN_FILE_BYTES) {
+      errors.push(`${p}: ${MAX_SCAN_FILE_BYTES / 1024}KB 초과 — 스캔 스킵`)
+      continue
+    }
+    let content: string
+    try {
+      content = fs.readFileSync(abs, 'utf-8')
+    } catch (e) {
+      errors.push(`${p}: 읽기 실패 (${e instanceof Error ? e.message : String(e)})`)
+      continue
+    }
+    scannedFiles++
+    const rel = path.relative(cwd, abs) || p
+    let skippedLongLines = 0
+    for (const [idx, line] of content.split('\n').entries()) {
+      // 게이트의 정직성(적대검증 치명-1): findSecretsInLine 은 4000자 초과 줄을 조용히 건너뛴다
+      // — 전체 스캔은 truncationReasons 로 노출하는데 초안 스캔이 이를 빼먹으면
+      // base64/설정 덤프 속 시크릿이 "깨끗" 판정되는 false-negative. errors 로 표면화한다.
+      if (line.length > MAX_LINE_CHARS) {
+        skippedLongLines++
+        continue
+      }
+      findings.push(...findSecretsInLine(line, rel, idx + 1))
+      if (findings.length >= MAX_SECRET_FINDINGS) {
+        errors.push(`${p}: 발견 ${MAX_SECRET_FINDINGS}건 한도 도달 — 이후 미수집`)
+        break
+      }
+    }
+    if (skippedLongLines > 0) {
+      errors.push(`${p}: 초장문 라인(${MAX_LINE_CHARS}자 초과) ${skippedLongLines}줄 미검사 — 통과 판정 불가`)
+    }
+    if (findings.length >= MAX_SECRET_FINDINGS) break
+  }
+
+  return { findings, scannedFiles, errors }
 }
 
 export function filterSevereFindings(findings: SecretFinding[]): SecretFinding[] {
