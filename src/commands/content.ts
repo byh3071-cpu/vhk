@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 /**
  * goal 74 — 풀사이클 뒷단 첫 트랙(content). RFC 0052 §4.
@@ -54,6 +55,7 @@ function readVisionWhat(): string | undefined {
 }
 
 export function content(): void {
+  if (!ensureNotHardStopped('content')) return // #455: HARD_STOP 활성 시 프롬프트 산출물(.vhk) 쓰기 차단
   console.log(chalk.bold('\n📝 ' + t('content.title')))
   console.log(chalk.gray('─'.repeat(40)))
 

@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
+import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 
 /**
  * goal 77 — 풀사이클 뒷단 넷째(마지막) 트랙(sell). RFC 0052 §4·§5.
@@ -59,6 +60,7 @@ function readVisionWhat(): string | undefined {
 }
 
 export function sell(): void {
+  if (!ensureNotHardStopped('sell')) return // #455: HARD_STOP 활성 시 프롬프트 산출물(.vhk) 쓰기 차단
   console.log(chalk.bold('\n💰 ' + t('sell.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
