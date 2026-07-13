@@ -559,5 +559,12 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
         }
       }
     })
+
+    // 도그푸딩 P1: git 없이 init 시 기록 집행 훅(RFC 0061)이 미배선 → 복붙 명령이 vhk init
+    // 재실행을 포함해야 git init 직후 훅이 배선되고 첫 커밋부터 집행이 걸린다.
+    it('gitHintCommand 는 git init 뒤 vhk init 재실행을 포함한다(기록 집행 훅 배선)', () => {
+      expect(ko.init.gitHintCommand).toContain('git init')
+      expect(ko.init.gitHintCommand).toContain('vhk init')
+    })
   })
 })

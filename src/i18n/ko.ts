@@ -208,7 +208,10 @@ export const ko = {
     notionDone: (name: string) => `노션에서 가져오기 완료: ${name}`,
     notionReviewHint: 'docs/PRD.md를 읽고 비어있는 항목을 채우세요',
     gitHintLabel: '터미널에 복사할 명령 (아래 박스 복붙):',
-    gitHintCommand: 'git init && git add . && git commit -m "feat: 프로젝트 시작"',
+    // vhk init 을 git init 뒤에 한 번 더: 기록 집행 훅(.git/hooks/commit-msg, RFC 0061)은 .git 이
+    // 있어야 배선된다. git 없이 init 한 사용자가 이 명령을 복붙하면 재실행으로 훅이 자동 배선돼
+    // 첫 커밋부터 세션일지 집행이 걸린다(도그푸딩 P1: 재실행 안내 부재로 집행 그물을 통째로 놓침).
+    gitHintCommand: 'git init && vhk init && git add . && git commit -m "feat: 프로젝트 시작"',
     startDev: '이제 개발해 보세요! 🚀',
     commandsMdDone: '📋 COMMANDS.md 생성',
     scriptsDone: '📦 package.json scripts 추가',
