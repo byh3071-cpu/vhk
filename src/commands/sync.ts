@@ -11,6 +11,44 @@ import { atomicWriteFile } from '../lib/atomic-write.js'
 import { injectBootstrapAll, ECOSYSTEM_MDC_REL } from '../lib/inject-bootstrap.js'
 import { PREAMBLE_TITLE } from '../lib/rules-import.js'
 import { isInteractive, promptOrDefault } from '../lib/interactive.js'
+import { runDocDriftChecks, type DriftFinding } from '../lib/drift-pairs.js'
+import { appendDriftLog } from '../lib/drift-log.js'
+import { getMcpToolCount } from '../mcp/server.js'
+
+/**
+ * RFC 0062 — 문서-실측 드리프트 warn 리포트(차단 0, exitCode 불변).
+ * fail 승격은 warn 실측(drift-log 원장) 누적 후 사람이 판정 — measure-first.
+ * 검사 자체 오류는 fail-open(경고만) — 검사기가 sync --check 를 죽이면 본말전도.
+ */
+function reportDocDrift(cwd: string): void {
+  let findings: DriftFinding[]
+  try {
+    findings = runDocDriftChecks(cwd, { mcpToolCount: getMcpToolCount() })
+  } catch (e) {
+    console.log(chalk.dim(`  ${ko.sync.driftDocsError(e instanceof Error ? e.message : String(e))}`))
+    return
+  }
+
+  if (findings.length === 0) {
+    console.log(chalk.dim(`  ${ko.sync.driftDocsClean}`))
+  } else {
+    console.log(chalk.bold(`\n  ${ko.sync.driftDocsTitle(findings.length)}`))
+    for (const f of findings) console.log(chalk.yellow(`    ⚠️  ${f.file} — ${f.message}`))
+    console.log(chalk.dim(`  ${ko.sync.driftDocsWarnNote}`))
+  }
+
+  if (fs.existsSync(path.join(cwd, '.vhk'))) {
+    try {
+      appendDriftLog(cwd, {
+        numeric: findings.filter((f) => f.series === 'numeric').length,
+        crossref: findings.filter((f) => f.series === 'crossref').length,
+        state: findings.filter((f) => f.series === 'state').length,
+      })
+    } catch (e) {
+      console.log(chalk.dim(`  (계측 기록 실패 — 검사 결과에는 영향 없음: ${e instanceof Error ? e.message : String(e)})`))
+    }
+  }
+}
 
 interface RulesSection {
   title: string
@@ -690,17 +728,19 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   if (opts.check) {
     if (!fs.existsSync(rulesPath)) {
       console.log(chalk.yellow(ko.sync.checkNoRules))
+      reportDocDrift(cwd)
       return
     }
     const r = syncCheck(cwd)
     if (r.ok) {
       console.log(chalk.green(ko.sync.checkPass))
-      return
+    } else {
+      for (const p of r.drifted) console.log(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
+      for (const p of r.missing) console.log(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
+      console.log(chalk.red(ko.sync.checkFail(r.drifted.length + r.missing.length)))
+      process.exitCode = 1
     }
-    for (const p of r.drifted) console.log(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
-    for (const p of r.missing) console.log(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
-    console.log(chalk.red(ko.sync.checkFail(r.drifted.length + r.missing.length)))
-    process.exitCode = 1
+    reportDocDrift(cwd)
     return
   }
 
