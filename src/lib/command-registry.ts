@@ -29,13 +29,52 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
 }
 
 /**
- * 컨테이너별 서브커맨드 한글 별칭 → 영문. commander 에는 `.alias('스캔')` 로 등록돼 있지만
+ * 컨테이너별 서브커맨드 한글 별칭 → 영문. commander 에는 `.alias('스캔')` 등으로 등록돼 있지만
  * R1 가드(isRealSubcommandPath)가 영문 집합만 봐서 `보안 스캔 <파일>` 이 NL 라우터에 삼켜져
- * **인자가 유실**되던 결함(#457 적대검증 중대-1). ⚠️ 전 컨테이너 한글 서브별칭 합류는
- * 별도 PR(2026-07-01 선재버그, cli-args:255 노트) — 여기선 보안 게이트 경로만 우선 합류.
+ * **인자가 유실**되던 결함 클래스(2026-07-01 evolve 선재버그 + #457 적대검증 중대-1, 2회 실증).
+ * → 전 컨테이너 한글 서브별칭을 여기 합류해 한글 경로도 영문과 동일하게 commander 위임.
+ *
+ * SoT 는 commander 실등록(index.ts `.alias()`) — 드리프트 가드 테스트
+ * (tests/command-registry.test.ts, introspect 대조)가 양방향(누락·유령) 어긋남을 잡는다.
+ * 별칭 없는 컨테이너(mission/seo/config/bootstrap 등)는 등재하지 않는다(발명 금지).
  */
 export const CONTAINER_SUBCOMMAND_ALIASES: Record<string, Record<string, string>> = {
   secure: { 스캔: 'scan' },
+  cloud: { 올리기: 'push', 내리기: 'pull' },
+  ref: { 목록: 'list', 열기: 'open' },
+  worktree: { 점검: 'check', 추가: 'add' },
+  memory: {
+    목록: 'list',
+    삭제: 'remove',
+    보관: 'archive',
+    해결: 'resolve',
+    복구: 'unarchive',
+    마이그레이션: 'migrate',
+    검증: 'eval',
+  },
+  work: { 인수인계: 'handoff' },
+  goal: {
+    목록: 'list',
+    다음: 'next',
+    미리보기: 'peek',
+    초기화: 'init',
+    검증: 'check',
+    완료: 'done',
+    동기화: 'sync',
+    드리프트: 'drift',
+    마이그레이트: 'migrate',
+  },
+  pattern: { 감지: 'detect', 목록: 'list', 보관: 'dismiss' },
+  evolve: {
+    제안: 'suggest',
+    부정예시: 'negatives',
+    씨앗: 'seed',
+    목록: 'list',
+    묶음: 'digest',
+    반영: 'apply',
+    기각: 'reject',
+    되돌리기: 'undo',
+  },
 }
 
 /** 컨테이너의 서브커맨드 한글 별칭을 영문으로 정규화(별칭 아니면 그대로). */
