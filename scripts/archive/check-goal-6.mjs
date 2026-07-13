@@ -63,7 +63,7 @@ const cliArgs = read("src/lib/cli-args.ts") || "";
 must(/isRealSubcommandPath/.test(cliArgs) && /command-registry/.test(cliArgs), "R1 가드 + registry 단일소스 파생");
 const driftTest = read("tests/command-registry.test.ts") || "";
 must(existsSync(join(root, "tests/command-registry.test.ts")) && /신규 컨테이너|새 컨테이너|program\.commands/.test(driftTest), "드리프트 가드 테스트(신규 컨테이너 명령 포함)");
-const g5 = read("scripts/check-goal-5.mjs") || "";
+const g5 = read("scripts/archive/check-goal-5.mjs") || "";
 must(/isRealSubcommandPath/.test(g5), "check-goal-5 코드구조 검증");
 
 console.log(ok.map((m) => "  ✓ " + m).join("\n"));
