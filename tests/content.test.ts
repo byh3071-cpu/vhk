@@ -40,3 +40,27 @@ describe('content — buildContentPrompt 순수함수 (goal 74)', () => {
     expect(p).toContain('❌')
   })
 })
+
+// #458: 과거 교훈 recall 주입 (누적 지시는 launch/ops — content 는 회고 성격 아님)
+describe('content — 과거 교훈 recall 주입 (#458)', () => {
+  it('lessons 주입 시 [과거 교훈] 섹션 + bullet 렌더', async () => {
+    const { buildContentPrompt } = await import('../src/commands/content.js')
+    const p = buildContentPrompt({ what: 'x', lessons: ['(성공) 커뮤니티 글이 유입 1위'] })
+    expect(p).toContain('과거 교훈')
+    expect(p).toContain('- (성공) 커뮤니티 글이 유입 1위')
+  })
+
+  it('lessons 미주입·빈 배열이면 [과거 교훈] 섹션 생략', async () => {
+    const { buildContentPrompt } = await import('../src/commands/content.js')
+    expect(buildContentPrompt({ what: 'x' })).not.toContain('과거 교훈')
+    expect(buildContentPrompt({ what: 'x', lessons: [] })).not.toContain('과거 교훈')
+  })
+
+  it('하드리밋 — lessons 4개를 줘도 ≤3개만 렌더(프롬프트 비대 금지)', async () => {
+    const { buildContentPrompt } = await import('../src/commands/content.js')
+    const p = buildContentPrompt({ what: 'x', lessons: ['a1', 'b2', 'c3', 'd4'] })
+    expect(p).toContain('- a1')
+    expect(p).toContain('- c3')
+    expect(p).not.toContain('- d4')
+  })
+})

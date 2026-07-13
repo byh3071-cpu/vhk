@@ -212,10 +212,10 @@ vhk doctor
 | `vhk brief` | 프로젝트 요약 보고서 생성 |
 | `vhk loop-brief` | 루프 1틱 앵커 생성 (의도+goal1+교훈+STOP → `.vhk/loop-brief.md`) |
 | `vhk remind` | 치명 규칙 재주입 (RULES.md NON-NEGOTIABLE/Forbidden 압축 → `.vhk/remind.md`) |
-| `vhk content` | 콘텐츠 초안 프롬프트 생성 (풀사이클 뒷단 — 콘텐츠/마케팅 → `.vhk/content-prompt.md`) |
-| `vhk launch` | 런칭 게시물 프롬프트 생성 (풀사이클 뒷단 — 런칭 → `.vhk/launch-prompt.md`) · `ship`=코드 npm 배포와 구분 |
-| `vhk ops` | 운영 회고 프롬프트 생성 (풀사이클 뒷단 — 운영 → `.vhk/ops-prompt.md`) · 유지/피벗/아카이브 회고, 중단·삭제는 사람이 |
-| `vhk sell` | 판매 카피 프롬프트 생성 (풀사이클 뒷단 — 판매 → `.vhk/sell-prompt.md`) · 가격 페이지·FAQ 초안, 결제·과금은 사람이 |
+| `vhk content` | 콘텐츠 초안 프롬프트 생성 (풀사이클 뒷단 — 콘텐츠/마케팅 → `.vhk/content-prompt.md`) · 과거 교훈 ≤3 자동 회상 주입(#458) |
+| `vhk launch` | 런칭 게시물 프롬프트 생성 (풀사이클 뒷단 — 런칭 → `.vhk/launch-prompt.md`) · `ship`=코드 npm 배포와 구분 · 과거 교훈 ≤3 자동 회상 주입 + `vhk learn/win` 기록 지시(#458) |
+| `vhk ops` | 운영 회고 프롬프트 생성 (풀사이클 뒷단 — 운영 → `.vhk/ops-prompt.md`) · 유지/피벗/아카이브 회고, 중단·삭제는 사람이 · 과거 교훈 ≤3 자동 회상 주입 + `vhk learn/win` 기록 지시(#458) |
+| `vhk sell` | 판매 카피 프롬프트 생성 (풀사이클 뒷단 — 판매 → `.vhk/sell-prompt.md`) · 가격 페이지·FAQ 초안, 결제·과금은 사람이 · 과거 교훈 ≤3 자동 회상 주입(#458) |
 | `vhk work` | AI 작업 시작/이어하기 (+ handoff) |
 | `vhk goal` | Goal 단계별 미션 관리 |
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |

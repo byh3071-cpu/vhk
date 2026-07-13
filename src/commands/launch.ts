@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
+import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
 
 /**
  * goal 75 — 풀사이클 뒷단 둘째 트랙(launch). RFC 0052 §4·§5.
@@ -13,7 +14,11 @@ import { emitPrompt } from '../lib/emit-prompt.js'
 
 export interface LaunchInput {
   what?: string // 제품 한 줄 (VISION.md What)
+  lessons?: string[] // #458: 과거 교훈 회상 라인(≤3·각 1줄) — 없으면 섹션 생략
 }
+
+// #458: 런칭 관련 기억을 끌어올 고정 회상 쿼리(결정적 — LLM 0).
+const LAUNCH_RECALL_QUERY = '런칭 게시 발표 채널 홍보'
 
 /**
  * 런칭 게시물 초안 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
@@ -27,6 +32,7 @@ export function buildLaunchPrompt(input: LaunchInput): string {
     '[제품 한 줄]',
     what,
     '',
+    ...lessonsSectionLines(input.lessons ?? []),
     '[먼저 — 런칭 준비 체크리스트를 점검해 빠진 항목만 표로 알려주세요]',
     '- 도메인 연결 (랜딩 URL 확정)',
     '- 랜딩 페이지 (설명 + 명확한 CTA)',
@@ -44,6 +50,7 @@ export function buildLaunchPrompt(input: LaunchInput): string {
     '- 결과물 ≤3종(게시물 1 + 변형 묶음), X 변형은 280자 이하',
     '- 사람 승인 전에는 어디에도 게시·발송하지 마세요 (이 명령은 초안만 만듭니다)',
     '- 게시 전 보안 게이트(#457): 초안을 파일로 저장하고 `vhk secure scan <파일>` 을 실행 — CRITICAL/HIGH 0 확인 후에만 게시하세요',
+    '- 런칭 세션에서 배운 점·성공 패턴은 `vhk learn "<한 줄>"` / `vhk win "<한 줄>"` 으로 기록하세요 (다음 사이클 시작 시 자동 회상됨) — #458',
     '',
     '모든 응답은 한국어로.',
   ].join('\n')
@@ -64,7 +71,7 @@ export function launch(): void {
   console.log(chalk.bold('\n🚀 ' + t('launch.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildLaunchPrompt({ what: readVisionWhat() })
+  const prompt = buildLaunchPrompt({ what: readVisionWhat(), lessons: recallLessonLines(process.cwd(), LAUNCH_RECALL_QUERY) })
   emitPrompt(prompt, 'launch-prompt.md', '런칭 게시물 프롬프트')
 
   // 후속 트랙 vhk sell(goal 77)은 미구현 — command 힌트는 구현된 ops(76)까지만(댕글링 전방참조 금지).

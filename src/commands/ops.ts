@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { emitPrompt } from '../lib/emit-prompt.js'
+import { lessonsSectionLines, recallLessonLines } from '../lib/prompt-recall.js'
 
 /**
  * goal 76 — 풀사이클 뒷단 셋째 트랙(ops). RFC 0052 §4·§5.
@@ -13,7 +14,11 @@ import { emitPrompt } from '../lib/emit-prompt.js'
 
 export interface OpsInput {
   what?: string // 제품 한 줄 (VISION.md What)
+  lessons?: string[] // #458: 과거 교훈 회상 라인(≤3·각 1줄) — 없으면 섹션 생략
 }
+
+// #458: 운영 회고 관련 기억을 끌어올 고정 회상 쿼리(결정적 — LLM 0).
+const OPS_RECALL_QUERY = '운영 회고 피드백 사용자 유지 피벗'
 
 /**
  * 운영 회고·다음 결정 생성 프롬프트(순수·결정적). Fable5 프롬프트 위생 상속(goal 68/69):
@@ -27,6 +32,7 @@ export function buildOpsPrompt(input: OpsInput): string {
     '[제품 한 줄]',
     what,
     '',
+    ...lessonsSectionLines(input.lessons ?? []),
     '[먼저 — 운영 현황 체크리스트를 점검해 빠진 항목만 표로 알려주세요]',
     '- 피드백 채널 (수집 경로: 이메일·폼·커뮤니티 중 1곳 이상)',
     '- 최근 30일 사용자 수 (신규·활성, 모르면 "측정 안 됨"으로)',
@@ -35,6 +41,7 @@ export function buildOpsPrompt(input: OpsInput): string {
     '[그다음 — 초안만, 직접 실행 금지]',
     '1. 운영 회고 1편 (지난 30일: 잘된 것·문제·배운 것 각 1~2줄)',
     '2. 다음 결정 제안 — 유지 / 피벗 / 아카이브 중 1개 + 근거 + 다음 30일 액션 ≤3개',
+    '3. 회고의 교훈·성공을 기록 — 교훈은 `vhk learn "<한 줄>"`, 성공은 `vhk win "<한 줄>"` (≤3건, 다음 사이클 시작 시 자동 회상됨) — #458',
     '',
     '[규칙 — Fable5 위생]',
     '✅ 좋은 예: 사용자 수·피드백 같은 실제 신호에 근거한 결정',
@@ -61,7 +68,7 @@ export function ops(): void {
   console.log(chalk.bold('\n🛠️ ' + t('ops.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const prompt = buildOpsPrompt({ what: readVisionWhat() })
+  const prompt = buildOpsPrompt({ what: readVisionWhat(), lessons: recallLessonLines(process.cwd(), OPS_RECALL_QUERY) })
   emitPrompt(prompt, 'ops-prompt.md', '운영 회고 프롬프트')
 
   // sell(goal 77)로 체인 — content→launch→ops→sell 흐름 완성. 제품 중단·피벗·결제는 사람이 직접(헌법).

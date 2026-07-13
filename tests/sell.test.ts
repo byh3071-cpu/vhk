@@ -39,3 +39,27 @@ describe('sell — buildSellPrompt 순수함수 (goal 77)', () => {
     expect(p).toContain('❌')
   })
 })
+
+// #458: 과거 교훈 recall 주입 (누적 지시는 launch/ops — sell 은 회고 성격 아님)
+describe('sell — 과거 교훈 recall 주입 (#458)', () => {
+  it('lessons 주입 시 [과거 교훈] 섹션 + bullet 렌더', async () => {
+    const { buildSellPrompt } = await import('../src/commands/sell.js')
+    const p = buildSellPrompt({ what: 'x', lessons: ['(결정) 가격은 월 구독으로'] })
+    expect(p).toContain('과거 교훈')
+    expect(p).toContain('- (결정) 가격은 월 구독으로')
+  })
+
+  it('lessons 미주입·빈 배열이면 [과거 교훈] 섹션 생략', async () => {
+    const { buildSellPrompt } = await import('../src/commands/sell.js')
+    expect(buildSellPrompt({ what: 'x' })).not.toContain('과거 교훈')
+    expect(buildSellPrompt({ what: 'x', lessons: [] })).not.toContain('과거 교훈')
+  })
+
+  it('하드리밋 — lessons 4개를 줘도 ≤3개만 렌더(프롬프트 비대 금지)', async () => {
+    const { buildSellPrompt } = await import('../src/commands/sell.js')
+    const p = buildSellPrompt({ what: 'x', lessons: ['a1', 'b2', 'c3', 'd4'] })
+    expect(p).toContain('- a1')
+    expect(p).toContain('- c3')
+    expect(p).not.toContain('- d4')
+  })
+})
