@@ -3,6 +3,8 @@
 # LF 고정으로 차단.
 *.mjs text eol=lf
 *.sh text eol=lf
+# 확장자 없는 git 훅 shim(#!/bin/sh) — CRLF 셔뱅은 sh 를 깨뜨림. 명시 LF 고정.
+.githooks/commit-msg text eol=lf
 
 # .vhk/events/*.jsonl = append-only 증거 원장(action-ledger·diff-cover·receipt-log).
 # 멀티PC 양쪽이 각자 append 후 분기 시 라인 단위로 양쪽 줄 보존(충돌 대신 union 머지).
