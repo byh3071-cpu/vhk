@@ -14,6 +14,7 @@ import { RFC_README_TEMPLATE, PATTERNS_README_TEMPLATE } from '../templates/docs
 import { CUSTOMIZATION_HOOK_TEMPLATE } from '../templates/customization-hook.js'
 import { RECORD_CHECK_TEMPLATE } from '../templates/record-hook.js'
 import { installRecordCommitMsgHook } from '../lib/record-hook.js'
+import { ensureCursorSessionStartHook } from '../lib/cursor-hooks.js'
 import { COMMANDS_MD_TEMPLATE } from '../templates/commands-md.js'
 import { VHK_README_TEMPLATE, VHK_CONTEXT_SEED, VHK_GITIGNORE_TEMPLATE, VHK_GITATTRIBUTES_TEMPLATE, VHK_IGNORE_TEMPLATE } from '../templates/vhk-dir.js'
 import { ko } from '../i18n/ko.js'
@@ -522,6 +523,17 @@ async function writeInitExtras(projectDir: string, noninteractive = false) {
   const hookResult = ensureSessionStartHook(projectDir)
   if (hookResult === 'created' || hookResult === 'merged') {
     log.success(ko.init.customizationHookWired)
+  }
+
+  // RFC 0057 §7 — Cursor 세션시작 훅(에이전트 불가지론). 같은 customization-check.mjs 를 --format cursor 로.
+  // 선택 기능·fail-soft — 실패해도 init 중단 안 함(SessionStart 훅과 동일 방어).
+  try {
+    const cursorHook = ensureCursorSessionStartHook(projectDir)
+    if (cursorHook === 'created' || cursorHook === 'merged') {
+      log.success(ko.init.cursorHookWired)
+    }
+  } catch (e) {
+    log.warn(`${ko.init.cursorHookFailed} ${e instanceof Error ? e.message : String(e)}`)
   }
 
   // RFC 0061 T1 — 기록 집행 커밋훅. git 이 실행하는 훅이라 도구 불가지론(어떤 에이전트 커밋도 잡음).
