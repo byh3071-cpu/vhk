@@ -15,6 +15,7 @@
 > Contract SoT: private-rules-repository `memory/core/ecosystem-contract.yaml` (obey when status=active).
 
 - **Tier:** private-rules-repository `memory/core/inheritance-registry.yaml`
+- **Roster:** private-rules-repository `memory/core/agent-roster.yaml` (CLI·모델·effort; obey when active)
 - **Cursor:** `.cursor/rules/ecosystem.mdc` (vhk inject-bootstrap)
 - **금지:** AGENTS.md 손수 편집 → `RULES.md` + `vhk sync`
 
