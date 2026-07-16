@@ -130,11 +130,12 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     expect(out).toContain('agent-compact.md')
   })
 
-  it('agentsMdEcosystemBlock — contract SoT + tier + 금지 3줄', () => {
+  it('agentsMdEcosystemBlock — contract SoT + tier + roster + 금지', () => {
     const block = agentsMdEcosystemBlock().join('\n')
     expect(block).toContain('status=active')
     expect(block).toContain('inject-bootstrap')
     expect(block).toContain('vhk sync')
+    expect(block).toContain('agent-roster.yaml')
   })
 
   it('agentsMdEcosystemBlock — rootDir 에 ecosystem.mdc 없으면 빈 배열 (#468)', () => {

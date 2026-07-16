@@ -402,6 +402,7 @@ export function agentsMdEcosystemBlock(rootDir?: string): string[] {
     '> Contract SoT: yohan-brain `memory/core/ecosystem-contract.yaml` (obey when status=active).',
     '',
     '- **Tier:** yohan-brain `memory/core/inheritance-registry.yaml`',
+    '- **Roster:** yohan-brain `memory/core/agent-roster.yaml` (CLI·모델·effort; obey when active)',
     '- **Cursor:** `.cursor/rules/ecosystem.mdc` (vhk inject-bootstrap)',
     '- **금지:** AGENTS.md 손수 편집 → `RULES.md` + `vhk sync`',
     '',
