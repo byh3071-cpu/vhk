@@ -1,0 +1,29 @@
+name: 💡 기능 제안
+description: VHK에 있었으면 하는 것
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 어떤 상황이 불편한가요?
+      description: 기능 이름보다 "겪는 문제"를 적어주시면 더 좋은 답이 나옵니다.
+      placeholder: "세션을 넘길 때마다 ...를 매번 손으로 하고 있어요"
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 바라는 동작
+      placeholder: "vhk ~~ 한 번으로 ..."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 지금은 어떻게 우회하고 있나요? (선택)
+  - type: textarea
+    id: stats
+    attributes:
+      label: "`vhk stats` 출력 (선택)"
+      description: 실사용 맥락이 우선순위 판단에 도움됩니다.
+      render: text

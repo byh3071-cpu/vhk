@@ -22,3 +22,16 @@ Windows 로컬에서 `pnpm test:run`(또는 `vhk verify`) 시 6 파일 7 테스�
 ## 우회 (로컬 개발자)
 실패가 의심되면 **소수 파일 단독 실행**: `pnpm exec vitest run tests/<file>.test.ts`.
 단독 통과 = forks 동시성 탓(코드 OK). **CI 매트릭스가 진실원** — 로컬 빨강 ≠ 코드 결함.
+
+## 2026-07-18 악화 재발 관찰 (vitest 4.1.7)
+
+- 증상 격화: 115 테스트 파일이 `Worker exited unexpectedly` — **단독 실행도 크래시**(atomic-write·adr·check 등.
+  TS-004 원판에선 단독 통과였음). version-sync 등 일부는 여전히 통과(전체 106/221 파일 green).
+- 결정 증거: `--pool=threads` 로 돌리면 본체가 exit **-1073740791(0xC0000409, STATUS_STACK_BUFFER_OVERRUN)**
+  = 네이티브 fast-fail. OS 크래시 이벤트 없음(프로세스 자체 종료).
+- 무효였던 처방: vite 캐시 제거 · `pnpm rebuild` · node_modules 전체 재설치. NODE_OPTIONS 오염 없음,
+  순수 node spawn 정상, node.exe는 1월 설치분 그대로.
+- 격리: scratchpad 최소 프로젝트(vitest 4.1.7 + TS config)는 통과 → **vhk 레포 import 체인 한정**.
+  main 체크아웃에서도 동일 재현 = 작업 변경과 무관한 선재 결함.
+- 판정: 원판 교리 유지 — **CI 매트릭스(green)가 진실원**. 로컬 원인 후보는 vitest 4.x rolldown/esbuild
+  네이티브 × 이 머신 조합. 후속: vitest patch 갱신 시 재확인, 빈발 시 pool/isolate 설정 실험.
