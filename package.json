@@ -21,7 +21,8 @@
     "scan": "vhk secure scan",
     "recap": "vhk recap",
     "ship": "vhk ship",
-    "doctor": "vhk doctor"
+    "doctor": "vhk doctor",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "files": [
     "dist",

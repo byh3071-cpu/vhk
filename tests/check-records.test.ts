@@ -283,3 +283,81 @@ describe('check-records e2e — 실제 staged + hook stdin', () => {
     fs.rmSync(repo, { recursive: true, force: true })
   })
 })
+
+// ─── goal 65: commit-msg 훅 모드 (도구 무관 기록 집행 백스톱) ──────────────────
+/** commit-msg 훅으로 게이트 실행 → exit code. 메시지 파일을 넘긴다(git 이 $1 로 주는 것과 동일). */
+function runCommitMsg(repo: string, message: string): number {
+  const msgFile = path.join(repo, '.git', 'COMMIT_EDITMSG')
+  fs.writeFileSync(msgFile, message, 'utf-8')
+  try {
+    execFileSync('node', [SCRIPT, '--commit-msg-file', msgFile], { cwd: repo, encoding: 'utf-8', stdio: 'pipe' })
+    return 0
+  } catch (e) {
+    return (e as { status?: number }).status ?? -1
+  }
+}
+
+describe('check-records commit-msg 모드 — --commit-msg-file (goal 65)', () => {
+  it('코드 스테이지 + devlog 없음 → exit 2 (차단)', () => {
+    const repo = makeRepo()
+    stage(repo, 'src/commands/foo.ts')
+    expect(runCommitMsg(repo, 'feat: x')).toBe(2)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('코드 + 오늘 devlog 스테이지 → exit 0', () => {
+    const repo = makeRepo()
+    stage(repo, 'src/commands/foo.ts')
+    stage(repo, `docs/log/${localToday()}-work.md`)
+    expect(runCommitMsg(repo, 'feat: x')).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('[skip-record] 를 메시지 파일 내용에서 인식 → exit 0 (핵심: 파일경로 아님)', () => {
+    const repo = makeRepo()
+    stage(repo, 'src/lib/foo.ts')
+    expect(runCommitMsg(repo, 'chore: tiny\n\n[skip-record]')).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('문서만 변경 → exit 0', () => {
+    const repo = makeRepo()
+    stage(repo, 'docs/adr/ADR-009-x.md')
+    expect(runCommitMsg(repo, 'docs: x')).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('merge 진행 중(MERGE_HEAD)이면 로그 없는 코드여도 exit 0 (화이트리스트 — MERGE_HEAD 갇힘 방지)', () => {
+    const repo = makeRepo()
+    stage(repo, 'src/commands/foo.ts') // 코드 staged, devlog 없음 = 평소엔 차단
+    fs.writeFileSync(path.join(repo, '.git', 'MERGE_HEAD'), '0'.repeat(40) + '\n')
+    expect(runCommitMsg(repo, "Merge branch 'x'")).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('메시지 파일 부재 → exit 0 (fail-open)', () => {
+    const repo = makeRepo()
+    stage(repo, 'src/commands/foo.ts')
+    let status = 0
+    try {
+      execFileSync('node', [SCRIPT, '--commit-msg-file', path.join(repo, '.git', 'NOPE')], {
+        cwd: repo,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      })
+    } catch (e) {
+      status = (e as { status?: number }).status ?? -1
+    }
+    expect(status).toBe(0)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+
+  it('HARD_STOP 활성 → exit 2 (우회 토큰보다 먼저)', () => {
+    const repo = makeRepo()
+    stage(repo, 'docs/x.md')
+    fs.mkdirSync(path.join(repo, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(repo, '.vhk/HARD_STOP'), '')
+    expect(runCommitMsg(repo, 'docs: x [skip-record]')).toBe(2)
+    fs.rmSync(repo, { recursive: true, force: true })
+  })
+})

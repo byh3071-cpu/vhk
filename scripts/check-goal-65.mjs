@@ -53,8 +53,15 @@ if (!skipDeep) {
 }
 
 // ─── goal 65 고유 검증 (직접 추가) ───────────────────────────────
-// const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
-// must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
+// DoD: 도구 무관 기록 집행 커밋훅(commit-msg) 배선 — 우회 경로 0(RFC 0061 record-net 자가적용).
+const read = (p) => (existsSync(p) ? readFileSync(p, 'utf-8') : null)
+const shim = read('.githooks/commit-msg')
+must(shim?.includes('check-records.mjs') && shim?.includes('--commit-msg-file'), '.githooks/commit-msg → check-records --commit-msg-file 호출')
+const cr = read('scripts/check-records.mjs')
+must(cr?.includes('--commit-msg-file') && cr?.includes('commitMsgMode'), 'check-records 에 commit-msg 모드 존재')
+must(cr?.includes('MERGE_HEAD'), 'merge/rebase 화이트리스트(MERGE_HEAD 갇힘 방지)')
+must(/\[skip-record\]/.test(cr ?? ''), '[skip-record] 우회 경로 유지')
+must(scripts['hooks:install']?.includes('core.hooksPath'), 'package.json hooks:install = core.hooksPath 활성')
 
 if (pass) { console.log('✅ goal 65 gate passes'); process.exit(0) }
 console.log('❌ goal 65 gate failed'); process.exit(1)
