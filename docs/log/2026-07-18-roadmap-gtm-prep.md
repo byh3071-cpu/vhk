@@ -36,3 +36,9 @@ quickstart는 이미 README 90행에 존재 — 로드맵 스펙(07-13)이 낡�
 - build ✅ · lint ✅(exit 0) · test = **로컬 환경 결함으로 실행 불가** — TS-004 악화 재발
   (vitest 워커 0xC0000409, main에서도 동일 재현 = 본 변경과 무관 선재). 변경은 docs/.github뿐이라
   코드 표면 0. **최종 게이트 = PR CI** (TS-004 교리: CI 매트릭스가 진실원).
+
+## 세션 마감 (append)
+
+- PR #509 머지(4f3e714) — CI 4매트릭스+dogfood 2종+CodeQL+CodeRabbit 전부 green(windows pass = 로컬 크래시 환경 결함 재확증). 브랜치 정리 완료.
+- 상태문서 마감 갱신: next-task(AI 큐 빈 상태)·LIVE·roadmap(Phase 2 = 게시만 잔여).
+- 다음 세션: 사람 큐(PR #505·#504 검토 → G3 육안 → GTM 게시 판단) 소화가 임계경로. AI는 게시 후 Phase 4 판정 재료 누적.

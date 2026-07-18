@@ -153,6 +153,6 @@ tags: [process, constitution]
 - **테스트:** 사실값은 package.json·CHANGELOG · **MCP tools:** 사실값은 package.json·CHANGELOG
 - **Phase:** Phase 0 ✅·2 코어 ✅(잔여 GTM). #455 close·T6(#502)·#464/#461 머지 — 로드맵 07-18 실측 정합 완료. 사이드 = Orca ADE 탭 스크롤 PR #8968 OPEN(대기).
 - **블로커:** 외부의존 2건 유지(blockers.md — [skip-hardstop]). 진행 차단 아님.
-- **진행 중(미완):** GTM 준비물 3종(quickstart·적발 데모·이슈템플릿) AI 개발 중. 사람 = PR #505·#504 검토, G3 육안, GTM 게시 판단.
-- **다음 할 일:** SoT = [docs/state/next-task.md](docs/state/next-task.md) 최상단. GTM 준비 완료 후 Phase 4 판정 대기.
+- **진행 중(미완):** AI 큐 빈 상태 — GTM AI 준비분 완료(#509 머지). 사람 = PR #505·#504 검토, G3 육안, GTM 게시 판단(Show HN·블로그), SEO 키.
+- **다음 할 일:** SoT = [docs/state/next-task.md](docs/state/next-task.md) 최상단. 사람 큐 소화 → 게시 1회 집행 → Phase 4 판정. 로컬 vitest 크래시는 TS-004 참조(CI가 진실원).
 - **주의:** publish는 main에서만(#119) / PR 경유 / `pnpm lint` 필수 / worktree 병합 직전 브랜치 재확인 / 동시세션 docs/state 충돌 주의
