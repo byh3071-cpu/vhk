@@ -17,7 +17,7 @@
 // - fail-open: 게이트 자체 버그/손상 hook 페이로드는 exit 0 (작업을 못 막음).
 //   의도된 누락만 fail-closed. 알려진 한계(vhk save·MCP 경유 커밋, cd 후 worktree 커밋의
 //   cwd 불일치)는 ADR-001 §결과 참조 — pre-commit L2 재검토 트리거.
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { isMainModule, unquoteGitPath, porcelainPath, hardStopActive } from './_lib.mjs'
 
@@ -193,7 +193,63 @@ function collectFiles(commandText, cPath) {
   return staged
 }
 
+/** git 메타경로(MERGE_HEAD 등) 존재 확인 — worktree(.git 파일)에서도 올바른 경로. */
+function gitMetaExists(marker) {
+  try {
+    return existsSync(gitRaw(['rev-parse', '--git-path', marker], null).trim())
+  } catch {
+    return false
+  }
+}
+
+/**
+ * commit-msg 훅 모드 (goal 65 — 도구 무관 기록 집행 백스톱).
+ * git 이 커밋 메시지 파일 경로를 $1 로 넘긴다. git 은 commit 시에만 이 훅을 호출하므로
+ * "커밋인가" 판정이 불필요하고, staged 는 이미 최종 확정(add 체인 합산 불필요).
+ * Claude 는 PreToolUse 가 먼저 잡으므로 이 훅은 비-Claude(Cursor/Codex/터미널) 커밋 +
+ * PreToolUse 의 worktree cwd 불일치(파일 헤더 한계) 백스톱 — 훅은 항상 repo root 에서 실행됨.
+ * 차단 exit 2 (git 훅은 비0 이면 커밋 중단).
+ */
+function commitMsgMode(msgPath) {
+  // 자동화 전면 중단 — 우회 토큰보다 먼저.
+  if (hardStopActive()) {
+    console.error('[check-records BLOCK] .vhk/HARD_STOP 활성 — 자동 커밋 중단. 해제는 vhk resume --confirm (사람).')
+    process.exit(2)
+  }
+  // merge/cherry-pick/revert/rebase 진행 중이면 새 세션일지가 없는 게 정상 — 차단하면 사용자가
+  // MERGE_HEAD 걸린 중간 상태에 갇힌다(RFC 0061 record-check 와 동일 화이트리스트). commit-msg 는
+  // PreToolUse 와 달리 merge 커밋에도 발동하므로 이 가드가 필수.
+  for (const m of ['MERGE_HEAD', 'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'REBASE_HEAD', 'rebase-merge', 'rebase-apply']) {
+    if (gitMetaExists(m)) process.exit(0)
+  }
+  let msg = ''
+  try {
+    msg = readFileSync(msgPath, 'utf-8')
+  } catch {
+    process.exit(0) // 메시지 파일 못 읽음 — fail-open
+  }
+  const staged = gitRaw(['diff', '--cached', '--name-only'], null)
+    .split(/\r?\n/)
+    .map((l) => unquoteGitPath(l.trim()))
+    .filter(Boolean)
+  // [skip-record] 는 msg 내용에서 판정(evaluateRecords 가 commandText.includes 로 처리).
+  const verdict = evaluateRecords({ stagedFiles: staged, commandText: msg, today: localToday() })
+  if (verdict.ok) process.exit(0)
+  // 알려진 한계: amend 완화 없음 — 이미 로그가 든 커밋을 amend 하면 오차단될 수 있으나 [skip-record]
+  // 로 우회 가능하고, 이 레포는 amend 지양 관행이라 수용(RFC 0061 record-check 는 HEAD 완화 보유).
+  console.error(`[check-records BLOCK] ${verdict.reason}`)
+  for (const f of verdict.codeFiles ?? []) console.error(`  - ${f}`)
+  process.exit(2)
+}
+
 function main() {
+  // commit-msg 훅($1=메시지파일)은 별도 경로 — stdin/커밋감지 로직을 타지 않는다.
+  const msgFileIdx = process.argv.indexOf('--commit-msg-file')
+  if (msgFileIdx >= 0) {
+    commitMsgMode(process.argv[msgFileIdx + 1])
+    return
+  }
+
   // stdin 은 --hook 모드에서만 읽는다 — 비-TTY 인데 stdin 이 안 닫힌 환경(파이프라인·셸 래퍼)
   // 에서 readFileSync(0) 가 무한 블록되는 행 방지(라이브 실측). hook 등록(.claude/settings.json)
   // 이 --hook 을 넘기고, Claude Code 는 페이로드 후 stdin 을 닫으므로 hook 경로는 안전.
