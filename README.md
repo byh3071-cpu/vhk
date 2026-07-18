@@ -145,6 +145,29 @@ vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale
 vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
 ```
 
+#### 거짓완료 적발 데모 — 실제 출력
+
+AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 깨져 있고 커밋도 안 한 상황.
+`vhk receipt` 한 번이면 기계증거로 잡힙니다 (2026-07-18 실캡처):
+
+```text
+🧾 증거 영수증 (receipt)
+────────────────────────────────────────────
+  판정: 🔴 BLOCK
+  HEAD: adb79f9  ·  작업시작: adb79f9  ·  게이트: FAIL
+
+   • 게이트 실패(실종료코드 ≠ 0): test — red
+   • working tree 가 dirty — 미커밋/untracked 변경 있음(자기파일 제외 후에도)
+
+  📄 영수증: .vhk\receipts\2026-07-18-block-025956.json
+
+  🔴 기계증거가 "됐어요"와 모순 — 아직 완료 아님.
+```
+
+30초 재현: 아무 프로젝트에서 `vhk receipt --mark-start` → 코드 수정(커밋 X, 테스트 깨진 채) → `vhk receipt`.
+판정은 종료코드·git dirty·SHA 같은 기계증거 기반이며 LLM 추론이 아닙니다 — 그래서 "그럴듯한 말"에 안 속습니다.
+(한계도 정직하게: 게으른 거짓완료를 잡는 도구지, 그럴듯하게 틀린 코드까지 잡지는 못합니다.)
+
 ### 4. 기억·패턴·자가진화 — 쓸수록 이 개발자에게 최적화
 
 세션마다 도메인·맥락·의도·교훈이 `.vhk/memory.json`(repo-local)에 쌓이고, 그게 다시 규칙으로 승격돼 에이전트에 주입됩니다. 어떤 에이전트를 써도 프로젝트 맥락을 점점 더 정확히 이해하게 됩니다.
