@@ -1,0 +1,53 @@
+name: 🐛 버그 리포트
+description: VHK가 기대와 다르게 동작할 때
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        재현만 되면 대부분 빨리 고칩니다. 아래 세 칸이 핵심이에요.
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 증상
+      description: 무엇이 잘못됐나요? 에러 메시지는 그대로 붙여주세요.
+      placeholder: "vhk sync 실행 시 ..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 재현 순서
+      description: 같은 상황을 만들 수 있는 최소 명령 순서.
+      placeholder: |
+        1. vhk init -y
+        2. vhk sync
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대한 동작
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`vhk doctor` 출력 (선택이지만 큰 도움)"
+      description: 환경 정보가 한 번에 담깁니다. 터미널에서 `vhk doctor` 실행 후 붙여넣기.
+      render: text
+  - type: textarea
+    id: stats
+    attributes:
+      label: "`vhk stats` 출력 (선택)"
+      description: 사용 패턴이 원인 추적에 도움될 때가 있습니다. 민감정보는 지우고 붙여주세요.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: VHK 버전
+      description: "`vhk --version`"
+      placeholder: "2.11.0"
+    validations:
+      required: true
