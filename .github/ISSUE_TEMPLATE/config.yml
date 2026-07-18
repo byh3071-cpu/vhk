@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 사용법 문서
+    url: https://github.com/byh3071-cpu/vhk#readme
+    about: 명령 전체·30초 시작·핵심 루프는 README에 있습니다.
