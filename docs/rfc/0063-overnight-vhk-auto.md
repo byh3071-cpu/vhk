@@ -16,6 +16,7 @@ relates: 0054, 0052
 
 1. `.claude/skills/vhk-auto`의 **INV-7 유지** — goal 루프 안에서는 commit만.
 2. **overnight-vhk-auto**(스킬+런북)는 verify green + commit **이후**에만 `scripts/auto_pr_goal.ps1`을 `BaseBranch=main`으로 호출할 수 있다.
+   래퍼는 commit 직후 **clean tree + unpushed**(origin/base 대비 ahead)여도 push+PR 한다(push-only 경로).
 3. **머지 = 0** — 사람만, 아침 체크리스트 경유.
 4. autonomy-log start/종결(INV-9) 누락 → **HARD_STOP**, 그날 밤 중단.
 5. 런 중 사람에게 A/B/C 묻지 않음 — 플랜 기본값 사용.
@@ -35,7 +36,7 @@ for goal in queue:
   mark IN_PROGRESS
   run vhk-auto contract for that goal
   require autonomy-log start + terminal event
-  if green+commit: auto_pr_goal.ps1 -BaseBranch main (no merge)
+  if green+commit: auto_pr_goal.ps1 -BaseBranch main (clean+unpushed => push-only; no merge)
   else: HARD_STOP / blocked → stop
 ```
 
