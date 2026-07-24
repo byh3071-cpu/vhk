@@ -20,9 +20,9 @@ leads_to: 아침 머지 3문답 전 요약(PR URL · runId · counts)
 - 필드: PR URL, runId, complete/hardstop/blocked 카운트
 
 ## Completion Check
-- [ ] 헬퍼/템플릿 존재
-- [ ] check-goal-103 통과
-- [ ] 공통 게이트
+- [x] 헬퍼/템플릿 존재 (`gen-autonomy-morning-report` + TEMPLATE)
+- [x] check-goal-103 통과
+- [x] 공통 게이트
 
 ## Mandatory Reading
 - `docs/runbooks/MORNING_AUTONOMY_MERGE.md` · autonomy-log

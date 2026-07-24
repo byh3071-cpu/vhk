@@ -22,10 +22,10 @@ PR만 연다. overnight-autoloop(결함루프)와 혼용 금지.
 - 런북과 교차 링크
 
 ## Completion Check
-- [ ] `.claude/skills/overnight-vhk-auto/SKILL.md` 존재 + INV-7/머지금지/HARD_STOP
-- [ ] 런북 교차 링크
-- [ ] check-goal-102 통과
-- [ ] 공통 게이트 (_meta)
+- [x] `.claude/skills/overnight-vhk-auto/SKILL.md` 존재 + BaseBranch main / 머지 금지 / HARD_STOP
+- [x] 런북 교차 링크
+- [x] check-goal-102 통과
+- [x] 공통 게이트 (_meta)
 
 ## Mandatory Reading
 - RFC 0063 · `docs/runbooks/overnight-vhk-auto.md` · vhk-auto SKILL

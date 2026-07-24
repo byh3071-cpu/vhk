@@ -62,8 +62,9 @@ if (!skipDeep) {
 }
 
 // ─── goal 101 고유 검증 (직접 추가) ───────────────────────────────
-// 레포 SoT INV-9 + 로드맵 SoT 문구 + (가능하면) 글로벌 복제본 INV-9.
+// 레포 SoT ↔ 글로벌 복제본 내용 동일(INV-9 문자열만으로는 부족).
 const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
+const normalizeSkill = (s) => (s ?? '').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
 
 const repoSkill = read('.claude/skills/vhk-auto/SKILL.md')
 must(repoSkill?.includes('INV-9'), 'repo vhk-auto/SKILL.md 에 INV-9')
@@ -79,7 +80,10 @@ const home = process.env.USERPROFILE || process.env.HOME
 if (home) {
   const globalSkill = read(join(home, '.claude', 'skills', 'vhk-auto', 'SKILL.md'))
   must(!!globalSkill, '글로벌 ~/.claude/skills/vhk-auto/SKILL.md 존재')
-  must(globalSkill?.includes('INV-9'), '글로벌 vhk-auto SKILL.md 에 INV-9 동기화')
+  must(
+    normalizeSkill(globalSkill) === normalizeSkill(repoSkill),
+    '글로벌 vhk-auto SKILL.md 가 레포 SoT 와 내용 동일(복사 동기화)'
+  )
 } else {
   console.log('    · HOME/USERPROFILE 없음 — 글로벌 동기화 검사 스킵')
 }

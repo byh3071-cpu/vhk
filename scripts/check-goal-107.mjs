@@ -61,6 +61,7 @@ if (!skipDeep) {
 }
 
 // ─── goal 107 고유 검증 (직접 추가) ───────────────────────────────
+// Wave B NOT_STARTED: custom must() 금지 — goal-drift. 도그푸딩 착수 시 추가.
 // const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
 // must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
 

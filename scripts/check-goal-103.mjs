@@ -66,14 +66,19 @@ const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
 const lib = read('src/lib/autonomy-morning-report.ts')
 must(lib?.includes('export function renderAutonomyMorningReport'), 'renderAutonomyMorningReport export')
 must(lib?.includes('export function countAutonomyEvents'), 'countAutonomyEvents export')
+must(lib?.includes('export function isValidReportDate'), 'isValidReportDate export')
+must(lib?.includes('export function filterEntriesByDate'), 'filterEntriesByDate export')
 must(/PR URL|prUrl/.test(lib ?? ''), '리포트에 PR URL 필드')
 must(/complete/.test(lib ?? '') && /hardstop/.test(lib ?? '') && /blocked/.test(lib ?? ''), 'complete/hardstop/blocked 카운트')
 
-must(existsSync('scripts/gen-autonomy-morning-report.mjs'), 'gen-autonomy-morning-report.mjs 헬퍼')
+const helper = read('scripts/gen-autonomy-morning-report.mjs')
+must(!!helper, 'gen-autonomy-morning-report.mjs 헬퍼')
+must(/YYYY-MM-DD|\\d\{4\}-\\d\{2\}-\\d\{2\}/.test(helper ?? ''), '헬퍼가 --date YYYY-MM-DD 검증')
 must(existsSync('docs/audits/autonomy-overnight-TEMPLATE.md'), 'audits 템플릿')
 
 const test = read('tests/autonomy-stats.test.ts')
 must(/renderAutonomyMorningReport/.test(test ?? ''), 'morning report 테스트 커버')
+must(/filterEntriesByDate|isValidReportDate/.test(test ?? ''), 'date/day-filter 테스트 커버')
 
 if (pass) { console.log('✅ goal 103 gate passes'); process.exit(0) }
 console.log('❌ goal 103 gate failed'); process.exit(1)

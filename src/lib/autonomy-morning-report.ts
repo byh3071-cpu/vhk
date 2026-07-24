@@ -1,8 +1,3 @@
-/**
- * Goal 103: build morning autonomy overnight report markdown (pure).
- * Sample counts from autonomy-run.jsonl; PR URL supplied by caller (wrapper).
- */
-
 import type { AutonomyRunEntry } from './autonomy-log.js'
 
 export interface AutonomyMorningCounts {
@@ -18,6 +13,18 @@ export interface AutonomyMorningReportInput {
   prUrl?: string
   entries: AutonomyRunEntry[]
   notes?: string
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+export function isValidReportDate(date: string): boolean {
+  return DATE_RE.test(date)
+}
+
+/** Keep entries whose ts starts with YYYY-MM-DD (UTC date prefix). */
+export function filterEntriesByDate(entries: AutonomyRunEntry[], date: string): AutonomyRunEntry[] {
+  if (!isValidReportDate(date)) return []
+  return entries.filter((e) => typeof e.ts === 'string' && e.ts.startsWith(date))
 }
 
 export function countAutonomyEvents(entries: AutonomyRunEntry[]): AutonomyMorningCounts {
@@ -36,9 +43,9 @@ export function countAutonomyEvents(entries: AutonomyRunEntry[]): AutonomyMornin
   return { starts, complete, hardstop, blocked, runIds: [...runIdSet] }
 }
 
-/** Render markdown for docs/audits/autonomy-overnight-<date>.md */
 export function renderAutonomyMorningReport(input: AutonomyMorningReportInput): string {
-  const c = countAutonomyEvents(input.entries)
+  const dayEntries = filterEntriesByDate(input.entries, input.date)
+  const c = countAutonomyEvents(dayEntries)
   const pr = input.prUrl?.trim() ? input.prUrl.trim() : '(none — not opened yet)'
   const runIds = c.runIds.length > 0 ? c.runIds.map((id) => `- \`${id}\``).join('\n') : '- (none)'
   const notes = input.notes?.trim() ? input.notes.trim() : '(none)'

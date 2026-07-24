@@ -61,6 +61,8 @@ if (!skipDeep) {
 }
 
 // ─── goal 105 고유 검증 (직접 추가) ───────────────────────────────
+// Wave B NOT_STARTED: custom must() 금지 — goal-drift(NOT_STARTED+must=드리프트).
+// ADR 착수(IN_PROGRESS/DONE) 때 산출물 must() 추가.
 // const read = (p) => existsSync(p) ? readFileSync(p, 'utf-8') : null
 // must(read('src/foo.ts')?.includes('bar'), 'foo.ts 에 bar 존재')
 

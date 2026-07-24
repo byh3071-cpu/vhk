@@ -21,10 +21,10 @@ goal 99가 스키마만 DONE. stats에 읽기전용 완주율 섹션이 없으�
 - `vhk stats` / `--trend` 에 자율 완주율 섹션
 
 ## Completion Check
-- [ ] calcAutonomyStats + 테스트
-- [ ] stats 렌더
-- [ ] check-goal-104 통과
-- [ ] 공통 게이트
+- [x] calcAutonomyStats + 테스트
+- [x] stats / `--trend` 렌더 (receipt 0이어도 자율 섹션)
+- [x] check-goal-104 통과
+- [x] 공통 게이트
 
 ## Mandatory Reading
 - `src/lib/autonomy-log.ts` · `src/commands/stats.ts` · roadmap Wave C

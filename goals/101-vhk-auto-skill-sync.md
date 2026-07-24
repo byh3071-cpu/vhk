@@ -22,9 +22,9 @@ leads_to: overnight conductor(102)가 INV-9 누락 글로벌 스킬로 돌지 �
 - 로드맵/런북에 "스킬 SoT=레포, 글로벌=복제본" 1줄 유지
 
 ## Completion Check
-- [ ] 글로벌 SKILL.md 에 INV-9 문자열 존재
-- [ ] check-goal-101 통과
-- [ ] 공통 게이트 (goals/_meta.md)
+- [x] 글로벌 SKILL.md 가 레포 SoT 와 내용 동일(INV-9 포함)
+- [x] check-goal-101 통과
+- [x] 공통 게이트 (goals/_meta.md)
 
 ## Mandatory Reading
 - `.claude/skills/vhk-auto/SKILL.md` · `docs/roadmap/autonomy-evolution.md`

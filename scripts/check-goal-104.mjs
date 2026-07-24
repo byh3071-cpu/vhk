@@ -68,6 +68,10 @@ must(statsTs?.includes('export function calcAutonomyStats'), 'calcAutonomyStats 
 must(/readAutonomyLog/.test(statsTs ?? ''), 'stats 가 readAutonomyLog 사용')
 must(/renderAutonomyStats/.test(statsTs ?? ''), 'renderAutonomyStats 렌더')
 must(/completionRate:\s*starts === 0 \? null/.test(statsTs ?? '') || /starts === 0 \? null/.test(statsTs ?? ''), '표본 0 → completionRate null')
+must(
+  /if \(tr\.total === 0\)[\s\S]{0,400}renderAutonomyStats/.test(statsTs ?? ''),
+  'renderTrend 이 receipt 0 early-return 전에도 renderAutonomyStats 호출'
+)
 
 const koTs = read('src/i18n/ko.ts')
 must(koTs?.includes('autonomyTitle'), 'ko.ts stats.autonomyTitle')
