@@ -9,7 +9,7 @@ One goal per invocation. **Different track from overnight-autoloop** (do not mix
 
 ## Invariants
 - **INV-A** Follow `.claude/skills/vhk-auto/SKILL.md` INV-1..INV-9 for the implement loop. Commit only inside that loop (INV-7).
-- **INV-B** After green verify + commit, you MAY call `C:\Users\Public\dev\scripts\auto_pr_goal.ps1` with `-BaseBranch main` for push+PR. **Merge = 0.**
+- **INV-B** After green verify + commit, you MAY call `C:\Users\Public\dev\scripts\auto_pr_goal.ps1` with `-BaseBranch main` for push+PR. **Merge = 0.** Wrapper supports **clean tree + unpushed commits** (push-only path after vhk-auto commit); do not expect dirty porcelain.
 - **INV-C** If autonomy-log start or terminal event is missing → write `.vhk/HARD_STOP` and stop.
 - **INV-D** No human A/B/C questions — use `docs/roadmap/autonomy-evolution.md` defaults.
 - **INV-E** Stop on HARD_STOP, verify 2× red, or open PR reported.
@@ -18,9 +18,9 @@ One goal per invocation. **Different track from overnight-autoloop** (do not mix
 0. If `.vhk/HARD_STOP` exists → report and exit.
 1. Choose next **NOT_STARTED** card (Wave B: 105→107, or later queue). Do **not** re-run DONE Wave A (101–104). Set frontmatter `IN_PROGRESS`.
 2. Run **vhk-auto** loop for that card (including INV-9 autonomy-log).
-3. On success (commit done):  
+3. On success (commit done; working tree may be clean):  
    `powershell -NoProfile -File C:\Users\Public\dev\scripts\auto_pr_goal.ps1 -RepoPath "C:\Users\Public\dev\yohan-ecosystem\vhk" -BaseBranch main ...`  
-   Include morning 3 questions in PR body.
+   auto_pr uses push-only when clean+unpushed vs origin/main. Include morning 3 questions in PR body.
 4. Optionally generate morning report via `node scripts/gen-autonomy-morning-report.mjs --date YYYY-MM-DD` (Goal 103).
 5. Report PR URL (or HARD_STOP reason). **Do not merge.**
 

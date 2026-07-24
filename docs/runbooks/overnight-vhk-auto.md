@@ -15,7 +15,7 @@
 2. 다음 **NOT_STARTED** id 선택(Wave B: 105→107 등). DONE인 101–104를 다시 돌리지 말 것 → `IN_PROGRESS`.
 3. **vhk-auto**(INV-1..INV-9): 구현 → verify → 적대 리뷰 → **commit만**.
 4. autonomy-log **start**와 종결(**complete|hardstop|blocked**) 필수. 누락 → HARD_STOP 후 중단.
-5. green+commit 이면:
+5. green+commit 이면 (트리가 clean이어도 OK — unpushed면 래퍼가 push+PR):
 
 ```powershell
 powershell -NoProfile -File C:\Users\Public\dev\scripts\auto_pr_goal.ps1 `
@@ -25,6 +25,8 @@ powershell -NoProfile -File C:\Users\Public\dev\scripts\auto_pr_goal.ps1 `
   -Title "<feat: ...>" `
   -Body "<아침 3문답>"
 ```
+
+   `auto_pr_goal.ps1` 경로: dirty→commit+push+PR / clean+unpushed→push-only+PR / clean+synced→skip.
 
 6. **절대 머지하지 말 것.** PR 오픈 또는 HARD_STOP 후 종료.
 

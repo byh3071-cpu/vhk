@@ -67,7 +67,15 @@ const skill = read('.claude/skills/overnight-vhk-auto/SKILL.md')
 must(!!skill, 'overnight-vhk-auto/SKILL.md 존재')
 must(/auto_pr_goal/i.test(skill ?? ''), 'overnight 스킬이 auto_pr_goal 호출')
 must(/-BaseBranch\s+main/i.test(skill ?? ''), 'overnight 스킬의 BaseBranch=main')
+must(
+  /unpushed|push-only|clean tree/i.test(skill ?? ''),
+  'overnight 스킬이 clean+unpushed → push-only auto_pr 계약'
+)
 must(/HARD_STOP/.test(skill ?? ''), 'overnight 스킬이 HARD_STOP 계약')
+must(
+  /unpushed|push-only|clean/i.test(read('docs/runbooks/overnight-vhk-auto.md') ?? ''),
+  '런북이 clean/unpushed push-only 계약 명시'
+)
 must(/NOT_STARTED|Wave B|105/i.test(skill ?? ''), 'overnight 큐가 DONE Wave A 재실행이 아니라 NOT_STARTED/Wave B')
 must(/Merge = 0|머지.*0|never merge|Merge forbidden/i.test(skill ?? ''), 'overnight 스킬이 머지 금지')
 must(/autonomy-log|INV-9|INV-C/.test(skill ?? ''), 'overnight 스킬이 autonomy-log 누락→HARD_STOP')
