@@ -5,6 +5,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
 function stripBom(s) {
   return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s
 }
@@ -20,6 +22,9 @@ function parseArgs(argv) {
   if (!out.date) {
     const d = new Date()
     out.date = d.toISOString().slice(0, 10)
+  }
+  if (!DATE_RE.test(out.date)) {
+    throw new Error('--date must use YYYY-MM-DD')
   }
   return out
 }
@@ -38,6 +43,10 @@ function readEntries(cwd) {
     }
   }
   return out
+}
+
+function filterByDate(entries, date) {
+  return entries.filter((e) => typeof e.ts === 'string' && e.ts.startsWith(date))
 }
 
 function count(entries) {
@@ -81,7 +90,7 @@ Follow \`docs/runbooks/MORNING_AUTONOMY_MERGE.md\` (3 questions). Merge = human 
 }
 
 const opts = parseArgs(process.argv)
-const entries = readEntries(opts.cwd)
+const entries = filterByDate(readEntries(opts.cwd), opts.date)
 const md = render(opts.date, opts.pr, entries)
 const dir = join(opts.cwd, 'docs', 'audits')
 mkdirSync(dir, { recursive: true })

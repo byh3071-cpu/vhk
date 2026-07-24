@@ -3,6 +3,8 @@ import { calcAutonomyStats } from '../src/commands/stats.js'
 import type { AutonomyRunEntry } from '../src/lib/autonomy-log.js'
 import {
   countAutonomyEvents,
+  filterEntriesByDate,
+  isValidReportDate,
   renderAutonomyMorningReport,
 } from '../src/lib/autonomy-morning-report.js'
 
@@ -10,9 +12,10 @@ function e(
   event: AutonomyRunEntry['event'],
   runId = 'r1',
   interventions?: number,
+  ts = '2026-07-25T00:00:00.000Z',
 ): AutonomyRunEntry {
   return {
-    ts: '2026-07-25T00:00:00.000Z',
+    ts,
     runId,
     event,
     ...(interventions !== undefined ? { interventions } : {}),
@@ -92,5 +95,31 @@ describe('autonomy morning report', () => {
     const md = renderAutonomyMorningReport({ date: '2026-07-25', entries: [] })
     expect(md).toContain('(none — not opened yet)')
     expect(md).toContain('**starts**: 0')
+  })
+
+  it('isValidReportDate rejects path-like dates', () => {
+    expect(isValidReportDate('2026-07-25')).toBe(true)
+    expect(isValidReportDate('../../README')).toBe(false)
+    expect(isValidReportDate('2026/07/25')).toBe(false)
+  })
+
+  it('render counts only entries for that calendar day', () => {
+    const md = renderAutonomyMorningReport({
+      date: '2026-07-25',
+      entries: [
+        e('start', 'today', undefined, '2026-07-25T10:00:00.000Z'),
+        e('complete', 'today', 0, '2026-07-25T11:00:00.000Z'),
+        e('start', 'yesterday', undefined, '2026-07-24T10:00:00.000Z'),
+        e('complete', 'yesterday', 0, '2026-07-24T11:00:00.000Z'),
+      ],
+    })
+    expect(md).toContain('**starts**: 1')
+    expect(md).toContain('**complete**: 1')
+    expect(md).toContain('today')
+    expect(md).not.toContain('yesterday')
+  })
+
+  it('filterEntriesByDate returns empty for invalid date', () => {
+    expect(filterEntriesByDate([e('start')], '../x')).toEqual([])
   })
 })

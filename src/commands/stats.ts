@@ -347,6 +347,9 @@ function renderTrend(cwd: string): void {
 
   if (tr.total === 0) {
     log.plain(chalk.dim(`  ${t('stats.trendNoData')}`))
+    // receipt 없어도 evolve/autonomy 섹션은 독립 노출(표본 0 정직 표기).
+    renderEvolveEffect(cwd)
+    renderAutonomyStats(cwd)
     printNextStep({ message: t('stats.trendNextMessage'), command: 'vhk receipt', cursorHint: t('stats.trendNextCursor') })
     return
   }
