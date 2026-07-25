@@ -8,7 +8,15 @@ import { printNextStep } from '../lib/next-step.js'
 import { normalizeForCompare } from '../lib/drift.js'
 import { saveBackup, pruneBackups, ensureVhkIgnored } from '../lib/backup.js'
 import { atomicWriteFile } from '../lib/atomic-write.js'
-import { injectBootstrapAll, ECOSYSTEM_MDC_REL } from '../lib/inject-bootstrap.js'
+import {
+  injectBootstrapAll,
+  ECOSYSTEM_MDC_REL,
+  MCP_JSON_EXAMPLE_REL,
+  CORE_RULES_REL,
+  generateEcosystemMdcContent,
+  generateMcpJsonExampleContent,
+  generateCoreRulesFileContent,
+} from '../lib/inject-bootstrap.js'
 import { PREAMBLE_TITLE } from '../lib/rules-import.js'
 import { isInteractive, promptOrDefault } from '../lib/interactive.js'
 import { runDocDriftChecks, type DriftFinding } from '../lib/drift-pairs.js'
@@ -515,6 +523,39 @@ export const SYNC_TARGETS: SyncTarget[] = [
   { path: '.clinerules/vhk-rules.md', generate: toClineRules, doneMessage: ko.sync.clineDone },
 ]
 
+/**
+ * sync() 가 RULES 미러(8) 외에 injectBootstrapAll 로 쓰는 산출물.
+ * --check 가 이 집합을 빠뜨리면 게이트 커버리지 구멍(aroo dogfood 2026-07-25 · commit 8242f5d).
+ * .vhk/context.md 는 로컬 seed(존재 시 재작성 안 함)라 제외.
+ */
+export type SyncBootstrapTarget = {
+  path: string
+  /** 기대 내용(템플릿). rootDir 필요 시(mcp variant) 사용. */
+  expected: (rootDir: string) => string
+  /** 파일이 vhk 템플릿인지 — false 면 사용자 소유로 보고 check 스킵(드리프트 미보고). */
+  isVhkTemplate?: (content: string) => boolean
+}
+
+export const SYNC_BOOTSTRAP_TARGETS: SyncBootstrapTarget[] = [
+  {
+    path: ECOSYSTEM_MDC_REL,
+    expected: () => generateEcosystemMdcContent(),
+    isVhkTemplate: (c) => c.includes('ECOSYSTEM-MDC:START') && c.includes('ECOSYSTEM-MDC:END'),
+  },
+  {
+    path: MCP_JSON_EXAMPLE_REL,
+    expected: (root) => generateMcpJsonExampleContent(root),
+  },
+  {
+    path: CORE_RULES_REL,
+    expected: () => generateCoreRulesFileContent(null),
+    isVhkTemplate: (c) => c.includes('CORE-RULES:START') && c.includes('CORE-RULES:END'),
+  },
+]
+
+/** RULES 미러 7 + CLAUDE.md 1. bootstrap 은 SYNC_BOOTSTRAP_TARGETS. */
+export const SYNC_MIRROR_TARGET_COUNT = SYNC_TARGETS.length + 1
+
 /** 보존할 백업 개수 — 무한 증식 방지(스케일/팀 고려). */
 const BACKUP_KEEP = 10
 /** 로컬 전용 sync 마커 — 존재 여부로 첫 sync 판정. 추적/클라우드 제외. */
@@ -538,9 +579,9 @@ export interface SyncCheckResult {
 }
 
 /**
- * Goal 63 — 8개 sync 타겟(SYNC_TARGETS 7 + CLAUDE.md 블록) 전체 drift 검사. 쓰기 0.
- * 생성 로직(buildSyncPlan)을 그대로 재사용 — 별도 검사기가 sync 와 어긋나는
- * "검사기의 drift"(governance 배치에서 check-rules-sync 의 알려진 한계) 원천 차단.
+ * Goal 63 — sync 산출 전체 drift 검사(쓰기 0).
+ * RULES 미러 8(SYNC_TARGETS 7 + CLAUDE.md) + bootstrap(SYNC_BOOTSTRAP_TARGETS).
+ * 생성 로직(buildSyncPlan / inject 템플릿)을 그대로 재사용 — 검사기↔sync 어긋남 원천 차단.
  */
 export function syncCheck(rootDir: string): SyncCheckResult {
   const rulesContent = fs.readFileSync(path.join(rootDir, 'RULES.md'), 'utf-8')
@@ -548,6 +589,29 @@ export function syncCheck(rootDir: string): SyncCheckResult {
   const plan = buildSyncPlan(rootDir, sections, deriveProjectName(rulesContent))
   const drifted = plan.filter((p) => p.exists && p.drift).map((p) => p.path)
   const missing = plan.filter((p) => !p.exists).map((p) => p.path)
+
+  // bootstrap 산출 — sync -y 가 injectBootstrapAll 로 만드는 파일. 8미러만 보면 커버리지 구멍.
+  for (const t of SYNC_BOOTSTRAP_TARGETS) {
+    const full = path.join(rootDir, t.path)
+    if (!fs.existsSync(full)) {
+      missing.push(t.path)
+      continue
+    }
+    let onDisk: string
+    try {
+      onDisk = fs.readFileSync(full, 'utf-8')
+    } catch {
+      missing.push(t.path)
+      continue
+    }
+    // 사용자 소유(비-vhk 템플릿)는 inject 가 skip 하는 것과 같이 check 도 스킵
+    if (t.isVhkTemplate && !t.isVhkTemplate(onDisk)) continue
+    const expected = t.expected(rootDir)
+    if (normalizeForCompare(onDisk) !== normalizeForCompare(expected)) {
+      drifted.push(t.path)
+    }
+  }
+
   return { drifted, missing, ok: drifted.length === 0 && missing.length === 0 }
 }
 
