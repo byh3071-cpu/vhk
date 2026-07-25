@@ -10,6 +10,8 @@ import {
   downgradeTestFixtureFindings,
   isTestFixturePath,
   isEnvTemplateFile,
+  parseGitleaksIgnore,
+  applyGitleaksIgnore,
 } from '../src/lib/scan-secrets.js'
 import { MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
 
@@ -63,6 +65,76 @@ describe('scan-secrets', () => {
     const actual = 'z'.repeat(24)
     const findings = findSecretsInLine(`api_key = "${actual}"`, 'script.py', 1)
     expect(findings.filter((f) => f.patternId === 'generic-api-key')).toHaveLength(1)
+  })
+
+  it('generic: sk_test_ 접두도 자동 예외 없이 탐지해 allowlist 검토를 강제', () => {
+    // 런타임에는 완성되지만 소스에는 연속 토큰을 남기지 않아 self-scan 픽스처가 되지 않게 한다.
+    const vendorTestKey = 'sk_' + 'test_' + '123456789'
+    expect(
+      findSecretsInLine(`apiKey: '${vendorTestKey}'`, 'tests/print-provider.test.ts', 40).filter(
+        (f) => f.patternId === 'generic-api-key',
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('.gitleaksignore fingerprint 줄이 finding 을 제외', () => {
+    const rules = parseGitleaksIgnore(
+      [
+        '# comment',
+        '926592fa566af185868c41d1c971d00a626ea6a7:tests/print-provider.test.ts:generic-api-key:40',
+      ].join('\n'),
+    )
+    expect(rules).toEqual([
+      { path: 'tests/print-provider.test.ts', rule: 'generic-api-key', line: 40 },
+    ])
+    const kept = applyGitleaksIgnore(
+      [
+        {
+          patternId: 'generic-api-key',
+          patternName: 'Generic API Key',
+          severity: 'high' as const,
+          file: 'tests/print-provider.test.ts',
+          line: 40,
+          match: 'apiKey: ****',
+        },
+        {
+          patternId: 'generic-api-key',
+          patternName: 'Generic API Key',
+          severity: 'high' as const,
+          file: 'src/real.ts',
+          line: 1,
+          match: 'api_key: ****',
+        },
+      ],
+      rules,
+    )
+    expect(kept).toHaveLength(1)
+    expect(kept[0].file).toBe('src/real.ts')
+  })
+
+  it('.gitleaksignore 의 commit 없는 path:rule:line 형식도 파싱', () => {
+    expect(parseGitleaksIgnore('tests/x.test.ts:generic-api-key:7')).toEqual([
+      { path: 'tests/x.test.ts', rule: 'generic-api-key', line: 7 },
+    ])
+  })
+
+  it('scanProjectForSecrets 가 .gitleaksignore 를 적용', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-gitleaks-ignore-'))
+    try {
+      fs.mkdirSync(path.join(tmp, 'tests'), { recursive: true })
+      // 의도적으로 sk_live 가 아닌 긴 generic 값(벤더 test 접두 아닌 FP 경로)
+      const apiKey = 'z'.repeat(24)
+      fs.writeFileSync(path.join(tmp, 'tests', 'a.test.ts'), `apiKey: '${apiKey}'\n`, 'utf-8')
+      fs.writeFileSync(
+        path.join(tmp, '.gitleaksignore'),
+        `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:tests/a.test.ts:generic-api-key:1\n`,
+        'utf-8',
+      )
+      const { findings } = scanProjectForSecrets(tmp)
+      expect(findings.filter((f) => f.patternId === 'generic-api-key')).toHaveLength(0)
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true })
+    }
   })
 
   it('generic: 상태 접두어라도 실제 값 대입은 계속 탐지', () => {

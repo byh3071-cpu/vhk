@@ -24,6 +24,85 @@ function isGenericApiKeyFalsePositive(matchText: string): boolean {
   return PLACEHOLDER_MARKER.test(value)
 }
 
+export type GitleaksIgnoreRule = {
+  /** repo-relative path (posix) */
+  path: string
+  /** gitleaks rule id ≈ our patternId (optional) */
+  rule?: string
+  line?: number
+}
+
+/**
+ * `.gitleaksignore` 파싱.
+ * 지원 형식:
+ * - `# comment`
+ * - `path:rule:line` 또는 `commitHash:path:rule:line` (gitleaks fingerprint)
+ * - `path` 단독
+ */
+export function parseGitleaksIgnore(content: string): GitleaksIgnoreRule[] {
+  const rules: GitleaksIgnoreRule[] = []
+  for (const raw of content.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#')) continue
+    const parts = line.split(':')
+    const hasCommit = /^[a-f0-9]{7,40}$/i.test(parts[0])
+    const lineText = parts[parts.length - 1]
+    const pathStart = hasCommit ? 1 : 0
+    // path:rule:line / commit:path:rule:line — 오른쪽부터 해석해 경로 안의 ':'를 보존한다.
+    if (parts.length - pathStart >= 3 && /^\d+$/.test(lineText)) {
+      const lineNo = Number(lineText)
+      const rule = parts[parts.length - 2]
+      const pathParts = parts.slice(pathStart, parts.length - 2)
+      const filePath = pathParts.join(':').replace(/\\/g, '/')
+      if (!filePath || !rule) continue
+      rules.push({
+        path: filePath,
+        rule,
+        line: lineNo,
+      })
+      continue
+    }
+    // bare path
+    rules.push({ path: line.replace(/\\/g, '/') })
+  }
+  return rules
+}
+
+export function loadGitleaksIgnoreRules(cwd: string): GitleaksIgnoreRule[] {
+  const fp = path.join(cwd, '.gitleaksignore')
+  if (!fs.existsSync(fp)) return []
+  try {
+    return parseGitleaksIgnore(fs.readFileSync(fp, 'utf-8'))
+  } catch {
+    // 선택적 allowlist를 읽지 못했을 때 탐지를 약화하지 않고 전체 finding을 유지한다.
+    return []
+  }
+}
+
+export function isFindingIgnoredByGitleaks(
+  finding: SecretFinding,
+  rules: GitleaksIgnoreRule[],
+): boolean {
+  if (rules.length === 0) return false
+  const file = finding.file.replace(/\\/g, '/')
+  for (const r of rules) {
+    if (r.path !== file) continue
+    if (r.rule && r.rule !== finding.patternId) continue
+    if (typeof r.line === 'number' && r.line !== finding.line) continue
+    return true
+  }
+  return false
+}
+
+/** allowlist 적용 — 매칭 finding 제거(gitleaks 와 동일 의도: 사람 확인 픽스처). */
+export function applyGitleaksIgnore(
+  findings: SecretFinding[],
+  rules: GitleaksIgnoreRule[],
+): SecretFinding[] {
+  if (rules.length === 0) return findings
+  return findings.filter((f) => !isFindingIgnoredByGitleaks(f, rules))
+}
+
 // #316: .env.example/.sample/.template 은 '시크릿 값 없는 커밋용 템플릿'(risk-policy.ts 의
 //   RISKY_TARGET_PATTERNS 예외·check-secure.ts 의 isSensitiveName(.example/.sample 제외)와 정합). 이 파일들의
 //   비주석 KEY=value placeholder(ghp_xxxx· secret_xxxx 등)는 진짜 시크릿이 아니라 예시값이다.
@@ -136,7 +215,14 @@ export function scanProjectForSecrets(cwd: string): ProjectSecretScan {
     }
   )
 
-  return { findings, scannedFiles, truncated: reasons.size > 0, truncationReasons: [...reasons] }
+  // dogfood: 레포 `.gitleaksignore` 존중(verify/secure/save 공통 경로)
+  const allowed = applyGitleaksIgnore(findings, loadGitleaksIgnoreRules(cwd))
+  return {
+    findings: allowed,
+    scannedFiles,
+    truncated: reasons.size > 0,
+    truncationReasons: [...reasons],
+  }
 }
 
 export type DraftScanResult = {
