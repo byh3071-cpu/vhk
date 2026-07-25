@@ -11,6 +11,8 @@ export const ko = {
     trendNoData: '측정 데이터 없음 — vhk receipt 를 반복 발행하면 추세가 쌓입니다.',
     trendNextMessage: '추세는 receipt 발행이 누적될수록 정밀해집니다.',
     trendNextCursor: 'receipt 발행해줘',
+    autonomyTitle: '자율 완주율 (autonomy-run):',
+    autonomyNoData: '표본 없음 — vhk autonomy-log / overnight 런 누적 필요 (0%로 위장하지 않음)',
   },
   loop: {
     tickTitle: 'loop tick — 자가진화 조율 (읽기 전용)',

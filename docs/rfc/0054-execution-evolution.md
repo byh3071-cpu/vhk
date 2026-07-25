@@ -87,5 +87,15 @@ D2 발동 시 SEO 하나가 아니라 **전 트랙을 통째로** 다음 원칙�
 ## §9. 범위 밖 (지금 안 함)
 - 실 외부 API 구현 · HTTP 클라이언트 도입 — D2 이관, 미착수.
 
+## §Overnight — 무인 goal → PR 래퍼 (머지 0)
+
+야간 자율 루프가 **commit만** 하는 vhk-auto(INV-7)와 **push+PR만** 하는 overnight 래퍼의
+경계를 분리한다. 머지는 사람만. 상세·하드 게이트·HARD_STOP 계약은
+**[RFC 0063](./0063-overnight-vhk-auto.md)** (Draft)와
+`docs/runbooks/overnight-vhk-auto.md` 를 SoT로 둔다.
+
+- overnight-autoloop(mcp/관제탑 결함 루프)와 **혼용 금지**.
+- 2단계 CLI `vhk auto` 는 여전히 OUT(§6 D2 트리거 전).
+
 ---
-연결: CLAUDE.md(헌법 "발송·결제·삭제 0") · RFC 0052(자문형 풀사이클) · vhk-auto(자율 1단계) · goal 55(agent-action-ledger) · SOUL 북극성/가드레일.
+연결: CLAUDE.md(헌법 "발송·결제·삭제 0") · RFC 0052(자문형 풀사이클) · vhk-auto(자율 1단계) · goal 55(agent-action-ledger) · SOUL 북극성/가드레일 · RFC 0063(overnight).

@@ -3,10 +3,11 @@ vhk_format: 1
 type: goal
 id: 62
 title: docs-first 작업 의례 — 문서 선행 갱신 + docs-diff 산출물 (자문형) — P2
-status: NOT_STARTED
+status: DEFERRED
 priority: P2
 created: 2026-06-11
-leads_to: 스펙-코드 드리프트 사전 차단 · RFC 0051(사후 감지)의 사전 보완
+deferred_reason: Wave A autonomy overnight(101-104) 동안 vhk goal next 독점 차단 — Wave B에서 105 ADR / 106 impl / 107 dogfood 로 분해
+leads_to: Wave B goals 105 (ADR) · 106 (impl) · 107 (dogfood) — 스펙-코드 드리프트 사전 차단 · RFC 0051 사전 보완
 ---
 
 # Goal 62: docs-first + docs-diff
