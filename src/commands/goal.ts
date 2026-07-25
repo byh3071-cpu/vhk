@@ -392,7 +392,8 @@ export async function goalCheck(opts: { id?: string; force?: boolean }): Promise
 // "shipped 인데 status: NOT_STARTED" 인 goal 을 잡아 exit 1. 깨끗하면 exit 0.
 export async function goalDrift(): Promise<void> {
   console.log(chalk.bold(`\n${ko.goal.driftTitle}\n`))
-  const candidates = findStatusDriftCandidates(GOALS_DIR, SCRIPTS_DIR)
+  // projectRoot=cwd — 소비자 레포 goals 본문 경로 증거(축약·exact) 해석용
+  const candidates = findStatusDriftCandidates(GOALS_DIR, SCRIPTS_DIR, process.cwd())
   if (candidates.length === 0) {
     console.log(chalk.green(`  ✅ ${ko.goal.driftClean}`))
     return
