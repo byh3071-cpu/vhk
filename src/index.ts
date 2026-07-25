@@ -290,7 +290,7 @@ program
   .alias('맞추기')
   .alias('규칙')
   .option('--dry-run', '미리보기만 — 파일 변경 없음')
-  .option('--check', '검사만 — 8개 타겟 drift 검사(쓰기 0), drift 시 exit 1 (Goal 63)')
+  .option('--check', '검사만 — sync 산출 전체(RULES 미러 8 + bootstrap) drift 검사(쓰기 0), drift 시 exit 1 (Goal 63)')
   .option('-y, --yes', 'drift 확인 프롬프트 생략(덮어쓰기 동의)')
   .description('RULES.md → .cursorrules + CLAUDE.md 동기화 (덮어쓰기 전 자동 백업)')
   .action(async (opts: { dryRun?: boolean; yes?: boolean; check?: boolean }) => { await guardCli('sync', opts?.yes === true, () => sync(opts)) })
