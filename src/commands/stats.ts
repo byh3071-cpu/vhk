@@ -8,6 +8,7 @@ import { readQueue, type EvolveQueueItem } from './evolve.js'
 import { readReceiptLog, type ReceiptLogEntry } from '../lib/receipt-log.js'
 import { readEvolveLog, type EvolveLogEntry } from '../lib/evolve-log.js'
 import { readCheckLog, type CheckLogEntry } from '../lib/check-log.js'
+import { readAutonomyLog, type AutonomyRunEntry } from '../lib/autonomy-log.js'
 
 /**
  * Goal 61: vhk stats — 읽기전용 통계·대시보드 집계.
@@ -217,6 +218,49 @@ function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`
 }
 
+/** Goal 104 / #373: autonomy-run 완주율. starts=0 이면 rate null(0% 위장 금지). */
+export interface AutonomyStats {
+  starts: number
+  complete: number
+  hardstop: number
+  blocked: number
+  /** interventions=0 complete / starts. starts=0 → null */
+  completionRate: number | null
+  /** complete 중 interventions>0 */
+  intervenedComplete: number
+}
+
+/**
+ * 자율 루프 완주율 — 순수 계산(fs 0).
+ * 분자 = complete 이면서 (interventions ?? 0)===0.
+ * 분모 = start 이벤트 수. 표본 0이면 completionRate=null.
+ */
+export function calcAutonomyStats(entries: AutonomyRunEntry[]): AutonomyStats {
+  let starts = 0
+  let complete = 0
+  let hardstop = 0
+  let blocked = 0
+  let unattendedComplete = 0
+  let intervenedComplete = 0
+  for (const e of entries) {
+    if (e.event === 'start') starts++
+    else if (e.event === 'complete') {
+      complete++
+      if ((e.interventions ?? 0) > 0) intervenedComplete++
+      else unattendedComplete++
+    } else if (e.event === 'hardstop') hardstop++
+    else if (e.event === 'blocked') blocked++
+  }
+  return {
+    starts,
+    complete,
+    hardstop,
+    blocked,
+    intervenedComplete,
+    completionRate: starts === 0 ? null : unattendedComplete / starts,
+  }
+}
+
 // ── 커맨드 핸들러 (읽기 전용 — 파일 쓰기 없음) ──────────────────────────────────
 
 export async function stats(opts: { trend?: boolean } = {}): Promise<void> {
@@ -265,11 +309,33 @@ export async function stats(opts: { trend?: boolean } = {}): Promise<void> {
       chalk.dim(` (적용 ${apply.count}/${apply.total})`),
   )
 
+  // 4) 자율 완주율 (#373 / Goal 104) — 표본 0 정직 표기
+  renderAutonomyStats(cwd)
+
   printNextStep({
     message: t('stats.nextMessage'),
     command: 'vhk verify',
     cursorHint: t('stats.nextCursor'),
   })
+}
+
+/** Goal 104: autonomy-run.jsonl → 완주율 섹션(읽기 전용). */
+function renderAutonomyStats(cwd: string): void {
+  const a = calcAutonomyStats(readAutonomyLog(cwd))
+  log.plain(chalk.cyan(`\n🤖 ${t('stats.autonomyTitle')}`))
+  if (a.starts === 0) {
+    log.plain(chalk.dim(`  ${t('stats.autonomyNoData')}`))
+    return
+  }
+  log.plain(
+    chalk.white(`  ${pct(a.completionRate!)}`) +
+      chalk.dim(
+        ` (무인 complete ${a.complete - a.intervenedComplete}/${a.starts}` +
+          ` · hardstop ${a.hardstop} · blocked ${a.blocked}` +
+          (a.intervenedComplete > 0 ? ` · 개입complete ${a.intervenedComplete}` : '') +
+          ')',
+      ),
+  )
 }
 
 // N6(ⓔ): receipt-log 추세 렌더링(읽기 전용). 표본 부족·미측정은 정직 표기(0 위장 금지).
@@ -281,6 +347,9 @@ function renderTrend(cwd: string): void {
 
   if (tr.total === 0) {
     log.plain(chalk.dim(`  ${t('stats.trendNoData')}`))
+    // receipt 없어도 evolve/autonomy 섹션은 독립 노출(표본 0 정직 표기).
+    renderEvolveEffect(cwd)
+    renderAutonomyStats(cwd)
     printNextStep({ message: t('stats.trendNextMessage'), command: 'vhk receipt', cursorHint: t('stats.trendNextCursor') })
     return
   }
@@ -312,6 +381,8 @@ function renderTrend(cwd: string): void {
 
   // #374(evolve 효과측정): evolve-log 채택률 + check-log 위반 추세 — 읽기 전용, 별도 소스.
   renderEvolveEffect(cwd)
+  // Goal 104 / #373: autonomy 완주율도 --trend 경로에 노출.
+  renderAutonomyStats(cwd)
 
   printNextStep({ message: t('stats.trendNextMessage'), command: 'vhk receipt', cursorHint: t('stats.trendNextCursor') })
 }
