@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkPublicBoundary, scanPublicText } from '../scripts/check-public-boundary.mjs'
+import { buildHistorySearchPattern, checkPublicBoundary, scanPublicText } from '../scripts/check-public-boundary.mjs'
 
 const manifest = (paths: string[]) => ({ files: paths.map((path) => ({ path })) })
 const requiredPackageFiles = [
@@ -49,5 +49,15 @@ describe('공개 경계 검사', () => {
     const zeroId = ['00000000', '0000', '0000', '0000', '000000000000'].join('-')
     expect(scanPublicText('문서', objectId)).not.toEqual([])
     expect(scanPublicText('테스트', zeroId)).toEqual([])
+  })
+
+  it('전체 이력 검사 패턴은 영 UUID fixture를 제외한다', () => {
+    const pattern = new RegExp(buildHistorySearchPattern(), 'iu')
+    const privateRepository = ['yohan', 'brain'].join('-')
+    const objectId = ['12345678', '1234', '1234', '1234', '123456789abc'].join('-')
+    const zeroId = ['00000000', '0000', '0000', '0000', '000000000000'].join('-')
+    expect(pattern.test(privateRepository)).toBe(true)
+    expect(pattern.test(objectId)).toBe(true)
+    expect(pattern.test(zeroId)).toBe(false)
   })
 })

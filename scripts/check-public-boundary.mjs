@@ -44,6 +44,7 @@ const PRIVATE_TEXT_PATTERNS = [
 
 const UUID_PATTERN = /\b[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b/giu
 const ZERO_UUID = /^0{32}$/u
+const NON_ZERO_UUID_HISTORY_PATTERN = String.raw`\b(?!0{8}-?0{4}-?0{4}-?0{4}-?0{12}\b)[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b`
 
 function git(args, options = {}) {
   return execFileSync('git', args, {
@@ -57,6 +58,31 @@ function git(args, options = {}) {
 
 function normalizePath(file) {
   return String(file).replaceAll('\\', '/')
+}
+
+export function buildHistorySearchPattern() {
+  return [
+    ...PRIVATE_TEXT_PATTERNS.map((forbidden) => `(?:${forbidden.pattern.source})`),
+    `(?:${NON_ZERO_UUID_HISTORY_PATTERN})`,
+  ].join('|')
+}
+
+function historyContainsPrivateText() {
+  const commits = git(['rev-list', '--all']).trim().split(/\s+/u).filter(Boolean)
+  const pattern = buildHistorySearchPattern()
+  const batchSize = 48
+
+  for (let offset = 0; offset < commits.length; offset += batchSize) {
+    const batch = commits.slice(offset, offset + batchSize)
+    try {
+      git(['grep', '-I', '-P', '-i', '-l', '-e', pattern, ...batch, '--'])
+      return true
+    } catch (error) {
+      if (typeof error === 'object' && error !== null && 'status' in error && error.status === 1) continue
+      throw error
+    }
+  }
+  return false
 }
 
 function isPrivatePath(file) {
@@ -158,10 +184,7 @@ function checkAllRefs() {
     if (history) problems.push(`${pathPart}: 과거 Git 이력에 개인 운영 경로가 남음`)
   }
 
-  for (const forbidden of PRIVATE_TEXT_PATTERNS) {
-    const history = git(['log', '--all', '--format=%H', `-G${forbidden.pattern.source}`, '--', '.']).trim()
-    if (history) problems.push(`Git 전체 이력: ${forbidden.name}가 포함된 변경이 남음`)
-  }
+  if (historyContainsPrivateText()) problems.push('Git 전체 이력: 개인 텍스트가 포함된 blob이 남음')
   return problems
 }
 
