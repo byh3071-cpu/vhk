@@ -41,7 +41,7 @@ describe('vhk init — 기타(other) 타입 + 스택 직접 입력', () => {
   it('type=other + 스택 직접 입력 → 입력한 스택으로 파일 생성', async () => {
     const { init } = await import('../src/commands/init.js')
     promptQueue.push({ customStack: 'Rust, QEMU, x86_64' }, { confirmStack: true })
-    await init({ name: 'yohan-os', description: 'AI 베어메탈 OS', type: 'other' })
+    await init({ name: 'sample-os', description: 'AI 베어메탈 OS', type: 'other' })
     const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
     expect(rules).toContain('Rust')
     expect(rules).toContain('QEMU')
@@ -58,7 +58,7 @@ describe('vhk init — 기타(other) 타입 + 스택 직접 입력', () => {
   it('type=other + Enter(건너뛰기) → 스택 미정으로 진행, confirmStack 프롬프트 없음', async () => {
     const { init } = await import('../src/commands/init.js')
     promptQueue.push({ customStack: '' }) // 이후 프롬프트 호출되면 큐 고갈 throw
-    await init({ name: 'yohan-os', description: 'd', type: 'other' })
+    await init({ name: 'sample-os', description: 'd', type: 'other' })
     expect(fs.existsSync(path.join(dir, 'CLAUDE.md'))).toBe(true)
     const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
     expect(rules).toContain('미정')

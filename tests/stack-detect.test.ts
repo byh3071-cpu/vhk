@@ -47,7 +47,7 @@ describe('stack-detect (VHK-001)', () => {
 describe('stack-detect — 비-JS 매니페스트 언어 감지 (detectManifestLangs)', () => {
   it('Cargo.toml → Rust (package.json 없는 베어메탈 OS 등)', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stack-'))
-    fs.writeFileSync(path.join(dir, 'Cargo.toml'), '[package]\nname = "yohan-os"\n')
+    fs.writeFileSync(path.join(dir, 'Cargo.toml'), '[package]\nname = "sample-os"\n')
     expect(detectManifestLangs(dir)).toEqual(['Rust'])
     fs.rmSync(dir, { recursive: true })
   })

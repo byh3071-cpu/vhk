@@ -16,6 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: 공개 Git 이력 경계 검사
+        run: node scripts/check-public-boundary.mjs --git-only --all-refs
 
       - name: CHANGELOG 섹션 추출 + GitHub Release 생성
         env:

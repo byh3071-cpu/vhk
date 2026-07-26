@@ -1,14 +1,14 @@
 ---
 id: vhk-readme
 date: 2026-06-08
-tags: [vhk, cli, readme, v2.11.0, mcp, proof, ai-coding]
+tags: [vhk, cli, readme, v3.0.0, mcp, proof, ai-coding]
 ---
 
 <div align="center">
 
 # VHK — Vibe Harness Kit
 
-**v2.11.0**
+**v3.0.0**
 
 **모델·에이전트를 뭘로 바꿔도 안 무너지는 풀사이클 AI 코딩 하네스.**
 
@@ -40,7 +40,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
   🟢 Node     v24.13.0 (shim-safe)
   🟢 pnpm     11.17.0
   🟢 git      2.53.0 (user configured)
-  🟢 VHK      v2.11.0 (최신)
+  🟢 VHK      v3.0.0 (최신)
   🟢 MCP      35 tools 등록
 
   📁 프로젝트 파일 확인:
@@ -110,8 +110,6 @@ VHK는 다른 저장소 없이 독립 실행됩니다. 별도 규칙이 필요�
 vhk config set-rules-file C:\rules\team-rules.yaml
 # 또는 현재 프로세스 시작 전에 VHK_RULES_FILE 환경변수로 지정
 ```
-
-`YOHAN_BRAIN_ROOT`, 홈 설정의 `brainRoot`, `vhk config set-brain-root`는 `2.12`에서 제거 예정 경고와 함께 한 릴리스만 호환되고 `3.0`에서 제거됩니다.
 
 ## VHK vs 맨 에이전트
 

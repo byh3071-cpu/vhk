@@ -62,14 +62,16 @@
 > CLAUDE.md 헌법 영구구역의 Forbidden 은 불가침이라 그대로 둠 — 의례 수준 금지는 그쪽, 코드/운영 수준 금지는 여기.
 
 - `node_modules/` 직접 수정 금지
-- `package.json` 기존 명령어 시그니처 breaking change 금지 (GA 정책)
+- 공개 API breaking change는 major 버전에서만 허용
 - `execSync` 신규 사용 금지 → `safeExecFile`
 - MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
 - 토큰/시크릿 코드·커밋 평문 노출 금지 (`.env` + `.gitignore`)
-- dev log·blockers 과거 항목 수정·삭제 금지 (append-only)
 - 게이트 실패 상태에서 done 처리 금지 / `vhk resume` 자동 호출 금지
 - AGENTS.md·.cursorrules 등 sync 산출물 직접 편집 금지 → RULES.md + `vhk sync`
 - publish 는 main 에서만 + 사람 승인 (가드 #119)
+- 공개 추적 금지: 개인 운영 로그·상태·goal, 로컬 절대경로, 개인 이메일, 실명, 개인 저장소명, 실제 외부 서비스 객체 ID
+- 예제는 `sample-*`, `<HOME>`, 명백한 가짜 ID만 사용하고 `boundary:check` 우회 금지
+- Git 작성자 이메일은 GitHub noreply, npm 공개 연락처는 `opensource@yohanstudio.co` 사용
 
 ## 기록 규칙
 - 의사결정 → docs/adr/ · 에러 → docs/troubleshooting/ · 배움 → docs/til.md · 설계 → docs/rfc/
@@ -78,11 +80,10 @@
   - 패키지·아키텍처·정책 결정 → docs/adr/ `ADR-NNN-슬러그.md`
   - 설계·제안(구현 전 검토) → docs/rfc/ `NNNN-슬러그.md`
   - 에러·해결 과정 → docs/troubleshooting/ `TS-NNN-슬러그.md`
-  - 세션 작업 내역 → docs/log/ `YYYY-MM-DD-작업명.md` (append-only)
+  - 세션 작업 내역 → Notion Dev Log 또는 추적되지 않는 `docs/devlog/`
   - 범용 패턴(타 프로젝트 재사용 가능) → docs/patterns/ `PAT-NNN-영문명.md`
-- 기록 집행: 실질 코드변경(src/** · scripts/check-*) 커밋 시 세션 dev log(오늘 또는 자정 넘긴 연속 세션의 어제 파일) 스테이지 필수 — check-records hook 이 커밋을 차단. 사소·문서성 커밋은 메시지에 `[skip-record]` 로 우회 (governance-v2 T1).
-- 세션 종료(`vhk work handoff`) 시 미기록 ADR·트러블슈팅 후보를 자동 감지·보고 → 해당하면 docs/adr·docs/troubleshooting 에 기록(자문형, 강제 아님) (RFC 0051)
-- dev log `docs/log/YYYY-MM-DD-<작업명>.md` = append-only (추가만, 수정·삭제 금지)
-- 코드 변경이 동작/사용법을 바꾸면 README 만 같이 갱신 (CLAUDE.md 는 갱신 대상 아님)
+- 세션 종료 시 미기록 ADR·트러블슈팅 후보를 확인하고 해당하면 공개 문서에는 일반화된 기술 사실만 기록
+- 개인 세션 기록·현재 작업 큐·외부 서비스 식별자는 커밋하지 않음
+- 코드 변경이 동작/사용법을 바꾸면 README를 같이 갱신
 - 교훈·결정·실패·성공 = `vhk memory`(4버킷) / `vhk learn`. learnings.md 는 v2 흡수·동결 → 신규 기록 금지.
-- 상태 SoT = docs/state/next-task.md · blockers.md (append-only)
+- 로컬 작업 상태 SoT = 추적되지 않는 `.vhk/context.md`

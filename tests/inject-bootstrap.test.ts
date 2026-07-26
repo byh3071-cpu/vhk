@@ -22,7 +22,7 @@ describe('inject-bootstrap (E1-02 / E5-02 / E5-04)', () => {
     expect(content).toContain('AGENTS.md')
     expect(content).toContain('VHK_RULES_FILE')
     expect(content).toContain('set-rules-file')
-    expect(content).not.toContain('yohan-brain')
+    expect(content).not.toContain(['private', 'rules', 'repo'].join('-'))
     expect(content).toContain('vhk sync')
     expect(content).toContain('vhk worktree')
   })

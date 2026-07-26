@@ -38,6 +38,16 @@ dist/
 .vhk/config.json
 .vhk/events/*.jsonl
 .vhk/ledger.jsonl
+docs/log/
+docs/state/
+docs/devlog/
+goals/
+.claude/agents/memtest.md
+.claude/skills/auto-merge/
+.claude/skills/overnight-vhk-auto/
+docs/runbooks/overnight-vhk-auto.md
+docs/runbooks/MORNING_AUTONOMY_MERGE.md
+docs/prompts/autonomy/
 
 # Cursor MCP 설정 — 절대 로컬 경로 포함, 머신별 — 커밋 금지 (VHK-022 hygiene)
 # ecosystem.mdc 만 예외 (E5-01 vhk-inject-bootstrap 템플릿 dogfood)

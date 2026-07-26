@@ -50,6 +50,6 @@ describe('git recap filters', () => {
       { file: 'docs/log/foo.md', insertions: 1, deletions: 0, status: 'new' },
     ])
     expect(filtered.some(f => f.file === '4081.9')).toBe(false)
-    expect(filtered.some(f => f.file === 'docs/log/foo.md')).toBe(true)
+    expect(filtered.some(f => f.file === 'docs/log/foo.md')).toBe(false)
   })
 })
