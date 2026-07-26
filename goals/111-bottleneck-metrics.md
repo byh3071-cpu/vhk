@@ -1,7 +1,7 @@
 ---
 vhk_format: 1
 type: goal
-id: 109
+id: 111
 title: 병목 계측 3종 — 사람 대기·기계적 승인 비율·추적 시간 (B3)
 status: NOT_STARTED
 priority: P1
@@ -9,7 +9,7 @@ created: 2026-07-27
 leads_to: D2 조건(b) "수동 병목 입증"의 4주 실측 재료 — 딥리서치 결정 2
 ---
 
-# Goal 109: 병목 계측 3종 (B3)
+# Goal 111: 병목 계측 3종 (B3)
 
 ## 근거
 딥리서치 결정 2: 병목의 실체 = 생성이 아니라 리뷰·판단("Review is the ceiling" — 에이전트 PR 79%를 한 사람이 처리). 단 병목이 리뷰가 아니라 '추적'일 수 있음 — 셋 다 재야 오진 방지. 폐기 런 비용 계측은 업계 사각(공개 사례 0) = 차별 데이터.
@@ -23,8 +23,8 @@ leads_to: D2 조건(b) "수동 병목 입증"의 4주 실측 재료 — 딥리�
 ## Completion Check
 - [ ] 스키마 3+1필드 + 아침 3문답에 추적 시간 1문항
 - [ ] stats에 병목 섹션(표본 0 정직 표기)
-- [ ] check-goal-109 (스캐폴드)
+- [ ] check-goal-111 (스캐폴드)
 - [ ] 공통 게이트
 
 ## Mandatory Reading
-- docs/adr/ADR-008 · goals/108 · docs/runbooks/MORNING_AUTONOMY_MERGE.md · yohan-brain research 2026-07-27 결정 2
+- docs/adr/ADR-009 · goals/110 · docs/runbooks/MORNING_AUTONOMY_MERGE.md · yohan-brain research 2026-07-27 결정 2
