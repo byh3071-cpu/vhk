@@ -1,8 +1,8 @@
 /**
  * core-ruleset-snapshot.ts — core-ruleset.yaml 번들 스냅샷
  *
- * PRIVATE_RULES_ROOT 환경변수가 없는 npm 배포 환경에서 폴백으로 사용.
- * 원본: private-rules-repository/memory/core/core-ruleset.yaml
+ * 별도 사용자 규칙 파일이 없는 npm 배포 환경에서 기본값으로 사용.
+ * 공개 VHK 코어가 소유하는 범용 스냅샷.
  * 마지막 동기화: 2026-06-16
  *
  * ⚠️ 이 파일은 직접 편집하지 말고 원본 yaml을 수정한 뒤 재생성하세요.

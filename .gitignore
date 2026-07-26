@@ -33,6 +33,12 @@ dist/
 # 서브에이전트(critic 등) 로컬 학습 메모리 — 머신별 산출물, 커밋 금지
 .claude/agent-memory/
 
+# VHK 저장소 관리자 개인 운영 산출물 — 공개 HEAD 추적 금지
+.agents/SOUL.md
+.vhk/config.json
+.vhk/events/*.jsonl
+.vhk/ledger.jsonl
+
 # Cursor MCP 설정 — 절대 로컬 경로 포함, 머신별 — 커밋 금지 (VHK-022 hygiene)
 # ecosystem.mdc 만 예외 (E5-01 vhk-inject-bootstrap 템플릿 dogfood)
 .cursor/*

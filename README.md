@@ -38,7 +38,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 🩺 개발 환경 점검
 
   🟢 Node     v24.13.0 (shim-safe)
-  🟢 pnpm     11.2.2
+  🟢 pnpm     11.17.0
   🟢 git      2.53.0 (user configured)
   🟢 VHK      v2.11.0 (최신)
   🟢 MCP      35 tools 등록
@@ -101,6 +101,17 @@ vhk init -y && vhk sync && vhk mcp-init
 ```
 
 Node.js 22 이상이 필요합니다. `vhk start`는 마법사로 초기 셋업 비용을 한 번에 제거하고, 아이디어부터 검증하려면 `vhk gate`로 시작하세요.
+
+### 선택: 사용자 규칙 YAML 연결
+
+VHK는 다른 저장소 없이 독립 실행됩니다. 별도 규칙이 필요하면 YAML 파일을 직접 연결하세요.
+
+```powershell
+vhk config set-rules-file C:\rules\team-rules.yaml
+# 또는 현재 프로세스 시작 전에 VHK_RULES_FILE 환경변수로 지정
+```
+
+`PRIVATE_RULES_ROOT`, 홈 설정의 `rulesRoot`, `vhk config set-rules-root`는 `2.12`에서 제거 예정 경고와 함께 한 릴리스만 호환되고 `3.0`에서 제거됩니다.
 
 ## VHK vs 맨 에이전트
 
@@ -250,6 +261,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 - `.env`와 민감 파일은 `.gitignore`·`secure scan`·`preflight`에서 계속 확인합니다.
 - `vhk cloud push`는 GitHub secret gist를 사용하며 토큰은 코드나 설정에 저장하지 않습니다.
 - `memory.json`·`refs.json`·`HARD_STOP` 같은 개인/상태 파일은 기본 백업 제외 대상입니다.
+- 취약점은 공개 이슈에 세부 정보를 올리지 말고 [SECURITY.md](SECURITY.md)의 비공개 제보 절차를 이용하세요.
 
 ## 요구 사항
 
@@ -266,7 +278,7 @@ pnpm.cmd run build
 pnpm.cmd run test:run
 ```
 
-`prepublishOnly`는 publish 전에 빌드와 테스트를 모두 실행합니다.
+`prepublishOnly`는 publish 전에 빌드·테스트·npm 공개 경계 검사·High 이상 의존성 감사를 모두 실행합니다.
 
 <details>
 <summary>배포 담당자 메모</summary>

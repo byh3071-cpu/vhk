@@ -34,7 +34,7 @@ describe('renderCoreRuleset', () => {
 
   it('source=live 이면 origin 문자열 포함', () => {
     const out = renderCoreRuleset({ data: MINIMAL, source: 'live', version: '0.1.0' })
-    expect(out).toContain('private-rules-repository/memory/core/core-ruleset.yaml')
+    expect(out).toContain('configured rules file')
   })
 
   it('source=bundled 이면 bundled snapshot 문자열 포함', () => {
@@ -88,6 +88,16 @@ describe('applyMarkerBlock — 멱등 마커 교체', () => {
 })
 
 describe('generateCoreRulesContent', () => {
+  const originalLegacy = process.env.VHK_LEGACY_RULES
+
+  beforeEach(() => {
+    process.env.VHK_LEGACY_RULES = '0'
+  })
+
+  afterEach(() => {
+    if (originalLegacy === undefined) delete process.env.VHK_LEGACY_RULES
+    else process.env.VHK_LEGACY_RULES = originalLegacy
+  })
   it('null 입력 시 마커 블록 반환', () => {
     const result = generateCoreRulesContent(null)
     expect(result).toContain(CORE_RULES_START_TAG)
@@ -105,19 +115,23 @@ describe('generateCoreRulesContent', () => {
 
 describe('loadCoreRuleset — 소스 판정 (goal 91)', () => {
   let origBrain: string | undefined
+  let tmpHome: string
 
   beforeEach(() => {
     origBrain = process.env.PRIVATE_RULES_ROOT
+    delete process.env.VHK_RULES_FILE
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-core-source-'))
   })
 
   afterEach(() => {
     if (origBrain === undefined) delete process.env.PRIVATE_RULES_ROOT
     else process.env.PRIVATE_RULES_ROOT = origBrain
+    fs.rmSync(tmpHome, { recursive: true, force: true })
   })
 
   it('PRIVATE_RULES_ROOT 미설정 → source=bundled', () => {
     delete process.env.PRIVATE_RULES_ROOT
-    const loaded = loadCoreRuleset()
+    const loaded = loadCoreRuleset(tmpHome)
     expect(loaded.source).toBe('bundled')
   })
 
@@ -128,7 +142,7 @@ describe('loadCoreRuleset — 소스 판정 (goal 91)', () => {
     fs.writeFileSync(yamlPath, 'version: "9.9.9"\nnon_negotiable:\n  - x\n', 'utf-8')
     process.env.PRIVATE_RULES_ROOT = dir
 
-    const loaded = loadCoreRuleset()
+    const loaded = loadCoreRuleset(tmpHome)
     expect(loaded.source).toBe('live')
     expect(loaded.version).toBe('9.9.9')
 
@@ -139,7 +153,7 @@ describe('loadCoreRuleset — 소스 판정 (goal 91)', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-empty-'))
     process.env.PRIVATE_RULES_ROOT = dir
 
-    expect(loadCoreRuleset().source).toBe('bundled')
+    expect(loadCoreRuleset(tmpHome).source).toBe('bundled')
 
     fs.rmSync(dir, { recursive: true, force: true })
   })

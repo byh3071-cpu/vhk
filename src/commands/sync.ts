@@ -397,13 +397,12 @@ export function agentsMdEcosystemBlock(rootDir?: string): string[] {
     if (!fs.existsSync(ecoPath)) return []
   }
   return [
-    '## Ecosystem (cross-repo)',
+    '## VHK Project Rules',
     '',
-    '> Contract SoT: private-rules-repository `memory/core/ecosystem-contract.yaml` (obey when status=active).',
+    '> Project rules are generated from `RULES.md`; optional user rules use the generic rules-file contract.',
     '',
-    '- **Tier:** private-rules-repository `memory/core/inheritance-registry.yaml`',
-    '- **Roster:** private-rules-repository `memory/core/agent-roster.yaml` (CLI·모델·effort; obey when active)',
     '- **Cursor:** `.cursor/rules/ecosystem.mdc` (vhk inject-bootstrap)',
+    '- **Optional rules:** `VHK_RULES_FILE` or `vhk config set-rules-file <yaml>`',
     '- **금지:** AGENTS.md 손수 편집 → `RULES.md` + `vhk sync`',
     '',
   ]
