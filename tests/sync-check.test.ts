@@ -2,7 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { syncCheck, syncCore, SYNC_TARGETS } from '../src/commands/sync.js'
+import {
+  syncCheck,
+  syncCore,
+  SYNC_TARGETS,
+  SYNC_BOOTSTRAP_TARGETS,
+} from '../src/commands/sync.js'
+import { ECOSYSTEM_MDC_REL, MCP_JSON_EXAMPLE_REL } from '../src/lib/inject-bootstrap.js'
 
 const RULES = [
   '# 데모 — 테스트',
@@ -22,7 +28,7 @@ let dir: string
 beforeEach(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-synccheck-'))
   fs.writeFileSync(path.join(dir, 'RULES.md'), RULES, 'utf-8')
-  // 실제 sync 로 8타겟 생성 — check 의 기준 상태(동기화 완료)
+  // 실제 sync 로 미러 8 + bootstrap 생성 — check 의 기준 상태(동기화 완료)
   await syncCore(dir, { yes: true }, async () => true)
 })
 
@@ -30,7 +36,7 @@ afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true })
 })
 
-describe('syncCheck — 8타겟 drift 검사 (Goal 63)', () => {
+describe('syncCheck — sync 산출 전체 drift 검사 (Goal 63)', () => {
   it('동기화 직후 → ok, drift/missing 0', () => {
     const r = syncCheck(dir)
     expect(r.ok).toBe(true)
@@ -79,5 +85,49 @@ describe('syncCheck — 8타겟 drift 검사 (Goal 63)', () => {
     const before = fs.readFileSync(p, 'utf-8')
     syncCheck(dir)
     expect(fs.readFileSync(p, 'utf-8')).toBe(before)
+  })
+
+  it('bootstrap 레지스트리에 ecosystem.mdc · mcp.json.example 포함', () => {
+    const paths = SYNC_BOOTSTRAP_TARGETS.map((t) => t.path)
+    expect(paths).toContain(ECOSYSTEM_MDC_REL)
+    expect(paths).toContain(MCP_JSON_EXAMPLE_REL)
+  })
+
+  it('ecosystem.mdc 손수정 → drifted (8미러만 보면 놓치던 커버리지 구멍)', () => {
+    const p = path.join(dir, ECOSYSTEM_MDC_REL)
+    expect(fs.existsSync(p)).toBe(true)
+    fs.writeFileSync(p, fs.readFileSync(p, 'utf-8') + '\n<!-- hand edit -->\n', 'utf-8')
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(false)
+    expect(r.drifted).toContain(ECOSYSTEM_MDC_REL)
+  })
+
+  it('mcp.json.example 손수정 → drifted', () => {
+    const p = path.join(dir, MCP_JSON_EXAMPLE_REL)
+    expect(fs.existsSync(p)).toBe(true)
+    fs.writeFileSync(p, '{\n  "hand": true\n}\n', 'utf-8')
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(false)
+    expect(r.drifted).toContain(MCP_JSON_EXAMPLE_REL)
+  })
+
+  it('ecosystem.mdc 삭제 → missing', () => {
+    fs.rmSync(path.join(dir, ECOSYSTEM_MDC_REL))
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(false)
+    expect(r.missing).toContain(ECOSYSTEM_MDC_REL)
+  })
+
+  it('ecosystem.mdc 만 있고 나머지 bootstrap 이 없어도 sync 가 채운다 (#516 회귀)', async () => {
+    // init 은 ecosystem.mdc 를 직접 쓴 뒤 syncCore 를 부른다. 과거 sync 는 "ecosystem.mdc 있음
+    // = bootstrap 완료" 로 보고 inject 를 건너뛰어, mcp.json.example 이 영원히 안 생겼다
+    // → 신규 프로젝트의 첫 sync --check 가 무조건 exit 1.
+    fs.rmSync(path.join(dir, MCP_JSON_EXAMPLE_REL))
+    expect(fs.existsSync(path.join(dir, ECOSYSTEM_MDC_REL))).toBe(true)
+
+    await syncCore(dir, { yes: true }, async () => true)
+
+    expect(fs.existsSync(path.join(dir, MCP_JSON_EXAMPLE_REL))).toBe(true)
+    expect(syncCheck(dir).ok).toBe(true)
   })
 })
