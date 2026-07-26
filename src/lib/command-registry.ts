@@ -24,7 +24,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   work: ['handoff'],
   worktree: ['add', 'check'],
   seo: ['init', 'submit', 'check', 'report', 'automate'],
-  config: ['set-rules-root'],
+  config: ['set-rules-file', 'set-rules-root'],
   bootstrap: ['cursor'],
 }
 
@@ -36,7 +36,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
  *
  * SoT 는 commander 실등록(index.ts `.alias()`) — 드리프트 가드 테스트
  * (tests/command-registry.test.ts, introspect 대조)가 양방향(누락·유령) 어긋남을 잡는다.
- * 별칭 없는 컨테이너(mission/seo/config/bootstrap 등)는 등재하지 않는다(발명 금지).
+ * 별칭 없는 컨테이너(mission/seo/bootstrap 등)는 등재하지 않는다(발명 금지).
  */
 export const CONTAINER_SUBCOMMAND_ALIASES: Record<string, Record<string, string>> = {
   secure: { 스캔: 'scan' },
@@ -75,6 +75,7 @@ export const CONTAINER_SUBCOMMAND_ALIASES: Record<string, Record<string, string>
     기각: 'reject',
     되돌리기: 'undo',
   },
+  config: { 규칙파일: 'set-rules-file' },
 }
 
 /** 컨테이너의 서브커맨드 한글 별칭을 영문으로 정규화(별칭 아니면 그대로). */
@@ -179,5 +180,5 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'evolve', desc: '패턴 → 룰 후보 제안·반영·undo' },
   { name: 'loop', desc: '자가진화 조율 1틱 — 다음 한 수 (읽기 전용)' },
   { name: 'seo', desc: 'SEO·수익 대시보드 (init: 사이트 등록 + 자격증명 보관)' },
-  { name: 'config', desc: 'vhk 사용자 설정 (set-rules-root: 헌법 라이브 소스, 재시작 불필요)' },
+  { name: 'config', desc: 'vhk 사용자 설정 (set-rules-file: 사용자 규칙 YAML, 재시작 불필요)' },
 ]

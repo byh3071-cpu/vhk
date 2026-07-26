@@ -323,6 +323,7 @@ export async function init(options: InitOptions = {}) {
   }
 
   const coreRulesCheck = loadCoreRuleset()
+  if (coreRulesCheck.warning) log.warn(coreRulesCheck.warning)
   if (coreRulesCheck.source === 'bundled') {
     log.warn(ko.init.coreRulesBundledWarn(coreRulesCheck.version))
   }
@@ -407,7 +408,7 @@ export function generateFiles(
     // RFC 0061 T1 — 기록 집행 판정 본체(버전관리). 배선은 writeInitExtras 의 commit-msg shim.
     '.vhk/hooks/record-check.mjs': RECORD_CHECK_TEMPLATE(),
     '.vhkignore': VHK_IGNORE_TEMPLATE(),
-    // core-ruleset 마커블록 상속 — PRIVATE_RULES_ROOT 있으면 라이브, 없으면 번들 스냅샷
+    // core-ruleset 마커블록 상속 — 사용자 지정 규칙이 있으면 적용하고, 없으면 번들 스냅샷을 쓴다.
     '.agents/CORE-RULES.md': generateCoreRulesContent(null),
     '.cursor/rules/ecosystem.mdc': generateEcosystemMdcContent(),
   }

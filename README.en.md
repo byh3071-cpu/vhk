@@ -58,6 +58,17 @@ vhk --version
 
 Requires Node.js >= 22. One-off runs: `npx -y @byh3071/vhk`.
 
+### Optional: connect your own rules YAML
+
+VHK runs standalone and does not require another repository. To supply additional rules, point VHK at a YAML file you control:
+
+```bash
+vhk config set-rules-file /path/to/team-rules.yaml
+# or set VHK_RULES_FILE before starting the process
+```
+
+The legacy `PRIVATE_RULES_ROOT`, `rulesRoot`, and `set-rules-root` paths remain for one `2.12` compatibility release with a warning and are removed in `3.0`.
+
 ## 3-minute start
 
 **New project**
@@ -109,6 +120,7 @@ vhk work handoff
 - Local-first by default: logs, context, and memory stay in the repo and `.vhk/`.
 - `.env` and sensitive files are continually checked by `.gitignore`, `secure scan`, and `preflight`.
 - `vhk cloud push` uses a GitHub secret gist; tokens are never stored in code or config.
+- Report vulnerabilities through [SECURITY.md](SECURITY.md), not a public issue.
 
 ## Requirements
 

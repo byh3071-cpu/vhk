@@ -237,7 +237,7 @@ export async function secure(paths?: string[]) {
     console.log(chalk.dim('    PAT-001: ALLOWED_ 상수 + LLM 출력 필터링 추가'))
     console.log(chalk.dim('    PAT-002: extractJsonObject() 래퍼 + 필수키 검증 추가'))
     console.log(chalk.dim('    PAT-004: Math.min(input, CAP) 클램프 추가'))
-    console.log(chalk.dim('    패턴 원본: private-rules-repository/docs/patterns/PAT-00{1,2,4}-*.md\n'))
+    console.log(chalk.dim('    패턴 설명: VHK 보안 휴리스틱 PAT-001, PAT-002, PAT-004\n'))
   }
 
   if (findings.length === 0 && llmScan.findings.length === 0) {

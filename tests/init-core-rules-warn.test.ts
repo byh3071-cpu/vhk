@@ -16,12 +16,16 @@ vi.mock('inquirer', () => ({
 describe('vhk init — core-rules 폴백 가시화 (goal 91)', () => {
   let origCwd: string
   let origBrain: string | undefined
+  let origLegacy: string | undefined
   let dir: string
   let logs: string[]
 
   beforeEach(() => {
     origCwd = process.cwd()
     origBrain = process.env.PRIVATE_RULES_ROOT
+    origLegacy = process.env.VHK_LEGACY_RULES
+    process.env.VHK_LEGACY_RULES = '0'
+    delete process.env.VHK_RULES_FILE
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-init-core-warn-'))
     process.chdir(dir)
     logs = []
@@ -34,6 +38,8 @@ describe('vhk init — core-rules 폴백 가시화 (goal 91)', () => {
     fs.rmSync(dir, { recursive: true, force: true })
     if (origBrain === undefined) delete process.env.PRIVATE_RULES_ROOT
     else process.env.PRIVATE_RULES_ROOT = origBrain
+    if (origLegacy === undefined) delete process.env.VHK_LEGACY_RULES
+    else process.env.VHK_LEGACY_RULES = origLegacy
     vi.restoreAllMocks()
   })
 
@@ -66,40 +72,41 @@ describe('vhk init — core-rules 폴백 가시화 (goal 91)', () => {
   //     덮어씀(tests/inject-bootstrap.test.ts:64-77 로 실증된 부작용) — 부작용 고지 누락.
   // (2) 사용자 자신의 글로벌 규칙("Windows env var 설정 후 VSCode 완전 재시작 필수")과
   //     경고 문구가 안내하는 즉시 실행 흐름이 충돌 — "시킨 대로 했는데 안 됨" 루프 위험.
-  it('경고 문구가 --force 부작용과 Windows 재시작 필요성을 고지한다', async () => {
+  it('경고 문구가 --force 부작용과 범용 규칙 파일 대안을 고지한다', async () => {
     delete process.env.PRIVATE_RULES_ROOT
     const { init } = await import('../src/commands/init.js')
     await init({ yes: true, name: 'demo', description: 'd', type: 'cli' })
 
     const joined = logs.join('\n')
     expect(joined).toContain('ecosystem.mdc')
-    expect(joined).toContain('재시작')
+    expect(joined).toContain('VHK_RULES_FILE')
   })
 
   // goal 92: 재시작 문제를 원천 회피하는 vhk config set-rules-root 도 함께 안내(대안 병기).
-  it('경고 문구가 재시작 없이 즉시 반영되는 vhk config set-rules-root 대안도 안내한다', async () => {
+  it('경고 문구가 vhk config set-rules-file 대안을 안내한다', async () => {
     delete process.env.PRIVATE_RULES_ROOT
     const { init } = await import('../src/commands/init.js')
     await init({ yes: true, name: 'demo', description: 'd', type: 'cli' })
 
     const joined = logs.join('\n')
-    expect(joined).toContain('vhk config set-rules-root')
+    expect(joined).toContain('vhk config set-rules-file')
   })
 
-  it('PRIVATE_RULES_ROOT 유효 → 경고 없음(회귀 가드) + context.md 에 live 표기', async () => {
+  it('legacy root 유효 → 제거 예정 경고 + context.md 에 configured 표기', async () => {
     const brainDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-brain-warn-'))
     const yamlPath = path.join(brainDir, 'memory', 'core', 'core-ruleset.yaml')
     fs.mkdirSync(path.dirname(yamlPath), { recursive: true })
     fs.writeFileSync(yamlPath, 'version: "9.9.9"\nnon_negotiable:\n  - x\n', 'utf-8')
     process.env.PRIVATE_RULES_ROOT = brainDir
+    delete process.env.VHK_LEGACY_RULES
 
     try {
       const { init } = await import('../src/commands/init.js')
       await init({ yes: true, name: 'demo', description: 'd', type: 'cli' })
 
-      expect(logs.join('\n')).not.toContain('번들 스냅샷')
+      expect(logs.join('\n')).toContain('v3.0')
       const context = fs.readFileSync(path.join(dir, '.vhk', 'context.md'), 'utf-8')
-      expect(context).toContain('live')
+      expect(context).toContain('configured')
     } finally {
       fs.rmSync(brainDir, { recursive: true, force: true })
     }

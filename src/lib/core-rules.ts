@@ -2,11 +2,10 @@
  * core-rules.ts — core-ruleset.yaml 로딩·렌더·마커 멱등 유틸
  *
  * 소스 우선순위:
- *   1. PRIVATE_RULES_ROOT 환경변수 → {root}/memory/core/core-ruleset.yaml (라이브)
- *   2. ~/.vhk/config.json 의 rulesRoot(goal 92) → 위와 동일 경로 규칙 (라이브)
- *      — env var는 설정해도 같은 세션에 반영 안 됨(Windows 재시작 필요)이라
- *        재시작 없이 즉시 반영되는 파일기반 경로를 대안으로 추가.
- *   3. 둘 다 없거나 읽기 실패 → 번들 스냅샷 사용 (npm 배포 환경 대응)
+ *   1. VHK_RULES_FILE 환경변수 → 사용자가 지정한 YAML
+ *   2. ~/.vhk/config.json 의 rulesFile → 사용자가 지정한 YAML
+ *   3. v2 호환 설정(PRIVATE_RULES_ROOT / rulesRoot) → v3 제거 예정 경고
+ *   4. 모두 없거나 읽기 실패 → 번들 스냅샷 사용
  */
 
 import fs from 'node:fs'
@@ -58,6 +57,9 @@ export type LoadedCoreRuleset = {
   data: CoreRuleset
   source: CoreRulesSource
   version: string
+  origin?: 'configured' | 'legacy' | 'bundled'
+  sourcePath?: string
+  warning?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -67,10 +69,11 @@ export type LoadedCoreRuleset = {
 export const CORE_RULES_START_TAG = '<!-- CORE-RULES:START'
 export const CORE_RULES_END_TAG = '<!-- CORE-RULES:END -->'
 
-function buildStartTag(version: string, source: CoreRulesSource): string {
-  const origin =
-    source === 'live'
-      ? 'private-rules-repository/memory/core/core-ruleset.yaml'
+function buildStartTag(version: string, sourceOrigin: NonNullable<LoadedCoreRuleset['origin']>): string {
+  const origin = sourceOrigin === 'configured'
+    ? 'configured rules file'
+    : sourceOrigin === 'legacy'
+      ? 'legacy rules source (deprecated)'
       : 'vhk bundled snapshot'
   return `<!-- CORE-RULES:START v${version} (generated from ${origin} — 직접 편집 금지) -->`
 }
@@ -79,38 +82,98 @@ function buildStartTag(version: string, source: CoreRulesSource): string {
 // Load
 // ---------------------------------------------------------------------------
 
-// export: config.ts(goal 92)가 "지금 저장한 경로 자체가 유효한가"를 loadCoreRuleset()의
-// 전체 우선순위(env 먼저)와 별개로 직접 확인해야 해서 필요 — critic 지적(M2) 대응.
+function isCoreRuleset(value: unknown): value is CoreRuleset {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  const rules = value as Record<string, unknown>
+  if (rules.version !== undefined && typeof rules.version !== 'string') return false
+  for (const key of ['non_negotiable', 'coding_execution', 'cost', 'measurement', 'pattern_refs']) {
+    const item = rules[key]
+    if (item !== undefined && (!Array.isArray(item) || item.some(v => typeof v !== 'string'))) return false
+  }
+  return true
+}
+
+export function tryLoadRulesFile(
+  rulesFile: string,
+  origin: NonNullable<LoadedCoreRuleset['origin']> = 'configured',
+): LoadedCoreRuleset | null {
+  try {
+    const resolvedPath = path.resolve(rulesFile)
+    const raw = fs.readFileSync(resolvedPath, 'utf-8')
+    const parsed: unknown = parseYaml(raw)
+    if (!isCoreRuleset(parsed)) return null
+    return {
+      data: parsed,
+      source: 'live',
+      version: parsed.version ?? 'unknown',
+      origin,
+      sourcePath: resolvedPath,
+    }
+  } catch {
+    return null
+  }
+}
+
+// v2.12 호환: 기존 brain root를 범용 규칙 파일 경로로 변환한다. v3.0에서 제거.
 export function tryLoadLive(rulesRoot: string): LoadedCoreRuleset | null {
   try {
     // path.join 도 try 안에 포함 — rulesRoot 가 문자열이 아니면(홈 설정파일 수기 편집 손상 등)
     // ERR_INVALID_ARG_TYPE 을 던지는데, 이 함수의 계약은 "실패 시 항상 null"이라 여기서 잡는다.
     const yamlPath = path.join(rulesRoot, 'memory', 'core', 'core-ruleset.yaml')
-    const raw = fs.readFileSync(yamlPath, 'utf-8')
-    const data = parseYaml(raw) as CoreRuleset
-    return { data, source: 'live', version: data.version ?? 'unknown' }
+    return tryLoadRulesFile(yamlPath, 'legacy')
   } catch {
     return null
   }
 }
 
 export function loadCoreRuleset(homeDir: string = os.homedir()): LoadedCoreRuleset {
-  const envRoot = process.env.PRIVATE_RULES_ROOT
-  if (envRoot) {
-    const loaded = tryLoadLive(envRoot)
+  const warnings: string[] = []
+  const envRulesFile = process.env.VHK_RULES_FILE
+  if (envRulesFile) {
+    const loaded = tryLoadRulesFile(envRulesFile)
     if (loaded) return loaded
+    warnings.push(`VHK_RULES_FILE을 읽지 못했습니다: ${envRulesFile}`)
   }
 
-  const configRoot = readHomeConfig(homeDir)?.rulesRoot
-  if (configRoot) {
+  const homeConfig = readHomeConfig(homeDir)
+  const configRulesFile = homeConfig?.rulesFile
+  if (typeof configRulesFile === 'string' && configRulesFile) {
+    const loaded = tryLoadRulesFile(configRulesFile)
+    if (loaded) return { ...loaded, warning: warnings.join('\n') || undefined }
+    warnings.push(`~/.vhk/config.json의 rulesFile을 읽지 못했습니다: ${configRulesFile}`)
+  }
+
+  const legacyEnabled = process.env.VHK_LEGACY_RULES !== '0'
+  const envRoot = legacyEnabled ? process.env.PRIVATE_RULES_ROOT : undefined
+  if (envRoot) {
+    const loaded = tryLoadLive(envRoot)
+    if (loaded) return {
+      ...loaded,
+      warning: [
+        ...warnings,
+        'PRIVATE_RULES_ROOT는 v2.12 호환 설정이며 v3.0에서 제거됩니다. VHK_RULES_FILE을 사용하세요.',
+      ].join('\n'),
+    }
+  }
+
+  const configRoot = legacyEnabled ? homeConfig?.rulesRoot : undefined
+  if (typeof configRoot === 'string' && configRoot) {
     const loaded = tryLoadLive(configRoot)
-    if (loaded) return loaded
+    if (loaded) return {
+      ...loaded,
+      warning: [
+        ...warnings,
+        'rulesRoot는 v2.12 호환 설정이며 v3.0에서 제거됩니다. rulesFile로 이전하세요.',
+      ].join('\n'),
+    }
   }
 
   return {
     data: CORE_RULESET_SNAPSHOT,
     source: 'bundled',
     version: CORE_RULESET_SNAPSHOT.version ?? 'unknown',
+    origin: 'bundled',
+    warning: warnings.join('\n') || undefined,
   }
 }
 
@@ -132,8 +195,8 @@ function kvItems(obj: Record<string, string> | undefined): string {
 }
 
 export function renderCoreRuleset(loaded: LoadedCoreRuleset): string {
-  const { data, source, version } = loaded
-  const startTag = buildStartTag(version, source)
+  const { data, version, origin } = loaded
+  const startTag = buildStartTag(version, origin ?? (loaded.source === 'live' ? 'configured' : 'bundled'))
 
   const sections: string[] = []
 

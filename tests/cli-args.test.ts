@@ -193,6 +193,12 @@ describe('detectNaturalLanguageInput — 한글 서브별칭 경로 가드 (R1 �
   it('vhk 클라우드 올리기 → null (commander 가 cloud push 실행)', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '클라우드', '올리기'])).toBeNull()
   })
+  it('vhk config set-rules-file <yaml> → null (영문 경로를 commander가 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'config', 'set-rules-file', 'rules.yaml'])).toBeNull()
+  })
+  it('vhk 설정 규칙파일 <yaml> → null (한글 별칭 경로를 commander가 실행)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '설정', '규칙파일', 'rules.yaml'])).toBeNull()
+  })
   // 회귀: 별칭은 컨테이너별로 격리 — '점검' 은 worktree check 의 별칭이지 goal 것이 아니다.
   it('회귀: vhk 목표 점검 → 여전히 자연어 (goal 에 점검 별칭 없음, cross-container 오염 금지)', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '목표', '점검'])).toBe('목표 점검')

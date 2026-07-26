@@ -10,7 +10,7 @@ jobs:
   test:
     # Goal 47: 주 사용·배포 환경(win32)과 툴체인 하한 Node 를 매트릭스로 실검증.
     #   ubuntu/windows × node 22/24 = 4조합. fail-fast:false 로 한 조합 실패가 나머지를 안 끊음.
-    #   하한이 22 인 이유: packageManager pnpm@11.2.2 가 node:sqlite 의존으로 Node >=22.13 요구
+    #   하한이 22 인 이유: packageManager pnpm@11.17.0 이 node:sqlite 의존으로 Node >=22.13 요구
     #   (Node 20 에선 pnpm 자체가 ERR_UNKNOWN_BUILTIN_MODULE 로 실패 — goal 47 이 실측). 런타임
     #   engines(>=20)는 별개 — vhk 실행은 node 20 호환이나 CI 툴체인(pnpm) 하한은 22.
     strategy:
@@ -20,15 +20,15 @@ jobs:
         node: [22, 24]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      # pnpm 버전은 package.json "packageManager"(pnpm@11.2.2) 단일 소스에서 읽음.
+      # pnpm 버전은 package.json "packageManager"(pnpm@11.17.0) 단일 소스에서 읽음.
       # (pnpm 9 는 workspace overrides 거부 → 11.x 고정. Dependabot/corepack 도 동일 버전 사용.)
       - name: pnpm 설치
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Node ${{ matrix.node }} + pnpm 캐시
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: ${{ matrix.node }}
           cache: pnpm
@@ -61,6 +61,12 @@ jobs:
       - name: 빌드
         run: pnpm build
 
+      - name: npm 공개 경계 검사
+        run: pnpm boundary:check
+
+      - name: High 이상 의존성 취약점 차단
+        run: pnpm security:audit
+
       # 의존성 취약점 감사 — 정보성(continue-on-error). 차단형 보안 업뎃은 Dependabot 담당.
       # 새 취약점이 무관 작업 머지를 막지 않도록 비블로킹. 로그/Summary 로만 노출.
       - name: 의존성 취약점 감사 (정보성)
@@ -84,14 +90,14 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # pnpm 버전은 package.json "packageManager" 단일 소스에서 읽음.
       - name: pnpm 설치
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
 
       - name: Node 24 + pnpm 캐시
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: pnpm
@@ -102,6 +108,9 @@ jobs:
       # 도그푸딩 대상 = 방금 빌드한 dist/index.js (bin: vhk). 배포될 실코드를 그대로 시식.
       - name: 빌드
         run: pnpm build
+
+      - name: npm 공개 경계 검사
+        run: pnpm boundary:check
 
       # 보안 게이트 — public npm 패키지라 시크릿/키 유출 = 사고. vhk 자체 스캐너로 매 push 검사.
       # 유출 탐지 시 비0 종료 → 빌드 실패(머지 차단).
