@@ -117,4 +117,17 @@ describe('syncCheck — sync 산출 전체 drift 검사 (Goal 63)', () => {
     expect(r.ok).toBe(false)
     expect(r.missing).toContain(ECOSYSTEM_MDC_REL)
   })
+
+  it('ecosystem.mdc 만 있고 나머지 bootstrap 이 없어도 sync 가 채운다 (#516 회귀)', async () => {
+    // init 은 ecosystem.mdc 를 직접 쓴 뒤 syncCore 를 부른다. 과거 sync 는 "ecosystem.mdc 있음
+    // = bootstrap 완료" 로 보고 inject 를 건너뛰어, mcp.json.example 이 영원히 안 생겼다
+    // → 신규 프로젝트의 첫 sync --check 가 무조건 exit 1.
+    fs.rmSync(path.join(dir, MCP_JSON_EXAMPLE_REL))
+    expect(fs.existsSync(path.join(dir, ECOSYSTEM_MDC_REL))).toBe(true)
+
+    await syncCore(dir, { yes: true }, async () => true)
+
+    expect(fs.existsSync(path.join(dir, MCP_JSON_EXAMPLE_REL))).toBe(true)
+    expect(syncCheck(dir).ok).toBe(true)
+  })
 })
