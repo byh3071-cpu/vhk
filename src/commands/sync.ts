@@ -767,18 +767,19 @@ export async function syncCore(
   atomicWriteFile(path.join(rootDir, SYNCED_MARKER_REL), new Date().toISOString() + '\n')
   ensureVhkIgnored(rootDir, '.synced')
 
-  // #468 brownfield: ecosystem.mdc 없으면 inject-bootstrap 으로 생성 후 AGENTS 재생성
-  const ecoPath = path.join(rootDir, ECOSYSTEM_MDC_REL)
-  if (!fs.existsSync(ecoPath)) {
-    const injected = injectBootstrapAll(rootDir, { yes: true })
-    if (
-      (injected.ecosystem === 'created' || injected.ecosystem === 'updated')
-      && written.includes('AGENTS.md')
-    ) {
-      const agentsPath = path.join(rootDir, 'AGENTS.md')
-      const refreshed = toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir), rootDir)
-      fs.writeFileSync(agentsPath, refreshed, 'utf-8')
-    }
+  // #468 brownfield + #516: bootstrap 산출물 전량을 inject-bootstrap 에 위임한다.
+  // 과거엔 ecosystem.mdc 부재를 게이트로 썼는데, init 이 ecosystem.mdc 만 먼저 쓰는 경로에서는
+  // 게이트가 닫혀 mcp.json.example 이 영원히 안 생겼다 → 첫 sync --check 가 무조건 exit 1.
+  // injectBootstrapAll 은 파일별로 멱등(있으면 unchanged)이라 무조건 호출해도 안전하다.
+  const injected = injectBootstrapAll(rootDir, { yes: true })
+  if (
+    (injected.ecosystem === 'created' || injected.ecosystem === 'updated')
+    && written.includes('AGENTS.md')
+  ) {
+    // AGENTS.md 의 Ecosystem 블록은 ecosystem.mdc 존재를 전제로 삽입된다 → 방금 생겼으면 재생성
+    const agentsPath = path.join(rootDir, 'AGENTS.md')
+    const refreshed = toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir), rootDir)
+    fs.writeFileSync(agentsPath, refreshed, 'utf-8')
   }
 
   return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan, unmapped, claudeMigration }
