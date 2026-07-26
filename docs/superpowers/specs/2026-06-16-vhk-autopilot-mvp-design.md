@@ -37,7 +37,7 @@
 ### OUT (2단계로 이연 — 이번 스펙 아님)
 - `gh issue create` 자동 등록, dedupe, rate-limit, 라벨/레포 라우팅.
 - 이슈 초안 영속(`issues-draft.jsonl`), 14필드 템플릿, secure 본문 강제.
-- CLI `vhk auto`, MCP `vhk_auto`, yohan-brain core-ruleset 규약, sync 배포.
+- CLI `vhk auto`, MCP `vhk_auto`, 범용 core-ruleset 규약, sync 배포.
 - 적대검증 수단 선택형(B1 4종) · 검증도 4레벨(B2) · 무인 연속(/loop) 모드.
 - `vhk review --json` / `vhk mission check --json` 신규(2단계 선행 의존).
 
@@ -182,7 +182,7 @@
 | 승인 | undo 패턴 — 1차 호출 초안 반환·등록 0 → `vhk auto approve`(또는 confirm 인자) 재호출로만 등록. MCP는 초안 반환까지만(TTY 없음). |
 | 유출 방지 | public 레포 app-bug 자동등록 기본 금지 → 로컬 보관. 등록 직전 issue body 전체 secure 강제, 1건이라도 걸리면 차단. |
 | 판정 강화 | `vhk review --json` · `vhk mission check --json` 신규(선행 의존). |
-| 배포 | CLI `vhk auto`(등록 7항 + MCP 30→31) · MCP `vhk_auto` · yohan-brain core-ruleset 규약(inject_core_rules) · sync 자동설치. |
+| 배포 | CLI `vhk auto`(등록 7항 + MCP 30→31) · MCP `vhk_auto` · 범용 core-ruleset 규약 · sync 자동설치. |
 | 확장 | 적대검증 수단 선택형(B1) · 검증도 4레벨(B2) · 14필드 템플릿(D6) · 3채널 로깅(E) · 무인 연속(/loop). |
 | 승격 트리거 | 1단계 3세션 무사 가동 or 유효 이슈 5건 수집 시 재평가. |
 

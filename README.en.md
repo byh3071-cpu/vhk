@@ -67,8 +67,6 @@ vhk config set-rules-file /path/to/team-rules.yaml
 # or set VHK_RULES_FILE before starting the process
 ```
 
-The legacy `YOHAN_BRAIN_ROOT`, `brainRoot`, and `set-brain-root` paths remain for one `2.12` compatibility release with a warning and are removed in `3.0`.
-
 ## 3-minute start
 
 **New project**

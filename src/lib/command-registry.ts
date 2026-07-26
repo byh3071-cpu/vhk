@@ -24,7 +24,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   work: ['handoff'],
   worktree: ['add', 'check'],
   seo: ['init', 'submit', 'check', 'report', 'automate'],
-  config: ['set-rules-file', 'set-brain-root'],
+  config: ['set-rules-file'],
   bootstrap: ['cursor'],
 }
 

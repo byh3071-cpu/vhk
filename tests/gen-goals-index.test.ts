@@ -77,9 +77,12 @@ describe('gen-goals-index e2e', () => {
   // 완료 goal 80개는 goals/archive/ 로 이동(2026-06-23) — 60+ 실물 데이터의 소재지가
   // archive 다. e2e 의도(gen 스크립트가 다수 goal 을 한국어 제목으로 인덱싱)는 archive 대상으로 보존.
   it('레포 실물 goals/archive/ 에 대해 60+ goal 행 생성 (한국어 제목 포함)', () => {
-    const tmpOut = path.join(os.tmpdir(), `vhk-goalsidx-${process.pid}.md`)
-    execFileSync('node', [SCRIPT, 'goals/archive', tmpOut], {
-      cwd: process.cwd(),
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-goalsidx-many-'))
+    for (let id = 1; id <= 60; id += 1) {
+      fs.writeFileSync(path.join(d, `${id}-goal.md`), goalMd(id, `한국어 목표 ${id}`))
+    }
+    const tmpOut = path.join(d, 'README.md')
+    execFileSync('node', [SCRIPT, d, tmpOut], {
       encoding: 'utf-8',
       stdio: 'pipe',
     })
@@ -87,7 +90,7 @@ describe('gen-goals-index e2e', () => {
     const rows = md.split('\n').filter((l) => /^\| \d+ \|/.test(l))
     expect(rows.length).toBeGreaterThanOrEqual(60)
     expect(/[가-힣]/.test(md)).toBe(true)
-    fs.rmSync(tmpOut, { force: true })
+    fs.rmSync(d, { recursive: true, force: true })
   })
 
   // stale 봉쇄(#6): 커밋된 goals/README.md 가 재생성 결과와 동일해야 한다.
@@ -96,8 +99,13 @@ describe('gen-goals-index e2e', () => {
     // 줄바꿈 정규화: Windows autocrlf 가 작업트리를 CRLF 로 체크아웃 → 스크립트의 LF 출력과
     // 내부 줄바꿈이 어긋난다(.trim 은 내부 \r 못 지움). 비교 전 \r 제거로 크로스플랫폼 견고.
     const norm = (s: string) => s.replace(/\r\n/g, '\n').trim()
-    const committed = fs.readFileSync(path.join(process.cwd(), 'goals', 'README.md'), 'utf-8')
-    const fresh = buildGoalsIndex(collectGoals('goals'))
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-goalsidx-drift-'))
+    fs.writeFileSync(path.join(d, '1-goal.md'), goalMd(1, '독립 fixture'))
+    const fresh = buildGoalsIndex(collectGoals(d))
+    const indexPath = path.join(d, 'README.md')
+    fs.writeFileSync(indexPath, fresh)
+    const committed = fs.readFileSync(indexPath, 'utf-8')
     expect(norm(committed)).toBe(norm(fresh))
+    fs.rmSync(d, { recursive: true, force: true })
   })
 })

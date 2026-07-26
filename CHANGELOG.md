@@ -4,6 +4,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-07-27
+
 ### Added
 
 - **독립 규칙 소스** — `VHK_RULES_FILE`, 홈 설정 `rulesFile`, `vhk config set-rules-file <yaml경로>`를 추가해 VHK가 개인 저장소 없이 사용자 지정 YAML을 직접 읽도록 전환. 영문·한국어 별칭과 유효성 검증 포함.
@@ -12,7 +14,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 ### Changed
 
 - bootstrap·sync·MCP 예시·Cursor 스킬 산출물을 범용 VHK 계약으로 변경하고 개인 생태계 자동 감지와 교차 저장소 경로를 제거.
-- `YOHAN_BRAIN_ROOT`, `brainRoot`, `set-brain-root`는 `2.12`에서 제거 예정 경고와 함께 호환하며 `3.0`에서 제거하도록 명시.
+- 개인 환경에 결합된 기존 규칙 소스 호환 계층을 제거하고 범용 규칙 파일 계약만 유지.
 - pnpm을 `11.17.0`으로 올리고 `hono`, `@hono/node-server`, `fast-uri`의 취약 버전을 workspace override로 해소.
 - 생성 프로젝트의 증거 원장 추적 기본값은 유지하되, VHK 공개 저장소 자체의 `.vhk` 관리자 운영 원장과 `.agents/SOUL.md`는 비공개로 분리하고 재추적을 차단.
 
@@ -41,8 +43,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 ### Added
 
 - **init 커스터마이징 트리거 훅** (Goal 89) — `vhk init` 직후 `.vhk/NEEDS_CUSTOMIZATION` 마커 + `.claude/settings.json` SessionStart 훅 배선 → 첫 세션에서 AI가 도메인 규칙 인터뷰를 자동 시작. 실 라이브 세션(`claude -p --debug-file`)으로 훅 발화 검증 완료.
-- **`vhk config set-brain-root <path>`** (Goal 92) — `~/.vhk/config.json` 파일기반 core-rules 소스 설정. `YOHAN_BRAIN_ROOT` 환경변수는 설정해도 이미 열린 터미널/Claude Code 세션엔 재시작 전까지 반영 안 되는데(Windows 프로세스 환경변수 상속 구조), 파일은 매 실행마다 디스크에서 새로 읽어 이 문제를 구조적으로 회피. `loadCoreRuleset()` 3단계 우선순위(env var → 홈 설정파일 → 번들 스냅샷). 저장 직후 즉시 3-way 피드백(무효 경로/env가 가려서 지금은 안 씀/성공). 한글별칭 `설정`.
-- **core-rules 폴백 가시화** (Goal 91) — `YOHAN_BRAIN_ROOT` 미설정 또는 라이브 파일 읽기 실패 시 조용히 번들 스냅샷(구버전일 수 있음)으로 쓰이던 걸 `vhk init`/`vhk start` 콘솔 경고 + `.vhk/context.md` 표기로 가시화.
+- **사용자 규칙 파일 설정** — `~/.vhk/config.json`에 범용 YAML 경로를 저장하고 다음 실행부터 즉시 반영. 환경변수 우선 적용과 잘못된 파일을 구분해 안내.
+- **core-rules 폴백 가시화** — 사용자 규칙 파일이 없거나 읽기 실패하면 번들 스냅샷을 사용한다는 사실을 `vhk init`/`vhk start`와 `.vhk/context.md`에 표시.
 
 ### Fixed
 

@@ -4,10 +4,6 @@ import os from 'node:os'
 import path from 'node:path'
 import { getHomeConfigPath, readHomeConfig, writeHomeConfig } from './home-config.js'
 
-// goal 92: YOHAN_BRAIN_ROOT 환경변수의 "재시작 필요" 문제를 피하기 위한 홈 디렉터리 파일기반
-// 설정(~/.vhk/config.json). 매 실행마다 디스크를 새로 읽으므로 재시작 없이 즉시 반영된다.
-// src/lib/config.ts(프로젝트-로컬 .vhk/config.json)와 이름 충돌 방지 위해 별도 파일로 분리.
-
 function tmpHome(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-home-config-'))
 }
@@ -35,14 +31,14 @@ describe('home-config', () => {
 
   it('writeHomeConfig → readHomeConfig 왕복 — 디렉터리 없어도 자동 생성', () => {
     const home = tmpHome()
-    writeHomeConfig({ brainRoot: 'C:\\example\\yohan-brain' }, home)
-    expect(readHomeConfig(home)).toEqual({ brainRoot: 'C:\\example\\yohan-brain' })
+    writeHomeConfig({ rulesFile: 'C:\\example\\team-rules.yaml' }, home)
+    expect(readHomeConfig(home)).toEqual({ rulesFile: 'C:\\example\\team-rules.yaml' })
     fs.rmSync(home, { recursive: true, force: true })
   })
 
   it('writeHomeConfig — atomic write 라 쓰기 중간 임시파일이 안 남는다', () => {
     const home = tmpHome()
-    writeHomeConfig({ brainRoot: '/x' }, home)
+    writeHomeConfig({ rulesFile: '/rules.yaml' }, home)
     const files = fs.readdirSync(path.join(home, '.vhk'))
     expect(files).toEqual(['config.json'])
     fs.rmSync(home, { recursive: true, force: true })

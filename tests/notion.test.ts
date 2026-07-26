@@ -19,13 +19,13 @@ vi.mock('@notionhq/client', () => ({
 
 describe('extractPageId', () => {
   it('Notion URL에서 page ID를 추출한다', () => {
-    const id = extractPageId('https://notion.so/myworkspace/MyApp-PRD-abc123def4567890abcdef1234567890')
-    expect(id).toBe('abc123de-f456-7890-abcd-ef1234567890')
+    const id = extractPageId('https://notion.so/myworkspace/MyApp-PRD-00000000000000000000000000000000')
+    expect(id).toBe('00000000-0000-0000-0000-000000000000')
   })
 
   it('UUID 형식 ID를 그대로 받는다', () => {
-    const id = extractPageId('abc123de-f456-7890-abcd-ef1234567890')
-    expect(id).toBe('abc123de-f456-7890-abcd-ef1234567890')
+    const id = extractPageId('00000000-0000-0000-0000-000000000000')
+    expect(id).toBe('00000000-0000-0000-0000-000000000000')
   })
 })
 
@@ -54,7 +54,7 @@ describe('extractProjectNameFromTitle', () => {
 })
 
 describe('importNotionPrd (실 API 경로 — vi.mock)', () => {
-  const URL = 'https://notion.so/x/Page-abc123def4567890abcdef1234567890'
+  const URL = 'https://notion.so/x/Page-00000000000000000000000000000000'
   const ORIG_TOKEN = process.env.NOTION_TOKEN
 
   beforeEach(() => {

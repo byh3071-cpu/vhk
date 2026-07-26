@@ -1,7 +1,7 @@
 # RFC 0058 — Codex 감사 기반 정합성·구조 정리 백로그
 
 > 상태: Partially Implemented — T1(#471)·T2(#430/#445 close)·T3(#472)·T4(#475) 완료 · 잔여 = T5(드리프트 자동감지 → RFC 0062)·T6(check-goal 부채)·§4 유보 · 작성: 2026-07-06
-> 출처: Codex(GPT-5.4) vhk 강화 분석 리포트(Notion `3949740ab07280e891e1d69295d3202e`, 2026-07-05) + opus 7-에이전트 검증 워크플로 실측 교차검증(`wf_94918d67-c2e`, 2026-07-06)
+> 출처: 비공개 VHK 강화 분석과 다중 에이전트 교차검증
 > 연동: RFC 0057(Agent-Agnostic Compounding) · `docs/ARCHITECTURE.md` · `VISION.md` · `docs/spec.md` · `RULES.md` · `src/lib/preflight.ts` · `src/lib/goal-frontmatter.ts` · `src/lib/atomic-write.ts` · `src/lib/command-registry.ts` · `docs/state/next-task.md`
 
 ---
@@ -131,7 +131,7 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 
 실측된 사실이 아니라 제품의견·대형 리팩터라 이 RFC에서 착수 안 함.
 
-- **UX 6핵심흐름 단순화**(start→work→verify→receipt→save→handoff 전면, 나머지 고급메뉴): 등록세(5지점)는 실재하나 "비개발자가 헷갈린다"는 **사용 데이터 없음**(단일 사용자=백요한). 제품 방향 결정 → 사용자 판단.
+- **UX 6핵심흐름 단순화**(start→work→verify→receipt→save→handoff 전면, 나머지 고급메뉴): 등록세(5지점)는 실재하나 혼란을 입증할 충분한 사용 데이터는 없다. 제품 방향 결정이 필요하다.
 - **선언형 command manifest 단일 SoT**(5지점 → 1소스 파생): 효과 크나 **GA breaking 위험 최상**(발행된 npm `@byh3071/vhk`, package.json 시그니처 불변 정책). 맨 마지막·TDD·critic 다회·별도 RFC.
 - **#455~459 신규 기능 재평가**: 구조 정상화(T1~T4) 후로 유보(Codex Phase 3 동의). **#459(`vhk cost`)는 Goal 56에서 이미 구현됨** (`src/commands/cost.ts` add/check/budget) — 이슈 본문 stale.
 
@@ -142,7 +142,7 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 | 항목 | 상태 | PR/근거 |
 |---|---|---|
 | control-tower `keepPageIds=[]` no-op | ✅ merged | yohan-control-tower #20 |
-| cc-skills CRLF + 0.3.2 | ✅ merged | yohan-cc-skills #27 |
+| 외부 스킬 CRLF + 0.3.2 | ✅ merged | 비공개 변경 |
 | RFC 0058 T1 docs | ✅ merged | vhk #471 |
 | RFC 0058 T2 (#430/#445 closed) | ✅ 확인 | gh issue view |
 | goal migrate + enum (#465/#469) | ✅ merged | vhk #472 |
@@ -150,7 +150,7 @@ impact × 저비용 × 저위험 순. **T = 트랙.**
 | verify→learn + bootstrap cursor (#466/#467) | ✅ merged | vhk #474 |
 | T4 atomic write config/context | ✅ merged | vhk #475 |
 | brownfield `sync` 후 ecosystem.mdc 또는 AGENTS 참조 없음 | ✅ in main | `vhk sync` + inject-bootstrap |
-| brain HANDOFF Wave1 | ✅ merged | yohan-brain #45 |
+| 규칙 소스 HANDOFF Wave1 | ✅ merged | 비공개 변경 |
 | **npm publish** | **사람만 (2FA)** | `pnpm preflight` → `npm publish --ignore-scripts` |
 
 ---
