@@ -51,7 +51,7 @@ import { QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
 import { bootstrapCursor } from './commands/bootstrap-cursor.js'
 import { mode } from './commands/mode.js'
-import { configSetBrainRoot } from './commands/config.js'
+import { configSetBrainRoot, configSetRulesFile } from './commands/config.js'
 import { verify } from './commands/verify.js'
 import { cost } from './commands/cost.js'
 import { preflight } from './commands/preflight.js'
@@ -825,16 +825,22 @@ workCmd
   .description('작업 중단 정리 — 인수인계 프롬프트 생성 후 클립보드 복사')
   .action(async () => { await workHandoff() })
 
-// goal 92 — YOHAN_BRAIN_ROOT 환경변수의 재시작 필요 문제를 피하는 파일기반 설정.
+// 사용자 규칙 파일을 프로세스 재시작 없이 선택하는 홈 설정.
 const configCmd = program
   .command('config')
   .alias('설정')
-  .description('vhk 사용자 설정 (set-brain-root)')
+  .description('vhk 사용자 설정 (set-rules-file)')
   .action(() => { configCmd.help() })
 
 configCmd
+  .command('set-rules-file <path>')
+  .alias('규칙파일')
+  .description('사용자 규칙 YAML 파일을 ~/.vhk/config.json에 저장')
+  .action(async (path: string) => { await configSetRulesFile(path) })
+
+configCmd
   .command('set-brain-root <path>')
-  .description('헌법(core-rules) 라이브 소스 경로를 ~/.vhk/config.json 에 저장 — 재시작 없이 즉시 반영')
+  .description('[deprecated: v3.0 제거] 기존 brain root 저장 — set-rules-file 사용 권장')
   .action(async (path: string) => { await configSetBrainRoot(path) })
 
 const goalCmd = program

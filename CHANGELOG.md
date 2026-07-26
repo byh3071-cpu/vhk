@@ -2,6 +2,20 @@
 
 VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형식, [Semantic Versioning](https://semver.org/lang/ko/).
 
+## [Unreleased]
+
+### Added
+
+- **독립 규칙 소스** — `VHK_RULES_FILE`, 홈 설정 `rulesFile`, `vhk config set-rules-file <yaml경로>`를 추가해 VHK가 개인 저장소 없이 사용자 지정 YAML을 직접 읽도록 전환. 영문·한국어 별칭과 유효성 검증 포함.
+- **공개 경계·보안 기본값** — npm dry-run 파일 목록과 빌드 산출물에서 개인 운영 경로·런타임명을 차단하는 `pnpm boundary:check`, High 이상 의존성 감사, `SECURITY.md`·기여·행동 강령 문서를 추가.
+
+### Changed
+
+- bootstrap·sync·MCP 예시·Cursor 스킬 산출물을 범용 VHK 계약으로 변경하고 개인 생태계 자동 감지와 교차 저장소 경로를 제거.
+- `YOHAN_BRAIN_ROOT`, `brainRoot`, `set-brain-root`는 `2.12`에서 제거 예정 경고와 함께 호환하며 `3.0`에서 제거하도록 명시.
+- pnpm을 `11.17.0`으로 올리고 `hono`, `@hono/node-server`, `fast-uri`의 취약 버전을 workspace override로 해소.
+- 생성 프로젝트의 증거 원장 추적 기본값은 유지하되, VHK 공개 저장소 자체의 `.vhk` 관리자 운영 원장과 `.agents/SOUL.md`는 비공개로 분리하고 재추적을 차단.
+
 ## [2.11.0] - 2026-07-13
 
 ### Added

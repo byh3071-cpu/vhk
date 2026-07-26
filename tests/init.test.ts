@@ -35,7 +35,8 @@ describe('vhk init', () => {
     const files = generateFiles('my-app', '설명', ['Node.js'])
     const mdc = files['.cursor/rules/ecosystem.mdc']
     expect(mdc).toContain('ECOSYSTEM-MDC:START')
-    expect(mdc).toContain('memory/core/inheritance-registry.yaml')
+    expect(mdc).toContain('VHK_RULES_FILE')
+    expect(mdc).not.toContain('yohan-brain')
     expect(mdc).toContain('AGENTS.md')
   })
 
@@ -153,11 +154,11 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
 
   it('VHK_CONTEXT_SEED 가 core-rules 소스를 표기한다 (live/bundled, goal 91)', () => {
     const live = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'live', version: '9.9.9' })
-    expect(live).toContain('live')
+    expect(live).toContain('configured')
     expect(live).toContain('9.9.9')
     const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: '0.1.0' })
     expect(bundled).toContain('bundled')
-    expect(bundled).toContain('번들 스냅샷')
+    expect(bundled).toContain('VHK 기본 규칙 스냅샷')
   })
 
   // critic 지적(2026-07-03): "YOHAN_BRAIN_ROOT 미설정"이라 단정하면 env는 설정됐지만
@@ -165,7 +166,7 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
   // 미설정이래?" 혼란에 빠진다 — 두 원인 다 포괄하는 문구인지 회귀 가드.
   it('bundled 문구가 "미설정"으로 단정하지 않는다 (읽기실패 케이스도 포괄, goal 91 critic)', () => {
     const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: '0.1.0' })
-    expect(bundled).toContain('읽기 실패')
+    expect(bundled).toContain('VHK 기본 규칙 스냅샷')
   })
 
   it('version="unknown" 이면 "vunknown" 대신 사람이 읽을 표기를 쓴다 (goal 91 critic)', () => {

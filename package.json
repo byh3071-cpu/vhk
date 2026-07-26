@@ -1,7 +1,7 @@
 {
   "name": "@byh3071/vhk",
   "version": "2.11.0",
-  "packageManager": "pnpm@11.2.2",
+  "packageManager": "pnpm@11.17.0",
   "description": "VHK — AI 코딩 세션을 목표·증거·기억·규칙으로 묶는 한국어 CLI. 규칙 동기화, MCP 35 tools, verify/review/preflight 게이트.",
   "bin": {
     "vhk": "dist/index.js",
@@ -15,7 +15,9 @@
     "lint": "eslint src",
     "test": "vitest",
     "test:run": "vitest --run",
-    "prepublishOnly": "pnpm build && pnpm test:run",
+    "boundary:check": "node scripts/check-public-boundary.mjs",
+    "security:audit": "pnpm audit --audit-level high",
+    "prepublishOnly": "pnpm build && pnpm test:run && pnpm boundary:check && pnpm security:audit",
     "save": "vhk save",
     "check": "vhk check",
     "scan": "vhk secure scan",
@@ -27,6 +29,7 @@
   "files": [
     "dist",
     "README.md",
+    "SECURITY.md",
     "LICENSE"
   ],
   "keywords": [

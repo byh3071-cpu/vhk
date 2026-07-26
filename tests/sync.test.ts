@@ -120,10 +120,10 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     const out = toAgentsMd(sections, '데모 프로젝트')
     expect(out).toContain('# 데모 프로젝트 — AGENTS')
     expect(out).toContain('Loop Protocol')
-    expect(out).toContain('## Ecosystem (cross-repo)')
-    expect(out).toContain('ecosystem-contract.yaml')
-    expect(out).toContain('inheritance-registry.yaml')
-    expect(out.indexOf('Loop Protocol')).toBeLessThan(out.indexOf('Ecosystem (cross-repo)'))
+    expect(out).toContain('## VHK Project Rules')
+    expect(out).toContain('VHK_RULES_FILE')
+    expect(out).not.toContain('yohan-brain')
+    expect(out.indexOf('Loop Protocol')).toBeLessThan(out.indexOf('VHK Project Rules'))
     expect(out).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
     expect(out).toContain('execSync 금지') // 코딩 규칙 섹션 본문
     // compact 안내는 AGENTS.md 에 하드코딩이 아니라 생성기(toAgentsMd)를 거쳐 들어간다.
@@ -132,10 +132,10 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
 
   it('agentsMdEcosystemBlock — contract SoT + tier + roster + 금지', () => {
     const block = agentsMdEcosystemBlock().join('\n')
-    expect(block).toContain('status=active')
+    expect(block).toContain('VHK_RULES_FILE')
     expect(block).toContain('inject-bootstrap')
     expect(block).toContain('vhk sync')
-    expect(block).toContain('agent-roster.yaml')
+    expect(block).not.toContain('agent-roster.yaml')
   })
 
   it('agentsMdEcosystemBlock — rootDir 에 ecosystem.mdc 없으면 빈 배열 (#468)', () => {
@@ -154,7 +154,7 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-agents-eco-'))
     try {
       const out = toAgentsMd(parseRulesMd(SAMPLE_RULES), 'P', null, dir)
-      expect(out).not.toContain('## Ecosystem (cross-repo)')
+      expect(out).not.toContain('## VHK Project Rules')
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }

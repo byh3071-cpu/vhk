@@ -1,17 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { VHK_GITIGNORE_TEMPLATE } from '../src/templates/vhk-dir.js'
 
-// Goal 82: .vhk 증거 원장 추적 정합.
-//   증거 원장(ledger.jsonl·events/ai-actions.jsonl)은 spec 1.1 + Goal 45/55 에서 "레포 영속(✅ 추적)" 설계.
-//   회귀: ① 누군가 .gitignore 에 넣거나 ② git rm --cached 로 untrack 하면 증거가 조용히 휘발한다(Goal 45 무결성 훼손).
-//   카드 premise("ledger gitignore 추가")는 untracked 를 should-ignore 로 오독한 것 — 실제 정답은 "추적".
+// Goal 108 공개 경계 예외:
+//   생성 프로젝트의 증거 원장(ledger/events) 추적 기본값은 Goal 45/55/82 설계를 유지한다.
+//   다만 VHK 공개 저장소 자체의 원장은 관리자 개인 운영 이력이므로 루트 .gitignore 로만 제외한다.
+//   즉 제품 템플릿 정책과 공개 저장소 자체 정책을 분리해 어느 쪽도 조용히 뒤집히지 않게 한다.
 //
 //   가드는 git 권위 판정을 쓴다(텍스트 휴리스틱 X):
-//   - git ls-files: 실제 추적 여부 → ② git rm --cached 회귀 탐지.
+//   - git ls-files: 공개 저장소 자체의 실제 추적 여부.
 //   - git check-ignore --no-index: 추적 여부와 무관하게 .gitignore 패턴 평가(글롭·디렉터리 포함)
-//       → ① gitignore 추가 회귀 탐지. (--no-index 없으면 이미 추적된 파일엔 패턴이 안 잡혀 가드가 헛돈다.)
-//   이 테스트는 vitest(=CI 집행 경로)에 둔다 — check-goal-82.mjs(수동 게이트)에만 두면 CI 가 회귀를 못 잡는다.
+//       → 공개 저장소 ignore 회귀 탐지.
+//   - VHK_GITIGNORE_TEMPLATE: 생성 프로젝트에는 공개 저장소 전용 예외가 전파되지 않는지 확인.
 
 function git(args: string[]): string {
   try {
@@ -29,15 +30,15 @@ const README = existsSync('.vhk/README.md') ? readFileSync('.vhk/README.md', 'ut
 const isTracked = (rel: string): boolean => git(['ls-files', '--', rel]) !== ''
 const isIgnored = (rel: string): boolean => git(['check-ignore', '--no-index', '--', rel]) !== ''
 
-describe('Goal 82 — .vhk 증거 원장 추적 정책 가드', () => {
-  gitIt('증거 원장 2종이 git 추적된다 (레포 영속 — git rm --cached 회귀 탐지)', () => {
-    expect(isTracked('.vhk/ledger.jsonl')).toBe(true)
-    expect(isTracked('.vhk/events/ai-actions.jsonl')).toBe(true)
+describe('Goal 108 — 공개 저장소 자체 원장과 생성 프로젝트 정책 분리', () => {
+  gitIt('VHK 공개 저장소 자체의 개인 운영 원장 2종은 추적하지 않는다', () => {
+    expect(isTracked('.vhk/ledger.jsonl')).toBe(false)
+    expect(isTracked('.vhk/events/ai-actions.jsonl')).toBe(false)
   })
 
-  gitIt('증거 원장 2종은 어떤 .gitignore 로도 제외되지 않는다 (--no-index — gitignore 추가 회귀 탐지)', () => {
-    expect(isIgnored('.vhk/ledger.jsonl')).toBe(false)
-    expect(isIgnored('.vhk/events/ai-actions.jsonl')).toBe(false)
+  gitIt('VHK 공개 저장소 자체의 개인 운영 원장 2종은 루트 ignore로 재추적을 막는다', () => {
+    expect(isIgnored('.vhk/ledger.jsonl')).toBe(true)
+    expect(isIgnored('.vhk/events/ai-actions.jsonl')).toBe(true)
   })
 
   gitIt('양성 대조: 가드가 실제로 작동함을 증명(거짓 통과 방지)', () => {
@@ -47,8 +48,10 @@ describe('Goal 82 — .vhk 증거 원장 추적 정책 가드', () => {
     expect(isTracked('.vhk/__definitely_absent__.xyz')).toBe(false)
   })
 
-  it('.vhk/README 트래킹 정책표가 두 증거 원장을 추적(✅)으로 명문화', () => {
-    // 한 행에 두 파일이 함께 ✅ 로 기재됨(spec 1.1).
+  it('생성 프로젝트의 .vhk 템플릿은 원장 추적 기본값을 유지한다', () => {
+    const generatedIgnore = VHK_GITIGNORE_TEMPLATE()
+    expect(generatedIgnore).not.toContain('ledger.jsonl\n')
+    expect(generatedIgnore).not.toContain('events/*.jsonl')
     expect(README).toMatch(/ai-actions\.jsonl.*ledger\.jsonl|ledger\.jsonl.*ai-actions\.jsonl/)
     expect(README).toMatch(/레포 영속|✅/)
   })
