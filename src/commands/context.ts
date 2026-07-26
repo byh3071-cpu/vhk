@@ -161,9 +161,10 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   lines.push('')
   lines.push(
     coreRules.source === 'live'
-      ? `- live — YOHAN_BRAIN_ROOT 라이브 상속 (${coreVersionLabel})`
-      : `- bundled — 번들 스냅샷 (${coreVersionLabel}) · YOHAN_BRAIN_ROOT 미설정 또는 라이브 파일 읽기 실패, 최신 아닐 수 있음`
+      ? `- configured — 사용자 규칙 파일 (${coreVersionLabel})`
+      : `- bundled — VHK 기본 규칙 스냅샷 (${coreVersionLabel})`
   )
+  if (coreRules.warning) lines.push(`- 경고: ${coreRules.warning.replace(/\n/g, ' / ')}`)
   lines.push('')
 
   lines.push('## 디렉토리 구조')

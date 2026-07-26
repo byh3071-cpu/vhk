@@ -10,6 +10,8 @@ import { atomicWriteFile } from './atomic-write.js'
 // 이름을 분리했다 — 여긴 홈 디렉터리(~/.vhk/config.json), 사용자 1명당 1개.
 
 export interface VhkHomeConfig {
+  rulesFile?: string
+  /** @deprecated v2.12 호환 전용. v3.0에서 제거. */
   brainRoot?: string
 }
 

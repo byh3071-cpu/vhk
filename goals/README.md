@@ -2,7 +2,7 @@
 
 # goals/ 인덱스
 
-> 총 28 goal — DEFERRED 2 · DONE 21 · CANCELED 1 · OBSERVING 1 · NOT_STARTED 3
+> 총 29 goal — DEFERRED 2 · DONE 22 · CANCELED 1 · OBSERVING 1 · NOT_STARTED 3
 > 공통 게이트 = [_meta.md](_meta.md) · 카드 형식/상태 의미는 각 파일 frontmatter 참조.
 
 | # | 제목 | 상태 | 우선순위 | 다음 연결 |
@@ -35,3 +35,4 @@
 | 105 | docs-diff ADR (포맷·트리거·RFC 0051) — P2 | ⬜ NOT_STARTED | P2 | Goal 62 Wave B 분해 — ADR만 (구현은 106) |
 | 106 | docs-diff 산출 구현 (자문형·차단 0) — P2 | ⬜ NOT_STARTED | P2 | Goal 62 Wave B — 구현+테스트 (ADR 105 후) |
 | 107 | docs-diff 도그푸딩 1회 + 런북 1줄 — P2 | ⬜ NOT_STARTED | P2 | Goal 62 Wave B 마무리 — 실작업 1회 참조 확인 |
+| 108 | 오픈소스 공개 경계와 보안 기본값 정리 | ✅ DONE | P0 | v2.11.1 보안 패치와 v2.12.0 범용 규칙 소스 전환 |

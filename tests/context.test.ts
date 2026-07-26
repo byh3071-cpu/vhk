@@ -133,17 +133,23 @@ describe('context', () => {
 
 describe('context — 헌법(core-rules) 소스 표기 (goal 91)', () => {
   let origBrain: string | undefined
+  let origLegacy: string | undefined
 
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
     origBrain = process.env.YOHAN_BRAIN_ROOT
+    origLegacy = process.env.VHK_LEGACY_RULES
     delete process.env.YOHAN_BRAIN_ROOT
+    delete process.env.VHK_RULES_FILE
+    process.env.VHK_LEGACY_RULES = '0'
   })
 
   afterEach(() => {
     if (origBrain === undefined) delete process.env.YOHAN_BRAIN_ROOT
     else process.env.YOHAN_BRAIN_ROOT = origBrain
+    if (origLegacy === undefined) delete process.env.VHK_LEGACY_RULES
+    else process.env.VHK_LEGACY_RULES = origLegacy
   })
 
   it('YOHAN_BRAIN_ROOT 미설정 → context.md 에 bundled 소스 표기 (vhk start 5단계 경로 커버)', async () => {
@@ -177,6 +183,6 @@ describe('context — 헌법(core-rules) 소스 표기 (goal 91)', () => {
 
     const call = mockWriteFileSync.mock.calls.find((c) => String(c[0]).includes('context.md'))
     const md = String(call![1])
-    expect(md).toContain('읽기 실패')
+    expect(md).toContain('VHK 기본 규칙 스냅샷')
   })
 })

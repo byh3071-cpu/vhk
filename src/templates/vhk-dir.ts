@@ -133,8 +133,8 @@ export function VHK_CONTEXT_SEED(
   const versionLabel = core.version === 'unknown' ? '버전 미상' : `v${core.version}`
   const coreLine =
     core.source === 'live'
-      ? `- live — YOHAN_BRAIN_ROOT 라이브 상속 (${versionLabel})`
-      : `- bundled — 번들 스냅샷 (${versionLabel}) · YOHAN_BRAIN_ROOT 미설정 또는 라이브 파일 읽기 실패, 최신 아닐 수 있음`
+      ? `- configured — 사용자 규칙 파일 (${versionLabel})`
+      : `- bundled — VHK 기본 규칙 스냅샷 (${versionLabel})`
   return [
     '# ' + name + ' — 프로젝트 맥락',
     '',
