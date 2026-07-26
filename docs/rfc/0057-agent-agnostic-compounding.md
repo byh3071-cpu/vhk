@@ -1,7 +1,7 @@
 # RFC 0057 — Agent-Agnostic Compounding: 어떤 에이전트가 와도 안 무너지는 자가진화 VHK
 
 > 상태: Implemented — 트랙①②③ 전부 완료(goals 93·94·95 DONE, 2026-07-04 main 병합) · §6~§7 유보분(트리거 격차·메모리 프라이버시·할루시네이션 루프)은 후속 RFC 대상 · 작성: 2026-07-04
-> 출처: 사용자(yohanstudio) VHK 정체성 재확인(2026-07-03~04 세션, 브레인스토밍 중 스코프 제안) + opus 에이전트 실측 감사(`af2c63b06d9237732`)
+> 출처: 프로젝트 방향 재검토와 에이전트 실측 감사
 > 연동: RFC 0055(Proof Protocol, archived) · RFC 0056(Evidence Receipt) · RFC 0054(자율형 진화) · RFC 0052(풀사이클 뒷단) · ADR-006(정체성 확정) · ADR-007(서브에이전트 정책) · `src/templates/ecosystem-mdc.ts` · `src/lib/receipt.ts`/`receipt-log.ts` · `.claude/settings.json` · `docs/state/next-task.md`
 
 ---
@@ -65,14 +65,14 @@ VHK 자기 자신의 코드가 "어떤 에이전트가 와도 안 무너진다"�
 `src/templates/ecosystem-mdc.ts:17-18`:
 
 ```ts
-'1. **Claude Code = primary** — handoff, release-gate, epic architecture, vhk-auto는 Claude-only (private-skills-repository).',
+'1. **Claude Code = primary** — handoff, release-gate, epic architecture, 자동화 트리거는 선택적 외부 플러그인에 의존.',
 '2. **Cursor = secondary** — Composer batch/repeat 보조; 코딩·반복 작업용.',
 ```
 
 이 템플릿이 만드는 실제 산출물(`ecosystem.mdc`)이 이 레포 자신에도 이미 생성돼 있고, 내용이 템플릿과 한 글자도 다르지 않다 — `.cursor/rules/ecosystem.mdc:10-11`:
 
 ```
-1. **Claude Code = primary** — handoff, release-gate, epic architecture, vhk-auto는 Claude-only (private-skills-repository).
+1. **Claude Code = primary** — handoff, release-gate, epic architecture, 자동화 트리거는 선택적 외부 플러그인에 의존.
 2. **Cursor = secondary** — Composer batch/repeat 보조; 코딩·반복 작업용.
 ```
 

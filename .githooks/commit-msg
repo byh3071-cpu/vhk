@@ -1,7 +1,5 @@
 #!/bin/sh
-# vhk 기록 집행 커밋훅 (goal 65) — git 이 실행하므로 도구 무관: Cursor/Codex/터미널 등
-# 비-Claude 커밋도 세션일지 없는 실질 코드변경을 차단([skip-record] 우회 가능).
-# 활성: pnpm run hooks:install (= git config core.hooksPath .githooks). Claude 는 PreToolUse 가 먼저 잡는 백스톱.
+# 공개 저장소 개인정보 경계 커밋훅. [skip-record]를 포함한 어떤 메시지도 우회할 수 없다.
 command -v node >/dev/null 2>&1 || exit 0
-[ -f "scripts/check-records.mjs" ] || exit 0
-exec node "scripts/check-records.mjs" --commit-msg-file "$1"
+[ -f "scripts/check-public-boundary.mjs" ] || exit 0
+exec node "scripts/check-public-boundary.mjs" --staged --commit-msg-file "$1"

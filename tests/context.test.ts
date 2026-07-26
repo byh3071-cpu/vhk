@@ -132,27 +132,21 @@ describe('context', () => {
 })
 
 describe('context — 헌법(core-rules) 소스 표기 (goal 91)', () => {
-  let origBrain: string | undefined
-  let origLegacy: string | undefined
+  let origRulesFile: string | undefined
 
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
-    origBrain = process.env.PRIVATE_RULES_ROOT
-    origLegacy = process.env.VHK_LEGACY_RULES
-    delete process.env.PRIVATE_RULES_ROOT
+    origRulesFile = process.env.VHK_RULES_FILE
     delete process.env.VHK_RULES_FILE
-    process.env.VHK_LEGACY_RULES = '0'
   })
 
   afterEach(() => {
-    if (origBrain === undefined) delete process.env.PRIVATE_RULES_ROOT
-    else process.env.PRIVATE_RULES_ROOT = origBrain
-    if (origLegacy === undefined) delete process.env.VHK_LEGACY_RULES
-    else process.env.VHK_LEGACY_RULES = origLegacy
+    if (origRulesFile === undefined) delete process.env.VHK_RULES_FILE
+    else process.env.VHK_RULES_FILE = origRulesFile
   })
 
-  it('PRIVATE_RULES_ROOT 미설정 → context.md 에 bundled 소스 표기 (vhk start 5단계 경로 커버)', async () => {
+  it('규칙 파일 미설정 → context.md 에 bundled 소스 표기 (vhk start 5단계 경로 커버)', async () => {
     mockExistsSync.mockImplementation((p: unknown) => String(p).includes('package.json'))
     mockReadFileSync.mockReturnValue(JSON.stringify({ name: 'p', version: '0.0.0' }))
     mockReaddirSync.mockReturnValue([])
@@ -168,10 +162,7 @@ describe('context — 헌법(core-rules) 소스 표기 (goal 91)', () => {
     expect(md).toContain('bundled')
   })
 
-  // critic 지적(2026-07-03): vhk-dir.ts 의 VHK_CONTEXT_SEED 와 동일한 "미설정" 단정 문구가
-  // context.ts 에도 그대로 복제돼 있었다 — env는 설정됐지만 읽기 실패한 케이스를 놓침.
-  // (version="unknown" 코스메틱 케이스는 실제 번들 스냅샷 버전이 '0.1.0'이라 이 mock 경로로는
-  // 재현 불가 — vhk-dir.ts 쪽은 tests/init.test.ts 가 VHK_CONTEXT_SEED 직접 호출로 커버함)
+  // 규칙 파일 미설정과 읽기 실패를 모두 포괄하는 안내여야 한다.
   it('bundled 문구가 "미설정"으로 단정하지 않는다 (읽기실패 케이스도 포괄, goal 91 critic)', async () => {
     mockExistsSync.mockReturnValue(false)
     mockReadFileSync.mockReturnValue('{}')

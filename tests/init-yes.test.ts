@@ -45,7 +45,7 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
 
   it('-y --type other → 프롬프트 0개 + 스택 미정으로 파일 생성', async () => {
     const { init } = await import('../src/commands/init.js')
-    await init({ yes: true, name: 'private-agent-os', description: 'AI 베어메탈 OS', type: 'other' })
+    await init({ yes: true, name: 'sample-os', description: 'AI 베어메탈 OS', type: 'other' })
     const claude = fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf-8')
     expect(claude).toContain('미정')
   })

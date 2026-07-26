@@ -1,47 +1,11 @@
----
-id: claude-md-vhk
-tags: [process, constitution]
----
+# 기록 규칙 (vhk)
 
-# CLAUDE.md — vhk 헌법 + 현재 상태
-
-> 📖 **읽는 법 (필수):** 이 파일은 두 구역이다.
-> 1) 위 = 🔒 영구 헌법 (절대 수정 금지)
-> 2) 맨 아래 = ✏️ LIVE 현재 상태 (매 세션 갱신, 여기만 수정)
-> **반드시 맨 아래 ✏️ LIVE 구역까지 읽고 "다음 할 일"에서 이어간다. 스킵 금지.**
-> 사실 SoT: 버전·테스트 = package.json·CHANGELOG / 상세 상태 = docs/state/.
-
-════════════ 🔒 영구 헌법 (수정 금지) ════════════
-
-## 언어·소통 규칙
-- 응답은 무조건 한국어. 영어는 기술 용어(commit·MCP·build 등)에만.
-- 사용자는 비개발자 → 두괄식(결론 먼저) + 전문용어는 쉬운 말로 풀이.
-- 결론 → 이유 → 다음 행동 순, 짧게.
-
-## 프로젝트 좌표 (포인터)
-- 레포: github.com/byh3071-cpu/vhk (public) · npm: @byh3071/vhk
-- 패키지 매니저: pnpm (npm 아님)
-- 규칙 단일소스 → RULES.md → (vhk sync) → .cursorrules·AGENTS.md 등 / 명령 사용법 → COMMANDS.md
-- 단계 미션 → goals/<n>-<name>.md · 공통 게이트 → goals/_meta.md
-- 상태 SoT → docs/state/next-task.md · blockers.md
-
-## 세션 시작 의례
-1. `vhk work` 실행 → 상태 수집 + 시작 프롬프트를 클립보드에 복사 (HARD_STOP 자동 확인)
-2. `claude` 실행 후 Ctrl+V 붙여넣기
-3. Claude는 이 파일(✏️ LIVE 포함)을 1순위로 읽고 → AGENTS.md는 참고만 →
-   docs/state/next-task.md·.vhk/context.md 기준으로 이어서 작업
-
-## 작업 단위 의례
-- 1 iteration = active goal 하나 + 작은 commit 하나 + 게이트 통과(or 정직한 블로커)
-- 범위 계약: `vhk mission set` → `vhk mission check`
-- 완료 주장 전 `vhk review`(거짓완료 자기검증)
-- 막히면(3 cycle 진전 없음): `vhk blocker "<증상>"` → 다음 태스크
-
-## 세션 중단/종료 의례 (🔒 dev log = 영구·삭제 금지)
-- `vhk work handoff` 실행 → 인수인계 프롬프트 클립보드 복사 →
-  Claude가 완료/미완 정리 + next-task.md 갱신 + 커밋 가능 여부 판단
-- dev log `docs/log/YYYY-MM-DD-<작업명>.md` = append-only. 추가만, 수정·삭제 금지.
-- 미완으로 꺼도 next-task.md에 "다음 할 일" 반드시 남김
+## 현재 상태
+- **버전:** v3.0.0
+- **Phase:** **FILL**
+- **블로커:** 없음
+- **다음 액션:** **FILL**
+- **마지막 업데이트:** 2026-07-27
 
 <!-- vhk:rules:start -->
 > ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.
@@ -90,14 +54,16 @@ tags: [process, constitution]
 > CLAUDE.md 헌법 영구구역의 Forbidden 은 불가침이라 그대로 둠 — 의례 수준 금지는 그쪽, 코드/운영 수준 금지는 여기.
 
 - `node_modules/` 직접 수정 금지
-- `package.json` 기존 명령어 시그니처 breaking change 금지 (GA 정책)
+- 공개 API breaking change는 major 버전에서만 허용
 - `execSync` 신규 사용 금지 → `safeExecFile`
 - MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
 - 토큰/시크릿 코드·커밋 평문 노출 금지 (`.env` + `.gitignore`)
-- dev log·blockers 과거 항목 수정·삭제 금지 (append-only)
 - 게이트 실패 상태에서 done 처리 금지 / `vhk resume` 자동 호출 금지
 - AGENTS.md·.cursorrules 등 sync 산출물 직접 편집 금지 → RULES.md + `vhk sync`
 - publish 는 main 에서만 + 사람 승인 (가드 #119)
+- 공개 추적 금지: 개인 운영 로그·상태·goal, 로컬 절대경로, 개인 이메일, 실명, 개인 저장소명, 실제 외부 서비스 객체 ID
+- 예제는 `sample-*`, `<HOME>`, 명백한 가짜 ID만 사용하고 `boundary:check` 우회 금지
+- Git 작성자 이메일은 GitHub noreply, npm 공개 연락처는 `opensource@yohanstudio.co` 사용
 
 ## 기록 규칙
 - 의사결정 → docs/adr/ · 에러 → docs/troubleshooting/ · 배움 → docs/til.md · 설계 → docs/rfc/
@@ -106,53 +72,12 @@ tags: [process, constitution]
   - 패키지·아키텍처·정책 결정 → docs/adr/ `ADR-NNN-슬러그.md`
   - 설계·제안(구현 전 검토) → docs/rfc/ `NNNN-슬러그.md`
   - 에러·해결 과정 → docs/troubleshooting/ `TS-NNN-슬러그.md`
-  - 세션 작업 내역 → docs/log/ `YYYY-MM-DD-작업명.md` (append-only)
+  - 세션 작업 내역 → Notion Dev Log 또는 추적되지 않는 `docs/devlog/`
   - 범용 패턴(타 프로젝트 재사용 가능) → docs/patterns/ `PAT-NNN-영문명.md`
-- 기록 집행: 실질 코드변경(src/** · scripts/check-*) 커밋 시 세션 dev log(오늘 또는 자정 넘긴 연속 세션의 어제 파일) 스테이지 필수 — check-records hook 이 커밋을 차단. 사소·문서성 커밋은 메시지에 `[skip-record]` 로 우회 (governance-v2 T1).
-- 세션 종료(`vhk work handoff`) 시 미기록 ADR·트러블슈팅 후보를 자동 감지·보고 → 해당하면 docs/adr·docs/troubleshooting 에 기록(자문형, 강제 아님) (RFC 0051)
-- dev log `docs/log/YYYY-MM-DD-<작업명>.md` = append-only (추가만, 수정·삭제 금지)
-- 코드 변경이 동작/사용법을 바꾸면 README 만 같이 갱신 (CLAUDE.md 는 갱신 대상 아님)
+- 세션 종료 시 미기록 ADR·트러블슈팅 후보를 확인하고 해당하면 공개 문서에는 일반화된 기술 사실만 기록
+- 개인 세션 기록·현재 작업 큐·외부 서비스 식별자는 커밋하지 않음
+- 코드 변경이 동작/사용법을 바꾸면 README를 같이 갱신
 - 교훈·결정·실패·성공 = `vhk memory`(4버킷) / `vhk learn`. learnings.md 는 v2 흡수·동결 → 신규 기록 금지.
-- 상태 SoT = docs/state/next-task.md · blockers.md (append-only)
+- 로컬 작업 상태 SoT = 추적되지 않는 `.vhk/context.md`
 
 <!-- vhk:rules:end -->
-
-## Safety — HARD_STOP
-- 작업 시작 시 `.vhk/HARD_STOP` 확인 → 있으면 즉시 중단 (vhk work가 자동 체크)
-  PowerShell: `if (Test-Path .vhk/HARD_STOP) { Write-Host '🛑 HARD STOP'; exit 1 }`
-- 자동 생성: 블로커 3개 누적 / 토큰 예산 초과
-- 해제: `vhk resume --confirm` (사람만, 자동 호출 금지)
-
-## Stability Gates
-- 작업 전 게이트 통과 필수: `pnpm build; pnpm test`
-  (PowerShell은 `&&` 미지원 → 반드시 `;` 로 연결)
-- 게이트 실패 시 done 금지
-- publish는 항상 main에서만 (가드 #119가 feature 브랜치/미커밋 발행 차단)
-- 새 이벤트 리스너 → 해제 로직 짝으로 / 새 캐시(Map·Set) → TTL 또는 maxSize 필수
-
-## Goals / State 체계
-- 단계 미션 = goals/<n>-<name>.md (frontmatter + 표준 섹션)
-- 공통 게이트 = goals/_meta.md + scripts/check-meta.sh
-- 상태 SoT = docs/state/next-task.md · blockers.md
-
-## Forbidden
-- 🔒 영구 구역 수정 / 상태값을 영구 구역에 박제 금지 (버전 줄은 LIVE 예외 ↓)
-- dev log·blockers 과거 항목 수정·삭제 금지 (append-only)
-- 게이트 실패에 done / `vhk resume` 자동 호출 금지
-- 코딩·디자인 규칙 여기 적기 금지 → RULES.md
-- AGENTS.md·.cursorrules 직접 편집 금지 → RULES.md 단일소스 + `vhk sync` 로만
-
-════════════ ✏️ LIVE — 현재 상태 (매 세션 갱신 · 여기만 수정) ════════════
-
-> 세션 시작: 이 구역 읽고 "다음 할 일"부터.
-> 세션 종료: 마지막 갱신·버전·Phase·다음 할 일 갱신. (위 🔒 구역은 절대 건드리지 마.)
-> ⚠️ 아래 `**버전:**` 줄은 CI(version-sync.test.ts)가 강제 — 형식 `**버전:** vX.Y.Z` 유지, 릴리즈마다 package.json 따라 갱신.
-
-**마지막 갱신:** 2026-07-18
-- **버전:** v2.11.0 — 사실 확인은 package.json·CHANGELOG
-- **테스트:** 사실값은 package.json·CHANGELOG · **MCP tools:** 사실값은 package.json·CHANGELOG
-- **Phase:** Phase 0 ✅·2 코어 ✅(잔여 GTM). #455 close·T6(#502)·#464/#461 머지 — 로드맵 07-18 실측 정합 완료. 사이드 = Orca ADE 탭 스크롤 PR #8968 OPEN(대기).
-- **블로커:** 외부의존 2건 유지(blockers.md — [skip-hardstop]). 진행 차단 아님.
-- **진행 중(미완):** AI 큐 빈 상태 — GTM AI 준비분 완료(#509 머지). 사람 = PR #505·#504 검토, G3 육안, GTM 게시 판단(Show HN·블로그), SEO 키.
-- **다음 할 일:** SoT = [docs/state/next-task.md](docs/state/next-task.md) 최상단. 사람 큐 소화 → 게시 1회 집행 → Phase 4 판정. 로컬 vitest 크래시는 TS-004 참조(CI가 진실원).
-- **주의:** publish는 main에서만(#119) / PR 경유 / `pnpm lint` 필수 / worktree 병합 직전 브랜치 재확인 / 동시세션 docs/state 충돌 주의
