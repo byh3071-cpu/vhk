@@ -122,20 +122,21 @@ function readTrackedEntries(staged = false) {
 
 function readPendingMetadata(commitMessageFile) {
   const parts = []
-  for (const variable of ['GIT_AUTHOR_IDENT', 'GIT_COMMITTER_IDENT']) {
-    try {
-      parts.push(git(['var', variable]))
-    } catch {
-      // identity가 아직 없는 새 환경은 다른 git gate가 안내한다.
+  if (commitMessageFile) {
+    for (const variable of ['GIT_AUTHOR_IDENT', 'GIT_COMMITTER_IDENT']) {
+      try {
+        parts.push(git(['var', variable]))
+      } catch {
+        // identity가 아직 없는 새 환경은 다른 git gate가 안내한다.
+      }
     }
+    if (existsSync(commitMessageFile)) parts.push(readFileSync(commitMessageFile, 'utf8'))
+    return parts.join('\n')
   }
-  if (commitMessageFile && existsSync(commitMessageFile)) parts.push(readFileSync(commitMessageFile, 'utf8'))
-  if (!commitMessageFile) {
-    try {
-      parts.push(git(['log', '-1', '--format=%an%n%ae%n%cn%n%ce%n%B']))
-    } catch {
-      // 첫 커밋 전 저장소는 검사할 HEAD 메타데이터가 없다.
-    }
+  try {
+    parts.push(git(['log', '-1', '--format=%an%n%ae%n%cn%n%ce%n%B']))
+  } catch {
+    // 첫 커밋 전 저장소는 검사할 HEAD 메타데이터가 없다.
   }
   return parts.join('\n')
 }
