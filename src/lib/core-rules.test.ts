@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -11,7 +11,7 @@ import {
   CORE_RULES_END_TAG,
   type CoreRuleset,
 } from './core-rules.js'
-import { writeHomeConfig, getHomeConfigPath } from './home-config.js'
+import { writeHomeConfig } from './home-config.js'
 
 const MINIMAL: CoreRuleset = {
   version: '0.1.0',
@@ -88,16 +88,6 @@ describe('applyMarkerBlock — 멱등 마커 교체', () => {
 })
 
 describe('generateCoreRulesContent', () => {
-  const originalLegacy = process.env.VHK_LEGACY_RULES
-
-  beforeEach(() => {
-    process.env.VHK_LEGACY_RULES = '0'
-  })
-
-  afterEach(() => {
-    if (originalLegacy === undefined) delete process.env.VHK_LEGACY_RULES
-    else process.env.VHK_LEGACY_RULES = originalLegacy
-  })
   it('null 입력 시 마커 블록 반환', () => {
     const result = generateCoreRulesContent(null)
     expect(result).toContain(CORE_RULES_START_TAG)
@@ -113,135 +103,43 @@ describe('generateCoreRulesContent', () => {
   })
 })
 
-describe('loadCoreRuleset — 소스 판정 (goal 91)', () => {
-  let origBrain: string | undefined
-  let tmpHome: string
+describe('loadCoreRuleset — 범용 규칙 파일 우선순위', () => {
+  const originalRulesFile = process.env.VHK_RULES_FILE
 
-  beforeEach(() => {
-    origBrain = process.env.PRIVATE_RULES_ROOT
+  afterEach(() => {
+    if (originalRulesFile === undefined) delete process.env.VHK_RULES_FILE
+    else process.env.VHK_RULES_FILE = originalRulesFile
+  })
+
+  it('설정이 없으면 bundled를 사용한다', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-core-source-'))
     delete process.env.VHK_RULES_FILE
-    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-core-source-'))
+    expect(loadCoreRuleset(home).source).toBe('bundled')
+    fs.rmSync(home, { recursive: true, force: true })
   })
 
-  afterEach(() => {
-    if (origBrain === undefined) delete process.env.PRIVATE_RULES_ROOT
-    else process.env.PRIVATE_RULES_ROOT = origBrain
-    fs.rmSync(tmpHome, { recursive: true, force: true })
-  })
+  it('홈 rulesFile을 읽어 live로 사용한다', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-home-'))
+    const rulesFile = path.join(home, 'rules.yaml')
+    fs.writeFileSync(rulesFile, 'version: "3.0.0"\nnon_negotiable:\n  - x\n', 'utf-8')
+    writeHomeConfig({ rulesFile }, home)
+    delete process.env.VHK_RULES_FILE
 
-  it('PRIVATE_RULES_ROOT 미설정 → source=bundled', () => {
-    delete process.env.PRIVATE_RULES_ROOT
-    const loaded = loadCoreRuleset(tmpHome)
-    expect(loaded.source).toBe('bundled')
-  })
-
-  it('PRIVATE_RULES_ROOT 가 유효한 yaml 을 가리키면 → source=live, version=yaml 값', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-brain-'))
-    const yamlPath = path.join(dir, 'memory', 'core', 'core-ruleset.yaml')
-    fs.mkdirSync(path.dirname(yamlPath), { recursive: true })
-    fs.writeFileSync(yamlPath, 'version: "9.9.9"\nnon_negotiable:\n  - x\n', 'utf-8')
-    process.env.PRIVATE_RULES_ROOT = dir
-
-    const loaded = loadCoreRuleset(tmpHome)
+    const loaded = loadCoreRuleset(home)
     expect(loaded.source).toBe('live')
-    expect(loaded.version).toBe('9.9.9')
-
-    fs.rmSync(dir, { recursive: true, force: true })
+    expect(loaded.version).toBe('3.0.0')
+    fs.rmSync(home, { recursive: true, force: true })
   })
 
-  it('PRIVATE_RULES_ROOT 는 설정됐지만 yaml 이 없으면 → bundled 로 폴백(catch 분기)', () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-empty-'))
-    process.env.PRIVATE_RULES_ROOT = dir
-
-    expect(loadCoreRuleset(tmpHome).source).toBe('bundled')
-
-    fs.rmSync(dir, { recursive: true, force: true })
-  })
-})
-
-// goal 92 — PRIVATE_RULES_ROOT 환경변수의 "설정해도 재시작 전까지 반영 안 됨" 문제를 피하려고
-// ~/.vhk/config.json 파일기반 설정을 3순위(env var → 홈 설정파일 → 번들)로 추가.
-describe('loadCoreRuleset — 3단계 우선순위 (goal 92)', () => {
-  let origBrain: string | undefined
-  let tmpHome: string
-
-  beforeEach(() => {
-    origBrain = process.env.PRIVATE_RULES_ROOT
-    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-home-'))
-  })
-  afterEach(() => {
-    if (origBrain === undefined) delete process.env.PRIVATE_RULES_ROOT
-    else process.env.PRIVATE_RULES_ROOT = origBrain
-    fs.rmSync(tmpHome, { recursive: true, force: true })
-  })
-
-  function writeBrainYaml(dir: string, version: string): void {
-    const yamlPath = path.join(dir, 'memory', 'core', 'core-ruleset.yaml')
-    fs.mkdirSync(path.dirname(yamlPath), { recursive: true })
-    fs.writeFileSync(yamlPath, `version: "${version}"\nnon_negotiable:\n  - x\n`, 'utf-8')
-  }
-
-  it('env var 있으면 홈 설정파일보다 우선(무시)', () => {
-    const envBrain = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-envbrain-'))
-    const homeBrain = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-homebrain-'))
-    writeBrainYaml(envBrain, '1.1.1')
-    writeBrainYaml(homeBrain, '2.2.2')
-    process.env.PRIVATE_RULES_ROOT = envBrain
-    writeHomeConfig({ rulesRoot: homeBrain }, tmpHome)
-
-    const loaded = loadCoreRuleset(tmpHome)
-    expect(loaded.source).toBe('live')
-    expect(loaded.version).toBe('1.1.1') // env var 쪽, 홈 설정(2.2.2) 아님
-
-    fs.rmSync(envBrain, { recursive: true, force: true })
-    fs.rmSync(homeBrain, { recursive: true, force: true })
-  })
-
-  it('env var 없고 홈 설정파일에 rulesRoot 있으면 그걸 씀', () => {
-    delete process.env.PRIVATE_RULES_ROOT
-    const homeBrain = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-homebrain2-'))
-    writeBrainYaml(homeBrain, '3.3.3')
-    writeHomeConfig({ rulesRoot: homeBrain }, tmpHome)
-
-    const loaded = loadCoreRuleset(tmpHome)
-    expect(loaded.source).toBe('live')
-    expect(loaded.version).toBe('3.3.3')
-
-    fs.rmSync(homeBrain, { recursive: true, force: true })
-  })
-
-  it('env var 도 없고 홈 설정파일도 없으면 bundled', () => {
-    delete process.env.PRIVATE_RULES_ROOT
-    expect(loadCoreRuleset(tmpHome).source).toBe('bundled')
-  })
-
-  it('홈 설정파일의 rulesRoot 가 가리키는 경로에 yaml 이 없으면 bundled 로 폴백', () => {
-    delete process.env.PRIVATE_RULES_ROOT
-    const emptyDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-empty2-'))
-    writeHomeConfig({ rulesRoot: emptyDir }, tmpHome)
-
-    expect(loadCoreRuleset(tmpHome).source).toBe('bundled')
-
-    fs.rmSync(emptyDir, { recursive: true, force: true })
-  })
-
-  it('homeDir 인자 생략 시 기존 무인자 호출과 하위호환(에러 없이 동작)', () => {
-    delete process.env.PRIVATE_RULES_ROOT
-    expect(() => loadCoreRuleset()).not.toThrow()
-  })
-
-  // critic 재검증(2026-07-03, main 병합 후) 발견: readHomeConfig 는 "손상된 JSON"(파싱 에러)만
-  // null 로 잡고, "파싱은 되지만 타입이 틀림"(rulesRoot 가 문자열이 아님 — 수기 편집 오타 등)은
-  // 그대로 통과시킨다. tryLoadLive 의 path.join(rulesRoot, ...) 이 try 블록 밖에 있어서
-  // 비문자열이 들어오면 loadCoreRuleset 을 쓰는 모든 명령(context/init/inject-bootstrap)이
-  // ERR_INVALID_ARG_TYPE 로 죽었다 — "손상 시 null 폴백" 계약 위반. 재현 후 수정.
-  it('홈 설정파일의 rulesRoot 가 문자열이 아니면(수기 편집 손상) bundled 로 안전 폴백 — 크래시 안 함', () => {
-    delete process.env.PRIVATE_RULES_ROOT
-    const configPath = getHomeConfigPath(tmpHome)
+  it('잘못된 홈 설정 값은 bundled로 안전하게 폴백한다', () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-home-invalid-'))
+    const configPath = path.join(home, '.vhk', 'config.json')
     fs.mkdirSync(path.dirname(configPath), { recursive: true })
-    fs.writeFileSync(configPath, JSON.stringify({ rulesRoot: 123 }), 'utf-8')
+    fs.writeFileSync(configPath, JSON.stringify({ rulesFile: 123 }), 'utf-8')
+    delete process.env.VHK_RULES_FILE
 
-    expect(() => loadCoreRuleset(tmpHome)).not.toThrow()
-    expect(loadCoreRuleset(tmpHome).source).toBe('bundled')
+    expect(() => loadCoreRuleset(home)).not.toThrow()
+    expect(loadCoreRuleset(home).source).toBe('bundled')
+    fs.rmSync(home, { recursive: true, force: true })
   })
 })

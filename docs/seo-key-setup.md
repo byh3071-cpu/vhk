@@ -20,7 +20,7 @@ vhk seo init
    - Search Console API: https://console.cloud.google.com/apis/library/searchconsole.googleapis.com
    - Analytics Data API: https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com
 3. 서비스 계정 생성: https://console.cloud.google.com/iam-admin/serviceaccounts → "서비스 계정 만들기"(역할 불필요) → 만든 계정 → **키 탭 → 키 추가 → JSON** 다운로드.
-4. JSON 파일을 **레포 밖** 안전한 곳에 보관 — 예: `<HOME>\.vhk-secrets\vhk-seo-sa.json`
+4. JSON 파일을 **레포 밖** 안전한 곳에 보관 — 예: `%USERPROFILE%\.vhk-secrets\vhk-seo-sa.json`
 5. 권한 부여(서비스 계정 이메일 `...@...iam.gserviceaccount.com` 복사해서):
    - **GSC**: https://search.google.com/search-console → 해당 속성 → 설정 → 사용자 및 권한 → 추가(권한: 전체)
    - **GA4**: https://analytics.google.com/ → 관리 → 속성 액세스 관리 → 추가(역할: 뷰어)
@@ -40,8 +40,8 @@ AdSense Management API 는 OAuth 동의 흐름이라 손이 가장 많이 감 �
 
 ```dotenv
 # --- VHK SEO (goals 21~26) — 값은 이 파일에만, 커밋 절대 금지 ---
-VHK_SEO_GSC_SA_JSON=<HOME>\.vhk-secrets\vhk-seo-sa.json
-VHK_SEO_GA4_SA_JSON=<HOME>\.vhk-secrets\vhk-seo-sa.json
+VHK_SEO_GSC_SA_JSON=%USERPROFILE%\.vhk-secrets\vhk-seo-sa.json
+VHK_SEO_GA4_SA_JSON=%USERPROFILE%\.vhk-secrets\vhk-seo-sa.json
 VHK_SEO_BING_API_KEY=<Bing API key>
 VHK_SEO_ADSENSE_TOKEN=
 # VHK_SEO_INDEXNOW_KEY 는 vhk seo init 이 생성·안내

@@ -67,8 +67,6 @@ vhk config set-rules-file /path/to/team-rules.yaml
 # or set VHK_RULES_FILE before starting the process
 ```
 
-The legacy `PRIVATE_RULES_ROOT`, `rulesRoot`, and `set-rules-root` paths remain for one `2.12` compatibility release with a warning and are removed in `3.0`.
-
 ## 3-minute start
 
 **New project**

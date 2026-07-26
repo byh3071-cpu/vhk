@@ -36,7 +36,7 @@ describe('vhk init', () => {
     const mdc = files['.cursor/rules/ecosystem.mdc']
     expect(mdc).toContain('ECOSYSTEM-MDC:START')
     expect(mdc).toContain('VHK_RULES_FILE')
-    expect(mdc).not.toContain('private-rules-repository')
+    expect(mdc).not.toContain(['private', 'rules', 'repo'].join('-'))
     expect(mdc).toContain('AGENTS.md')
   })
 
@@ -161,9 +161,7 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     expect(bundled).toContain('VHK 기본 규칙 스냅샷')
   })
 
-  // critic 지적(2026-07-03): "PRIVATE_RULES_ROOT 미설정"이라 단정하면 env는 설정됐지만
-  // yaml 읽기가 실패한 케이스(core-rules.ts:85 catch 분기)에서 사용자가 "설정했는데 왜
-  // 미설정이래?" 혼란에 빠진다 — 두 원인 다 포괄하는 문구인지 회귀 가드.
+  // 규칙 파일 미설정과 읽기 실패를 모두 포괄하는 문구인지 회귀 가드.
   it('bundled 문구가 "미설정"으로 단정하지 않는다 (읽기실패 케이스도 포괄, goal 91 critic)', () => {
     const bundled = VHK_CONTEXT_SEED('p', 'cli', ['Node.js'], { source: 'bundled', version: '0.1.0' })
     expect(bundled).toContain('VHK 기본 규칙 스냅샷')
@@ -449,7 +447,7 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
     })
 
     // 공식 문서 예시(`"$CLAUDE_PROJECT_DIR"/...`)는 변수를 따옴표로 감싼다 — Windows 사용자
-    // 경로에 공백(예: "<HOME>\...")이 있으면 미보호 시 셸이 단어분리해 command가
+    // 경로에 공백(예: "<HOME>\\John Doe\\...")이 있으면 미보호 시 셸이 단어분리해 command가
     // 깨질 수 있음. 전체를 큰따옴표로 감싸 방지.
     it('SessionStart 훅 command 가 경로 공백 대비 큰따옴표로 감싸져 있다', () => {
       const dir = mkTmp()

@@ -51,7 +51,7 @@ import { QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
 import { bootstrapCursor } from './commands/bootstrap-cursor.js'
 import { mode } from './commands/mode.js'
-import { configSetrulesRoot, configSetRulesFile } from './commands/config.js'
+import { configSetRulesFile } from './commands/config.js'
 import { verify } from './commands/verify.js'
 import { cost } from './commands/cost.js'
 import { preflight } from './commands/preflight.js'
@@ -837,11 +837,6 @@ configCmd
   .alias('규칙파일')
   .description('사용자 규칙 YAML 파일을 ~/.vhk/config.json에 저장')
   .action(async (path: string) => { await configSetRulesFile(path) })
-
-configCmd
-  .command('set-rules-root <path>')
-  .description('[deprecated: v3.0 제거] 기존 brain root 저장 — set-rules-file 사용 권장')
-  .action(async (path: string) => { await configSetrulesRoot(path) })
 
 const goalCmd = program
   .command('goal')

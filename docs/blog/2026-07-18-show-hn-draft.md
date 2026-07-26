@@ -1,6 +1,6 @@
 # Show HN 초안 — VHK (게시 = 사람, 이 파일은 초안·체크리스트)
 
-> 상태: 초안 v1 (2026-07-18). 게시 판단·버튼은 관리자.
+> 상태: 초안 v1 (2026-07-18). 게시 판단은 프로젝트 관리자가 한다.
 > 제출 URL: https://news.ycombinator.com/submit
 > 링크 대상: https://github.com/byh3071-cpu/vhk
 

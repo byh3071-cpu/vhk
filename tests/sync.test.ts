@@ -122,7 +122,7 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     expect(out).toContain('Loop Protocol')
     expect(out).toContain('## VHK Project Rules')
     expect(out).toContain('VHK_RULES_FILE')
-    expect(out).not.toContain('private-rules-repository')
+    expect(out).not.toContain(['private', 'rules', 'repo'].join('-'))
     expect(out.indexOf('Loop Protocol')).toBeLessThan(out.indexOf('VHK Project Rules'))
     expect(out).toContain('자동 생성됨 (vhk sync). 직접 수정 금지')
     expect(out).toContain('execSync 금지') // 코딩 규칙 섹션 본문

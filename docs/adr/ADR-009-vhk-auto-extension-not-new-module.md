@@ -1,8 +1,8 @@
 # ADR-009: 자율화 구현 타깃 = vhk-auto 계약 확장 (신규 모듈 아님)
 
 - 상태: 승인 (오너 결정 2026-07-27)
-- 결정자: 관리자 (딥리서치 결정 5 권고 채택)
-- 근거 SoT: private-rules-repository `docs/yohanthinking/research/2026-07-27--vhk-autonomous-agent-deepresearch.md` (PR private-rules-repository#143, 머지됨)
+- 결정자: 프로젝트 관리자
+- 근거 SoT: 비공개 자율 에이전트 리서치 검토 결과
 
 ## 맥락
 

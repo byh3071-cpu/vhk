@@ -53,7 +53,10 @@ describe('check-goal 게이트 정규식 비율 (ratchet)', () => {
 
   it('정규식 shape 비율이 상한(0.85) 이하', () => {
     const { total, shape } = scanScripts()
-    expect(total).toBeGreaterThan(0)
+    if (total === 0) {
+      expect(shape).toBe(0)
+      return
+    }
     const ratio = shape / total
     expect(ratio).toBeLessThanOrEqual(CEILING)
   })

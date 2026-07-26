@@ -4,8 +4,7 @@
  * 소스 우선순위:
  *   1. VHK_RULES_FILE 환경변수 → 사용자가 지정한 YAML
  *   2. ~/.vhk/config.json 의 rulesFile → 사용자가 지정한 YAML
- *   3. v2 호환 설정(PRIVATE_RULES_ROOT / rulesRoot) → v3 제거 예정 경고
- *   4. 모두 없거나 읽기 실패 → 번들 스냅샷 사용
+ *   3. 모두 없거나 읽기 실패 → 번들 스냅샷 사용
  */
 
 import fs from 'node:fs'
@@ -57,7 +56,7 @@ export type LoadedCoreRuleset = {
   data: CoreRuleset
   source: CoreRulesSource
   version: string
-  origin?: 'configured' | 'legacy' | 'bundled'
+  origin?: 'configured' | 'bundled'
   sourcePath?: string
   warning?: string
 }
@@ -70,11 +69,7 @@ export const CORE_RULES_START_TAG = '<!-- CORE-RULES:START'
 export const CORE_RULES_END_TAG = '<!-- CORE-RULES:END -->'
 
 function buildStartTag(version: string, sourceOrigin: NonNullable<LoadedCoreRuleset['origin']>): string {
-  const origin = sourceOrigin === 'configured'
-    ? 'configured rules file'
-    : sourceOrigin === 'legacy'
-      ? 'legacy rules source (deprecated)'
-      : 'vhk bundled snapshot'
+  const origin = sourceOrigin === 'configured' ? 'configured rules file' : 'vhk bundled snapshot'
   return `<!-- CORE-RULES:START v${version} (generated from ${origin} — 직접 편집 금지) -->`
 }
 
@@ -114,18 +109,6 @@ export function tryLoadRulesFile(
   }
 }
 
-// v2.12 호환: 기존 brain root를 범용 규칙 파일 경로로 변환한다. v3.0에서 제거.
-export function tryLoadLive(rulesRoot: string): LoadedCoreRuleset | null {
-  try {
-    // path.join 도 try 안에 포함 — rulesRoot 가 문자열이 아니면(홈 설정파일 수기 편집 손상 등)
-    // ERR_INVALID_ARG_TYPE 을 던지는데, 이 함수의 계약은 "실패 시 항상 null"이라 여기서 잡는다.
-    const yamlPath = path.join(rulesRoot, 'memory', 'core', 'core-ruleset.yaml')
-    return tryLoadRulesFile(yamlPath, 'legacy')
-  } catch {
-    return null
-  }
-}
-
 export function loadCoreRuleset(homeDir: string = os.homedir()): LoadedCoreRuleset {
   const warnings: string[] = []
   const envRulesFile = process.env.VHK_RULES_FILE
@@ -141,31 +124,6 @@ export function loadCoreRuleset(homeDir: string = os.homedir()): LoadedCoreRules
     const loaded = tryLoadRulesFile(configRulesFile)
     if (loaded) return { ...loaded, warning: warnings.join('\n') || undefined }
     warnings.push(`~/.vhk/config.json의 rulesFile을 읽지 못했습니다: ${configRulesFile}`)
-  }
-
-  const legacyEnabled = process.env.VHK_LEGACY_RULES !== '0'
-  const envRoot = legacyEnabled ? process.env.PRIVATE_RULES_ROOT : undefined
-  if (envRoot) {
-    const loaded = tryLoadLive(envRoot)
-    if (loaded) return {
-      ...loaded,
-      warning: [
-        ...warnings,
-        'PRIVATE_RULES_ROOT는 v2.12 호환 설정이며 v3.0에서 제거됩니다. VHK_RULES_FILE을 사용하세요.',
-      ].join('\n'),
-    }
-  }
-
-  const configRoot = legacyEnabled ? homeConfig?.rulesRoot : undefined
-  if (typeof configRoot === 'string' && configRoot) {
-    const loaded = tryLoadLive(configRoot)
-    if (loaded) return {
-      ...loaded,
-      warning: [
-        ...warnings,
-        'rulesRoot는 v2.12 호환 설정이며 v3.0에서 제거됩니다. rulesFile로 이전하세요.',
-      ].join('\n'),
-    }
   }
 
   return {

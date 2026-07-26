@@ -1,6 +1,6 @@
 {
   "name": "@byh3071/vhk",
-  "version": "2.11.0",
+  "version": "3.0.0",
   "packageManager": "pnpm@11.17.0",
   "description": "VHK — AI 코딩 세션을 목표·증거·기억·규칙으로 묶는 한국어 CLI. 규칙 동기화, MCP 35 tools, verify/review/preflight 게이트.",
   "bin": {
@@ -16,6 +16,7 @@
     "test": "vitest",
     "test:run": "vitest --run",
     "boundary:check": "node scripts/check-public-boundary.mjs",
+    "boundary:history": "node scripts/check-public-boundary.mjs --git-only --all-refs",
     "security:audit": "pnpm audit --audit-level high",
     "prepublishOnly": "pnpm build && pnpm test:run && pnpm boundary:check && pnpm security:audit",
     "save": "vhk save",
@@ -58,7 +59,7 @@
     "cline",
     "context-sync"
   ],
-  "author": "byh3071 <246838173+byh3071-cpu@users.noreply.github.com>",
+  "author": "yohanstudio <opensource@yohanstudio.co>",
   "license": "MIT",
   "repository": {
     "type": "git",

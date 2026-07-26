@@ -1,4 +1,4 @@
-<!-- CORE-RULES:START v0.1.5 (generated from legacy rules source (deprecated) — 직접 편집 금지) -->
+<!-- CORE-RULES:START v0.1.0 (generated from vhk bundled snapshot — 직접 편집 금지) -->
 
 ## 0. 정체성 (Stable)
 
@@ -10,7 +10,7 @@
 - 시크릿/토큰/키는 코드·커밋·로그에 평문 금지 → .env + .gitignore.
 - 되돌릴 수 없는 작업(배포·송금·주문·삭제·대량발송)은 명시 승인 전 실행 금지(capability gating).
 - 실패비용 high 자동화는 LLM을 결정경로에서 제외 — 룰+하드리밋으로 구현, LLM은 읽기 산출물에만.
-- 검증 없이 단정 금지 — MCP 연결·코드·데이터·타 파일 상태 전부. 실제 호출/빌드/읽기로 확인 후에만 단정하고, 미확인은 [추론] 표기. mock·가짜 출력 금지. 특히 요약/컴팩션/resume 후 '이전 산출물이 없다/유실됐다'는 판단은 ~/.claude/plans/·scratchpad·tasks·레포를 실제 glob한 뒤에만(레포 docs/patterns/ PAT-014).
+- MCP ✓Connected 신뢰 금지 → 실제 API 호출/빌드로 검증 후에만 '연결됨' 단정. mock·가짜 출력 금지.
 
 ## 2. 코딩 실행 규율
 
@@ -22,8 +22,6 @@
 - 한 커밋 = 한 논리단위 + 테스트 1회. 작게.
 - 비대화형 기본(자동화/CI): --yes류, PowerShell은 git --no-pager·-NonInteractive.
 - 스택별 라이브러리 핀 + 알려진 함정 사전 유지(버전 함정은 실동작 확인 후 확정).
-- 테스트 없는 파일 리팩토링 금지 — lib 추출 + re-export로 기존 테스트 무수정 생존(테스트 없으면 회귀 사각).
-- 적대적 리뷰/검증 서브에이전트엔 구조화 출력 스키마 강제 금지 — 일반 텍스트로 받아라(스키마 강제 시 발견사항 유실).
 
 ## 3. 규칙·프롬프트 설계 3공식
 
@@ -65,15 +63,13 @@
 
 ## 패턴 참조
 
-- PAT-001
-- PAT-002
-- PAT-003
-- PAT-004
-- PAT-005
-- PAT-006
-- PAT-007
-- PAT-008
-- PAT-009
+- PAT-001  # 닫힌어휘 LLM 필드 allowlist
+- PAT-002  # LLM JSON 3단 게이트
+- PAT-003  # 되돌릴수없는 자동화 4중 안전장치
+- PAT-004  # LLM 진입점 입력 클램프
+- PAT-005  # 단일파일 산출물 스택핀(샌드박스 한정)
+- PAT-006  # 브라우저 스토리지 금지(샌드박스 한정)
+- PAT-007  # LLM-as-judge 품질게이트
 
 <!-- CORE-RULES:END -->
 

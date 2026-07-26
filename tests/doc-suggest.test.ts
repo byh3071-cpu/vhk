@@ -7,7 +7,7 @@ import {
 import type { RecentCommit, SessionDiff } from '../src/lib/git.js'
 
 function commit(message: string, hash = 'abcdef1234'): RecentCommit {
-  return { hash, message, date: '2026-06-10', author: 'yohanstudio' }
+  return { hash, message, date: '2026-06-10', author: '테스트 사용자' }
 }
 
 const emptyDiff: SessionDiff = { filesChanged: 0, insertions: 0, deletions: 0, files: [] }

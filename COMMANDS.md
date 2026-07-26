@@ -144,7 +144,6 @@ Cursor에게 한국어로 말해도 됩니다.
 | 하고 싶은 것 | 터미널 명령 | 설명 |
 |-------------|-----------|------|
 | 사용자 규칙 YAML 등록 | `vhk config set-rules-file <yaml경로>` | 유효성을 확인한 뒤 `~/.vhk/config.json`의 `rulesFile`에 저장 — 다음 명령부터 즉시 반영, 한글 별칭 `vhk 설정 규칙파일` |
-| 기존 brain root 등록 | `vhk config set-rules-root <path>` | `2.12` 호환용 deprecated 명령 — 경고 후 동작하며 `3.0`에서 제거 |
 
 ## 환경 점검
 
