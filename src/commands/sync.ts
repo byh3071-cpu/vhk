@@ -63,9 +63,21 @@ interface RulesSection {
   content: string
 }
 
+// 113-T6 / ADR-010 §3: 진입점 절('## 세션 시작 필독')은 도구를 가리지 않고 규칙 파일 8종
+// 전부에 실려야 한다 — 어떤 도구로 세션을 열든 자기 규칙 파일에서 원본 문서 경로를 읽게 하는 것이
+// 목적이라, 한 곳이라도 빠지면 그 도구로 연 세션은 원본을 모른 채 시작한다.
+// 코딩 타깃(.cursorrules·.windsurfrules·copilot·antigravity·GEMINI·cline)은 CURSORRULES_KEYS 만
+// 보므로 여기 넣어야 8종 전부에 도달한다(CLAUDE.md·AGENTS.md 는 이 키셋을 합집합으로 포함).
+// 실측: 넣기 전엔 8종 중 2종(AGENTS.md 는 '기타 규칙' 버킷 경유)에만 전파됐다.
+//
+// 키를 '세션 시작'이 아니라 '세션 시작 필독'으로 좁힌 이유는 'VHK 운영' 선례와 같다.
+// CURSORRULES_KEYS 확장은 VHK_MANAGED_KEYS 로 자동 전파되고, 그 집합은 마커 없는 레거시
+// CLAUDE.md 의 1회 마이그레이션에서 "옛 자동생성 → 삭제" 판정에도 쓰인다. '세션 시작'만 쓰면
+// 사용자가 손으로 쓴 `## 세션 시작` 류 제목이 오삭제 대상으로 분류될 수 있다.
+const ENTRYPOINT_KEYS = ['세션 시작 필독']
 // #90: '도메인' — init 커스터마이징 인터뷰가 쓰는 `## 도메인 규칙` 섹션을 코딩 타깃(.cursorrules 등)으로
 // 전파. CLAUDE.md는 toClaudeMd가 CURSORRULES_KEYS를 합집합하므로 자동 도달(CLAUDE_MD_KEYS 추가 불필요).
-const CURSORRULES_KEYS = ['코딩 규칙', '기술 스택', '아키텍처', '디자인', 'Anti-patterns', '커밋', '도메인']
+const CURSORRULES_KEYS = [...ENTRYPOINT_KEYS, '코딩 규칙', '기술 스택', '아키텍처', '디자인', 'Anti-patterns', '커밋', '도메인']
 // #149: 'VHK 운영'(이슈 정책 등 운영 규약)을 매핑 — CLAUDE.md/AGENTS.md record 그룹으로 전파.
 // (코딩 타깃에는 안 들어감 — 운영 규약은 코딩 규칙이 아니므로 의도된 분리.)
 // 키를 'VHK 운영'으로 한정 — '운영'만 쓰면 '## 자동 운영 스크립트' 등 무관 섹션까지 substring 오탐.
