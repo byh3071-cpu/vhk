@@ -20,6 +20,14 @@ const PRIVATE_TRACKED_PATHS = [
   'docs/prompts/autonomy/',
 ]
 
+// 현재 추적·npm 패키지만 검사하고 **과거 이력은 면제**하는 경로.
+//
+// why 분리: `.agents/CORE-RULES.md` 는 개발자 홈의 범용 규칙 파일에서 재생성되므로 추적하면
+// 개인 규칙 원문이 공개된다. 앞으로 추적되는 것은 막아야 한다. 다만 지금까지 커밋돼 온 내용은
+// 번들 스냅샷(개인정보 없음)이라 이력 재작성 대상이 아니다. PRIVATE_TRACKED_PATHS 에 넣으면
+// 과거 이력 검사까지 걸려 릴리스 워크플로가 영구 실패하므로 별도 목록으로 둔다.
+const PRIVATE_CURRENT_PATHS = ['.agents/CORE-RULES.md']
+
 const literal = (...parts) => parts.join('')
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
 const exactPattern = (name, ...parts) => ({ name, pattern: new RegExp(escapeRegex(literal(...parts)), 'iu') })
@@ -87,7 +95,7 @@ function historyContainsPrivateText() {
 
 function isPrivatePath(file) {
   const normalized = normalizePath(file).toLowerCase()
-  return PRIVATE_TRACKED_PATHS.some((part) => {
+  return [...PRIVATE_TRACKED_PATHS, ...PRIVATE_CURRENT_PATHS].some((part) => {
     const target = part.toLowerCase()
     return target.endsWith('/') ? normalized.startsWith(target) : normalized === target
   })

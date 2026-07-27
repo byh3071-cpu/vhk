@@ -432,6 +432,12 @@ export const ROOT_GITIGNORE_ENTRIES = [
   'dist/',
   '*.tsbuildinfo',
   '.DS_Store',
+  // `.agents/CORE-RULES.md` 는 개발자 **홈**의 범용 규칙 파일(VHK_RULES_FILE ·
+  // ~/.vhk/config.json 의 rulesFile)에서 재생성된다. 즉 내용이 머신마다 다르고 개인 규칙
+  // 원문이 그대로 실린다. 추적하면 그게 공개 저장소로 새고, 되돌리면 `vhk sync --check` 가
+  // 영구 red 가 된다(둘 다 나쁜 선택지). 애초에 추적 대상이 아니다 — 프로젝트 공통 규칙은
+  // RULES.md 가 담당한다.
+  '.agents/CORE-RULES.md',
 ]
 
 /**
