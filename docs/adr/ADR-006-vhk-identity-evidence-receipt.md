@@ -1,5 +1,7 @@
 # ADR-006 — VHK 정체성 확정: Evidence Receipt (멀티툴 솔로용 거짓완료 탐지기)
 
+> 용어: ADR-011 대응표 참조.
+
 - 상태: Accepted
 - 날짜: 2026-06-22
 - 관련: RFC 0055(Proof Protocol — Codex 제안, §13에서 다차원 검증), RFC 0056(Evidence Receipt 전략), RFC 0054(자율형 진화), SOUL.md, #315

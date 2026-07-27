@@ -7,7 +7,7 @@ export const ko = {
     noActions: '데이터 없음 (action-ledger 미연동 — Goal 55 머지 후 집계)',
     nextMessage: '집계 확인 완료! 증거를 더 쌓으려면 검증을 실행하세요.',
     nextCursor: '검증 실행해줘',
-    trendTitle: 'receipt 추세 (거짓완료 판정 추이)',
+    trendTitle: 'receipt 추세 (완료 보고 검증 판정 추이)',
     trendNoData: '측정 데이터 없음 — vhk receipt 를 반복 발행하면 추세가 쌓입니다.',
     trendNextMessage: '추세는 receipt 발행이 누적될수록 정밀해집니다.',
     trendNextCursor: 'receipt 발행해줘',
@@ -315,8 +315,8 @@ export const ko = {
     updateAvailable: (latest: string) =>
       `🆕 v${latest} 사용 가능 — npm i -g @byh3071/vhk`,
     updateCurrent: '최신 버전을 쓰고 있어요',
-    driftTitle: '🔀 드리프트 점검 (규칙·맥락 어긋남):',
-    driftNoRules: '⬚ RULES.md 없음 — 규칙 드리프트 점검 생략',
+    driftTitle: '🔀 설정 불일치(drift) 점검 (규칙·맥락 어긋남):',
+    driftNoRules: '⬚ RULES.md 없음 — 규칙 불일치(drift) 점검 생략',
     driftRuleClean: '✅ 규칙 파일이 RULES.md와 일치',
     driftRuleWarn: (files: string) =>
       `⚠️ RULES.md와 어긋난 규칙 파일: ${files} — vhk sync 를 다시 실행하세요`,
@@ -352,15 +352,15 @@ export const ko = {
     restDay: '오늘은 기록이 없네 — 쉬어가는 것도 하루.',
     restEncourage: '쉬는 것도 페이스의 일부. 내일 또.',
   },
-  // Goal 86 (RFC 0056 T1): 증거 영수증 — 에이전트 "됐어요"를 기계증거로 판정.
+  // Goal 86 (RFC 0056 T1): 검증 리포트 — 에이전트 "됐어요"를 기계 증거로 판정 (용어: ADR-011).
   receipt: {
-    title: '증거 영수증',
+    title: '검증 리포트',
     noCommit: 'git 커밋을 찾을 수 없습니다 — 작업시작 기준선을 기록하려면 커밋이 1개 이상 필요합니다.',
     markStartDone: '작업시작 기준선 SHA 기록 완료 (이후 stale 비교 기준):',
     nextBlockMessage: '🔴 기계증거가 "됐어요"와 모순 — 아직 완료 아님. 막힌 증거(red/dirty/stale/forbidden)부터 고치세요:',
     learnBlockHint: 'receipt BLOCK — 막힌 증거 원인과 재발방지',
     nextCautionMessage: '🟡 실차단은 없으나 약신호 있음(수동 확인 권장). 보강 후 다시 떼세요:',
-    nextPassMessage: '🟢 게으른 거짓완료 징후 없음(미묘한 오류는 못 잡음). 완료 처리하려면:',
+    nextPassMessage: '🟢 게으른 허위 완료 보고 징후 없음(미묘한 오류는 못 잡음). 완료 처리하려면:',
     // Goal 87 방향 2-1: glob 미지원 문법 경고 — 거짓 안전을 caution 으로 드러냄.
     unsupportedForbiddenGlob: (n: number) =>
       `forbidden 패턴 ${n}개에 미지원 glob 문법(!, {}, [], 후행 /) — 해당 forbidden 검증 무효. 지원: *, **, ?`,
@@ -403,10 +403,10 @@ export const ko = {
     checkDrift: (p: string) => `↯ ${p} — 생성본과 다름 (직접 수정 또는 sync 미실행)`,
     checkMissing: (p: string) => `∅ ${p} — 파일 없음 (sync 가 생성할 타겟)`,
     checkFail: (n: number) => `❌ drift ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
-    driftDocsTitle: (n: number) => `📡 문서-실측 드리프트 ${n}건 (warn — RFC 0062)`,
-    driftDocsClean: '📡 문서-실측 드리프트 없음 (RFC 0062 warn 검사)',
+    driftDocsTitle: (n: number) => `📡 문서-실측 불일치(drift) ${n}건 (warn — RFC 0062)`,
+    driftDocsClean: '📡 문서-실측 불일치(drift) 없음 (RFC 0062 warn 검사)',
     driftDocsWarnNote: 'warn 모드 — 차단하지 않습니다. 문서를 실측에 맞게 고치거나, 오탐이면 그대로 두세요(오탐률 계측 중).',
-    driftDocsError: (msg: string) => `(문서 드리프트 검사 내부 오류 — 건너뜀: ${msg})`,
+    driftDocsError: (msg: string) => `(문서 불일치(drift) 검사 내부 오류 — 건너뜀: ${msg})`,
     cursorrulesDone: '✅ .cursorrules 맞춤 완료',
     claudeDone: '✅ CLAUDE.md 맞춤 완료',
     windsurfDone: '✅ .windsurfrules 맞춤 완료',
@@ -417,7 +417,7 @@ export const ko = {
     clineDone: '✅ .clinerules/vhk-rules.md 맞춤 완료',
     antigravityTruncated: 'Antigravity 12,000자 제한으로 일부 절삭됨 — 전체는 RULES.md 참조',
     done: '🔄 맞추기 완료!',
-    // 안전 가드 (배치 0) — 덮어쓰기 전 백업·드리프트 확인·미리보기
+    // 안전 가드 (배치 0) — 덮어쓰기 전 백업·불일치(drift) 확인·미리보기
     backupSaved: (n: number, id: string) =>
       `🛟 덮어쓰기 전 ${n}개 파일 백업함 → .vhk/backups/${id} (복원: vhk restore)`,
     firstSync: '🛟 첫 sync — 기존 파일을 백업한 뒤 생성합니다.',
@@ -635,10 +635,11 @@ export const ko = {
     notFound: (id: number) => `goal id ${id} 없음 — vhk goal list 로 확인하세요.`,
     invalidId: (raw: string) =>
       `유효하지 않은 goal 번호: '${raw}' — 양의 정수만 됩니다 (예: --id 3). vhk goal list 로 확인하세요.`,
-    driftTitle: '🔍 Goal 상태↔코드 드리프트 점검',
-    driftClean: 'goal 상태 드리프트 없음 (구현 흔적 있는데 NOT_STARTED 인 goal 0건)',
+    // 여기의 "불일치(drift)"는 설정이 아니라 goal 상태 ↔ 코드 현실의 어긋남이다 (ADR-011 대응표 적용 시 의미 보존).
+    driftTitle: '🔍 Goal 상태↔코드 불일치(drift) 점검',
+    driftClean: 'goal 상태 불일치(drift) 없음 (구현 흔적 있는데 NOT_STARTED 인 goal 0건)',
     driftFound: (n: number) =>
-      `드리프트 의심 ${n}건 — check-goal 게이트에 goal 고유 검증이 있는데 status: NOT_STARTED:`,
+      `상태 불일치(drift) 의심 ${n}건 — check-goal 게이트에 goal 고유 검증이 있는데 status: NOT_STARTED:`,
   },
   watch: {
     title: '👁️  무인 세션 정지 감시',

@@ -1,5 +1,7 @@
 # RFC 0060 — init 기록 온보딩: 채움 마커·인터뷰 2단계·자동 sync·설치 점검
 
+> 용어: ADR-011 대응표 참조.
+
 > 상태: Draft · 작성: 2026-07-12 · 출처: 사용자 니즈("독푸딩 시 PRD·아키텍처·ADR·트러블슈팅을 새로 만들 필요 없이, 초기 설명 비용을 0으로 — 기록을 짚어주지 않아도 되게") + `/dogfood` 감사(2026-07-12) Wave 1 후속
 > 목적: `vhk init` 한 번으로 **기록 인프라가 사용자 개입 없이 완비**되게 한다. 사람이 "여기 뭘 채우지"를 헤매지 않고, AI가 사용자 의도를 인터뷰로 뽑아 기획 문서를 채우며, 배선 완료를 **거짓 없이 영수증으로 증명**한다.
 > 연동: `src/commands/init.ts` · `src/i18n/ko.ts` · `src/templates/{prd,architecture,customization-hook}.ts` · `src/commands/sync.ts` · RFC 0057 §7(트리거 격차 계승) · RFC 0056(거짓완료 영수증 철학)

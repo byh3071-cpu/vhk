@@ -12,6 +12,8 @@ spec_version_target: "1.1"
 
 # RFC 0038 — `.vhk/` 규격 v1.1
 
+> 용어: ADR-011 대응표 참조.
+
 > **번호 안내:** 이 저장소의 RFC 는 보통 일련번호(`0001`)다. 본 문서는 이슈 **#38**(`.vhk` 규격 트랙)을
 > 추적하려고 이슈 번호를 파일명에 쓴다. 규범 기반은 여전히 [RFC 0001](./0001-vhk-directory-spec.md) +
 > [`docs/spec.md`](../spec.md)(`spec_version 1.0`)이며, 본 RFC 는 그 위의 **v1.1 증분 제안**이다.

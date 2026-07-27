@@ -156,17 +156,21 @@ const RULES: NlpRule[] = [
     test: t =>
       /검증\s*(묶음|실행|돌려|돌리)|사전\s*검증|저장\s*전\s*(검증|확인)|^verify$|^검증\s*(해줘|해)?$/.test(t),
   },
-  // receipt 는 review 보다 **먼저** 평가 — '영수증/receipt' 한정이라 '거짓완료' 만으로는 review 가
-  // 가져간다('영수증' 동반 시에만 receipt). bare '영수증'·'증거 영수증'·'receipt' 도 흡수.
+  // receipt 는 review 보다 **먼저** 평가 — 영수증 계열 어휘가 동반될 때만 receipt 가 가져가고,
+  // 완료 의심 어휘만 있으면 review 가 가져간다. bare 영수증·receipt 도 흡수(아래 정규식 참조).
+  //
+  // ADR-011 용어 교체 후에도 **종전 어휘를 라우터에서 빼지 않는다** — 사용자가 이미 쓰던 말이
+  // 갑자기 안 먹히면 그게 breaking change다. 신규 어휘('검증 리포트')를 더하기만 한다.
+  // 그래서 아래 정규식에는 신·구 어휘가 함께 있다. 설명문(explanation)만 신규 어휘로 쓴다.
   {
     command: 'receipt',
-    explanation: '증거 영수증 — 4대 기계증거로 거짓완료 판정 (vhk receipt)',
+    explanation: '검증 리포트 — 4대 기계증거로 완료 보고 검증 (vhk receipt)',
     confidence: 'high',
-    test: t => /증거\s*영수증|^영수증$|영수증\s*(만들|떼|발급|뽑|생성)|^receipt$|거짓\s*완료\s*영수증/.test(t),
+    test: t => /증거\s*영수증|^영수증$|영수증\s*(만들|떼|발급|뽑|생성)|^receipt$|거짓\s*완료\s*영수증|검증\s*리포트/.test(t),
   },
   {
     command: 'review',
-    explanation: '적대적 자기검증 — 증거로 거짓완료 의심 (vhk review)',
+    explanation: '적대적 자기검증 — 증거로 허위 완료 보고 의심 (vhk review)',
     confidence: 'high',
     test: t => /적대\s*검증|자기\s*검증|거짓\s*완료|완료\s*심문|^review$|^검토$/.test(t),
   },

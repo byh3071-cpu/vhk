@@ -46,7 +46,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
   📁 프로젝트 파일 확인:
     ✅ RULES.md   ✅ COMMANDS.md   ✅ package.json   ✅ .gitignore
 
-  🔀 드리프트 점검 (규칙·맥락 어긋남):
+  🔀 설정 불일치(drift) 점검 (규칙·맥락 어긋남):
     ✅ 규칙 파일이 RULES.md와 일치
     ⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요
 
@@ -150,17 +150,17 @@ vhk blocker "테스트가 같은 원인으로 계속 실패"
 ```powershell
 vhk verify     # tsc/lint/test/build/secure 게이트 실행 → .vhk/reports/latest.json
 vhk review     # 최신 증거와 goal 완료조건 교차검증
-vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale SHA·diff-cover)로 거짓완료 탐지 (LLM 0)
+vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale SHA·diff-cover)로 완료 보고 검증 (LLM 0)
 vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
 ```
 
-#### 거짓완료 적발 데모 — 실제 출력
+#### 허위 완료 보고 적발 데모 — 실제 출력
 
 AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 깨져 있고 커밋도 안 한 상황.
 `vhk receipt` 한 번이면 기계증거로 잡힙니다 (2026-07-18 실캡처):
 
 ```text
-🧾 증거 영수증 (receipt)
+🧾 검증 리포트 (receipt)
 ────────────────────────────────────────────
   판정: 🔴 BLOCK
   HEAD: adb79f9  ·  작업시작: adb79f9  ·  게이트: FAIL
@@ -175,7 +175,7 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 
 30초 재현: 아무 프로젝트에서 `vhk receipt --mark-start` → 코드 수정(커밋 X, 테스트 깨진 채) → `vhk receipt`.
 판정은 종료코드·git dirty·SHA 같은 기계증거 기반이며 LLM 추론이 아닙니다 — 그래서 "그럴듯한 말"에 안 속습니다.
-(한계도 정직하게: 게으른 거짓완료를 잡는 도구지, 그럴듯하게 틀린 코드까지 잡지는 못합니다.)
+(한계도 정직하게: 게으른 허위 완료 보고를 잡는 도구지, 그럴듯하게 틀린 코드까지 잡지는 못합니다.)
 
 ### 4. 기억·패턴·자가진화 — 쓸수록 이 개발자에게 최적화
 
@@ -225,8 +225,8 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | 시작 | `vhk`, `vhk gate`, `vhk start`, `vhk init` | 메뉴, 아이디어 검증, 새 프로젝트 마법사, 하네스 초기화(+기록 집행 커밋훅 배선 — 세션일지 없는 코드 커밋 차단, `[skip-record]` 우회) |
 | 규칙/맥락 | `vhk sync`, `vhk context`, `vhk context-show`, `vhk brief`, `vhk loop-brief`, `vhk remind`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, 루프 1틱 의도 앵커, 치명 규칙 재주입, 세션 시작/인수인계 |
 | 풀사이클 뒷단 | `vhk content`, `vhk launch`, `vhk ops`, `vhk sell` | 콘텐츠/런칭/운영/판매 초안 프롬프트 생성 (초안만, 게시·발송·결제는 사람이) · RULES.md 치명 규칙 자동 상속 · 과거 교훈(`.vhk/memory`) ≤3 자동 회상 주입 — 다음 사이클로 복리 |
-| Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 드리프트 관리 |
-| Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 거짓완료 탐지, 증거 영수증, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
+| Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 불일치(drift) 관리 |
+| Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 완료 보고 검증, 검증 리포트, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
 | 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan` | HARD_STOP, safety mode, 시크릿 스캔 |
 | Git | `vhk status`, `vhk diff`, `vhk save`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인, 커밋/푸시, 되돌리기, 세션 로그 |
 | 환경/품질 | `vhk doctor`, `vhk check`, `vhk env`, `vhk env-check`, `vhk harness`, `vhk audit`, `vhk worktree check/add` | 개발환경, RULES 린트, env, 통합 품질, 보안 감사, worktree 가드 |
