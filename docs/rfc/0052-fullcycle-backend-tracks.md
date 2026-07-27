@@ -1,5 +1,7 @@
 # RFC 0052 — 풀사이클 뒷단 4트랙: launch / content / sell / ops (실행층 채우기)
 
+> 용어: ADR-011 대응표 참조.
+
 > 상태: Draft · 작성: 2026-06-16 · 출처: 레포+노션 전수조사("사상은 풀사이클, 실행은 반쪽") + `gate.ts` GATE_QUESTIONS 10~13 자백(질문만·실행 0) + 노션 "아이디어→MVP 풀사이클 프로토콜" Phase 5~6
 > 목적: vhk가 표방하는 "바이브코딩 풀사이클 CLI"의 **비어있는 뒷단**(런칭·콘텐츠/마케팅·판매·운영)을 앞단(work→mission→review)과 동일한 "상태수집 + 체크리스트 + 프롬프트 생성" 패턴으로 채운다. 자동 발송·결제·삭제는 하지 않는다(자문형).
 > 연동: 실행 단위 = `goals/<n>-fullcycle-*.md` (트랙별 개별 goal·개별 PR). 재사용 = `work.ts emitPrompt` + `ship.ts` CHECKLIST. 프롬프트 위생 = goal 68(remind)·69(negatives)가 깐 Fable5 패턴 상속.

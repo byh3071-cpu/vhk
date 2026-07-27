@@ -7,6 +7,8 @@ tags: [governance, hooks, records]
 
 # ADR-001: 기록 집행을 Claude Code hook 하이브리드로 한다
 
+> 용어: ADR-011 대응표 참조.
+
 ## 맥락 (Context)
 
 기록 규칙(작업당 dev log·결정당 ADR)은 RULES.md·CLAUDE.md에 "필수"로 적혀 있었지만

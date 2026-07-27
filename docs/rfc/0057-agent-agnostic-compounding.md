@@ -1,5 +1,7 @@
 # RFC 0057 — Agent-Agnostic Compounding: 어떤 에이전트가 와도 안 무너지는 자가진화 VHK
 
+> 용어: ADR-011 대응표 참조.
+
 > 상태: Implemented — 트랙①②③ 전부 완료(goals 93·94·95 DONE, 2026-07-04 main 병합) · §6~§7 유보분(트리거 격차·메모리 프라이버시·할루시네이션 루프)은 후속 RFC 대상 · 작성: 2026-07-04
 > 출처: 프로젝트 방향 재검토와 에이전트 실측 감사
 > 연동: RFC 0055(Proof Protocol, archived) · RFC 0056(Evidence Receipt) · RFC 0054(자율형 진화) · RFC 0052(풀사이클 뒷단) · ADR-006(정체성 확정) · ADR-007(서브에이전트 정책) · `src/templates/ecosystem-mdc.ts` · `src/lib/receipt.ts`/`receipt-log.ts` · `.claude/settings.json` · `docs/state/next-task.md`

@@ -1,5 +1,7 @@
 # RFC 0056 — VHK Evidence Receipt: 에이전트의 '됐어요'를 영수증으로
 
+> 용어: ADR-011 대응표 참조.
+
 > 상태: Draft · 작성: 2026-06-22 · 출처: RFC 0055 다차원 검증(§13) + `vhk-winning-strategy` 전략 workflow(6후보 4렌즈 적대평가)
 > 대체: **RFC 0055 §8(표준화 전략)·§7(역할군) 프레임을 폐기하고 이 RFC로 교체.** RFC 0055의 객체모델·티켓(§3·§4·§9)은 결함 정정 후 재사용.
 > 연동: RFC 0052(풀사이클 뒷단) · RFC 0054(자율형 진화) · ADR-006(정체성 확정) · `verify/review/mission/work` · `.vhk/reports/latest.json` · `verify.ts`(verifyEvidence·checkEvidenceFreshness).

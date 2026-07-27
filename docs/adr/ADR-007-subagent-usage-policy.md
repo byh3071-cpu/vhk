@@ -7,6 +7,8 @@ tags: [subagent, agent, governance, policy]
 
 # ADR-007: 서브에이전트 활용 정책 — plugin SoT · 읽기전용 위임 · 판정은 결정론 게이트만
 
+> 용어: ADR-011 대응표 참조.
+
 ## 맥락 (Context)
 
 "Claude Code 공식 문서 기준으로 vhk에 서브에이전트를 도입하면 어떨까"라는 검토에서 출발했다. 공식 사양(code.claude.com/docs/en/sub-agents)과 vhk 현 구조를 대조한 결과:

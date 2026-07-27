@@ -1,5 +1,7 @@
 # RFC 0050 — diff-coverage: "이번 변경이 테스트로 닿았나" 측정 (measure-first, 게이트는 나중)
 
+> 용어: ADR-011 대응표 참조.
+
 > 상태: Draft · 작성: 2026-06-09 · 출처: review.ts:40 자백 + 13-에이전트 감사(RFC 0048 §2 테스트 차원) + recall(RFC 0049) 교훈 이식
 > 목적: review/verify의 미측정 가설("기존 테스트가 green이어도 이번 변경을 커버 못 했을 수 있음")을 **측정 가능한 숫자**로 바꾼다. 게이트(차단)·review 통합·CI는 그 숫자가 정당화한 뒤에만.
 > 연동: 실행 단위 = `goals/50-coverage-diff-gate.md`. 데이터 = `coverage/coverage-final.json`(v8, 파생·버려도 됨) + `git diff`. git 통로 = `src/lib/git-session.ts`(Goal 48 단일 SoT).

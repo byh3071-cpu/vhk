@@ -1,5 +1,7 @@
 # RFC 0048 — 업계최상위 품질 로드맵 (Top-Tier Quality Roadmap)
 
+> 용어: ADR-011 대응표 참조.
+
 > 상태: Draft · 작성: 2026-06-08 · 출처: 13-에이전트 다차원 감사(2026-06-08, 실측 검증)
 > 목적: VHK를 "실무급 3.5/5"에서 **솔로 한국어 CLI가 코드로 도달 가능한 진짜 천장(~4.7)**으로 끌어올리는 원리·노하우·실행 로드맵의 단일 마스터 문서.
 > 연동: 실행 단위 = `goals/47~54` (각 `check-goal-N.mjs` 가드). 상태 SoT = `docs/state/next-task.md`. 사실값(버전·테스트) SoT = `package.json`·`CHANGELOG`.

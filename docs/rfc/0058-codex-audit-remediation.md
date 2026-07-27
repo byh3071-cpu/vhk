@@ -1,5 +1,7 @@
 # RFC 0058 — Codex 감사 기반 정합성·구조 정리 백로그
 
+> 용어: ADR-011 대응표 참조.
+
 > 상태: Partially Implemented — T1(#471)·T2(#430/#445 close)·T3(#472)·T4(#475) 완료 · 잔여 = T5(드리프트 자동감지 → RFC 0062)·T6(check-goal 부채)·§4 유보 · 작성: 2026-07-06
 > 출처: 비공개 VHK 강화 분석과 다중 에이전트 교차검증
 > 연동: RFC 0057(Agent-Agnostic Compounding) · `docs/ARCHITECTURE.md` · `VISION.md` · `docs/spec.md` · `RULES.md` · `src/lib/preflight.ts` · `src/lib/goal-frontmatter.ts` · `src/lib/atomic-write.ts` · `src/lib/command-registry.ts` · `docs/state/next-task.md`

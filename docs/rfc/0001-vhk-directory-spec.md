@@ -11,6 +11,8 @@ discussion: https://github.com/byh3071-cpu/vhk/issues/38
 
 # RFC 0001 — `.vhk/` 디렉토리 규격
 
+> 용어: ADR-011 대응표 참조.
+
 > 이 RFC 는 공개 의견 수렴용 제안서다. **규범(normative) 정의는 [`docs/spec.md`](../spec.md)** 가 가지며,
 > 본 문서는 그 규격의 **동기·설계 근거·대안·미해결 질문**을 설명한다. 둘이 어긋나면 `spec.md` 가 기준이다.
 
