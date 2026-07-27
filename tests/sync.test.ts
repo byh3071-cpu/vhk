@@ -300,6 +300,52 @@ describe('vhk init → sync 연결 (VHK-002 / #61 회귀)', () => {
   })
 })
 
+// 113-T6 / ADR-010 §3: 진입점 절이 규칙 파일 8종 **전부**에 실려야 한다.
+// 한 곳이라도 빠지면 그 도구로 연 세션은 원본 문서를 모른 채 시작한다.
+// 실측(2026-07-28): 이 키 매핑 전에는 8종 중 2종에만 전파됐다.
+describe('vhk sync — 113-T6 진입점 절 전 규칙 파일 전파', () => {
+  const entrypointRules =
+    '# vhk — Rules\n\n' +
+    '## 세션 시작 필독\n' +
+    '- 현 사이클 원본: docs/roadmap/2.x-roadmap.md SENTINEL_ENTRYPOINT\n' +
+    '\n## 코딩 규칙\n- a\n'
+
+  it('코딩 타깃 6종 전부에 진입점 본문이 실린다', () => {
+    const s = parseRulesMd(entrypointRules)
+    expect(toCursorrules(s, 'vhk')).toContain('SENTINEL_ENTRYPOINT')
+    expect(toWindsurfrules(s, 'vhk')).toContain('SENTINEL_ENTRYPOINT')
+    expect(toCopilotInstructions(s, 'vhk')).toContain('SENTINEL_ENTRYPOINT')
+    expect(toGeminiMd(s, 'vhk')).toContain('SENTINEL_ENTRYPOINT')
+    expect(toClineRules(s, 'vhk')).toContain('SENTINEL_ENTRYPOINT')
+    expect(toAntigravityRules(s, 'vhk')).toContain('SENTINEL_ENTRYPOINT')
+  })
+
+  it('AGENTS.md 에는 매핑 섹션으로 실린다 (기타 규칙 버킷 폴백 아님)', () => {
+    const out = toAgentsMd(parseRulesMd(entrypointRules), 'vhk', null)
+    expect(out).toContain('SENTINEL_ENTRYPOINT')
+    expect(out).not.toContain('## 기타 규칙')
+  })
+
+  it('CLAUDE.md 마커 블록 안에 실린다', () => {
+    const out = toClaudeMd(parseRulesMd(entrypointRules), '# 기록 규칙 (vhk)\n\n## 현재 상태\n- P1\n')
+    const start = out.indexOf('<!-- vhk:rules:start -->')
+    const end = out.indexOf('<!-- vhk:rules:end -->')
+    expect(out.indexOf('SENTINEL_ENTRYPOINT')).toBeGreaterThan(start)
+    expect(out.indexOf('SENTINEL_ENTRYPOINT')).toBeLessThan(end)
+  })
+
+  it('진입점 절은 미매칭 경고 대상이 아니다 (조용한 누락 아님이 아니라 아예 매핑됨)', () => {
+    expect(findUnmappedSections(parseRulesMd(entrypointRules))).not.toContain('세션 시작 필독')
+  })
+
+  // 'VHK 운영' 선례와 같은 이유로 키를 '세션 시작'이 아닌 '세션 시작 필독'으로 좁혔다 —
+  // 넓은 키는 레거시 CLAUDE.md 마이그레이션에서 사용자 작성 섹션을 오삭제 대상으로 만든다.
+  it('키가 좁아 사용자 작성 "세션 시작" 류 제목은 매핑하지 않는다', () => {
+    const looseRules = '# P — Rules\n\n## 세션 시작 메모\n- 사용자가 손으로 쓴 내용\n\n## 코딩 규칙\n- a\n'
+    expect(findUnmappedSections(parseRulesMd(looseRules))).toContain('세션 시작 메모')
+  })
+})
+
 describe('vhk sync — goal 90: 도메인 규칙 섹션이 .cursorrules + CLAUDE.md 양쪽 도달 (회귀)', () => {
   // init 커스터마이징 인터뷰가 쓸 법한 합성 RULES.md — 도메인 불변식 + ### 절대 금지.
   const domainRules =
