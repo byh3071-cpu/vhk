@@ -853,7 +853,7 @@ goalCmd
 goalCmd
   .command('next')
   .alias('다음')
-  .description('active goal 자동 선택 → docs/state/next-task.md 갱신 (덮어쓰기 전 자동 백업)')
+  .description('active goal 자동 선택 → docs/state/ 가 있으면 next-task.md 갱신 (덮어쓰기 전 자동 백업), 없으면 조회만')
   .action(async () => { await goalNext() })
 
 goalCmd
