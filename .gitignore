@@ -42,6 +42,9 @@ docs/log/
 docs/state/
 docs/devlog/
 goals/
+# goal 검사 스크립트 — goals/ 카드와 같은 단위(카드가 비추적이면 그 검사도 비추적).
+# `check-goal-frontmatter.mjs` 같은 이름 있는 스크립트는 제품 검사라 계속 추적한다.
+scripts/check-goal-[0-9]*.mjs
 .claude/agents/memtest.md
 .claude/skills/auto-merge/
 .claude/skills/overnight-vhk-auto/
