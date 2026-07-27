@@ -28,6 +28,12 @@ function makeGoalFile(dir: string, id: number, status: string): void {
   )
 }
 
+// 112-T2: goal next 는 없는 docs/state/ 를 새로 만들지 않는다.
+// 쓰기 경로를 검증하려면 프로젝트가 상태 문서를 이미 도입한 상태여야 한다.
+function adoptStateDir(dir: string): void {
+  mkdirSync(join(dir, 'docs', 'state'), { recursive: true })
+}
+
 describe('selectActiveId', () => {
   it('IN_PROGRESS 우선', async () => {
     const { selectActiveId } = await import('../src/commands/goal.js')
@@ -154,6 +160,7 @@ describe('goalNext', () => {
     const dir = tmpProject('next')
     makeGoalFile(dir, 0, 'DONE')
     makeGoalFile(dir, 1, 'NOT_STARTED')
+    adoptStateDir(dir)
     process.chdir(dir)
     try {
       const { goalNext } = await import('../src/commands/goal.js')
@@ -170,11 +177,65 @@ describe('goalNext', () => {
   it('모든 goal DONE 이면 next-task.md 갱신 안 함', async () => {
     const dir = tmpProject('next-done')
     makeGoalFile(dir, 0, 'DONE')
+    adoptStateDir(dir)
     process.chdir(dir)
     try {
       const { goalNext } = await import('../src/commands/goal.js')
       await goalNext()
       expect(existsSync(join(dir, 'docs/state/next-task.md'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  // 112-T2/T6: 공개 경계 정리로 docs/state/ 를 제거한 레포에서 next 가 디렉터리를 되살리면
+  // 작업 상태의 원본이 로드맵과 next-task.md 둘로 갈린다.
+  it('docs/state/ 가 없으면 디렉터리를 만들지 않는다 (원본 이원화 방지)', async () => {
+    const dir = tmpProject('next-nostate')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    process.chdir(dir)
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      expect(existsSync(join(dir, 'docs', 'state'))).toBe(false)
+      expect(existsSync(join(dir, 'docs', 'state', 'next-task.md'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('docs/state/ 가 없어도 active goal 은 안내한다 (조용한 무동작 금지)', async () => {
+    const dir = tmpProject('next-nostate-out')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    process.chdir(dir)
+    const logs: string[] = []
+    vi.spyOn(console, 'log').mockImplementation((m?: unknown) => { logs.push(String(m)) })
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      const out = logs.join('\n')
+      expect(out).toContain('Goal 1')
+      expect(out).toContain('docs/state')
+      expect(out).toContain('vhk goal init')
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('docs/state/ 가 이미 있으면 종전대로 갱신한다 (기본 경로 회귀 0)', async () => {
+    const dir = tmpProject('next-withstate')
+    makeGoalFile(dir, 3, 'IN_PROGRESS')
+    adoptStateDir(dir)
+    process.chdir(dir)
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      const text = readFileSync(join(dir, 'docs/state/next-task.md'), 'utf-8')
+      expect(text).toContain('Goal 3')
+      expect(text).toContain('via `vhk goal next`')
     } finally {
       process.chdir(origCwd)
       rmSync(dir, { recursive: true, force: true })

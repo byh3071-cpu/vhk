@@ -7,8 +7,10 @@ import {
   findStatusDriftCandidates,
   extractBacktickPaths,
   resolvePathEvidence,
+  tallyCheckboxes,
   PATH_EVIDENCE_MIN,
 } from '../src/lib/goal-drift.js'
+import { repoGoalsPresent, REPO_GOALS_SKIP_NOTE } from '../src/lib/test-support/repo-goals.js'
 
 // `vhk goal sync` 가 생성하는 스캐폴드 게이트의 핵심(must 정의 + 주석 예시만 — 고유 검증 0).
 const SCAFFOLD = `#!/usr/bin/env node
@@ -191,7 +193,63 @@ describe('findStatusDriftCandidates', () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
-  it('실제 repo goals/ ↔ scripts/ 드리프트 0 (회귀 가드)', () => {
-    expect(findStatusDriftCandidates('goals', 'scripts')).toEqual([])
+  it('NOT_STARTED + 체크박스 전부 완료 → 드리프트 (경로 증거 없이도)', () => {
+    const body = '## 티켓\n- [x] **T1** 하나\n- [x] **T2** 둘\n'
+    const { root, gdir, sdir } = setup({ '10-done.md': goalCard(10, 'NOT_STARTED', body) }, {})
+    const hits = findStatusDriftCandidates(gdir, sdir, root)
+    expect(hits.map((x) => x.id)).toEqual([10])
+    expect(hits[0].reason).toContain('체크박스')
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  it('NOT_STARTED + 체크박스 일부만 완료 → 통과(진행 중은 드리프트 아님)', () => {
+    const body = '## 티켓\n- [x] **T1** 하나\n- [ ] **T2** 둘\n'
+    const { root, gdir, sdir } = setup({ '11-partial.md': goalCard(11, 'NOT_STARTED', body) }, {})
+    expect(findStatusDriftCandidates(gdir, sdir, root)).toEqual([])
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  // 112-T7(a) 회귀: 계획 카드는 "앞으로 고칠 파일" 경로를 인용하고 그 경로는 이미 존재한다.
+  // 예전 구현은 이것만으로 드리프트 판정해 신규 계획 카드 14장이 100% 오탐이었다.
+  it('NOT_STARTED + 미완 체크박스 + 실재 경로 인용 → 통과(계획 카드 오탐 0)', () => {
+    const body = [
+      '## 티켓',
+      '- [ ] **T1** `src/commands/goal.ts` 수정',
+      '- [ ] **T2** `tests/goal.test.ts` 보강',
+    ].join('\n')
+    const { root, gdir, sdir } = setup(
+      { '12-plan.md': goalCard(12, 'NOT_STARTED', body) },
+      {},
+      { 'src/commands/goal.ts': 'export {}\n', 'tests/goal.test.ts': 'export {}\n' },
+    )
+    expect(findStatusDriftCandidates(gdir, sdir, root)).toEqual([])
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  it('체크박스가 전부 완료여도 status 가 DONE 이면 통과', () => {
+    const body = '## 티켓\n- [x] **T1** 하나\n'
+    const { root, gdir, sdir } = setup({ '13-ok.md': goalCard(13, 'DONE', body) }, {})
+    expect(findStatusDriftCandidates(gdir, sdir, root)).toEqual([])
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  // 112-T7(b): goals/ 가 비추적이라 CI 에는 없다 → 빈 배열끼리 비교하며 무조건 통과하던 가드.
+  // 판정력이 로컬에만 있다는 사실이 보이도록 조건부 실행으로 분리한다.
+  it.skipIf(!repoGoalsPresent())(
+    `실제 repo goals/ ↔ scripts/ 드리프트 0 (회귀 가드 — ${REPO_GOALS_SKIP_NOTE})`,
+    () => {
+      expect(findStatusDriftCandidates('goals', 'scripts')).toEqual([])
+    },
+  )
+})
+
+describe('tallyCheckboxes', () => {
+  it('체크·미체크를 세고 체크박스가 아닌 줄은 무시', () => {
+    const body = ['- [x] 완료', '- [ ] 미완', '* [X] 대문자도 완료', '- 그냥 항목', '텍스트'].join('\n')
+    expect(tallyCheckboxes(body)).toEqual({ total: 3, checked: 2 })
+  })
+
+  it('체크박스가 없으면 0/0', () => {
+    expect(tallyCheckboxes('# 제목\n본문\n')).toEqual({ total: 0, checked: 0 })
   })
 })

@@ -5,12 +5,19 @@ import { listGoals, type GoalStatus } from './goal-frontmatter.js'
 // Goal 43: goal 상태 ↔ 코드 현실 드리프트 게이트.
 //
 // 신호 A (원본): check-goal-<id>.mjs 에 custom must() 호출이 있는데 status: NOT_STARTED.
-// 신호 B (dogfood 2026-07-25): goals/*.md 본문 백틱 경로가 디스크에 존재하는데 NOT_STARTED.
-//   소비자 레포(aroo 등)는 check-goal 스크립트 없이 goals MD만 쓰는 경우가 많아
-//   신호 A만으로는 항상 0건(false negative). 경로 증거를 보조 신호로 추가.
+// 신호 B (작업 단위 112-T7, 2026-07-28): 카드 체크박스가 전부 완료인데 status: NOT_STARTED.
+// 신호 C (dogfood 2026-07-25, 폴백): 본문 백틱 경로가 디스크에 존재하는데 NOT_STARTED.
+//   소비자 레포(체크박스 없는 카드만 쓰는 경우)는 A·B 로 항상 0건(false negative)이라 남긴다.
+//
+// why 신호 C 가 폴백으로 밀렸나 (112-T7 실측):
+//   계획 카드는 "앞으로 고칠 파일"의 경로를 인용하고 그 경로는 당연히 이미 존재한다.
+//   즉 인용 경로의 존재는 구현 증거가 될 수 없고, 잘 쓴 계획 카드일수록 확실히 걸린다.
+//   실측에서 신규 계획 카드 14장이 100% 오탐이었다. 체크박스가 있는 카드는 체크 상태가
+//   훨씬 정확한 신호이므로, 경로 증거는 체크박스가 아예 없는 카드에서만 쓴다.
 //
 // 보수적 설계(거짓 양성보다 미탐 선호):
 //   - NOT_STARTED 만 본다. IN_PROGRESS/DONE/BLOCKED 는 대상 아님.
+//   - 체크박스는 **전부** 완료일 때만(진행 중 카드는 정상이므로 건드리지 않는다).
 //   - 경로 증거는 확정 히트 ≥ PATH_EVIDENCE_MIN 일 때만(단일 aspirational 경로 오탐 방지).
 //   - 경로 해석: exact → 흔한 prefix(lib/src/…) → basename 한정 탐색(노드 상한).
 
@@ -87,6 +94,30 @@ export interface DriftCandidate {
   goalFile: string
   scriptFile: string
   reason: string
+}
+
+/** 카드 본문의 마크다운 체크박스 집계. */
+export interface CheckboxTally {
+  total: number
+  checked: number
+}
+
+const CHECKBOX_LINE = /^\s*[-*]\s+\[( |x|X)\]\s/
+
+/**
+ * goal 카드 본문의 체크박스를 센다(티켓 · Completion Check 구분 없이 전부).
+ * 구분을 두지 않는 이유: "전부 완료" 판정이 목적이라 섹션이 늘어나도 더 엄격해질 뿐이다.
+ */
+export function tallyCheckboxes(body: string): CheckboxTally {
+  let total = 0
+  let checked = 0
+  for (const raw of body.split(/\r?\n/)) {
+    const m = CHECKBOX_LINE.exec(raw)
+    if (!m) continue
+    total++
+    if (m[1] !== ' ') checked++
+  }
+  return { total, checked }
 }
 
 /** 백틱 안 문자열이 파일/디렉터리 상대경로처럼 보이는지. */
@@ -294,6 +325,26 @@ export function findStatusDriftCandidates(
       continue
     }
 
+    const noScript = existsSync(scriptFile) ? scriptFile : '(no check-goal script)'
+
+    // 신호 B — 체크박스가 있는 카드는 체크 상태가 경로 인용보다 정확한 신호다.
+    const boxes = tallyCheckboxes(g.body)
+    if (boxes.total > 0) {
+      if (boxes.checked === boxes.total) {
+        out.push({
+          id,
+          title: g.frontmatter.title ?? '',
+          status,
+          goalFile: g.filePath,
+          scriptFile: noScript,
+          reason: `status: NOT_STARTED 인데 카드 체크박스 ${boxes.total}개가 전부 완료 표시 — 구현됐는데 status 만 안 바뀐 드리프트 의심`,
+        })
+      }
+      // 체크박스가 있으면 경로 증거는 보지 않는다 — 계획 카드의 인용 경로는 항상 존재하므로 오탐만 만든다.
+      continue
+    }
+
+    // 신호 C (폴백) — 체크박스가 아예 없는 카드에서만.
     const pathHits = findExistingPathEvidence(g.body, projectRoot)
     if (pathHits.length >= PATH_EVIDENCE_MIN) {
       out.push({
@@ -301,7 +352,7 @@ export function findStatusDriftCandidates(
         title: g.frontmatter.title ?? '',
         status,
         goalFile: g.filePath,
-        scriptFile: existsSync(scriptFile) ? scriptFile : '(no check-goal script)',
+        scriptFile: noScript,
         reason: `status: NOT_STARTED 인데 goals 본문 경로 증거 ${pathHits.length}건 존재(${pathHits.slice(0, 3).join(', ')}${pathHits.length > 3 ? '…' : ''}) — 구현됐는데 status 만 안 바뀐 드리프트 의심`,
       })
     }

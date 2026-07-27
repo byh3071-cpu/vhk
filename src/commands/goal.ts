@@ -126,6 +126,17 @@ function printSkippedGoalWarnings(skipped: ReturnType<typeof findSkippedGoalFile
   }
 }
 
+/** active goal 한 건의 사람용 요약 — peek 과 next(상태 문서 미도입 경로)가 공유한다. */
+function printActiveGoalSummary(activeId: number, active: ParsedGoal): void {
+  console.log(`  ➡️  Goal ${activeId} — ${active.frontmatter.title ?? ''}`)
+  console.log(
+    chalk.dim(
+      `     status: ${active.frontmatter.status ?? 'NOT_STARTED'}  ·  priority: ${active.frontmatter.priority ?? '--'}`
+    )
+  )
+  console.log(chalk.dim(`     file: ${active.filePath}`))
+}
+
 export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   if (!ensureNotHardStopped('goal next')) return // HARD_STOP 활성 시 next-task.md 변경 차단
   console.log(chalk.bold(`\n${ko.goal.nextTitle}\n`))
@@ -143,6 +154,20 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   }
   const active = goals.find((g) => g.frontmatter.id === activeId)
   if (!active) return
+
+  // 112-T2: 없는 상태 문서 디렉터리를 새로 만들지 않는다.
+  // why: docs/state/ 를 의도적으로 제거한 레포(공개 경계 정리)에서 next 가 디렉터리를 되살리면
+  // 작업 상태의 원본이 둘로 갈린다 — 로드맵·카드가 원본인데 next-task.md 가 또 하나 생긴다.
+  // 도입 여부는 `vhk goal init` 이 정하고, next 는 이미 도입한 프로젝트에서만 갱신한다.
+  const stateDirAbs = join(cwd, STATE_DIR)
+  if (!existsSync(stateDirAbs)) {
+    printActiveGoalSummary(activeId, active)
+    console.log('')
+    console.log(chalk.dim(`  ${ko.goal.stateDirAbsent(STATE_DIR)}`))
+    console.log(chalk.dim(`  ${ko.goal.stateDirAbsentHint(STATE_DIR)}`))
+    return
+  }
+
   const ts = new Date().toISOString()
   const text = [
     '# Next Task',
@@ -157,7 +182,6 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
     '```',
     '',
   ].join('\n')
-  mkdirSync(join(cwd, STATE_DIR), { recursive: true })
   // Goal 78: 덮어쓰기 전 기존 next-task.md 백업 — 조회 의도로 next 를 눌러도 수동 편집 복구 가능.
   // best-effort(백업 실패가 next 본기능을 막지 않음). 수동 편집 여부는 auto-update 마커 부재로 휴리스틱 판정.
   const nextTaskRel = join(STATE_DIR, 'next-task.md')
@@ -201,13 +225,7 @@ export async function goalPeek(cwd: string = process.cwd()): Promise<void> {
   }
   const active = goals.find((g) => g.frontmatter.id === activeId)
   if (!active) return
-  console.log(`  ➡️  Goal ${activeId} — ${active.frontmatter.title ?? ''}`)
-  console.log(
-    chalk.dim(
-      `     status: ${active.frontmatter.status ?? 'NOT_STARTED'}  ·  priority: ${active.frontmatter.priority ?? '--'}`
-    )
-  )
-  console.log(chalk.dim(`     file: ${active.filePath}`))
+  printActiveGoalSummary(activeId, active)
   console.log(chalk.dim('\n  (읽기 전용 — next-task.md 미변경. 갱신하려면 vhk goal next)'))
 }
 

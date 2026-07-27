@@ -640,6 +640,10 @@ export const ko = {
     driftClean: 'goal 상태 불일치(drift) 없음 (구현 흔적 있는데 NOT_STARTED 인 goal 0건)',
     driftFound: (n: number) =>
       `상태 불일치(drift) 의심 ${n}건 — check-goal 게이트에 goal 고유 검증이 있는데 status: NOT_STARTED:`,
+    stateDirAbsent: (dir: string) =>
+      `${dir}/ 가 없어 상태 문서를 쓰지 않고 조회만 했습니다 — 이 프로젝트는 작업 상태를 다른 곳에서 관리합니다.`,
+    stateDirAbsentHint: (dir: string) =>
+      `${dir}/ 를 쓰려면 vhk goal init 으로 먼저 만드세요 (next 는 없는 디렉터리를 새로 만들지 않습니다).`,
   },
   watch: {
     title: '👁️  무인 세션 정지 감시',

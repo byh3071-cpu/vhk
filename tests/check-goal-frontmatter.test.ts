@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 // tsc 는 tests/ 미검사 → .mjs 직접 import 안전(meta-gate.test.ts 선례).
 import { validateGoalFrontmatter } from '../scripts/check-goal-frontmatter.mjs'
+import { repoGoalsPresent, REPO_GOALS_SKIP_NOTE } from '../src/lib/test-support/repo-goals.js'
 
 const SCRIPT = path.join(process.cwd(), 'scripts', 'check-goal-frontmatter.mjs')
 
@@ -75,7 +76,11 @@ describe('check-goal-frontmatter e2e', () => {
     fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('실물 레포 goals/ 62건 — 필수 전부 충족(회귀)', () => {
-    execFileSync('node', [SCRIPT], { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' })
-  })
+  // 112-T7(b): goals/ 가 없으면 스크립트가 "비적용 통과"(exit 0)로 빠져 CI 에서 무조건 통과했다.
+  it.skipIf(!repoGoalsPresent())(
+    `실물 레포 goals/ — 필수 전부 충족(회귀 — ${REPO_GOALS_SKIP_NOTE})`,
+    () => {
+      execFileSync('node', [SCRIPT], { cwd: process.cwd(), encoding: 'utf-8', stdio: 'pipe' })
+    },
+  )
 })

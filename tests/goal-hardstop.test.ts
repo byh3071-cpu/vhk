@@ -42,6 +42,9 @@ describe('goal 명령군 HARD_STOP 가드 (Goal 34)', () => {
   it('HARD_STOP 활성 → goalNext 가 next-task.md 를 쓰지 않는다', async () => {
     const dir = tmpProject('next-blocked')
     makeGoalFile(dir, 0, 'NOT_STARTED')
+    // 상태 디렉터리를 미리 둔다 — 없으면 112-T2 의 "미도입 프로젝트" 경로로 빠져
+    // HARD_STOP 이 아니라 그 이유로 안 쓰게 되어 가드를 검증하지 못한다.
+    mkdirSync(join(dir, 'docs', 'state'), { recursive: true })
     writeHardStop(dir)
     process.chdir(dir)
     try {
@@ -57,6 +60,7 @@ describe('goal 명령군 HARD_STOP 가드 (Goal 34)', () => {
   it('HARD_STOP 없으면 goalNext 정상 동작(next-task.md 생성) — 회귀 0', async () => {
     const dir = tmpProject('next-ok')
     makeGoalFile(dir, 0, 'NOT_STARTED')
+    mkdirSync(join(dir, 'docs', 'state'), { recursive: true }) // 112-T2: next 는 없는 상태 디렉터리를 만들지 않는다
     process.chdir(dir)
     try {
       const { goalNext } = await import('../src/commands/goal.js')
