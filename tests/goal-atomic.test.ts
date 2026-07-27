@@ -38,6 +38,7 @@ describe('goal.ts atomic 쓰기 (Goal 40)', () => {
   it('goalNext — next-task.md 내용 정확 + temp 잔여 0', async () => {
     const dir = tmpProject('next')
     makeGoalFile(dir, 1, 'NOT_STARTED')
+    mkdirSync(join(dir, 'docs', 'state'), { recursive: true }) // 112-T2: next 는 없는 상태 디렉터리를 만들지 않는다
     process.chdir(dir)
     try {
       const { goalNext } = await import('../src/commands/goal.js')
