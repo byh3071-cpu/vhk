@@ -4,7 +4,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-## [3.0.0] - 2026-07-27
+## [2.12.0] - 2026-07-27
 
 ### Added
 
