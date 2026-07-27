@@ -17,7 +17,8 @@
 // - fail-open: 게이트 자체 버그/손상 hook 페이로드는 exit 0 (작업을 못 막음).
 //   의도된 누락만 fail-closed. 알려진 한계(vhk save·MCP 경유 커밋, cd 후 worktree 커밋의
 //   cwd 불일치)는 ADR-001 §결과 참조 — pre-commit L2 재검토 트리거.
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { isMainModule, unquoteGitPath, porcelainPath, hardStopActive } from './_lib.mjs'
 
@@ -121,11 +122,54 @@ function isSessionDevlog(file, dates) {
   return dates.some((d) => file.startsWith(`docs/log/${d}-`)) && file.endsWith('.md')
 }
 
+// 공개 경계 정리(ADR-008·ADR-010) 이후 세션 기록의 소재지. 비추적이다.
+export const SESSION_RECORD_DIR = 'docs/devlog'
+
+// 빈 파일로 게이트를 통과시키지 못하게 하는 최소 길이. 한 줄짜리 진짜 기록은 통과시키되
+// touch 로 만든 0바이트 파일은 막는 선 — 강제력이 아니라 "실수 방지" 수준으로만 잡는다.
+const MIN_RECORD_BYTES = 40
+
+/**
+ * 비추적 세션 기록 디렉터리에 해당 날짜의 **내용 있는** 기록이 있는지.
+ *
+ * why: 원래 이 게이트는 `docs/log/<날짜>-*.md` 의 **스테이지 여부**를 봤다. 그런데 공개 경계
+ * 정리로 `docs/log/` 가 `.gitignore` 에 들어가면서 그 파일은 스테이지 자체가 불가능해졌다.
+ * 즉 게이트가 **어떤 코드 커밋에서도 충족될 수 없는** 상태였고, 결과적으로 모든 커밋이
+ * `[skip-record]` 우회를 강제당했다 — 집행하는 척만 하고 실제로는 아무것도 집행하지 않았다.
+ *
+ * 비추적 경로는 git 으로 검사할 수 없으므로 **파일시스템 존재**로 판정한다. 스테이지 검사보다
+ * 강제력이 약한 것은 사실이나, 원래 검사도 파일 존재만 봤지 내용을 안 봤으므로 실질 차이는
+ * 작다. 반대로 "충족 불가능한 게이트"는 규율 자체를 0 으로 만든다.
+ */
+export function hasSessionRecordOnDisk(dates, dir = SESSION_RECORD_DIR) {
+  let entries
+  try {
+    entries = readdirSync(dir)
+  } catch {
+    return false // 디렉터리 없음 = 기록 없음
+  }
+  return entries.some((name) => {
+    if (!name.endsWith('.md')) return false
+    if (!dates.some((d) => name.startsWith(`${d}-`))) return false
+    try {
+      return statSync(join(dir, name)).size >= MIN_RECORD_BYTES
+    } catch {
+      return false
+    }
+  })
+}
+
+/** 오늘 기준 인정 날짜 — 자정 넘긴 연속 세션이 전날 기록에 append 하는 관행 수용. */
+export function acceptedRecordDates(today) {
+  return today === localToday() ? [today, localDateOffset(-1)] : [today]
+}
+
 /**
  * 기록 집행 판정. stagedFiles 는 repo-relative forward-slash 경로.
+ * hasSessionRecord 는 비추적 세션 기록 존재 여부(IO 는 호출부가 수행 — 이 함수는 순수 유지).
  * @returns {{ ok: boolean, reason: string, codeFiles?: string[] }}
  */
-export function evaluateRecords({ stagedFiles, commandText, today }) {
+export function evaluateRecords({ stagedFiles, commandText, today, hasSessionRecord = false }) {
   if (commandText && commandText.includes('[skip-record]')) {
     return { ok: true, reason: '[skip-record] 토큰 — 의도된 우회' }
   }
@@ -133,16 +177,19 @@ export function evaluateRecords({ stagedFiles, commandText, today }) {
   if (codeFiles.length === 0) {
     return { ok: true, reason: '실질 코드변경 없음(문서/테스트만)' }
   }
-  // 자정 넘긴 연속 세션의 전날 devlog append 허용 — staged 일 때만(스테일 자동 인정 아님).
-  const dates = today === localToday() ? [today, localDateOffset(-1)] : [today]
+  const dates = acceptedRecordDates(today)
+  // 레거시 경로(docs/log/)가 추적되던 시절의 커밋·저장소 호환 — 스테이지돼 있으면 그대로 인정.
   if (stagedFiles.some((f) => isSessionDevlog(f, dates))) {
     return { ok: true, reason: '세션 dev log 스테이지됨' }
+  }
+  if (hasSessionRecord) {
+    return { ok: true, reason: `세션 기록 존재(${SESSION_RECORD_DIR}/, 비추적)` }
   }
   return {
     ok: false,
     reason:
-      `실질 코드변경 ${codeFiles.length}건이 커밋 범위(staged 또는 add 예정)에 있는데 세션 dev log` +
-      `(docs/log/${today}-*.md)가 스테이지되지 않음. dev log 를 작성·스테이지하거나, 사소한 변경이면 커밋 메시지에 [skip-record] 를 넣으세요.`,
+      `실질 코드변경 ${codeFiles.length}건이 커밋 범위(staged 또는 add 예정)에 있는데 오늘자 세션 기록이 없음. ` +
+      `${SESSION_RECORD_DIR}/${today}-<주제>.md 를 작성하거나, 사소한 변경이면 커밋 메시지에 [skip-record] 를 넣으세요.`,
     codeFiles,
   }
 }
@@ -233,7 +280,13 @@ function commitMsgMode(msgPath) {
     .map((l) => unquoteGitPath(l.trim()))
     .filter(Boolean)
   // [skip-record] 는 msg 내용에서 판정(evaluateRecords 가 commandText.includes 로 처리).
-  const verdict = evaluateRecords({ stagedFiles: staged, commandText: msg, today: localToday() })
+  const today = localToday()
+  const verdict = evaluateRecords({
+    stagedFiles: staged,
+    commandText: msg,
+    today,
+    hasSessionRecord: hasSessionRecordOnDisk(acceptedRecordDates(today)),
+  })
   if (verdict.ok) process.exit(0)
   // 알려진 한계: amend 완화 없음 — 이미 로그가 든 커밋을 amend 하면 오차단될 수 있으나 [skip-record]
   // 로 우회 가능하고, 이 레포는 amend 지양 관행이라 수용(RFC 0061 record-check 는 HEAD 완화 보유).
@@ -291,7 +344,18 @@ function main() {
   }
 
   const files = collectFiles(commandText, commit.cPath)
-  const verdict = evaluateRecords({ stagedFiles: files, commandText, today: localToday() })
+  const today = localToday()
+  const verdict = evaluateRecords({
+    stagedFiles: files,
+    commandText,
+    today,
+    // 세션 기록은 비추적 경로라 git 이 아니라 파일시스템으로 본다(위 hasSessionRecordOnDisk 주석).
+    // cPath 가 있으면 그 worktree 기준으로 찾는다 — 부모 트리의 기록을 오인정하지 않게.
+    hasSessionRecord: hasSessionRecordOnDisk(
+      acceptedRecordDates(today),
+      commit.cPath ? join(commit.cPath, SESSION_RECORD_DIR) : SESSION_RECORD_DIR,
+    ),
+  })
 
   if (verdict.ok) {
     process.exit(0)

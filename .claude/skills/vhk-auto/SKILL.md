@@ -17,8 +17,9 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
 - **INV-4** 자동 합·불 입력 = `vhk verify` 의 `.vhk/reports/latest.json` + 각 명령 exit code 만.
   `vhk review`·`vhk mission check` 는 exit code 만 신뢰하고 stdout 텍스트는 파싱하지 말 것
   (텍스트는 적대 판단의 신호로만 읽는다).
-- **INV-5** commit 전 `docs/log/<오늘날짜>-autopilot.md` 에 1줄 append + `git add` 필수.
+- **INV-5** commit 전 `docs/devlog/<오늘날짜>-autopilot.md` 에 1줄 append 필수.
   안 하면 check-records 훅(exit 2)이 막는다. src 실코드 커밋에 `[skip-record]` 우회 금지.
+  이 경로는 **비추적**이라 `git add` 하지 않는다(공개 경계 — ADR-008·ADR-010).
 - **INV-6** critical 결함 발견 또는 `vhk verify` 연속 2회 red 시 `.vhk/HARD_STOP` 파일 생성하고 종료.
   매 시작(0번)에 `.vhk/HARD_STOP` 존재를 먼저 확인한다.
 - **INV-7** commit 만 자동. push·PR·머지·publish 는 절대 자동 금지.
@@ -43,7 +44,7 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
    판단 규칙: "치명(critical) 결함이 1개라도 있나? 불확실하면 치명으로 간주" → 있으면 중단. (보수적)
 6. **종결 분기**:
    - **합격**(verify green AND 적대 치명 0):
-     1) `docs/log/<오늘날짜>-autopilot.md` 에 "무엇을 했고 검증 결과" 1줄 append + `git add`. (INV-5)
+     1) `docs/devlog/<오늘날짜>-autopilot.md` 에 "무엇을 했고 검증 결과" 1줄 append. (INV-5)
      2) 작은 commit 1개. **commit 만** — push/PR 금지. (INV-7)
      3) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)
      4) goal 완주 → 정지 + 핵심 보고 → 종료.

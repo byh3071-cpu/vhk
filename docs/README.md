@@ -51,7 +51,8 @@
 
 ## 집행 (governance-v2)
 
+- 실질 코드변경 커밋 시 **오늘자 세션 기록 필수** — `scripts/check-records.mjs` 가 차단 (탈출구 `[skip-record]`)
+  - 기록 위치는 **비추적** `docs/devlog/<날짜>-<주제>.md` 다. 공개 경계상 추적하지 않으므로 `git add` 하지 않는다
+  - 게이트는 스테이지가 아니라 **파일 존재**로 판정한다 — 추적되지 않는 경로는 git 으로 검사할 수 없기 때문
 - 세션 종료 시 미기록 ADR/TS 후보 자동 보고 — `vhk work handoff` (RFC 0051)
 - 작업 단위 검사 스크립트 백필 — `vhk goal sync`
-
-> **알려진 결함:** `scripts/check-records.mjs` 는 실질 코드변경 커밋에 `docs/log/<날짜>-*.md` 스테이지를 요구하는데, 그 경로가 `.gitignore` 에 있어 **충족이 구조적으로 불가능**하다. 현재 모든 코드 커밋이 `[skip-record]` 우회를 강제당한다. 작업 단위 신설 후보(작업 단위 112-T7 부수 발견).
