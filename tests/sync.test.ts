@@ -23,6 +23,7 @@ import {
   SYNC_TARGETS,
   findUnmappedSections,
   syncCore,
+  syncCheck,
 } from '../src/commands/sync.js'
 import { generateFiles } from '../src/commands/init.js'
 
@@ -343,6 +344,35 @@ describe('vhk sync — 113-T6 진입점 절 전 규칙 파일 전파', () => {
   it('키가 좁아 사용자 작성 "세션 시작" 류 제목은 매핑하지 않는다', () => {
     const looseRules = '# P — Rules\n\n## 세션 시작 메모\n- 사용자가 손으로 쓴 내용\n\n## 코딩 규칙\n- a\n'
     expect(findUnmappedSections(parseRulesMd(looseRules))).toContain('세션 시작 메모')
+  })
+
+  // 진입점이 6종에서 빠졌는데 게이트가 통과한 것이 이번 결함의 본질이다.
+  // sync --check 가 미매핑 섹션을 결과에 담아 항상 노출하게 한다(차단은 안 함).
+  it('syncCheck 결과가 미매핑 섹션을 담는다 (게이트가 못 보던 사각지대)', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-sync-unmapped-'))
+    try {
+      fs.writeFileSync(
+        path.join(dir, 'RULES.md'),
+        '# P — Rules\n\n## 우리 팀만의 절차\n- 비표준 섹션\n\n## 코딩 규칙\n- a\n',
+        'utf-8',
+      )
+      const r = syncCheck(dir)
+      expect(r.unmapped).toContain('우리 팀만의 절차')
+      // 미매핑은 차단 사유가 아니다 — ok 판정은 drift/missing 만 본다.
+      expect(r.unmapped.length).toBeGreaterThan(0)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('전 섹션이 매핑되면 syncCheck.unmapped 는 빈 배열', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-sync-mapped-'))
+    try {
+      fs.writeFileSync(path.join(dir, 'RULES.md'), '# P — Rules\n\n## 코딩 규칙\n- a\n', 'utf-8')
+      expect(syncCheck(dir).unmapped).toEqual([])
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
 

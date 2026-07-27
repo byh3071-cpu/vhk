@@ -403,6 +403,11 @@ export const ko = {
     checkDrift: (p: string) => `↯ ${p} — 생성본과 다름 (직접 수정 또는 sync 미실행)`,
     checkMissing: (p: string) => `∅ ${p} — 파일 없음 (sync 가 생성할 타겟)`,
     checkFail: (n: number) => `❌ drift ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
+    // 미매핑 섹션은 차단 대상이 아니지만 조용하면 안 된다 — 코딩 규칙 파일 6종에서 빠진다.
+    checkUnmappedClean: '🧩 미매핑 섹션 0건 — RULES.md 전 섹션이 코딩 규칙 파일까지 전파됨',
+    checkUnmapped: (titles: string[]) =>
+      `🧩 미매핑 섹션 ${titles.length}건 — 코딩 규칙 파일 6종(.cursorrules·.windsurfrules·copilot·antigravity·GEMINI·cline)에는 안 실립니다: ${titles.join(', ')}` +
+      `\n     (AGENTS.md 「기타 규칙」·CLAUDE.md 에는 전파됨. 6종에도 넣으려면 표준 제목을 쓰세요.)`,
     driftDocsTitle: (n: number) => `📡 문서-실측 불일치(drift) ${n}건 (warn — RFC 0062)`,
     driftDocsClean: '📡 문서-실측 불일치(drift) 없음 (RFC 0062 warn 검사)',
     driftDocsWarnNote: 'warn 모드 — 차단하지 않습니다. 문서를 실측에 맞게 고치거나, 오탐이면 그대로 두세요(오탐률 계측 중).',
