@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -12,6 +12,7 @@ import {
   type CoreRuleset,
 } from './core-rules.js'
 import { writeHomeConfig } from './home-config.js'
+import { useIsolatedHome, type IsolatedHome } from './test-support/isolated-home.js'
 
 const MINIMAL: CoreRuleset = {
   version: '0.1.0',
@@ -88,6 +89,14 @@ describe('applyMarkerBlock — 멱등 마커 교체', () => {
 })
 
 describe('generateCoreRulesContent', () => {
+  // generateCoreRulesContent 는 homeDir 인자가 없어 os.homedir() 를 그대로 탄다.
+  // 홈에 rulesFile 이 설정된 머신에서는 live 규칙이 실려 번들 스냅샷 단언이 깨지므로
+  // 홈을 격리해 번들 폴백 경로를 강제한다 (작업 단위 79).
+  let home: IsolatedHome
+
+  beforeEach(() => { home = useIsolatedHome('vhk-core-rules-content-') })
+  afterEach(() => { home.restore() })
+
   it('null 입력 시 마커 블록 반환', () => {
     const result = generateCoreRulesContent(null)
     expect(result).toContain(CORE_RULES_START_TAG)

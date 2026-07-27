@@ -6,6 +6,7 @@ import path from 'node:path'
 // tsconfig include=src/** 라 tsc --noEmit(M.1)는 tests/ 미검사 → .mjs 직접 import 가 게이트를 깨지 않음.
 // @ts-expect-error — _lib.mjs 는 순수 JS(타입 선언 없음). vitest(esbuild)는 transpile-only 라 런타임 OK.
 import { isStubGate, parseGoalMeta, findCompletedStubGates } from '../scripts/_lib.mjs'
+import { repoGoalsPresent, REPO_GOALS_SKIP_NOTE } from '../src/lib/test-support/repo-goals.js'
 
 // `vhk goal sync` 가 백필하는 실제 스캐폴드의 핵심(generateGateScript, src/commands/goal.ts:444).
 // 마커 `고유 검증 (직접 추가)` + 주석 예시 + 닫는 블록만 = 고유 검증 0.
@@ -138,7 +139,11 @@ describe('findCompletedStubGates', () => {
     fs.rmSync(root, { recursive: true, force: true })
   })
 
-  it('실제 repo goals/ ↔ scripts/ : 완료-스텁 0 (회귀 가드)', () => {
-    expect(findCompletedStubGates('goals', 'scripts')).toEqual([])
-  })
+  // 112-T7(b): goals/ 비추적 → CI 체크아웃에 없어 빈 배열끼리 비교하며 무조건 통과하던 가드.
+  it.skipIf(!repoGoalsPresent())(
+    `실제 repo goals/ ↔ scripts/ : 완료-스텁 0 (회귀 가드 — ${REPO_GOALS_SKIP_NOTE})`,
+    () => {
+      expect(findCompletedStubGates('goals', 'scripts')).toEqual([])
+    },
+  )
 })
