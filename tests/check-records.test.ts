@@ -4,7 +4,14 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 // tsconfig include=src/** 라 tsc --noEmit(M.1)는 tests/ 미검사 → .mjs 직접 import 가 게이트를 깨지 않음(meta-gate.test.ts 선례).
-import { isGitCommitCommand, findGitSubcommand, evaluateRecords, localToday } from '../scripts/check-records.mjs'
+import {
+  isGitCommitCommand,
+  findGitSubcommand,
+  evaluateRecords,
+  localToday,
+  hasSessionRecordOnDisk,
+  acceptedRecordDates,
+} from '../scripts/check-records.mjs'
 
 const SCRIPT = path.join(process.cwd(), 'scripts', 'check-records.mjs')
 const TODAY = '2026-06-10'
@@ -71,7 +78,7 @@ describe('evaluateRecords — 기록 집행 판정 (spec 4케이스)', () => {
       today: TODAY,
     })
     expect(r.ok).toBe(false)
-    expect(r.reason).toContain('dev log')
+    expect(r.reason).toContain('세션 기록')
   })
 
   it('코드변경 + 오늘자 devlog 스테이지 → 통과', () => {
@@ -110,6 +117,32 @@ describe('evaluateRecords — 기록 집행 판정 (spec 4케이스)', () => {
     expect(r.ok).toBe(false)
   })
 
+  // 공개 경계 정리로 docs/log/ 가 .gitignore 에 들어가 **스테이지 자체가 불가능**해졌다.
+  // 그 상태에서는 이 게이트가 어떤 코드 커밋에서도 충족될 수 없어 모두가 [skip-record] 로
+  // 우회했다 — 집행하는 척만 하던 게이트. 비추적 세션 기록 존재로 판정을 옮긴다.
+  it('비추적 세션 기록이 있으면 통과 (docs/log 스테이지 불가 상황)', () => {
+    const r = evaluateRecords({
+      stagedFiles: ['src/commands/work.ts'],
+      commandText: 'git commit -m "feat: x"',
+      today: TODAY,
+      hasSessionRecord: true,
+    })
+    expect(r.ok).toBe(true)
+    expect(r.reason).toContain('docs/devlog')
+  })
+
+  it('세션 기록도 없고 스테이지도 없으면 여전히 차단 (게이트 무력화 아님)', () => {
+    const r = evaluateRecords({
+      stagedFiles: ['src/commands/work.ts'],
+      commandText: 'git commit -m "feat: x"',
+      today: TODAY,
+      hasSessionRecord: false,
+    })
+    expect(r.ok).toBe(false)
+    expect(r.reason).toContain('docs/devlog')
+    expect(r.reason).toContain('[skip-record]')
+  })
+
   it('scripts/check-*.mjs·src/mcp 변경도 코드변경으로 본다 (글롭 확대 — 리뷰 발견)', () => {
     expect(
       evaluateRecords({
@@ -145,6 +178,51 @@ describe('evaluateRecords — 기록 집행 판정 (spec 4케이스)', () => {
 describe('localToday — 로컬 날짜 형식', () => {
   it('YYYY-MM-DD 형식', () => {
     expect(localToday()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+})
+
+describe('hasSessionRecordOnDisk — 비추적 세션 기록 판정', () => {
+  function tmpRecordDir(files: Record<string, string>): string {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-devlog-'))
+    for (const [name, body] of Object.entries(files)) fs.writeFileSync(path.join(d, name), body, 'utf-8')
+    return d
+  }
+  const LONG = '오늘 무엇을 했고 검증 결과가 어땠는지 적은 충분한 길이의 기록 본문.\n'
+
+  it('해당 날짜의 내용 있는 기록이 있으면 true', () => {
+    const d = tmpRecordDir({ '2026-06-10-work.md': LONG })
+    expect(hasSessionRecordOnDisk(['2026-06-10'], d)).toBe(true)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('빈 파일은 인정하지 않는다 (touch 로 게이트 통과 방지)', () => {
+    const d = tmpRecordDir({ '2026-06-10-work.md': '' })
+    expect(hasSessionRecordOnDisk(['2026-06-10'], d)).toBe(false)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('다른 날짜 기록은 인정하지 않는다', () => {
+    const d = tmpRecordDir({ '2026-06-09-old.md': LONG })
+    expect(hasSessionRecordOnDisk(['2026-06-10'], d)).toBe(false)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('.md 가 아니면 무시', () => {
+    const d = tmpRecordDir({ '2026-06-10-work.txt': LONG })
+    expect(hasSessionRecordOnDisk(['2026-06-10'], d)).toBe(false)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('디렉터리가 없으면 false (크래시 0)', () => {
+    expect(hasSessionRecordOnDisk(['2026-06-10'], path.join(os.tmpdir(), 'vhk-no-such-devlog-dir'))).toBe(false)
+  })
+
+  it('자정 넘긴 연속 세션 — 어제자 기록도 인정', () => {
+    const dates = acceptedRecordDates(localToday())
+    expect(dates).toHaveLength(2)
+    const d = tmpRecordDir({ [`${dates[1]}-yesterday.md`]: LONG })
+    expect(hasSessionRecordOnDisk(dates, d)).toBe(true)
+    fs.rmSync(d, { recursive: true, force: true })
   })
 })
 

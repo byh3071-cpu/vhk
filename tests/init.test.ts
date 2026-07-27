@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { generateFiles, enhancePackageScripts, ensureRootGitignore, ensureCustomizationMarker, ensureSessionStartHook } from '../src/commands/init.js'
+import { generateFiles, enhancePackageScripts, ensureRootGitignore, ensureCustomizationMarker, ensureSessionStartHook, ROOT_GITIGNORE_ENTRIES } from '../src/commands/init.js'
 import { COMMANDS_MD_TEMPLATE } from '../src/templates/commands-md.js'
 import { CUSTOMIZATION_HOOK_TEMPLATE } from '../src/templates/customization-hook.js'
 import { VHK_CONTEXT_SEED } from '../src/templates/vhk-dir.js'
@@ -318,13 +318,20 @@ describe('vhk init — 루트 .gitignore 보장', () => {
 
   it('슬래시 없는 변형만 있으면 정규화로 추가 없음 → unchanged 분기 (멱등)', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-gi-'))
-    // ROOT_GITIGNORE_ENTRIES 전부를 슬래시 없는 변형으로 미리 채움
-    fs.writeFileSync(
-      path.join(dir, '.gitignore'),
-      '.env\n.env.local\n.env.*.local\nnode_modules\ndist\n*.tsbuildinfo\n.DS_Store\n',
-      'utf-8'
-    )
+    // 항목을 하드코딩하면 씨앗에 한 줄 추가할 때마다 무관하게 깨진다 → 상수에서 파생.
+    const withoutSlash = ROOT_GITIGNORE_ENTRIES.map((e) => e.replace(/\/$/, '')).join('\n')
+    fs.writeFileSync(path.join(dir, '.gitignore'), `${withoutSlash}\n`, 'utf-8')
     expect(ensureRootGitignore(dir)).toBe('unchanged')
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  // 발견 2: `.agents/CORE-RULES.md` 는 개발자 홈의 범용 규칙 파일에서 재생성되므로
+  // 추적하면 개인 규칙 원문이 공개된다. 소비자 저장소도 기본으로 보호해야 한다.
+  it('씨앗에 .agents/CORE-RULES.md 가 포함된다 (개인 규칙 유출 방지)', () => {
+    expect(ROOT_GITIGNORE_ENTRIES).toContain('.agents/CORE-RULES.md')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-gi-core-'))
+    expect(ensureRootGitignore(dir)).toBe('created')
+    expect(fs.readFileSync(path.join(dir, '.gitignore'), 'utf-8')).toContain('.agents/CORE-RULES.md')
     fs.rmSync(dir, { recursive: true })
   })
 })

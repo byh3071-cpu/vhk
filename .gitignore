@@ -35,6 +35,10 @@ dist/
 
 # VHK 저장소 관리자 개인 운영 산출물 — 공개 HEAD 추적 금지
 .agents/SOUL.md
+# 개발자 홈의 범용 규칙 파일(VHK_RULES_FILE · ~/.vhk/config.json 의 rulesFile)에서 재생성된다.
+# 추적하면 개인 규칙 원문이 공개되고, 되돌리면 `vhk sync --check` 가 영구 red 가 된다.
+# 프로젝트 공통 규칙은 RULES.md 담당 — 이 파일은 개인 상속물이라 추적 대상이 아니다.
+.agents/CORE-RULES.md
 .vhk/config.json
 .vhk/events/*.jsonl
 .vhk/ledger.jsonl

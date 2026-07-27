@@ -584,6 +584,18 @@ export interface SyncOptions {
 export interface SyncCheckResult {
   /** 디스크 내용이 생성본과 다른 타겟 (직접 수정 또는 RULES.md 변경 후 sync 미실행) */
   drifted: string[]
+  /**
+   * 어느 타깃 키에도 매핑되지 않아 **코딩 규칙 파일 6종에서 빠지는** RULES.md 섹션 제목.
+   *
+   * why 게이트 출력에 넣나 (113-T6 실측): `## 세션 시작 필독` 절을 넣고 sync 했더니 규칙 파일
+   * 8종 중 2종에만 도달했다. sync 실행 시 경고는 떴지만 "AGENTS.md 기타 규칙에는 전파됨 —
+   * 손실 아님"이라는 문구가 안심시켰고, `sync --check`(게이트)는 이 항목을 아예 보지 않았다.
+   * 그래서 진입점이 6종에서 빠진 채로 통과했다.
+   *
+   * 실패로 처리하지는 않는다 — 비표준 섹션 자체는 정상 사용이고 차단하면 상시 red 가 된다.
+   * 대신 **게이트가 항상 이 수치를 보여준다**. 0건이어도 표시해 "검사했다"는 사실을 남긴다.
+   */
+  unmapped: string[]
   /** 디스크에 없는 타겟 (sync 가 만들 파일) */
   missing: string[]
   ok: boolean
@@ -623,7 +635,12 @@ export function syncCheck(rootDir: string): SyncCheckResult {
     }
   }
 
-  return { drifted, missing, ok: drifted.length === 0 && missing.length === 0 }
+  return {
+    drifted,
+    missing,
+    unmapped: findUnmappedSections(sections),
+    ok: drifted.length === 0 && missing.length === 0,
+  }
 }
 
 export interface SyncPlanItem {
@@ -817,6 +834,15 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
       console.log(chalk.red(ko.sync.checkFail(r.drifted.length + r.missing.length)))
       process.exitCode = 1
     }
+    // 113-T6 실측: 진입점 절이 코딩 규칙 파일 6종에서 조용히 빠졌는데 게이트는 통과했다.
+    // 차단하지는 않되 **항상 보이게** 한다 — 0건도 표시해 "검사했다"는 사실을 남긴다.
+    console.log(
+      chalk.dim(
+        r.unmapped.length === 0
+          ? `  ${ko.sync.checkUnmappedClean}`
+          : `  ${ko.sync.checkUnmapped(r.unmapped)}`,
+      ),
+    )
     reportDocDrift(cwd)
     return
   }
@@ -865,12 +891,16 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
 
   // ③ 누락 발생 지점(syncCore)이 집계한 미매칭 섹션을 호출자가 경고 — 조용히 사라지지 않게.
   if (result.unmapped.length) {
-    // #249: 비표준 섹션은 AGENTS.md 「기타 규칙」에 전파됨(#130) — 손실 아님.
+    // #249: 비표준 섹션은 AGENTS.md 「기타 규칙」에 전파됨(#130).
     //       단 .cursorrules 등 코딩 규칙 파일은 표준 제목만(설계상 코딩/디자인 전용).
+    // 113-T6 실측 후 문구 수정: 종전엔 "손실 아님"이라 안심시켰는데, 진입점처럼 **모든 도구가
+    // 읽어야 하는 섹션**이 6종에서 빠지면 그건 실질 손실이다. 어디에 안 실리는지를 먼저 말한다.
     console.error(
       chalk.yellow(
-        `  ⚠️  ${result.unmapped.length}개 비표준 섹션은 .cursorrules 등 코딩 규칙 파일엔 미포함(표준 제목만): ${result.unmapped.join(', ')}` +
-          `\n     (단 AGENTS.md 「기타 규칙」에는 전파됨 — 손실 아님. 코딩 파일에도 넣으려면 표준 제목 사용, 수정은 RULES.md 에서.)`
+        `  ⚠️  비표준 섹션 ${result.unmapped.length}개가 코딩 규칙 파일 6종에 안 실립니다: ${result.unmapped.join(', ')}` +
+          `\n     미포함: .cursorrules · .windsurfrules · copilot-instructions · antigravity · GEMINI.md · .clinerules` +
+          `\n     포함:   AGENTS.md 「기타 규칙」 · CLAUDE.md` +
+          `\n     모든 도구가 읽어야 하는 내용이면 표준 제목을 쓰세요(수정은 RULES.md 에서).`
       )
     )
   }
