@@ -16,9 +16,21 @@ const PRIVATE_TRACKED_PATHS = [
   '.vhk/ledger.jsonl',
   '.claude/agents/memtest.md',
   '.claude/skills/auto-merge/',
-  '.claude/skills/overnight-vhk-auto/',
+  // `.claude/skills/overnight-vhk-auto/` 는 113-T8 로 추적 전환됐다.
+  // 과거 이력에 남은 옛 버전(개인 절대경로 포함)은 아래 checkAllRefs 가 계속 잡는다 —
+  // 이 목록에서 뺄 수 없다. 현재 트리 검사만 면제하려고 PRIVATE_CURRENT_EXEMPT 로 분리한다.
   'docs/prompts/autonomy/',
 ]
+
+/**
+ * PRIVATE_TRACKED_PATHS 에 걸리지만 **현재 트리에서는 허용**하는 경로.
+ *
+ * why: 113-T8 로 야간 지휘 스킬을 저장소 SoT 로 승격했다(글로벌 전용은 동기화 사각지대라
+ * 낡은 카드 번호가 그대로 남았다). 새 버전은 개인 절대경로를 환경변수로 빼 공개 가능하지만,
+ * **과거 이력에 남은 옛 버전은 개인 경로를 포함**하므로 이력 검사(checkAllRefs)는 유지해야 한다.
+ * 그래서 목록에서 빼는 대신 현재 트리 검사만 면제한다.
+ */
+const PRIVATE_CURRENT_EXEMPT = ['.claude/skills/overnight-vhk-auto/']
 
 // 현재 추적·npm 패키지만 검사하고 **과거 이력은 면제**하는 경로.
 //
@@ -93,12 +105,17 @@ function historyContainsPrivateText() {
   return false
 }
 
-function isPrivatePath(file) {
-  const normalized = normalizePath(file).toLowerCase()
-  return [...PRIVATE_TRACKED_PATHS, ...PRIVATE_CURRENT_PATHS].some((part) => {
+function matchesPath(normalized, parts) {
+  return parts.some((part) => {
     const target = part.toLowerCase()
     return target.endsWith('/') ? normalized.startsWith(target) : normalized === target
   })
+}
+
+function isPrivatePath(file) {
+  const normalized = normalizePath(file).toLowerCase()
+  if (matchesPath(normalized, PRIVATE_CURRENT_EXEMPT)) return false
+  return matchesPath(normalized, [...PRIVATE_TRACKED_PATHS, ...PRIVATE_CURRENT_PATHS])
 }
 
 export function scanPublicText(label, content) {

@@ -51,7 +51,8 @@ goals/
 scripts/check-goal-[0-9]*.mjs
 .claude/agents/memtest.md
 .claude/skills/auto-merge/
-.claude/skills/overnight-vhk-auto/
+# `.claude/skills/overnight-vhk-auto/` 는 113-T8 로 추적 전환 — 저장소가 SoT 다.
+# 개인 절대경로는 VHK_AUTO_PR_SCRIPT 환경변수로 뺐고 boundary:check 가 재유입을 막는다.
 docs/runbooks/overnight-vhk-auto.md
 docs/runbooks/MORNING_AUTONOMY_MERGE.md
 docs/prompts/autonomy/
