@@ -62,6 +62,59 @@ const PRIVATE_TEXT_PATTERNS = [
   { name: '외부 워크플로 식별자', pattern: /\bwf_[a-z0-9-]{6,}\b/iu },
 ]
 
+/**
+ * 알려진 이력 예외 — **커밋 메타데이터 검사에서만** 제외하는 이미 공개된 커밋.
+ *
+ * why 이런 게 필요한가: 공개 저장소에 이미 올라간 커밋의 작성자 정보는 되돌리려면
+ * main 이력 재작성 + force push 가 필요하다. 그런데 이 저장소는 fork 가 존재해
+ * 재작성해도 GitHub fork 네트워크에 옛 객체가 남는다(2026-07-28 실측) — 즉 비용은 큰데
+ * 노출은 안 끝난다. 그렇다고 방치하면 릴리스 워크플로가 **영구 red** 가 되고,
+ * 늘 빨간 게이트는 사람이 꺼버린다(이 저장소가 이미 두 번 겪은 실패 형태 — 이슈 #515).
+ *
+ * 그래서 조용히 우회하는 대신 **선언한다.** 작업 단위 117("검사 의도 선언")과 같은 규율이다.
+ *   - 예외는 SHA 단위다. 패턴을 끄지 않으므로 **다른 모든 커밋에는 검사가 그대로 작동**한다.
+ *   - 적용 범위는 커밋 메타데이터뿐이다. 파일 내용(blob)·추적 경로 검사에는 예외가 없다.
+ *   - `main()` 이 예외 건수를 **통과·실패와 무관하게 항상 출력**한다. 조용해지면 안 된다.
+ *
+ * ⚠️ 이 목록은 늘어나면 안 된다. 새 위반은 예외가 아니라 수정 대상이다.
+ */
+export const KNOWN_HISTORY_EXCEPTIONS = [
+  {
+    sha: 'db6976592570d1b1143e329410d536e809d790de',
+    label: '커밋 작성자 이메일이 개인 Gmail',
+    // committer 는 noreply@github.com 인데 author 만 개인 Gmail 이다 = GitHub 웹에서
+    // squash 머지될 때 작성자가 계정 기본 이메일로 교체된 것(#537). 2026-07-27 이력
+    // 재작성 **이후**에 유입됐다.
+    reason: 'GitHub squash 머지가 작성자를 계정 기본 이메일로 교체 (#537, 재작성 이후 유입)',
+    pending: '정정하려면 main 이력 재작성 + force push 필요 — 사람 판단 대기',
+  },
+]
+
+const RECORD_SEP = '\u001E'
+const FIELD_SEP = '\u001F'
+
+/**
+ * `<sha>\x1f<메타데이터>\x1e` 레코드 스트림에서 예외 SHA 레코드를 걷어낸다.
+ * 구분자를 SHA 앞에 붙여 뽑는 이유: 메타데이터를 통짜 문자열로 스캔하면 어느 커밋이
+ * 걸렸는지 알 수 없어 커밋 단위 예외가 불가능하다.
+ */
+export function stripKnownExceptions(raw, exceptions = KNOWN_HISTORY_EXCEPTIONS) {
+  const skip = new Set(exceptions.map((e) => e.sha))
+  const kept = []
+  for (const record of String(raw).split(RECORD_SEP)) {
+    if (!record.trim()) continue
+    const cut = record.indexOf(FIELD_SEP)
+    // 구분자가 없으면 SHA 를 특정할 수 없다 → 예외 판정 불가이므로 그대로 검사 대상에 남긴다.
+    if (cut < 0) {
+      kept.push(record)
+      continue
+    }
+    if (skip.has(record.slice(0, cut).trim())) continue
+    kept.push(record.slice(cut + 1))
+  }
+  return kept.join('\n')
+}
+
 const UUID_PATTERN = /\b[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b/giu
 const ZERO_UUID = /^0{32}$/u
 const NON_ZERO_UUID_HISTORY_PATTERN = String.raw`\b(?!0{8}-?0{4}-?0{4}-?0{4}-?0{12}\b)[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b`
@@ -198,8 +251,13 @@ function checkAllRefs() {
     return ['Git 이력: shallow clone에서는 --all-refs 검사를 신뢰할 수 없음']
   }
 
+  // SHA 를 레코드 앞에 붙여 뽑아야 커밋 단위 예외(KNOWN_HISTORY_EXCEPTIONS)를 걸 수 있다.
+  // 통짜로 스캔하면 어느 커밋이 걸렸는지 알 수 없어 전부 아니면 전무가 된다.
+  const commitMetadata = stripKnownExceptions(
+    git(['log', '--all', '--format=%H%x1F%an%n%ae%n%cn%n%ce%n%B%x1E']),
+  )
   const metadata = [
-    git(['log', '--all', '--format=%an%n%ae%n%cn%n%ce%n%B']),
+    commitMetadata,
     git(['for-each-ref', 'refs/tags', '--format=%(taggername)%n%(taggeremail)%n%(subject)%n%(body)']),
   ].join('\n')
   problems.push(...scanPublicText('Git 전체 메타데이터', metadata))
@@ -243,6 +301,24 @@ export function checkPublicBoundary({ manifest, trackedEntries = [], metadata = 
   return { packageFiles, trackedFiles: trackedEntries.map((entry) => entry.path), problems: [...new Set(problems)] }
 }
 
+/**
+ * 알려진 예외를 사람에게 노출한다. 예외가 있다는 사실이 조용해지면 그때부터 영구 회피다.
+ * `--all-refs` 일 때만 실제로 적용되므로 그 사실도 같이 알린다.
+ */
+function reportKnownExceptions(allRefs) {
+  if (KNOWN_HISTORY_EXCEPTIONS.length === 0) {
+    console.log('알려진 이력 예외: 0건')
+    return
+  }
+  const scope = allRefs ? '적용됨' : '이번 실행에서는 미적용 — --all-refs 에서만 쓰인다'
+  console.log(`알려진 이력 예외 ${KNOWN_HISTORY_EXCEPTIONS.length}건 (${scope}):`)
+  for (const e of KNOWN_HISTORY_EXCEPTIONS) {
+    console.log(`  - ${e.sha.slice(0, 7)} ${e.label}`)
+    console.log(`      사유: ${e.reason}`)
+    console.log(`      남은 일: ${e.pending}`)
+  }
+}
+
 function main() {
   const argv = new Set(process.argv.slice(2))
   const staged = argv.has('--staged')
@@ -255,6 +331,9 @@ function main() {
     metadata: readPendingMetadata(commitMessageFile),
     allRefs: argv.has('--all-refs'),
   })
+
+  // 예외는 통과·실패와 무관하게 **항상** 보여준다. 조용해지는 순간 영구 회피가 된다.
+  reportKnownExceptions(argv.has('--all-refs'))
 
   if (result.problems.length > 0) {
     console.error('공개 경계 검사 실패:')
