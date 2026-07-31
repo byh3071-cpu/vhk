@@ -162,6 +162,14 @@ vhk context → vhk goal next → (작업) → vhk goal check → vhk goal done
 
 ## 7. 참고
 
+### 승인 대기 확장
+
+- [ADR-012](./adr/ADR-012-agent-agnostic-core-and-method-absorption.md)와
+  [RFC 0064](./rfc/0064-agent-agnostic-task-spine.md)는 기존 Goal 옆에 읽기 전용 Task 투영,
+  Context Compiler, 제한된 의미 기반 쓰기를 점진 추가하는 **Proposed 설계**다.
+- 승인·구현 전에는 이 문서 §3.5의 Goal 하네스와 현재 CLI/MCP 구조가 실제 아키텍처의 원본이다.
+- Proposed 문서의 필드·상태·인터페이스 이름을 현재 제공 기능으로 문서화하거나 외부에 광고하지 않는다.
+
 - 운영 규칙: [CLAUDE.md](../CLAUDE.md), [AGENTS.md](../AGENTS.md)
 - Goal 사양: [goals/_meta.md](../goals/_meta.md)
 - 코딩 컨벤션: [.cursorrules](../.cursorrules), CLAUDE.md "코딩 컨벤션" 섹션
