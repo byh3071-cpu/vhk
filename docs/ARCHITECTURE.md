@@ -173,14 +173,14 @@ verify 결과 + receipt 판정
 | 외부 상태 | 배포·publish·main/master 머지는 사람 승인 |
 | 공개 저장소 | 개인 운영 정보·절대경로·실제 외부 객체 ID 기록 금지 |
 
-## 8. 승인 대기 확장
+## 8. 후속 구현 대기 확장
 
-[ADR-012](adr/ADR-012-agent-agnostic-core-and-method-absorption.md)와
+[ADR-012](adr/ADR-012-agent-agnostic-core-and-method-absorption.md)는 Accepted다.
 [RFC 0064](rfc/0064-agent-agnostic-task-spine.md)는 기존 Goal을 읽기 전용으로 투영하고, 같은 입력에서
 에이전트 공통 작업 문맥을 만드는 **Proposed** 설계다.
 
 - 현재 구현으로 광고하지 않는다.
-- ADR-012가 명시적으로 Accepted 되기 전에는 관련 코드를 구현하지 않는다.
+- ADR 승인만으로 구현을 열지 않는다. 2.13 작업 115~118 완료와 RFC 열린 질문 해소가 남아 있다.
 - 첫 구현은 읽기 전용이어야 하며 roadmap·PRD·Goal·context를 수정하지 않는다.
 - Task-native 쓰기, 승인, 의존성 그래프, 관제 화면은 별도 결정과 검증 뒤에만 연다.
 - 장기 구상은 [미래 설계 지도](reference/agent-agnostic-future-map.md)에 격리한다.

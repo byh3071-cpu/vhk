@@ -179,7 +179,7 @@ Superpowers, Caveman, OMC와 새로 발견한 Skill도 같은 절차를 따른�
 | Evolution | 관찰→후보→실험→승격→롤백 | 규칙 비대화·잘못된 자동 승격 위험 | baseline과 비교 지표 | promotion/rollback ADR |
 | Plugin 정리 | Caveman·Superpowers 등의 중복 제거 | 전역 설정 변경·롤백 필요 | inventory, 백업, 기준선 측정 | 대상별 사람 승인 |
 | OMC 평가 | 역할 분리·루프 원리 비교 | VHK/Orca와 오케스트레이터 중첩 위험 | 격리 실험과 비용 기준 | 실험 계획, 기본 설치 아님 |
-| 테스트 정책 | 핵심 로직은 테스트 우선, 단순 UI·탐색은 위험 기반 검증 | 현재 compact/auto 지침과 Proposed 철학 사이 행동 변경 | ADR-012 승인과 실제 작업 표본 | 별도 정책 감사·회귀 테스트 |
+| 테스트 정책 | 핵심 로직은 테스트 우선, 단순 UI·탐색은 위험 기반 검증 | 현재 compact/auto 지침과 Accepted ADR 사이 행동 변경 | 실제 작업 표본 | 별도 정책 감사·회귀 테스트 |
 
 ## 5. Control Tower와 MCP의 책임 경계
 
@@ -235,7 +235,7 @@ Observe → Evaluate → Extract → Propose
 
 ## 8. 권장 도입 순서
 
-1. **1단계 문서 PR:** 원본 경계, Proposed ADR/RFC, 미래 지도와 대화 템플릿
+1. **1단계 문서 PR:** 원본 경계, Accepted ADR·Proposed RFC, 미래 지도와 대화 템플릿
 2. **ADR 승인 + 2.13 안정화 뒤 PR B:** ProjectedTask·WorkContext 읽기 전용 출력
 3. **도그푸딩:** Claude Code와 Codex에서 같은 입력·선택·경고 확인
 4. **별도 ADR:** Task 원본·쓰기·증거 연결
