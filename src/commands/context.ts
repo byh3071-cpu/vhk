@@ -19,6 +19,7 @@ import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
 import { TOP_LEVEL_COMMANDS } from '../lib/command-registry.js'
 import { loadCoreRuleset } from '../lib/core-rules.js'
+import { formatStackStatusNote, inferStackStatus, type StackStatus } from '../lib/stack-state.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
 
@@ -114,6 +115,14 @@ function getVhkCommands(): string[] {
   return TOP_LEVEL_COMMANDS.map((c) => `${c.name} — ${c.desc}`)
 }
 
+function readProjectStackStatus(): StackStatus {
+  try {
+    return inferStackStatus(readFileSync('RULES.md', 'utf-8'))
+  } catch {
+    return 'confirmed'
+  }
+}
+
 /**
  * vhk context — LLM 부팅 컨텍스트(.vhk/context.md) 생성.
  * compact 모드(--compact): 토큰 절감형. 전체 명령 목록/깊은 트리 대신 Active Goal +
@@ -125,6 +134,7 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   console.log(chalk.gray('─'.repeat(40)))
 
   const stack = extractTechStack()
+  const stackStatus = readProjectStackStatus()
   const tree = buildTree('.', '', compact ? 2 : 3).join('\n')
   const commands = getVhkCommands()
 
@@ -149,6 +159,8 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   lines.push('')
 
   lines.push('## 기술 스택')
+  lines.push('')
+  lines.push(formatStackStatusNote(stackStatus))
   lines.push('')
   for (const [key, value] of Object.entries(stack)) {
     lines.push(`- **${key}**: ${value}`)

@@ -1,3 +1,5 @@
+import { formatStackStatusNote, type StackStatus } from '../lib/stack-state.js'
+
 /**
  * RULES.md — 프로젝트 규칙의 단일 소스(Single Source of Truth).
  * `vhk sync` 가 이 파일을 파싱해 .cursorrules · .windsurfrules ·
@@ -6,7 +8,12 @@
  * 섹션 제목은 sync.ts 의 CURSORRULES_KEYS / CLAUDE_MD_KEYS 와 정렬되어야
  * 각 도구 산출물에 본문이 실린다 (## 기술 스택 / ## 코딩 규칙 / ## 커밋 / ## 기록 등).
  */
-export function RULES_MD_TEMPLATE(name: string, description: string, stack: string): string {
+export function RULES_MD_TEMPLATE(
+  name: string,
+  description: string,
+  stack: string,
+  stackStatus: StackStatus = 'confirmed',
+): string {
   const stackList = stack.split(' + ').map((s) => '- ' + s).join('\n')
   return [
     '# ' + name + ' — Rules',
@@ -16,9 +23,11 @@ export function RULES_MD_TEMPLATE(name: string, description: string, stack: stri
     '',
     '## 프로젝트 정체성',
     '- 한 줄 설명: ' + description,
-    '- 스택: ' + stack,
+    '- 기술 스택: 아래 `## 기술 스택` 섹션 참조',
     '',
     '## 기술 스택',
+    formatStackStatusNote(stackStatus),
+    '',
     stackList,
     '',
     '## 코딩 규칙',

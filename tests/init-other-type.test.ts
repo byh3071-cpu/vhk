@@ -45,6 +45,7 @@ describe('vhk init — 기타(other) 타입 + 스택 직접 입력', () => {
     const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
     expect(rules).toContain('Rust')
     expect(rules).toContain('QEMU')
+    expect(rules).toContain('기술 스택 상태: 확정')
     // RFC 0060 T3: init 이 자동 sync 하므로 CLAUDE.md 는 RULES.md 파생(스택은 리스트 형태로 반영).
     // 스택 토큰은 CLAUDE.md 에 남고, 정확한 "A + B + C" 조합 문자열은 sync 비대상인
     // ARCHITECTURE.md 에 보존된다(정보 손실 없음 — 포맷만 파생 규칙을 따름).
@@ -62,6 +63,7 @@ describe('vhk init — 기타(other) 타입 + 스택 직접 입력', () => {
     expect(fs.existsSync(path.join(dir, 'CLAUDE.md'))).toBe(true)
     const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
     expect(rules).toContain('미정')
+    expect(rules).toContain('후보, 첫 세션에서 확정')
   })
 
   it('프리셋 타입 + confirmStack 거절 → 직접 입력으로 교체 (취소 아님)', async () => {
@@ -71,6 +73,7 @@ describe('vhk init — 기타(other) 타입 + 스택 직접 입력', () => {
     const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
     expect(rules).toContain('Rust')
     expect(rules).not.toContain('commander')
+    expect(rules).toContain('기술 스택 상태: 확정')
   })
 
   it('confirmStack 거절 + Enter → 기존처럼 취소 (파일 미생성)', async () => {

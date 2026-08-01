@@ -1,6 +1,11 @@
 import { localDate } from '../lib/date.js'
+import { formatStackStatusNote, type StackStatus } from '../lib/stack-state.js'
 
-export function CLAUDE_MD_TEMPLATE(name: string, stack: string): string {
+export function CLAUDE_MD_TEMPLATE(
+  name: string,
+  stack: string,
+  stackStatus: StackStatus = 'confirmed',
+): string {
   const d = localDate(); // VHK-019
   const slug = name.toLowerCase().replace(/\s+/g, '-');
   return [
@@ -28,6 +33,8 @@ export function CLAUDE_MD_TEMPLATE(name: string, stack: string): string {
     '- **마지막 업데이트:** ' + d,
     '',
     '## 기술 스택',
+    formatStackStatusNote(stackStatus),
+    '',
     '- ' + (stack || '**FILL** (예: Next.js + TypeScript)'),
     '',
     '## ADR',

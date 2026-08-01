@@ -1,5 +1,10 @@
+import { formatStackStatusNote, type StackStatus } from '../lib/stack-state.js'
+
 export function CURSORRULES_TEMPLATE(
-  name: string, desc: string, stack: string
+  name: string,
+  desc: string,
+  stack: string,
+  stackStatus: StackStatus = 'confirmed',
 ): string {
   const stackList = stack.split(' + ').map(s => '- ' + s).join('\n');
   return [
@@ -9,12 +14,14 @@ export function CURSORRULES_TEMPLATE(
     '',
     '## 프로젝트 정체성',
     '- 한 줄 설명: ' + desc,
-    '- 스택: ' + stack,
+    '- 기술 스택: 아래 `## 기술 스택` 섹션 참조',
     '',
     '## 필수 참조',
     '- docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md',
     '',
     '## 기술 스택 (변경 시 ADR 필수)',
+    formatStackStatusNote(stackStatus),
+    '',
     stackList,
     '',
     '## 코딩 규칙',

@@ -10,6 +10,7 @@ import { VHK_CONTEXT_SEED } from '../src/templates/vhk-dir.js'
 import { parseRulesMd } from '../src/commands/sync.js'
 import { writeFile } from '../src/utils/file.js'
 import { ko } from '../src/i18n/ko.js'
+import { STACK_CANDIDATE_LABEL } from '../src/lib/stack-state.js'
 
 const EXPECTED_FILES = [
   'CLAUDE.md',
@@ -125,6 +126,20 @@ describe('vhk init — RULES.md 단일 소스(SoT) 생성', () => {
     expect(rules).toContain('## 기록 규칙')
     expect(rules).toContain('## 커밋')
     expect(rules).toContain('Node.js')
+  })
+
+  it('generateFiles 직접 호출은 기존 호환을 위해 기술 스택을 확정으로 기록한다', () => {
+    const files = generateFiles('demo', '설명', ['Node.js'])
+    expect(files['RULES.md']).toContain('기술 스택 상태: 확정')
+    expect(files['docs/ARCHITECTURE.md']).toContain('기술 스택 상태: 확정')
+    expect(files['.vhk/context.md']).toContain('기술 스택 상태: 확정')
+  })
+
+  it('후보 상태는 RULES·파생 규칙·ARCHITECTURE·context에 같은 용어로 기록된다', () => {
+    const files = generateFiles('demo', '설명', ['Vite', 'React'], {}, 'webapp', 'candidate')
+    for (const file of ['RULES.md', 'CLAUDE.md', '.cursorrules', 'docs/ARCHITECTURE.md', '.vhk/context.md']) {
+      expect(files[file], file).toContain(STACK_CANDIDATE_LABEL)
+    }
   })
 
   it('RULES.md 가 sync 파서로 다시 파싱된다 (init↔sync 연결)', () => {

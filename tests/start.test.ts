@@ -108,4 +108,21 @@ describe('vhk start — 완료 안내에 goal init 발견성 (goal 88)', () => {
     expect(fs.existsSync(path.join(dir, 'docs', 'state', 'next-task.md'))).toBe(false)
     expect(fs.existsSync(path.join(dir, 'CLAUDE.md'))).toBe(true)
   })
+
+  it('start --stack은 타입 프리셋 대신 지정값을 확정해 init으로 전달한다', async () => {
+    const { start } = await import('../src/commands/start.js')
+    await start({
+      yes: true,
+      name: 'demo',
+      description: 'd',
+      type: 'webapp',
+      stack: 'Vite, React, TypeScript',
+    })
+    const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
+    expect(rules).toContain('Vite')
+    expect(rules).toContain('React')
+    expect(rules).toContain('기술 스택 상태: 확정')
+    expect(rules).not.toContain('Next.js')
+    expect(rules).not.toContain('Supabase')
+  })
 })

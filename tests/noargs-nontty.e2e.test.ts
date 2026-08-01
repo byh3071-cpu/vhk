@@ -31,7 +31,7 @@ describe('no-args vhk — 비-TTY 폴백 (#333)', () => {
       expect(out).not.toMatch(/Use arrow keys/)
 
       // --help 폴백: 명령어 목록(usage)이 출력돼야 한다.
-      expect(out).toMatch(/명령어:|Usage:|Commands:/)
+      expect(out).toMatch(/기본 명령:|명령어:|Usage:|Commands:/)
 
       // 합리적 종료 코드(크래시 아님). help 폴백은 정상 종료(0).
       expect(r.status).toBe(0)

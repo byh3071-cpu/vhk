@@ -1,3 +1,5 @@
+import { STACK_CANDIDATE_LABEL } from '../lib/stack-state.js'
+
 export const ko = {
   stats: {
     title: '통계 대시보드',
@@ -192,13 +194,16 @@ export const ko = {
     description: '📝 한 줄로 설명하면?',
     descriptionHint: '예: "3초 만에 할 일 추가"',
     projectType: '🏗️ 어떤 종류인가요?',
-    confirmStack: '이 기술 묶음으로 진행할까요?',
-    stackInput: '🧱 주요 언어·기술은? (쉼표로 구분, Enter = 건너뛰고 나중에 결정)',
-    stackEdit: '🧱 사용할 기술 묶음을 직접 입력하세요 (쉼표로 구분, Enter = 취소)',
-    stackSkipHint: '기술 묶음 미정 — 정해지면 CLAUDE.md·RULES.md에서 채우면 돼요',
-    chosenStack: '기술 묶음:',
-    canceled: '취소했어요. 기술 묶음을 바꾸려면 다시 vhk init을 실행하세요.',
-    recommendedStack: '추천 기술 묶음:',
+    confirmStack: '이 기술 스택을 확정할까요?',
+    stackInput: '🧱 기술 스택은? (쉼표로 구분, Enter = 건너뛰고 나중에 확정)',
+    stackEdit: '🧱 사용할 기술 스택을 직접 입력하세요 (쉼표로 구분, Enter = 취소)',
+    stackSkipHint: `기술 스택 미정 — ${STACK_CANDIDATE_LABEL} 상태로 기록합니다`,
+    chosenStack: '기술 스택:',
+    canceled: '취소했어요. 기술 스택을 바꾸려면 다시 vhk init을 실행하세요.',
+    recommendedStack: '기술 스택 후보:',
+    candidateStack: `기술 스택 ${STACK_CANDIDATE_LABEL}:`,
+    confirmedStack: '기술 스택 확정:',
+    emptyStack: '--stack에 유효한 기술 스택이 없습니다. 자동 감지 결과를 후보로 기록합니다.',
     filesGenerating: '📂 필관리자 파일 만드는 중...',
     overwrite: (filePath: string) => `  ⚠️ ${filePath} 파일이 있어요. 덮어쓸까요?`,
     skipped: (filePath: string) => `${filePath} — 건너뜀`,

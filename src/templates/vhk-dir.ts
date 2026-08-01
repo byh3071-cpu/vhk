@@ -1,3 +1,5 @@
+import { formatStackStatusNote, type StackStatus } from '../lib/stack-state.js'
+
 /**
  * `.vhk/` 디렉토리 씨앗(seed) 템플릿.
  * 규격: docs/spec.md (spec_version 1.1) — 평면 파일 구조.
@@ -127,7 +129,8 @@ export function VHK_CONTEXT_SEED(
   name: string,
   type: string,
   stack: string[],
-  core: { source: 'live' | 'bundled'; version: string }
+  core: { source: 'live' | 'bundled'; version: string },
+  stackStatus: StackStatus = 'confirmed',
 ): string {
   const stackList = stack.map(s => '- ' + s).join('\n')
   const versionLabel = core.version === 'unknown' ? '버전 미상' : `v${core.version}`
@@ -144,6 +147,8 @@ export function VHK_CONTEXT_SEED(
     '- ' + type,
     '',
     '## 기술 스택',
+    formatStackStatusNote(stackStatus),
+    '',
     stackList,
     '',
     '## 헌법(core-rules) 소스',

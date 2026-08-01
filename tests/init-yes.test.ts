@@ -35,6 +35,7 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
     await init({ yes: true })
     expect(fs.existsSync(path.join(dir, 'CLAUDE.md'))).toBe(true)
     expect(fs.existsSync(path.join(dir, 'RULES.md'))).toBe(true)
+    expect(fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')).toContain('후보, 첫 세션에서 확정')
   })
 
   it('--type 미지정 -y 라도 type 프롬프트에서 멈추지 않음 (핵심 회귀)', async () => {
@@ -48,6 +49,7 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
     await init({ yes: true, name: 'sample-os', description: 'AI 베어메탈 OS', type: 'other' })
     const claude = fs.readFileSync(path.join(dir, 'CLAUDE.md'), 'utf-8')
     expect(claude).toContain('미정')
+    expect(claude).toContain('후보, 첫 세션에서 확정')
   })
 
   it('#132: -y 라도 기존 규칙 파일을 RULES.md 로 자동 adopt (thin 템플릿 함정 방지, 프롬프트 0)', async () => {

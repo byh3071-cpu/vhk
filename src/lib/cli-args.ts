@@ -76,8 +76,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'work', '작업',
   'seo',
   'config', '설정',
-  // #345: 'help' 은 최상위 명령으로 미등록(commander 의 --help 옵션과 별개) → 유령 KNOWN 토큰.
-  // 빼면 단일토큰 'help' 가 NL→help quick actions 로 친절 라우팅(raw 에러 대신).
+  'help',
 ])
 
 function isOptionToken(token: string): boolean {

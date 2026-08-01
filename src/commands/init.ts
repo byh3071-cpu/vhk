@@ -34,6 +34,7 @@ import { collectInstallReceipt, formatInstallReceipt } from '../lib/install-rece
 import { detectProjectStack, detectManifestLangs } from '../lib/stack-detect.js'
 import { isInteractive } from '../lib/interactive.js'
 import { scaffoldMission, writeMission, readMission, MISSION_PATH_REL } from './mission.js'
+import { upsertRulesStackSection, type StackStatus } from '../lib/stack-state.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -76,14 +77,33 @@ export function parseStackInput(input?: string): string[] {
  */
 export function resolveInitStack(
   cwd: string,
-  type: string
-): { stack: string[]; detected: boolean } {
+  type: string,
+  explicitStack?: string
+): { stack: string[]; detected: boolean; status: StackStatus; source: 'explicit' | 'detected' | 'preset' | 'undecided' } {
+  const explicit = parseStackInput(explicitStack)
+  if (explicit.length > 0) {
+    return { stack: explicit, detected: false, status: 'confirmed', source: 'explicit' }
+  }
   const js = detectProjectStack(cwd)
-  if (js) return { stack: [...js, ...detectManifestLangs(cwd)], detected: true }
+  if (js) {
+    return {
+      stack: [...js, ...detectManifestLangs(cwd)],
+      detected: true,
+      status: 'candidate',
+      source: 'detected',
+    }
+  }
   const preset = STACK_PRESETS[type] ?? []
-  if (preset.length) return { stack: preset, detected: false }
+  if (preset.length) {
+    return { stack: preset, detected: false, status: 'candidate', source: 'preset' }
+  }
   const manifest = detectManifestLangs(cwd)
-  return { stack: manifest, detected: manifest.length > 0 }
+  return {
+    stack: manifest,
+    detected: manifest.length > 0,
+    status: 'candidate',
+    source: manifest.length > 0 ? 'detected' : 'undecided',
+  }
 }
 
 export type InitOptions = {
@@ -91,6 +111,7 @@ export type InitOptions = {
   name?: string
   description?: string
   type?: string
+  stack?: string
   fromNotion?: string
   yes?: boolean
 }
@@ -184,9 +205,13 @@ export async function init(options: InitOptions = {}) {
   }
 
   // VHK-001: 기존 프로젝트면 실제 스택 감지(프리셋 하드코딩 대신) — 우선순위는 resolveInitStack 참조.
-  const resolved = resolveInitStack(process.cwd(), answers.type)
+  const resolved = resolveInitStack(process.cwd(), answers.type, options.stack)
   let stack = resolved.stack
-  let stackLabel: string = ko.init.recommendedStack
+  let stackStatus = resolved.status
+  let stackLabel = stackStatus === 'confirmed' ? ko.init.confirmedStack : ko.init.candidateStack
+  if (options.stack !== undefined && resolved.source !== 'explicit') {
+    log.warn(ko.init.emptyStack)
+  }
   if (resolved.detected) console.log(chalk.dim('  🔎 프로젝트 매니페스트에서 실제 스택 감지'))
 
   // 기타(other) 등 프리셋 없는 타입 — 대화형이면 직접 입력(Enter=건너뛰기), 비대화형이면 미정.
@@ -197,7 +222,7 @@ export async function init(options: InitOptions = {}) {
       }])
       stack = parseStackInput(customStack)
     }
-    stackLabel = ko.init.chosenStack // 사용자 입력/미정 — '추천' 아님
+    stackLabel = ko.init.candidateStack
     if (stack.length === 0) {
       stack = [STACK_UNDECIDED]
       console.log(chalk.dim(`  ${ko.init.stackSkipHint}`))
@@ -210,7 +235,7 @@ export async function init(options: InitOptions = {}) {
   // (이전엔 !options.yes 만 봐서 비-TTY+무-yes 에서 EOF 멈춤 — Goal 8 비대화형 계약 위반.)
   // 스택 미정(직접 건너뜀)이면 확인 무의미 → skip.
   const stackUndecided = stack.length === 1 && stack[0] === STACK_UNDECIDED
-  if (isInteractive(options) && !stackUndecided) {
+  if (isInteractive(options) && !stackUndecided && stackStatus === 'candidate') {
     const { confirmStack } = await prompt([{
       type: 'confirm', name: 'confirmStack',
       message: ko.init.confirmStack, default: true,
@@ -227,7 +252,10 @@ export async function init(options: InitOptions = {}) {
         return
       }
       stack = edited
-      console.log(chalk.dim(`\n${ko.init.chosenStack} ${stack.join(' + ')}\n`))
+      stackStatus = 'confirmed'
+      console.log(chalk.dim(`\n${ko.init.confirmedStack} ${stack.join(' + ')}\n`))
+    } else {
+      stackStatus = 'confirmed'
     }
   }
 
@@ -277,9 +305,18 @@ export async function init(options: InitOptions = {}) {
     allowAutoSync = true
   }
 
-  const files = generateFiles(answers.name, answers.description, stack, prdContent, answers.type)
+  const files = generateFiles(
+    answers.name,
+    answers.description,
+    stack,
+    prdContent,
+    answers.type,
+    stackStatus,
+  )
   // adopt 채택 시 greenfield 템플릿 RULES.md 를 병합본으로 교체.
-  if (adoptedRules) files['RULES.md'] = adoptedRules
+  if (adoptedRules) {
+    files['RULES.md'] = upsertRulesStackSection(adoptedRules, stack, stackStatus)
+  }
 
   log.step(ko.init.filesGenerating)
   for (const [filePath, content] of Object.entries(files)) {
@@ -371,7 +408,8 @@ export function generateFiles(
   description: string,
   stack: string[],
   prdContent: Partial<PrdContent> = {},
-  type = ''
+  type = '',
+  stackStatus: StackStatus = 'confirmed'
 ): Record<string, string> {
   const stackStr = stack.join(' + ')
   const prd: Partial<PrdContent> = {
@@ -381,13 +419,13 @@ export function generateFiles(
   const coreRules = loadCoreRuleset()
 
   return {
-    'CLAUDE.md': CLAUDE_MD_TEMPLATE(name, stackStr),
-    '.cursorrules': CURSORRULES_TEMPLATE(name, description, stackStr),
+    'CLAUDE.md': CLAUDE_MD_TEMPLATE(name, stackStr, stackStatus),
+    '.cursorrules': CURSORRULES_TEMPLATE(name, description, stackStr, stackStatus),
     // RULES.md — 규칙 SoT. init 이 항상 생성해 sync 와 흐름을 연결한다.
-    'RULES.md': RULES_MD_TEMPLATE(name, description, stackStr),
+    'RULES.md': RULES_MD_TEMPLATE(name, description, stackStr, stackStatus),
     'docs/PRD.md': PRD_TEMPLATE(name, description, prd),
     'VISION.md': VISION_TEMPLATE(name, description),
-    'docs/ARCHITECTURE.md': ARCHITECTURE_TEMPLATE(name, stackStr),
+    'docs/ARCHITECTURE.md': ARCHITECTURE_TEMPLATE(name, stackStr, stackStatus),
     'docs/adr/ADR-000-template.md': ADR_TEMPLATE(),
     'docs/rfc/README.md': RFC_README_TEMPLATE(),
     'docs/patterns/README.md': PATTERNS_README_TEMPLATE(),
@@ -400,7 +438,7 @@ export function generateFiles(
     '.vhk/context.md': VHK_CONTEXT_SEED(name, type || 'unknown', stack, {
       source: coreRules.source,
       version: coreRules.version,
-    }),
+    }, stackStatus),
     '.vhk/.gitignore': VHK_GITIGNORE_TEMPLATE(),
     // 증거 원장(events·ledger)에 merge=union — 멀티PC append 분기 자동 병합(A축). 추적 유지 전제.
     '.vhk/.gitattributes': VHK_GITATTRIBUTES_TEMPLATE(),

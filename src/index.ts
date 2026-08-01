@@ -48,7 +48,7 @@ import { ops } from './commands/ops.js'
 import { sell } from './commands/sell.js'
 import { work, workHandoff } from './commands/work.js'
 import { getUpdateInfo } from './lib/version-check.js'
-import { QUICK_ACTIONS } from './commands/help.js'
+import { formatRootHelp, QUICK_ACTIONS } from './commands/help.js'
 import { start } from './commands/start.js'
 import { bootstrapCursor } from './commands/bootstrap-cursor.js'
 import { mode } from './commands/mode.js'
@@ -138,56 +138,6 @@ import { runSeo, seoInit, seoSubmit, seoCheck, seoReport, seoAutomate } from './
 const program = new Command()
 const defaultHelp = new Help()
 
-const KO_ALIASES: Record<string, string> = {
-  gate: '검증',
-  start: '시작',
-  init: '초기화',
-  recap: '정리',
-  sync: '규칙',
-  check: '점검',
-  secure: '보안',
-  ship: '출하',
-  doctor: '환경',
-  save: '저장',
-  undo: '되돌리기',
-  restore: '복원',
-  status: '상태',
-  stats: '통계',
-  diff: '변경',
-  'diff-cover': '커버리지',
-  deploy: '배포',
-  env: '환경변수',
-  'env-check': '환경변수점검',
-  publish: '출시',
-  design: '디자인',
-  'design-palette': '팔레트',
-  theme: '테마',
-  ref: '레퍼런스',
-  harness: '하네스',
-  audit: '감사',
-  migrate: '전환',
-  update: '업데이트',
-  context: '맥락',
-  'context-show': '맥락보기',
-  memory: '기억',
-  brief: '브리핑',
-  goal: '목표',
-  preflight: '출고점검',
-  worktree: '워크트리',
-  standup: '아침',
-  today: '자축',
-  review: '검토',
-  mission: '미션',
-  blocker: '블로커',
-  learn: '교훈',
-  win: '성공',
-  watch: '감시',
-  resume: '재개',
-  pattern: '패턴',
-  evolve: '진화',
-  work: '작업',
-}
-
 program
   .name('vhk')
   // Goal 81: 제품 설명 SoT = package.json.description (런타임 주입 — 하드코딩 복제·드리프트 제거).
@@ -201,26 +151,17 @@ program.configureHelp({
       return defaultHelp.formatHelp(cmd, helper)
     }
 
-    const subs = helper.visibleCommands(cmd).filter((c) => c.name() !== 'help')
-    const terms = subs.map((c) => {
-      const alias = KO_ALIASES[c.name()]
-      return alias ? `${c.name()} (${alias})` : c.name()
-    })
-    const termWidth = Math.max(...terms.map((t) => t.length), 0)
-
-    const lines = [
-      helper.commandDescription(cmd),
-      '',
-      '명령어:',
-      ...subs.map((sub, i) => {
-        const term = terms[i].padEnd(termWidth + 2)
-        return `  ${term}${sub.description()}`
-      }),
-    ]
-
-    return lines.join('\n') + '\n'
+    return formatRootHelp(cmd, helper)
   },
 })
+
+program
+  .command('help')
+  .description('도움말 — 기본 명령만 표시')
+  .option('--all', '전체 명령 표시')
+  .action((options: { all?: boolean }) => {
+    process.stdout.write(formatRootHelp(program, program.createHelp(), { all: options.all === true }))
+  })
 
 // 1단계 — 아이디어 검증
 program
@@ -240,6 +181,7 @@ program
   .option('--name <name>', '프로젝트 이름')
   .option('--description <desc>', '한 줄 설명')
   .option('--type <type>', '프로젝트 유형 (webapp|extension|cli|notion|mobile|other)')
+  .option('--stack <list>', '확정할 기술 스택 (쉼표로 구분)')
   .option('-y, --yes', '모든 확인 스킵 (자동 yes)')
   .action(start)
 
