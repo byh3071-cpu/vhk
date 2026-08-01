@@ -355,6 +355,52 @@ describe('doctor 규칙 불일치 설명', () => {
       }
     })
 
+    // #552 검수 Medium: 경계 없는 substring 이 tokenizerMode 류까지 숨기던 과차단
+    // — segment 경계(구분자·camel/약어/숫자) 기준 정확 매칭의 민감/비민감 행렬.
+    it('민감 키 행렬 — 정확한 segment/조합은 형태 무관 숨긴다', () => {
+      const v = 'aB3kZ9mQ1rT7wX2pL5nC8vD4' // 가짜
+      for (const line of [
+        `TOKEN=${v}`,
+        `NPM_TOKEN=${v}`,
+        `authToken: ${v}`,
+        `clientSecret=${v}`,
+        `apiKey: ${v}`,
+        `API_KEY=${v}`,
+        `access-key: ${v}`,
+        `credentialStore=${v}`, // 수식어 자리여도 내용물이 시크릿
+        `"clientSecret": "${v}"`,
+        `API key = ${v}`, // 두 단어 표기
+        `apikey=${v}`, // joined canonical
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0], line).toContain(ko.doctor.driftSensitiveHidden)
+        expect(lines.join('\n')).not.toContain(v)
+      }
+    })
+
+    it('비민감 identifier 행렬 — token/secret 을 품은 합성어는 그대로 보여준다', () => {
+      for (const line of [
+        'tokenizerMode: strict',
+        'maxTokens = 4096',
+        'passwordlessLogin: enabled',
+        'secretariat = office',
+        'apiKeyboardShortcut: ctrl+k',
+        'tokenCount: 1200', // token 이 수식어 자리 — 토큰에 '관한' 값이지 토큰이 아니다
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0], line).toContain(line)
+        expect(lines[0], line).not.toContain(ko.doctor.driftSensitiveHidden)
+      }
+    })
+
     it('비민감 identifier 만 있는 PowerShell/env 줄은 그대로 보여준다', () => {
       for (const line of [
         'Set-Item -Path Env:BUILD_MODE -Value release',

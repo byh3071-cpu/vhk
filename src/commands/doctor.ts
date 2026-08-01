@@ -68,19 +68,47 @@ const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
 /**
  * #552 최종 — doctor 출력 전용 deny-by-default 경계. 할당·PowerShell writer 구문을
  * 파싱하는 접근은 검수마다 새 구문(SetEnvironmentVariable·setx …)이 뚫어서 폐기했다.
- * 줄의 identifier/token 중 민감 키 계열이 '언급'되기만 하면 읽기/쓰기/placeholder
- * 구분 없이 줄 전체를 숨긴다. 단어는 소문자·영숫자 run 으로 자르고, "api key" 같은
- * 두 단어 표기는 인접 쌍 결합으로 잡는다(camel/snake/kebab/SCREAMING 동일 취급).
+ * 줄의 identifier 에 민감 키 계열이 '언급'되기만 하면 읽기/쓰기/placeholder 구분
+ * 없이 줄 전체를 숨긴다. 단, 경계 없는 substring 은 tokenizerMode·maxTokens·
+ * passwordlessLogin·apiKeyboardShortcut 까지 숨기는 과차단(검수 Medium)이라,
+ * identifier 를 구분자·camel/약어/숫자 경계로 분해한 '정확한 segment' 로 판정한다:
+ *   - 어느 위치든 민감: secret/password/passwd/pwd/credential(+joined apikey·
+ *     accesskey·accesstoken) — credentialStore 처럼 수식어 자리여도 내용물이 시크릿.
+ *   - token 은 마지막 segment 일 때만(TOKEN·NPM_TOKEN·authToken) — tokenCount·
+ *     maxTokens·tokenizerMode 는 토큰에 '관한' 값이지 토큰이 아니다.
+ *   - 인접 segment 쌍 api+key/access+key ("API key"·api_key·apiKey).
  * 이 경계는 모든 시크릿 형식을 보장하지 않는다 — 민감 키 언급 + 알려진 값
  * 패턴(scan-secrets) + URL userinfo 세 판정이 잡는 범위까지다.
  */
-const SENSITIVE_KEY = /token|secret|password|passwd|pwd|apikey|accesskey|credential/
+const SENSITIVE_ANYWHERE = new Set([
+  'secret', 'password', 'passwd', 'pwd', 'credential', 'apikey', 'accesskey', 'accesstoken',
+])
+const SENSITIVE_PAIRS = new Set(['apikey', 'accesskey'])
+
+/** 영숫자 word 를 camel/약어/숫자 경계로 분해해 소문자 segment 로 (선형). */
+function identifierSegments(word: string): string[] {
+  return word
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // fooBar → foo Bar
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2') // APIKey → API Key
+    .replace(/([A-Za-z])([0-9])/g, '$1 $2') // oauth2 → oauth 2
+    .replace(/([0-9])([A-Za-z])/g, '$1 $2') // 2fa → 2 fa
+    .toLowerCase()
+    .split(' ')
+}
 
 function mentionsSensitiveKey(line: string): boolean {
-  const words = line.toLowerCase().match(/[a-z0-9]+/g) ?? []
-  return words.some(
-    (word, i) => SENSITIVE_KEY.test(word) || (i + 1 < words.length && SENSITIVE_KEY.test(word + words[i + 1])),
-  )
+  // 인접 쌍은 word 경계를 넘어서도 본다("API key") — 직전 segment 하나만 들고 간다.
+  let previous = ''
+  for (const word of line.match(/[A-Za-z0-9]+/g) ?? []) {
+    const segments = identifierSegments(word)
+    for (const segment of segments) {
+      if (SENSITIVE_ANYWHERE.has(segment)) return true
+      if (previous !== '' && SENSITIVE_PAIRS.has(previous + segment)) return true
+      previous = segment
+    }
+    if (segments[segments.length - 1] === 'token') return true
+  }
+  return false
 }
 
 const URL_SCHEME_CHAR = /[A-Za-z0-9+.-]/
