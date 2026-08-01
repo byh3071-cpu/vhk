@@ -301,14 +301,17 @@ describe('doctor 규칙 불일치 설명', () => {
       }
     })
 
-    it('PowerShell braced env 할당·Set-Item Env: 쓰기의 민감 키는 숨긴다', () => {
+    it('PowerShell/setx/.NET 등 구문 무관 — 민감 키 언급 줄은 숨긴다', () => {
       const value = 'aB3kZ9mQ1rT7wX2pL5nC8vD4' // 가짜
       for (const line of [
         `\${env:NPM_TOKEN}=${value}`,
         `Set-Item -Path Env:CLIENT_SECRET -Value ${value}`,
-        // #552 최종 우회: 옵션 순서(-Value 선행)·positional value 도 쓰기 — 순서 무관 숨김.
         `Set-Item -Value ${value} -Path Env:NPM_TOKEN`,
         `Set-Item Env:NPM_TOKEN ${value}`,
+        // #552 최종: writer 구문 파싱 폐기 — 어떤 구문이든 민감 키 언급이면 숨김.
+        `[Environment]::SetEnvironmentVariable('NPM_TOKEN', '${value}', 'User')`,
+        `setx NPM_TOKEN ${value}`,
+        `API key = ${value}`, // 두 단어 표기도 인접 쌍 결합으로 잡는다
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
@@ -320,12 +323,24 @@ describe('doctor 규칙 불일치 설명', () => {
       }
     })
 
-    it('비민감 PowerShell env 쓰기·env 읽기는 그대로 보여준다', () => {
+    it('민감 키는 읽기·단순 언급도 숨긴다 (정책: deny-by-default, 값 유무 안 봄)', () => {
+      // #552 최종 정책 변경: 읽기/쓰기 구분(writer 구문 파싱)이 검수마다 뚫려 폐기.
+      // env 읽기처럼 줄에 값이 없어도 민감 키가 언급되면 숨긴다 — 과차단을 감수한 안정 경계.
+      for (const line of ['echo $env:NPM_TOKEN', 'rotate the NPM_TOKEN quarterly']) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+      }
+    })
+
+    it('비민감 identifier 만 있는 PowerShell/env 줄은 그대로 보여준다', () => {
       for (const line of [
         'Set-Item -Path Env:BUILD_MODE -Value release',
         'Set-Item Env:BUILD_MODE release', // positional 도 비민감 키면 그대로
         '${env:NODE_OPTIONS}=--max-old-space-size=4096',
-        'echo $env:NPM_TOKEN', // 읽기 — 줄 자체엔 값이 없다
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',

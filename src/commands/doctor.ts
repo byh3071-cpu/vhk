@@ -66,25 +66,21 @@ export interface CheckResult {
 const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
 
 /**
- * #552 재검수 — doctor 출력 전용 deny-by-default. 값·placeholder 판별은 우회가
- * 계속 나와(JSON quoted key·clientSecret camel·공백 quoted 값·my-secret-password
- * placeholder 오인) 예외를 쌓는 대신 정책을 뒤집는다: 민감해 보이는 키에 대한
- * 할당이면 값이 무엇이든(placeholder 포함) 줄 전체를 숨긴다. 키는 quoted/bare 로
- * 추출한 뒤 소문자화·구분자 제거로 정규화해 camel/snake/kebab/SCREAMING 을 동일
- * 취급한다. 저장소 전체 스캐너(scan-secrets)의 오탐 정책은 건드리지 않는다.
+ * #552 최종 — doctor 출력 전용 deny-by-default 경계. 할당·PowerShell writer 구문을
+ * 파싱하는 접근은 검수마다 새 구문(SetEnvironmentVariable·setx …)이 뚫어서 폐기했다.
+ * 줄의 identifier/token 중 민감 키 계열이 '언급'되기만 하면 읽기/쓰기/placeholder
+ * 구분 없이 줄 전체를 숨긴다. 단어는 소문자·영숫자 run 으로 자르고, "api key" 같은
+ * 두 단어 표기는 인접 쌍 결합으로 잡는다(camel/snake/kebab/SCREAMING 동일 취급).
+ * 이 경계는 모든 시크릿 형식을 보장하지 않는다 — 민감 키 언급 + 알려진 값
+ * 패턴(scan-secrets) + URL userinfo 세 판정이 잡는 범위까지다.
  */
-const KEY_ASSIGNMENT = /(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_.-]+))\s*[:=]\s*(?=\S)/g
 const SENSITIVE_KEY = /token|secret|password|passwd|pwd|apikey|accesskey|credential/
 
-function isSensitiveKey(rawKey: string): boolean {
-  return SENSITIVE_KEY.test(rawKey.toLowerCase().replace(/[^a-z0-9]/g, ''))
-}
-
-function hasSensitiveAssignment(line: string): boolean {
-  for (const match of line.matchAll(KEY_ASSIGNMENT)) {
-    if (isSensitiveKey(match[1] ?? match[2] ?? match[3])) return true
-  }
-  return false
+function mentionsSensitiveKey(line: string): boolean {
+  const words = line.toLowerCase().match(/[a-z0-9]+/g) ?? []
+  return words.some(
+    (word, i) => SENSITIVE_KEY.test(word) || (i + 1 < words.length && SENSITIVE_KEY.test(word + words[i + 1])),
+  )
 }
 
 /**
@@ -106,35 +102,18 @@ function hasUrlCredentials(line: string): boolean {
 }
 
 /**
- * PowerShell env 쓰기 — `${env:KEY}=값`(brace 가 키와 = 를 갈라 KEY_ASSIGNMENT 미탐)과
- * Set-Item 계열. Set-Item 은 옵션 순서(-Value 가 -Path 앞)·positional value 등 형태가
- * 자유롭지만 목적 자체가 쓰기라, 옵션 파싱 대신 줄에 set-item 또는 -value 가 있으면
- * 쓰기로 본다(순서별 예외 목록 금지). env 읽기(echo $env:KEY)는 값이 없어 그대로 둔다.
- */
-function hasSensitivePowershellEnvWrite(line: string): boolean {
-  const writesEnv = /\bset-item\b/i.test(line) || /-value\s+\S/i.test(line)
-  for (const match of line.matchAll(/\$?\{?env:([A-Za-z0-9_.-]+)\}?/gi)) {
-    if (!isSensitiveKey(match[1])) continue
-    if (writesEnv) return true
-    if (/^\s*=\s*\S/.test(line.slice(match.index + match[0].length))) return true
-  }
-  return false
-}
-
-/**
  * #552: 드리프트 기대/실제 줄에 시크릿·토큰이 섞이면 원문 노출 자체가 유출이다.
- * 스캐너(패턴) + 민감 키 할당 + URL 자격증명 + PS env 쓰기 4중 판정.
+ * 판정 3종 = 알려진 값 패턴(scan-secrets) + 민감 키 언급 + URL userinfo.
  * findSecretsInLine 만 스캐너 계약대로 MAX_LINE_CHARS(4000자) cap 을 유지하고
- * 커스텀 판정 3종은 전체 줄을 본다 — 표시는 앞 240자지만 판정 근거(URL 의 @ 등)가
+ * 커스텀 판정 2종은 전체 줄을 본다 — 표시는 앞 240자지만 판정 근거(URL 의 @ 등)가
  * 4000자 밖에 있어도 표시 구간의 원문 유출은 막아야 하기 때문.
  */
 export function driftLineHasSecret(line: string | null, filePath: string): boolean {
   if (line === null || line.length === 0) return false
   return (
     findSecretsInLine(line.slice(0, MAX_LINE_CHARS), filePath, 1).length > 0 ||
-    hasSensitiveAssignment(line) ||
-    hasUrlCredentials(line) ||
-    hasSensitivePowershellEnvWrite(line)
+    mentionsSensitiveKey(line) ||
+    hasUrlCredentials(line)
   )
 }
 
