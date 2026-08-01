@@ -380,6 +380,13 @@ describe('doctor 규칙 불일치 설명', () => {
         'token-file: /run/secrets/npm',
         `TOKEN_ENV=${v}`,
         `ACCESS_TOKEN_VALUE=${v}`,
+        // #552 검수 High: 값 첫 segment(limit/budget/usage/count)가 identifier 밖에서
+        // 안전 메타를 오인 충족하던 유출 — 완화는 같은 identifier 안에서만.
+        `TOKEN=limit-${v}`,
+        `NPM_TOKEN=budget-${v}`,
+        `authToken=usage-${v}`,
+        `"accessToken": "count-${v}"`,
+        `Set-Item Env:NPM_TOKEN limit-${v}`,
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
@@ -399,9 +406,11 @@ describe('doctor 규칙 불일치 설명', () => {
         'secretariat = office',
         'apiKeyboardShortcut: ctrl+k',
         'tokenCount: 1200', // token+측정 메타 — 토큰에 '관한' 값이지 토큰이 아니다
+        'token_count: 1200', // snake/kebab 도 같은 identifier 로 묶여 동일 판정
+        'token-count: 1200',
         'tokenBudget: 50000',
         'tokenUsage = 0.7',
-        'TOKEN_LIMIT=8192', // SCREAMING 도 camel 과 같은 stream 판정(비대칭 해소)
+        'TOKEN_LIMIT=8192', // SCREAMING 도 camel 과 같은 판정(비대칭 해소)
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',

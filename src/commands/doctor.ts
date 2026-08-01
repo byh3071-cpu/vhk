@@ -74,13 +74,14 @@ const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
  * identifier 를 구분자·camel/약어/숫자 경계로 분해한 '정확한 segment' 로 판정한다:
  *   - 어느 위치든 민감: secret/password/passwd/pwd/credential(+joined apikey·
  *     accesskey·accesstoken) — credentialStore 처럼 수식어 자리여도 내용물이 시크릿.
- *   - token 은 stream 규칙(검수 High — '마지막 segment' 규칙은 word 경계 탓에
- *     tokenValue camel 만 노출되고 TOKEN_VALUE snake 는 숨는 비대칭): token 을
- *     pending 으로 두고 '다음 segment' 가 측정 메타(count/budget/usage/limit …)일
- *     때만 통과 — tokenCount 는 토큰에 '관한' 값이지 토큰이 아니다. 그 외
- *     (value/file/env 같은 접미사·모르는 segment·stream 끝)는 전부 민감.
- *     word 경계와 camel/snake/kebab/SCREAMING/space/quoted 모두 같은 stream 이다.
- *   - 인접 segment 쌍 api+key/access+key ("API key"·api_key·apiKey).
+ *   - token 은 '같은 identifier 안'에서만 측정 메타로 완화된다. identifier =
+ *     영숫자·_·- 의 연속(camel/snake/kebab/SCREAMING 을 한 단위로) — 그 안에서
+ *     token 다음 segment 가 count/budget/usage/limit … 이면 안전(tokenCount·
+ *     TOKEN_LIMIT), 그 외 접미사(value/file/env)나 identifier 끝이면 민감.
+ *     완화를 identifier 밖(할당·공백·인용 너머)으로 새게 하면 TOKEN=limit-… 의
+ *     '값 첫 segment' 가 안전 메타를 오인 충족해 원문이 노출된다(검수 High).
+ *   - 인접 segment 쌍 api+key/access+key 는 identifier 경계를 넘어 판정
+ *     ("API key"·api_key·apiKey) — 최소 상태(직전 segment)만 유지.
  * 이 경계는 모든 시크릿 형식을 보장하지 않는다 — 민감 키 언급 + 알려진 값
  * 패턴(scan-secrets) + URL userinfo 세 판정이 잡는 범위까지다.
  */
@@ -94,23 +95,25 @@ const SAFE_AFTER_TOKEN = new Set([
   'length', 'size', 'type', 'kind', 'status', 'metrics',
 ])
 
-/** 영숫자 word 를 camel/약어/숫자 경계로 분해해 소문자 segment 로 (선형). */
-function identifierSegments(word: string): string[] {
-  return word
+/** identifier(영숫자·_·-)를 구분자·camel/약어/숫자 경계로 분해해 소문자 segment 로 (선형). */
+function identifierSegments(identifier: string): string[] {
+  return identifier
     .replace(/([a-z])([A-Z])/g, '$1 $2') // fooBar → foo Bar
     .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2') // APIKey → API Key
     .replace(/([A-Za-z])([0-9])/g, '$1 $2') // oauth2 → oauth 2
     .replace(/([0-9])([A-Za-z])/g, '$1 $2') // 2fa → 2 fa
+    .replace(/[_-]+/g, ' ') // snake/kebab → 같은 identifier 내부 경계
     .toLowerCase()
     .split(' ')
+    .filter((segment) => segment !== '')
 }
 
 function mentionsSensitiveKey(line: string): boolean {
-  // 단일 stream 순회, O(1) 상태: 인접 쌍(previous)과 token pending 만 들고 간다.
+  // O(1) 상태 선형 순회 — previous(인접 쌍)는 identifier 를 넘어, pending 은 안에서만.
   let previous = ''
-  let pendingToken = false
-  for (const word of line.match(/[A-Za-z0-9]+/g) ?? []) {
-    for (const segment of identifierSegments(word)) {
+  for (const identifier of line.match(/[A-Za-z0-9_-]+/g) ?? []) {
+    let pendingToken = false
+    for (const segment of identifierSegments(identifier)) {
       if (SENSITIVE_ANYWHERE.has(segment)) return true
       if (previous !== '' && SENSITIVE_PAIRS.has(previous + segment)) return true
       if (pendingToken) {
@@ -120,8 +123,11 @@ function mentionsSensitiveKey(line: string): boolean {
       if (segment === 'token') pendingToken = true
       previous = segment
     }
+    // identifier 가 token 으로 끝나면(TOKEN=…·$env:NPM_TOKEN·TOKEN 단독) 민감 —
+    // 할당/공백/인용 너머의 값은 완화 근거가 될 수 없다.
+    if (pendingToken) return true
   }
-  return pendingToken // stream 이 token 으로 끝나면(TOKEN 단독 등) 민감
+  return false
 }
 
 const URL_SCHEME_CHAR = /[A-Za-z0-9+.-]/
