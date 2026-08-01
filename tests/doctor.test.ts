@@ -272,6 +272,20 @@ describe('doctor 규칙 불일치 설명', () => {
       }
     })
 
+    it('URL 의 @ 가 4000자 밖이어도 표시 구간의 자격증명을 숨긴다', () => {
+      // #552 최종 우회: 자격증명 시작은 앞 240자(표시 구간)에 있는데 판정 근거인 @ 가
+      // 4000자 cap 뒤라 커스텀 판정이 놓치던 경계 — 커스텀 판정은 전체 줄을 본다.
+      const cred = 'aB3kZ9mQ1rT7wX2pL5nC8vD4' // 가짜
+      const longUrl = `postgres://app:${cred}${'a'.repeat(4_200)}@db.internal:5432/app`
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 1, expected: longUrl, actual: '실제 줄' }],
+      }])
+      expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+      expect(lines.join('\n')).not.toContain(cred)
+    })
+
     it('userinfo 없는 일반 URL 은 그대로 보여준다', () => {
       for (const line of [
         'https://example.com/docs/setup',
@@ -292,6 +306,9 @@ describe('doctor 규칙 불일치 설명', () => {
       for (const line of [
         `\${env:NPM_TOKEN}=${value}`,
         `Set-Item -Path Env:CLIENT_SECRET -Value ${value}`,
+        // #552 최종 우회: 옵션 순서(-Value 선행)·positional value 도 쓰기 — 순서 무관 숨김.
+        `Set-Item -Value ${value} -Path Env:NPM_TOKEN`,
+        `Set-Item Env:NPM_TOKEN ${value}`,
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
@@ -306,6 +323,7 @@ describe('doctor 규칙 불일치 설명', () => {
     it('비민감 PowerShell env 쓰기·env 읽기는 그대로 보여준다', () => {
       for (const line of [
         'Set-Item -Path Env:BUILD_MODE -Value release',
+        'Set-Item Env:BUILD_MODE release', // positional 도 비민감 키면 그대로
         '${env:NODE_OPTIONS}=--max-old-space-size=4096',
         'echo $env:NPM_TOKEN', // 읽기 — 줄 자체엔 값이 없다
       ]) {

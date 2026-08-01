@@ -107,32 +107,34 @@ function hasUrlCredentials(line: string): boolean {
 
 /**
  * PowerShell env 쓰기 — `${env:KEY}=값`(brace 가 키와 = 를 갈라 KEY_ASSIGNMENT 미탐)과
- * `Set-Item -Path Env:KEY -Value 값`. cmdlet 목록 대신 일반 규칙으로:
- * env:KEY 뒤에 `=값` 이 바로 오거나 같은 줄 뒤쪽에 `-Value 값` 이 있으면 쓰기로 본다.
+ * Set-Item 계열. Set-Item 은 옵션 순서(-Value 가 -Path 앞)·positional value 등 형태가
+ * 자유롭지만 목적 자체가 쓰기라, 옵션 파싱 대신 줄에 set-item 또는 -value 가 있으면
+ * 쓰기로 본다(순서별 예외 목록 금지). env 읽기(echo $env:KEY)는 값이 없어 그대로 둔다.
  */
 function hasSensitivePowershellEnvWrite(line: string): boolean {
+  const writesEnv = /\bset-item\b/i.test(line) || /-value\s+\S/i.test(line)
   for (const match of line.matchAll(/\$?\{?env:([A-Za-z0-9_.-]+)\}?/gi)) {
     if (!isSensitiveKey(match[1])) continue
-    const rest = line.slice(match.index + match[0].length)
-    if (/^\s*=\s*\S/.test(rest) || /-value\s+\S/i.test(rest)) return true
+    if (writesEnv) return true
+    if (/^\s*=\s*\S/.test(line.slice(match.index + match[0].length))) return true
   }
   return false
 }
 
 /**
  * #552: 드리프트 기대/실제 줄에 시크릿·토큰이 섞이면 원문 노출 자체가 유출이다.
- * findSecretsInLine 은 MAX_LINE_CHARS(4000자) 초과 줄을 조용히 건너뛰는데, 표시는
- * 앞 240자를 여전히 보여주므로 검사 대상을 slice 로 한도 안에 맞춰 표시 영역이
- * 반드시 검사되게 한다. 스캐너(패턴) + 민감 키 할당 + URL 자격증명 + PS env 쓰기 판정.
+ * 스캐너(패턴) + 민감 키 할당 + URL 자격증명 + PS env 쓰기 4중 판정.
+ * findSecretsInLine 만 스캐너 계약대로 MAX_LINE_CHARS(4000자) cap 을 유지하고
+ * 커스텀 판정 3종은 전체 줄을 본다 — 표시는 앞 240자지만 판정 근거(URL 의 @ 등)가
+ * 4000자 밖에 있어도 표시 구간의 원문 유출은 막아야 하기 때문.
  */
 export function driftLineHasSecret(line: string | null, filePath: string): boolean {
   if (line === null || line.length === 0) return false
-  const target = line.slice(0, MAX_LINE_CHARS)
   return (
-    findSecretsInLine(target, filePath, 1).length > 0 ||
-    hasSensitiveAssignment(target) ||
-    hasUrlCredentials(target) ||
-    hasSensitivePowershellEnvWrite(target)
+    findSecretsInLine(line.slice(0, MAX_LINE_CHARS), filePath, 1).length > 0 ||
+    hasSensitiveAssignment(line) ||
+    hasUrlCredentials(line) ||
+    hasSensitivePowershellEnvWrite(line)
   )
 }
 
