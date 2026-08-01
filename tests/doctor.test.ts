@@ -150,6 +150,42 @@ describe('doctor 규칙 불일치 설명', () => {
       expect(lines.join('\n')).not.toContain('깨끗한 규칙 줄')
     })
 
+    // #552 독립 검수 우회 2건 — doctor 전용 보수 판정으로 막는다(전체 스캐너 정책은 불변).
+    it('접미사 없는 TOKEN= 할당(generic-api-key 미탐)도 숨긴다', () => {
+      const bareValue = 'Zq7Rt9Km4Np6Vw2Xy8Cd3Fg5Hj1Lb0Sa' // 가짜 32자 일반값
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 5, expected: `TOKEN=${bareValue}`, actual: '실제 줄' }],
+      }])
+      expect(lines[0]).toBe(ko.doctor.driftExpected('AGENTS.md:5', ko.doctor.driftSensitiveHidden))
+      expect(lines.join('\n')).not.toContain(bareValue)
+    })
+
+    it('값 내부의 fake_ 부분문자열은 placeholder 로 인정하지 않고 숨긴다', () => {
+      // 주석/헤딩 줄에선 스캐너의 PLACEHOLDER_MARKER 가 부분문자열만으로 완화되던 우회.
+      const sneaky = '# api_key=live_fake_customer_a1b2c3d4e5f6g7h8i9j0k1l2'
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 9, expected: sneaky, actual: '실제 줄' }],
+      }])
+      expect(lines[0]).toBe(ko.doctor.driftExpected('AGENTS.md:9', ko.doctor.driftSensitiveHidden))
+      expect(lines.join('\n')).not.toContain('live_fake_customer')
+    })
+
+    it('값 전체가 명백한 placeholder 면 그대로 보여준다', () => {
+      for (const line of ['TOKEN=<your-token>', 'API_KEY=${VHK_API_KEY}', 'api_key=your_api_key_here']) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(line)
+        expect(lines[0]).not.toContain(ko.doctor.driftSensitiveHidden)
+      }
+    })
+
     it('주석 줄의 placeholder 예시값은 오탐 완화를 유지해 그대로 보여준다', () => {
       const placeholder = '# GITHUB_TOKEN=ghp_' + 'x'.repeat(36)
       const lines = formatRuleDriftDetails([{

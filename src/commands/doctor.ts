@@ -66,6 +66,42 @@ export interface CheckResult {
 const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
 
 /**
+ * #552 독립 검수 보강 — doctor 출력 '전용' 보수 판정. 전체 스캐너(scan-secrets)의
+ * 오탐 정책은 저장소 스캔용이라 건드리지 않는다. 스캐너가 놓치는 두 우회:
+ *   1) TOKEN=<값> 처럼 접미사 없는 키 — generic-api-key 는 api_key/access_token 류만 매칭.
+ *   2) 주석/헤딩 줄의 api_key=live_fake_… — 값 '내부'의 fake_ 부분문자열만으로
+ *      PLACEHOLDER_MARKER 완화가 발동해 원문이 그대로 출력.
+ * 여기선 token/secret/password/api-key/access-token 류 할당을 넓게 잡되,
+ * 값 '전체'가 명백한 placeholder일 때만 통과시킨다(부분문자열 불허).
+ */
+const SENSITIVE_ASSIGNMENT =
+  /(?:^|[^A-Za-z0-9])(?:[A-Za-z0-9]+[_-])*(?:token|secret|password|passwd|pwd|api[_-]?key|apikey|credential)s?\s*[:=]\s*['"]?([^\s'"]{8,})/gi
+
+const PLACEHOLDER_WORDS = new Set([
+  'your', 'my', 'sample', 'example', 'fake', 'dummy', 'placeholder', 'changeme',
+  'replace', 'me', 'redacted', 'todo', 'tbd', 'insert', 'here', 'goes', 'value',
+  'key', 'token', 'secret', 'password', 'api', 'access', 'apikey', 'id',
+])
+
+/** 값 전체가 명백한 placeholder일 때만 true — 실제 값 내부의 fake/example 부분문자열은 불허. */
+function isObviousPlaceholderValue(value: string): boolean {
+  if (/^<[^<>]+>$/.test(value)) return true // <YOUR_TOKEN>
+  if (/^\$(?:\{[^}]+\}|[A-Za-z_][A-Za-z0-9_]*)$/.test(value)) return true // ${VAR}·$VAR
+  if (/^(?:[A-Za-z0-9]+[_-])?(?:x{4,}|\*{3,}|\.{3,})$/i.test(value)) return true // ghp_xxxx…
+  // 모든 구획이 placeholder 단어(또는 x 반복)여야 통과 — live_fake_… 처럼 하나라도 실값이면 숨김.
+  return value
+    .split(/[_-]/)
+    .every((segment) => PLACEHOLDER_WORDS.has(segment.toLowerCase()) || /^x+$/i.test(segment))
+}
+
+function hasSensitiveAssignment(line: string): boolean {
+  for (const match of line.matchAll(SENSITIVE_ASSIGNMENT)) {
+    if (!isObviousPlaceholderValue(match[1])) return true
+  }
+  return false
+}
+
+/**
  * #552: 드리프트 기대/실제 줄에 시크릿·토큰이 섞이면 원문 노출 자체가 유출이다.
  * findSecretsInLine 은 MAX_LINE_CHARS(4000자) 초과 줄을 조용히 건너뛰는데, 표시는
  * 앞 240자를 여전히 보여주므로 검사 대상을 slice 로 한도 안에 맞춰 표시 영역이
@@ -73,7 +109,8 @@ const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
  */
 export function driftLineHasSecret(line: string | null, filePath: string): boolean {
   if (line === null || line.length === 0) return false
-  return findSecretsInLine(line.slice(0, MAX_LINE_CHARS), filePath, 1).length > 0
+  const target = line.slice(0, MAX_LINE_CHARS)
+  return findSecretsInLine(target, filePath, 1).length > 0 || hasSensitiveAssignment(target)
 }
 
 function displayDriftLine(line: string | null): string {
