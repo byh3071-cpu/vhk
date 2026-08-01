@@ -11,7 +11,8 @@ relates: ADR-012, ADR-010, RFC-0057
 
 > 내부명: Task Spine. 사람에게는 **작업 실행 계약**이라고 설명한다.
 >
-> 상태: **Proposed — ADR-012는 2026-08-01 Accepted. 115~118과 이 RFC의 열린 질문은 아직 선행 조건이다.**
+> 상태: **Proposed — ADR-012는 Accepted, 115~118 구현·공통 게이트와 열린 질문 2건의 결정은 완료했다.**
+> **PR B 구현 승인과 #552의 main 머지는 별도 사람 게이트로 남는다.**
 > 이 문서는 현재 Goal을 바꾸지 않고 읽는 첫 단계만 제안한다.
 
 ## 0. 가장 짧은 설명
@@ -143,7 +144,7 @@ v0는 roadmap, PRD, Goal, context, next-task, blocker, receipt와 ledger에 쓰�
 | `status` | ProjectedStatus | 보수적으로 해석한 읽기 상태 |
 | `sourceStatus` | GoalStatus 또는 `null` | 원래 Goal 상태를 손실 없이 보존 |
 | `sourceRefs` | string[] | 저장소 상대경로 출처 |
-| `acceptanceCriteria` | string[] | 결정론적으로 찾은 기준만 포함 |
+| `acceptanceCriteria` | string[] | roadmap·PRD에서 결정론적으로 연결한 기준만 포함, 연결 실패 시 빈 배열 + warning (Goal 본문 fallback 금지) |
 | `assurance` | Assurance | Task별 완료 증거의 확인 가능 수준 |
 | `warnings` | string[] | 누락·불확실성·보수적 변환 이유 |
 
@@ -207,9 +208,10 @@ v0는 새 스케줄러를 만들지 않고 현재 `selectActiveId` 순서만 보
   "schemaVersion": 1,
   "project": {
     "name": "@byh3071/vhk",
-    "goal": null,
+    "goal": "모델·에이전트를 뭘로 바꿔도 안 무너지는 풀사이클 AI 코딩 하네스. (README·README.en 헤드라인과 동일)",
     "sourceRefs": [
-      "package.json"
+      "package.json",
+      "VISION.md"
     ]
   },
   "activeTask": null,
@@ -222,7 +224,6 @@ v0는 새 스케줄러를 만들지 않고 현재 `selectActiveId` 순서만 보
     "pnpm boundary:check"
   ],
   "warnings": [
-    "project.goal의 결정론적 출처가 아직 확정되지 않았습니다.",
     "로컬 Goal 카드가 없어 실행 상태를 투영하지 못했습니다."
   ],
   "sourceRevision": "sample-git-sha"
@@ -235,7 +236,7 @@ v0는 새 스케줄러를 만들지 않고 현재 `selectActiveId` 순서만 보
 |---|---|---|
 | `schemaVersion` | `1` | 공개 JSON 스키마 버전 |
 | `project.name` | string 또는 `null` | `package.json`의 `name`, 파일·값이 없으면 `null`과 warning |
-| `project.goal` | string 또는 `null` | PR B 전 열린 질문에서 확정할 한 문장만 사용, 미확정·누락이면 `null`과 warning |
+| `project.goal` | string 또는 `null` | `VISION.md`의 정확한 `## What (한 줄)` 아래 첫 유효 문장, 없거나 미작성 마커면 `null`과 warning |
 | `project.sourceRefs` | string[] | `name`·`goal` 값을 실제로 읽은 파일만 고정 필드 순서로 포함 |
 | `activeTask` | ProjectedTask 또는 `null` | §6의 기존 선택 순서로 고른 한 Goal을 투영, 선택할 Goal이 없으면 `null` |
 | `blockers` | string[] | 기존 `getActiveBlockers(3)` 결과를 파일 순서대로 사용, 파일이 없으면 빈 배열 |
@@ -246,6 +247,15 @@ v0는 새 스케줄러를 만들지 않고 현재 `selectActiveId` 순서만 보
 필드 생산 순서는 `project` → `activeTask` → `blockers` → `verificationPlan` → `sourceRevision`이다.
 따라서 같은 파일 상태는 같은 배열 순서와 JSON 의미를 만든다. `constraints`, `decisions`,
 `openQuestions`처럼 출처·선별 규칙이 없는 배열은 v0에 넣지 않는다.
+
+`project.goal`은 다음 순서로만 결정한다.
+
+1. 대소문자와 문구가 정확히 `## What (한 줄)`인 level-2 heading을 찾는다.
+2. 다음 level-2 heading 전까지 첫 non-empty line 하나를 읽는다.
+3. 그 줄이 `<...>` 미작성 마커이거나 heading·목록·인용·코드 펜스이면 값으로 채택하지 않는다.
+4. 유효한 문장이 없으면 `goal: null`과 warning을 반환한다. `Why`, PRD 또는 다른 문장으로 추측 대체하지 않는다.
+
+실제 값을 채택한 경우에만 `project.sourceRefs`에 `VISION.md`를 포함한다.
 
 ### 7.2 포함 원칙
 
@@ -297,8 +307,11 @@ v0는 아래 기존 구조를 새 이름으로 복제하지 않는다.
 다음 조건을 모두 충족한 뒤 시작한다.
 
 1. ADR-012가 실제 파일에서 Accepted (`2026-08-01` 충족)
-2. 2.13 작업 115, 116, 117, 118 완료
-3. 공통 게이트 통과
+2. 2.13 작업 115, 116, 117, 118 완료 (`#552` 구현·검토·CI 완료, main 머지는 별도 게이트)
+3. 공통 게이트 통과 (`#552` 충족)
+
+이 문서의 설계 전제는 준비됐지만, PR B 구현은 별도 Plan 승인 뒤 시작한다. `#552`가 main에
+머지되기 전에 구현한다면 해당 브랜치를 명시적 선행 기반으로 삼아야 하며, 자동 머지는 금지한다.
 
 PR B 범위:
 
@@ -333,16 +346,29 @@ PR B 제외:
 
 검증이 실패하면 구현 상태를 완료로 표시하지 않는다.
 
-## 11. 열린 질문
+## 11. 결정 기록 — 열린 질문 닫힘
 
-PR B 전에 닫아야 할 질문은 두 개뿐이다.
+2026-08-01 사용자 대화 승인으로 PR B 전 열린 질문 2건을 닫았다.
 
-1. roadmap·PRD에서 acceptance criteria를 결정론적으로 연결할 수 없는 경우, Goal 본문을 파생 cache로
-   읽을지 아니면 빈 배열 + warning만 반환할지
-2. `project.goal`을 VISION의 어느 짧은 문장에서 결정론적으로 가져올지
+### 11.1 acceptance criteria 연결 실패
 
-대화 규칙에 따라 한 번에 하나씩 결정한다. 그 밖의 저장, 쓰기, 승인, 관제, 병렬과 진화 질문은
-미래 설계 지도에서 각 전제 조건이 갖춰질 때 연다.
+- **결정:** roadmap·PRD에서 기준을 결정론적으로 연결하지 못하면 `acceptanceCriteria: []`와 warning을
+  반환한다. Goal 본문은 대체 원본이나 파생 cache로 읽지 않는다.
+- **이유:** 정보량보다 원본 정직성과 재현성을 우선한다. Goal 본문을 읽으면 비추적 실행 상태가 제품
+  수용 기준의 두 번째 원본처럼 굳을 수 있다.
+- **기각:** Goal 본문 fallback은 더 풍부하지만 오래되거나 roadmap·PRD와 어긋난 기준을 사실처럼
+  노출할 위험 때문에 v0에서 제외한다.
+
+### 11.2 project.goal 출처
+
+- **결정:** `VISION.md`의 정확한 `## What (한 줄)` 아래 첫 유효 문장만 사용한다. 없거나 미작성
+  마커면 `goal: null`과 warning을 반환한다.
+- **이유:** VHK 템플릿과 기존 content·launch·ops·sell 흐름이 이미 같은 위치를 사용하므로 새 원본이나
+  해석 규칙을 만들지 않는다.
+- **기각:** `Why` 첫 문장은 여러 줄 해석이 필요하고, 항상 `null`은 결정 가능한 프로젝트 목표까지
+  버리므로 선택하지 않는다.
+
+그 밖의 저장, 쓰기, 승인, 관제, 병렬과 진화 질문은 미래 설계 지도에서 각 전제 조건이 갖춰질 때 연다.
 
 ## 12. 관련
 
