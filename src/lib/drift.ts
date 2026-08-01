@@ -14,13 +14,141 @@ import { gitOut } from './git-repo.js'
  * LF 재생성본과 매번 어긋나는 **거짓 드리프트**를 막는다. (줄 내용은 안 건드림.)
  */
 export function normalizeForCompare(s: string): string {
-  return s.replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').replace(/\n+$/, '\n')
+  const normalized = s.replace(/\r\n/g, '\n').replace(/[ \t]+$/gm, '').replace(/\n+$/, '')
+  return normalized.length === 0 ? '' : `${normalized}\n`
 }
 
 export type RuleDriftStatus = 'drifted' | 'ok' | 'missing'
+export interface RuleDriftDifference {
+  line: number
+  expected: string | null
+  actual: string | null
+}
 export interface RuleDriftResult {
   path: string
   status: RuleDriftStatus
+  /** 정규화 후 서로 다른 줄. drifted 일 때만 존재한다. */
+  differences?: RuleDriftDifference[]
+  /** 전체 차이 계산이 안전 상한을 넘어 첫 상이 지점만 반환했는지 여부. */
+  fullDiffLimited?: boolean
+}
+
+function comparableLines(content: string): string[] {
+  const lines = normalizeForCompare(content).split('\n')
+  if (lines.at(-1) === '') lines.pop()
+  return lines
+}
+
+type ComparableLine = { line: number; content: string }
+
+const MAX_LCS_CELLS = 4_000_000
+
+function pairDifferenceHunk(
+  expected: ComparableLine[],
+  actual: ComparableLine[],
+): RuleDriftDifference[] {
+  const differences: RuleDriftDifference[] = []
+  const count = Math.max(expected.length, actual.length)
+  for (let index = 0; index < count; index += 1) {
+    const expectedLine = expected[index]
+    const actualLine = actual[index]
+    if (expectedLine?.content === actualLine?.content) continue
+    differences.push({
+      line: expectedLine?.line ?? actualLine?.line ?? 1,
+      expected: expectedLine?.content ?? null,
+      actual: actualLine?.content ?? null,
+    })
+  }
+  return differences
+}
+
+function lcsDifferences(
+  expectedLines: ComparableLine[],
+  actualLines: ComparableLine[],
+): RuleDriftDifference[] {
+  const lcs = Array.from(
+    { length: expectedLines.length + 1 },
+    () => new Uint32Array(actualLines.length + 1),
+  )
+  for (let expectedIndex = expectedLines.length - 1; expectedIndex >= 0; expectedIndex -= 1) {
+    for (let actualIndex = actualLines.length - 1; actualIndex >= 0; actualIndex -= 1) {
+      lcs[expectedIndex][actualIndex] = expectedLines[expectedIndex].content === actualLines[actualIndex].content
+        ? lcs[expectedIndex + 1][actualIndex + 1] + 1
+        : Math.max(lcs[expectedIndex + 1][actualIndex], lcs[expectedIndex][actualIndex + 1])
+    }
+  }
+
+  const differences: RuleDriftDifference[] = []
+  let expectedIndex = 0
+  let actualIndex = 0
+  let expectedHunk: ComparableLine[] = []
+  let actualHunk: ComparableLine[] = []
+  const flushHunk = () => {
+    differences.push(...pairDifferenceHunk(expectedHunk, actualHunk))
+    expectedHunk = []
+    actualHunk = []
+  }
+
+  while (expectedIndex < expectedLines.length && actualIndex < actualLines.length) {
+    if (expectedLines[expectedIndex].content === actualLines[actualIndex].content) {
+      flushHunk()
+      expectedIndex += 1
+      actualIndex += 1
+    } else if (lcs[expectedIndex + 1][actualIndex] >= lcs[expectedIndex][actualIndex + 1]) {
+      expectedHunk.push(expectedLines[expectedIndex])
+      expectedIndex += 1
+    } else {
+      actualHunk.push(actualLines[actualIndex])
+      actualIndex += 1
+    }
+  }
+  while (expectedIndex < expectedLines.length) {
+    expectedHunk.push(expectedLines[expectedIndex])
+    expectedIndex += 1
+  }
+  while (actualIndex < actualLines.length) {
+    actualHunk.push(actualLines[actualIndex])
+    actualIndex += 1
+  }
+  flushHunk()
+  return differences
+}
+
+function findRuleDriftDifferences(
+  expected: string,
+  actual: string,
+  fullDiff: boolean,
+): { differences: RuleDriftDifference[]; fullDiffLimited: boolean } {
+  const expectedLines = comparableLines(expected)
+  const actualLines = comparableLines(actual)
+  const firstDifference = (): RuleDriftDifference[] => {
+    const lineCount = Math.max(expectedLines.length, actualLines.length)
+    for (let index = 0; index < lineCount; index += 1) {
+      const expectedLine = expectedLines[index] ?? null
+      const actualLine = actualLines[index] ?? null
+      if (expectedLine !== actualLine) {
+        return [{ line: index + 1, expected: expectedLine, actual: actualLine }]
+      }
+    }
+    return []
+  }
+  if (!fullDiff) return { differences: firstDifference(), fullDiffLimited: false }
+
+  const expectedComparable = expectedLines.map((content, index) => ({ line: index + 1, content }))
+  const actualComparable = actualLines.map((content, index) => ({ line: index + 1, content }))
+  const cells = (expectedLines.length + 1) * (actualLines.length + 1)
+  if (cells > MAX_LCS_CELLS) {
+    return { differences: firstDifference(), fullDiffLimited: true }
+  }
+  return {
+    differences: lcsDifferences(expectedComparable, actualComparable),
+    fullDiffLimited: false,
+  }
+}
+
+export interface RuleDriftOptions {
+  /** true면 모든 줄 차이를 정렬한다. 기본은 첫 상이 지점만 계산한다. */
+  fullDiff?: boolean
 }
 
 /**
@@ -28,7 +156,10 @@ export interface RuleDriftResult {
  * 다르면(수동수정·RULES변경·vhk업그레이드 무엇이든) 'drifted' = "다시 sync 필요".
  * RULES.md 없으면 점검 불가(checked=false). 기대값을 박지 않고 매번 재생성 = 하드코딩 아님.
  */
-export function checkRuleDrift(rootDir: string): { checked: boolean; results: RuleDriftResult[] } {
+export function checkRuleDrift(
+  rootDir: string,
+  options: RuleDriftOptions = {},
+): { checked: boolean; results: RuleDriftResult[] } {
   const rulesPath = path.join(rootDir, 'RULES.md')
   if (!fs.existsSync(rulesPath)) return { checked: false, results: [] }
 
@@ -43,9 +174,21 @@ export function checkRuleDrift(rootDir: string): { checked: boolean; results: Ru
       results.push({ path: target.path, status: 'missing' })
       continue
     }
-    const expected = normalizeForCompare(target.generate(sections, projectName))
+    // buildSyncPlan 과 같은 생성 함수·같은 rootDir 인자를 쓴다. AGENTS.md 의 compact/ecosystem
+    // 조건이 호출부마다 달라지면 sync 직후에도 doctor 가 영구 drift 로 오판한다(#519).
+    const expected = normalizeForCompare(target.generate(sections, projectName, rootDir))
     const actual = normalizeForCompare(fs.readFileSync(fullPath, 'utf-8'))
-    results.push({ path: target.path, status: expected === actual ? 'ok' : 'drifted' })
+    if (expected === actual) {
+      results.push({ path: target.path, status: 'ok' })
+    } else {
+      const comparison = findRuleDriftDifferences(expected, actual, options.fullDiff === true)
+      results.push({
+        path: target.path,
+        status: 'drifted',
+        differences: comparison.differences,
+        ...(comparison.fullDiffLimited ? { fullDiffLimited: true } : {}),
+      })
+    }
   }
   return { checked: true, results }
 }

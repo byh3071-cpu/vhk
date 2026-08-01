@@ -512,7 +512,7 @@ export interface SyncTarget {
   /** cwd 기준 상대 경로 (posix) */
   path: string
   /** RULES.md 섹션 → 파일 내용 (순수 함수) */
-  generate: (sections: RulesSection[], projectName: string) => string
+  generate: (sections: RulesSection[], projectName: string, rootDir?: string) => string
   /** 완료 메시지 (ko.sync.*) */
   doneMessage: string
 }
@@ -527,8 +527,19 @@ export const SYNC_TARGETS: SyncTarget[] = [
   { path: '.windsurfrules', generate: toWindsurfrules, doneMessage: ko.sync.windsurfDone },
   { path: '.github/copilot-instructions.md', generate: toCopilotInstructions, doneMessage: ko.sync.copilotDone },
   { path: '.agents/rules/vhk-rules.md', generate: toAntigravityRules, doneMessage: ko.sync.antigravityDone },
-  // AGENTS.md — 6번째 타겟. 항목 1개 추가로 sync·드리프트·백업 가드가 자동 반영된다.
-  { path: 'AGENTS.md', generate: toAgentsMd, doneMessage: ko.sync.agentsDone },
+  // AGENTS.md 는 compact/ecosystem 파일 존재에 따라 달라진다. 이 레지스트리 안에서 rootDir 을
+  // 해석해야 sync·doctor 등 모든 호출부가 같은 생성 함수를 써서 기대값이 갈라지지 않는다(#519).
+  {
+    path: 'AGENTS.md',
+    generate: (sections, projectName, rootDir) =>
+      toAgentsMd(
+        sections,
+        projectName,
+        rootDir === undefined ? undefined : resolveAgentCompactRel(rootDir),
+        rootDir,
+      ),
+    doneMessage: ko.sync.agentsDone,
+  },
   // Goal 16 — Gemini CLI / Cline (공식 경로 검증). 레지스트리 추가만으로 drift·백업 자동 반영.
   { path: 'GEMINI.md', generate: toGeminiMd, doneMessage: ko.sync.geminiDone },
   { path: '.clinerules/vhk-rules.md', generate: toClineRules, doneMessage: ko.sync.clineDone },
@@ -683,10 +694,7 @@ export function buildSyncPlan(
   for (const target of SYNC_TARGETS) {
     const fullPath = path.join(rootDir, target.path)
     const exists = fs.existsSync(fullPath)
-    const newContent =
-      target.path === 'AGENTS.md'
-        ? toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir), rootDir)
-        : target.generate(sections, projectName)
+    const newContent = target.generate(sections, projectName, rootDir)
     // drift = 정규화 후 비교. 공백/EOL(CRLF)-only 차이는 의도적으로 drift 아님(거짓경보·백업 churn 방지)
     // → 그 차이는 백업 없이 덮어써질 수 있으나 규칙 본문은 절대 손실 안 됨(범위 한정).
     const drift = exists

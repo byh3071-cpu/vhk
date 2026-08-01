@@ -10,7 +10,7 @@ import {
   checkContextDrift,
   CONTEXT_GIT_MARKER,
 } from '../src/lib/drift.js'
-import { parseRulesMd, deriveProjectName, SYNC_TARGETS } from '../src/commands/sync.js'
+import { buildSyncPlan, parseRulesMd, deriveProjectName, SYNC_TARGETS } from '../src/commands/sync.js'
 
 const SAMPLE_RULES = `# 드리프트데모 — Rules
 
@@ -22,17 +22,38 @@ const SAMPLE_RULES = `# 드리프트데모 — Rules
 - 세션 로그
 `
 
-function makeProject(): string {
+type ProjectFixture = {
+  compact: boolean
+  ecosystem: boolean
+}
+
+function writeRulesAndSync(dir: string, rules: string): void {
+  fs.writeFileSync(path.join(dir, 'RULES.md'), rules, 'utf-8')
+  const sections = parseRulesMd(rules)
+  const name = deriveProjectName(rules)
+  for (const item of buildSyncPlan(dir, sections, name)) {
+    const full = path.join(dir, item.path)
+    fs.mkdirSync(path.dirname(full), { recursive: true })
+    fs.writeFileSync(full, item.newContent, 'utf-8')
+  }
+}
+
+function makeProject(fixture: ProjectFixture = { compact: false, ecosystem: false }): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-drift-'))
   fs.writeFileSync(path.join(dir, 'RULES.md'), SAMPLE_RULES, 'utf-8')
-  // sync 와 동일하게 SYNC_TARGETS 로 생성 (드리프트 없는 초기 상태)
-  const sections = parseRulesMd(SAMPLE_RULES)
-  const name = deriveProjectName(SAMPLE_RULES)
-  for (const t of SYNC_TARGETS) {
-    const full = path.join(dir, t.path)
-    fs.mkdirSync(path.dirname(full), { recursive: true })
-    fs.writeFileSync(full, t.generate(sections, name), 'utf-8')
+  if (fixture.compact) {
+    const compactPath = path.join(dir, 'docs/context/agent-compact.md')
+    fs.mkdirSync(path.dirname(compactPath), { recursive: true })
+    fs.writeFileSync(compactPath, '# compact\n', 'utf-8')
   }
+  if (fixture.ecosystem) {
+    const ecosystemPath = path.join(dir, '.cursor/rules/ecosystem.mdc')
+    fs.mkdirSync(path.dirname(ecosystemPath), { recursive: true })
+    fs.writeFileSync(ecosystemPath, '# ecosystem\n', 'utf-8')
+  }
+
+  // 실제 sync 와 같은 buildSyncPlan 결과를 기록해 "sync 직후" 상태를 만든다.
+  writeRulesAndSync(dir, SAMPLE_RULES)
   return dir
 }
 
@@ -42,6 +63,9 @@ describe('normalizeForCompare', () => {
   })
   it('끝 공백/빈줄 차이 무시', () => {
     expect(normalizeForCompare('a\nb   \n\n\n')).toBe(normalizeForCompare('a\nb\n'))
+  })
+  it('파일 끝 개행 유무 차이 무시', () => {
+    expect(normalizeForCompare('a')).toBe(normalizeForCompare('a\n'))
   })
   it('내용 차이는 유지', () => {
     expect(normalizeForCompare('a\nb')).not.toBe(normalizeForCompare('a\nc'))
@@ -60,6 +84,21 @@ describe('checkRuleDrift', () => {
     expect(r.results.length).toBe(SYNC_TARGETS.length)
   })
 
+  it.each([
+    ['compact 없음 + ecosystem 있음', { compact: false, ecosystem: true }],
+    ['compact 있음 + ecosystem 없음', { compact: true, ecosystem: false }],
+    ['둘 다 없음', { compact: false, ecosystem: false }],
+    ['둘 다 있음', { compact: true, ecosystem: true }],
+  ] as const)('sync 직후 AGENTS.md drift 없음 — %s', (_name, fixture) => {
+    const fixtureDir = makeProject(fixture)
+    try {
+      const result = checkRuleDrift(fixtureDir).results.find(x => x.path === 'AGENTS.md')
+      expect(result?.status).toBe('ok')
+    } finally {
+      fs.rmSync(fixtureDir, { recursive: true, force: true })
+    }
+  })
+
   it('CRLF 로 체크아웃돼도 ok (정규화)', () => {
     const cursor = path.join(dir, '.cursorrules')
     const crlf = fs.readFileSync(cursor, 'utf-8').replace(/\n/g, '\r\n')
@@ -72,6 +111,105 @@ describe('checkRuleDrift', () => {
     fs.appendFileSync(path.join(dir, '.cursorrules'), '\n## 손으로 추가한 규칙\n- 멋대로\n', 'utf-8')
     const r = checkRuleDrift(dir)
     expect(r.results.find(x => x.path === '.cursorrules')?.status).toBe('drifted')
+  })
+
+  it('drifted 결과에 첫 상이 지점과 전체 줄 차이를 담는다', () => {
+    const cursorPath = path.join(dir, '.cursorrules')
+    const expected = fs.readFileSync(cursorPath, 'utf-8')
+    const expectedLines = expected.split('\n')
+    expectedLines[0] = '# 손상된 헤더'
+    fs.writeFileSync(cursorPath, expectedLines.join('\n'), 'utf-8')
+
+    const result = checkRuleDrift(dir, { fullDiff: true }).results.find(x => x.path === '.cursorrules')
+    expect(result?.status).toBe('drifted')
+    expect(result?.differences?.[0]).toEqual({
+      line: 1,
+      expected: expected.split('\n')[0],
+      actual: '# 손상된 헤더',
+    })
+  })
+
+  it('한 줄 삽입은 후속 줄 전체가 아니라 삽입 1건으로 정렬한다', () => {
+    const cursorPath = path.join(dir, '.cursorrules')
+    const actualLines = fs.readFileSync(cursorPath, 'utf-8').split('\n')
+    actualLines.splice(1, 0, '# 손으로 삽입')
+    fs.writeFileSync(cursorPath, actualLines.join('\n'), 'utf-8')
+
+    const result = checkRuleDrift(dir, { fullDiff: true }).results.find(x => x.path === '.cursorrules')
+    expect(result?.differences).toEqual([
+      { line: 2, expected: null, actual: '# 손으로 삽입' },
+    ])
+  })
+
+  it('대규모 전체 차이도 동일한 후속 줄을 오탐하지 않는다', () => {
+    const rules = [
+      '# 대규모 규칙 — Rules',
+      '',
+      '## 코딩 규칙',
+      ...Array.from({ length: 1_100 }, (_, index) => `- 고유 규칙 ${index + 1}`),
+      '',
+    ].join('\n')
+    writeRulesAndSync(dir, rules)
+
+    const cursorPath = path.join(dir, '.cursorrules')
+    const expectedLines = fs.readFileSync(cursorPath, 'utf-8').split('\n')
+    expect(expectedLines.length).toBeGreaterThan(1_000)
+    const firstLine = 100
+    const secondLine = 1_000
+    const firstExpected = expectedLines[firstLine - 1]
+    const secondExpected = expectedLines[secondLine - 1]
+    expectedLines[firstLine - 1] = '- 첫 번째 손상'
+    expectedLines[secondLine - 1] = '- 두 번째 손상'
+    fs.writeFileSync(cursorPath, expectedLines.join('\n'), 'utf-8')
+
+    const result = checkRuleDrift(dir, { fullDiff: true }).results.find(x => x.path === '.cursorrules')
+    expect(result?.differences).toEqual([
+      { line: firstLine, expected: firstExpected, actual: '- 첫 번째 손상' },
+      { line: secondLine, expected: secondExpected, actual: '- 두 번째 손상' },
+    ])
+  })
+
+  it('반복 줄이 많은 대규모 파일도 삽입·삭제 연쇄 오탐 없이 정렬한다', () => {
+    const rules = [
+      '# 반복 규칙 — Rules',
+      '',
+      '## 코딩 규칙',
+      ...Array.from({ length: 1_200 }, (_, index) => `- 반복 ${index % 2 === 0 ? 'A' : 'B'}`),
+      '',
+    ].join('\n')
+    writeRulesAndSync(dir, rules)
+
+    const cursorPath = path.join(dir, '.cursorrules')
+    const actualLines = fs.readFileSync(cursorPath, 'utf-8').split('\n')
+    actualLines.splice(10, 0, '- INSERT_X')
+    actualLines.splice(1_190, 1)
+    fs.writeFileSync(cursorPath, actualLines.join('\n'), 'utf-8')
+
+    const result = checkRuleDrift(dir, { fullDiff: true }).results.find(x => x.path === '.cursorrules')
+    expect(result?.fullDiffLimited).toBeUndefined()
+    expect(result?.differences).toHaveLength(2)
+    expect(result?.differences).toContainEqual({ line: 11, expected: null, actual: '- INSERT_X' })
+    expect(result?.differences?.some(difference => difference.expected !== null && difference.actual === null)).toBe(true)
+  })
+
+  it('전체 차이 안전 상한을 넘으면 첫 차이만 반환하고 제한을 명시한다', () => {
+    const rules = [
+      '# 초대형 규칙 — Rules',
+      '',
+      '## 코딩 규칙',
+      ...Array.from({ length: 2_100 }, (_, index) => `- 고유 초대형 규칙 ${index + 1}`),
+      '',
+    ].join('\n')
+    writeRulesAndSync(dir, rules)
+
+    const cursorPath = path.join(dir, '.cursorrules')
+    const actualLines = fs.readFileSync(cursorPath, 'utf-8').split('\n')
+    actualLines[9] = '- 손상'
+    fs.writeFileSync(cursorPath, actualLines.join('\n'), 'utf-8')
+
+    const result = checkRuleDrift(dir, { fullDiff: true }).results.find(x => x.path === '.cursorrules')
+    expect(result?.fullDiffLimited).toBe(true)
+    expect(result?.differences).toHaveLength(1)
   })
 
   it('RULES.md 변경 후 sync 안 함 = drifted', () => {

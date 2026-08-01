@@ -319,7 +319,17 @@ export const ko = {
     driftNoRules: '⬚ RULES.md 없음 — 규칙 불일치(drift) 점검 생략',
     driftRuleClean: '✅ 규칙 파일이 RULES.md와 일치',
     driftRuleWarn: (files: string) =>
-      `⚠️ RULES.md와 어긋난 규칙 파일: ${files} — vhk sync 를 다시 실행하세요`,
+      `⚠️ 없거나 RULES.md와 어긋난 규칙 파일: ${files}`,
+    driftExpected: (location: string, content: string) => `기대 (${location}): ${content}`,
+    driftActual: (location: string, content: string) => `실제 (${location}): ${content}`,
+    driftAction: '조치: vhk sync 로 다시 맞추세요 (전체 차이: vhk doctor --diff)',
+    driftMissingLine: '(줄 없음)',
+    driftEmptyLine: '(빈 줄)',
+    driftGeneratedFile: 'RULES.md에서 생성될 규칙 파일',
+    driftMissingFile: '(파일 없음)',
+    driftDiffLimited: (files: string) =>
+      `전체 차이 생략 (크기 제한, 첫 상이 지점만 표시): ${files}`,
+    diffOption: '규칙 파일의 전체 차이 출력 (기본은 첫 상이 지점만)',
     driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
     goalSchemaTitle: 'Goal frontmatter',
     goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,

@@ -2,6 +2,7 @@ import { Command, Help } from 'commander'
 import { fileURLToPath } from 'node:url'
 import fs from 'node:fs'
 import chalk from 'chalk'
+import { ko } from './i18n/ko.js'
 import { prompt } from './lib/prompt.js'
 import { detectNaturalLanguageInput, detectInvalidCommandUsage } from './lib/cli-args.js'
 import { runNaturalLanguageRoute } from './lib/nlp-run.js'
@@ -351,8 +352,9 @@ program
   .option('--strict', '규칙 드리프트 발견 시 실패 처리 (exit 1, CI 게이트용)')
   .option('--audit', '의존성 보안 audit 포함 (기본 생략 — pnpm/yarn/npm audit)')
   .option('--json', '진단 결과를 JSON 으로 출력 (CI/MCP용 — 제목·드리프트 생략)')
+  .option('--차이, --diff', ko.doctor.diffOption)
   .description('개발 환경 점검 — Node/npm/pnpm/git/OS + VHK/MCP/audit 진단')
-  .action(async (opts: { strict?: boolean; audit?: boolean; json?: boolean }) => { await doctor(opts) })
+  .action(async (opts: { strict?: boolean; audit?: boolean; json?: boolean; diff?: boolean }) => { await doctor(opts) })
 
 program
   .command('save')

@@ -7,7 +7,7 @@ import { ko } from '../i18n/ko.js'
 import { projectMaturity } from '../lib/project-maturity.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
-import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
+import { checkRuleDrift, checkContextDrift, type RuleDriftResult } from '../lib/drift.js'
 import os from 'node:os'
 import type { Runner } from '../lib/preflight.js'
 import { runDiagnostics } from '../doctor/runner.js'
@@ -62,6 +62,67 @@ export interface CheckResult {
   hint: string
 }
 
+const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
+
+function displayDriftLine(line: string | null): string {
+  if (line === null) return ko.doctor.driftMissingLine
+  if (line.length === 0) return ko.doctor.driftEmptyLine
+
+  const visible = line.replace(/[\u0000-\u001f\u007f-\u009f]/g, character => {
+    if (character === '\t') return '\\t'
+    if (character === '\n') return '\\n'
+    if (character === '\r') return '\\r'
+    return `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`
+  })
+  return visible.length > MAX_DRIFT_LINE_DISPLAY_LENGTH
+    ? `${visible.slice(0, MAX_DRIFT_LINE_DISPLAY_LENGTH - 1)}…`
+    : visible
+}
+
+export function formatRuleDriftDetails(
+  mismatched: RuleDriftResult[],
+  fullDiff = false,
+): string[] {
+  const limitedFiles = mismatched
+    .filter(result => result.fullDiffLimited)
+    .map(result => result.path)
+  const details: Array<{
+    path: string
+    difference?: NonNullable<RuleDriftResult['differences']>[number]
+    missing: boolean
+  }> = []
+  for (const result of mismatched) {
+    if (result.status === 'missing') {
+      details.push({ path: result.path, missing: true })
+      continue
+    }
+    for (const difference of result.differences ?? []) {
+      details.push({ path: result.path, difference, missing: false })
+    }
+  }
+
+  const selected = fullDiff ? details : details.slice(0, 1)
+  if (selected.length === 0) return []
+
+  const lines: string[] = []
+  for (const detail of selected) {
+    if (detail.missing) {
+      lines.push(ko.doctor.driftExpected(detail.path, ko.doctor.driftGeneratedFile))
+      lines.push(ko.doctor.driftActual(detail.path, ko.doctor.driftMissingFile))
+      continue
+    }
+    if (!detail.difference) continue
+    const location = `${detail.path}:${detail.difference.line}`
+    lines.push(ko.doctor.driftExpected(location, displayDriftLine(detail.difference.expected)))
+    lines.push(ko.doctor.driftActual(location, displayDriftLine(detail.difference.actual)))
+  }
+  if (fullDiff && limitedFiles.length > 0) {
+    lines.push(ko.doctor.driftDiffLimited(limitedFiles.join(', ')))
+  }
+  lines.push(ko.doctor.driftAction)
+  return lines
+}
+
 export function checkCommand(name: string, command: string, hint: string): CheckResult {
   const result = safeExecFile(command, ['--version'])
   if (!result.ok) return { name, command, ok: false, hint }
@@ -89,7 +150,7 @@ function getVhkVersion(): string | undefined {
   return undefined
 }
 
-export async function doctor(opts: DoctorOptions = {}) {
+export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
   // 읽기전용 진단 — HARD_STOP 으로 막지 않는다(가드 docstring: '제외: 읽기전용(status 등)').
   // 오히려 HARD_STOP 켜진 순간이 환경 진단이 가장 필관리자 때.
   const cwd = process.cwd()
@@ -171,17 +232,20 @@ export async function doctor(opts: DoctorOptions = {}) {
   // 드리프트 점검 (passive — doctor 안에서 자동 경고, 읽기 전용)
   console.log('')
   console.log(chalk.bold(`  ${ko.doctor.driftTitle}`))
-  const ruleDrift = checkRuleDrift(cwd)
+  const ruleDrift = checkRuleDrift(cwd, { fullDiff: opts.diff === true })
   // --strict 게이트용 — 규칙 드리프트 발생 여부만 추적(context 드리프트는 제외: 생성물이라 비차단).
   let ruleDrifted = false
   if (!ruleDrift.checked) {
     console.log(chalk.dim(`    ${ko.doctor.driftNoRules}`))
   } else {
-    const drifted = ruleDrift.results.filter(r => r.status === 'drifted')
-    if (drifted.length === 0) {
+    const mismatched = ruleDrift.results.filter(r => r.status !== 'ok')
+    if (mismatched.length === 0) {
       console.log(chalk.green(`    ${ko.doctor.driftRuleClean}`))
     } else {
-      console.log(chalk.yellow(`    ${ko.doctor.driftRuleWarn(drifted.map(d => d.path).join(', '))}`))
+      console.log(chalk.yellow(`    ${ko.doctor.driftRuleWarn(mismatched.map(d => d.path).join(', '))}`))
+      for (const line of formatRuleDriftDetails(mismatched, opts.diff === true)) {
+        console.log(chalk.dim(`      ${line}`))
+      }
       ruleDrifted = true
     }
   }
