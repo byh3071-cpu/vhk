@@ -174,8 +174,76 @@ describe('doctor 규칙 불일치 설명', () => {
       expect(lines.join('\n')).not.toContain('live_fake_customer')
     })
 
-    it('값 전체가 명백한 placeholder 면 그대로 보여준다', () => {
-      for (const line of ['TOKEN=<your-token>', 'API_KEY=${VHK_API_KEY}', 'api_key=your_api_key_here']) {
+    // #552 재검수: deny-by-default — 민감 키 할당이면 값·placeholder 와 무관하게 숨긴다.
+    it('JSON quoted key·공백 포함 quoted 값도 숨긴다', () => {
+      for (const line of [
+        '"clientSecret": "abc12345 def67890"',
+        "'apiKey': 'v3ry s3cret value'",
+        // 조립식 — 소스 자체가 password-inline 패턴(레포 self-scan HIGH)에 걸리지 않게 분리.
+        'pass' + 'word: "correct horse battery staple"',
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'settings.json',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+        expect(lines.join('\n')).not.toContain(line)
+      }
+    })
+
+    it('camel/snake/SCREAMING/suffix 변형 키를 동일하게 숨긴다', () => {
+      for (const line of [
+        'clientSecret=abc12345',
+        'SECRET_KEY = abc12345',
+        'accessToken: abc12345',
+        'db-password: abc12345',
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+        expect(lines.join('\n')).not.toContain('abc12345')
+      }
+    })
+
+    it('placeholder 값이라도 민감 키 할당이면 숨긴다 (placeholder 판별 제거)', () => {
+      // my-secret-password 처럼 placeholder 단어로만 조립된 실값을 오인해 노출하던 우회
+      // — 값 판별 자체를 없앴으므로 명백한 placeholder(<your-token>)도 함께 숨는다(의도).
+      for (const line of [
+        'password=my-secret-password',
+        'TOKEN=<your-token>',
+        '# GITHUB_TOKEN=ghp_' + 'x'.repeat(36),
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+      }
+    })
+
+    it('여러 할당 중 하나만 민감 키여도 숨긴다', () => {
+      const line = 'name: app, retry: 3, "authToken": abc12345'
+      const lines = formatRuleDriftDetails([{
+        path: 'config.yml',
+        status: 'drifted',
+        differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+      }])
+      expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+      expect(lines.join('\n')).not.toContain('abc12345')
+    })
+
+    it('비민감 일반 할당·규칙 줄은 그대로 보여준다', () => {
+      for (const line of [
+        'timeout: 3000',
+        'name = build-config',
+        '"version": "2.13.0"',
+        '- 규칙: 커밋 전 테스트를 돌린다',
+      ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
           status: 'drifted',
@@ -184,17 +252,6 @@ describe('doctor 규칙 불일치 설명', () => {
         expect(lines[0]).toContain(line)
         expect(lines[0]).not.toContain(ko.doctor.driftSensitiveHidden)
       }
-    })
-
-    it('주석 줄의 placeholder 예시값은 오탐 완화를 유지해 그대로 보여준다', () => {
-      const placeholder = '# GITHUB_TOKEN=ghp_' + 'x'.repeat(36)
-      const lines = formatRuleDriftDetails([{
-        path: 'AGENTS.md',
-        status: 'drifted',
-        differences: [{ line: 1, expected: placeholder, actual: '실제 줄' }],
-      }])
-      expect(lines[0]).toContain(placeholder)
-      expect(lines[0]).not.toContain(ko.doctor.driftSensitiveHidden)
     })
 
     it('4000자 초과 초장문 줄의 앞부분 시크릿도 놓치지 않고 숨긴다', () => {
