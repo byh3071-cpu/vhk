@@ -86,31 +86,41 @@ function mentionsSensitiveKey(line: string): boolean {
 const URL_SCHEME_CHAR = /[A-Za-z0-9+.-]/
 const URL_ALPHA = /[A-Za-z]/
 
+/** bounded 후보를 실제 URL 로 확인 — 파싱 불가면 자격증명도 없다. */
+function urlHasUserinfo(candidate: string): boolean {
+  try {
+    const url = new URL(candidate)
+    return url.username !== '' || url.password !== ''
+  } catch {
+    return false
+  }
+}
+
 /**
  * URL userinfo 자격증명 — postgres://app:pw@host 처럼 스킴 무관하게 유출된다.
  * 프로토콜 목록 대신 `스킴://` 후보를 전부 URL parser 로 확인해
  * username/password 가 하나라도 있으면 숨긴다(키 이름과 무관 — 항상 자격증명).
- * 후보 추출은 정규식 `[A-Za-z0-9+.-]*:\/\/` 백트래킹이 구분자 없는 장문
- * 영숫자 줄에서 O(n²) 라(#552 성능 검수 실측) 선형 스캔으로 한다:
- * `://` 없으면 즉시 false, 있으면 공백/따옴표류로 토큰을 갈라 토큰당 1회만 파싱.
+ * 후보 추출은 선형 유지(#552 성능 검수 — 정규식 백트래킹 O(n²) 회피): token 안
+ * 모든 `://` 를 왼쪽부터 순회하되, userinfo(@)는 정의상 authority(`://` 뒤 첫
+ * /?# 전)에만 있으므로 그 bounded 구간만 검사한다 — 쉼표/세미콜론/query 로
+ * 이어붙은 두 번째 URL 도 놓치지 않는다. 스킴 되짚기는 이전 `://` 를(스킴 문자에
+ * / · : 없음), authority 훑기는 다음 `://` 를 넘지 못해 전체 작업량이 선형이다.
  */
 function hasUrlCredentials(line: string): boolean {
   if (!line.includes('://')) return false
   for (const token of line.split(/[\s'"<>]+/)) {
-    const sep = token.indexOf('://')
-    if (sep <= 0 || sep + 3 >= token.length) continue
-    // 스킴 시작점 — 구분자 왼쪽의 스킴 문자 run 을 되짚고, 알파벳 시작 규칙을 맞춘다.
-    let start = sep
-    while (start > 0 && URL_SCHEME_CHAR.test(token[start - 1])) start--
-    while (start < sep && !URL_ALPHA.test(token[start])) start++
-    if (start === sep) continue
-    let url: URL
-    try {
-      url = new URL(token.slice(start))
-    } catch {
-      continue // URL 형태가 아니면 자격증명도 없다
+    for (let sep = token.indexOf('://'); sep !== -1; sep = token.indexOf('://', sep + 3)) {
+      if (sep === 0) continue
+      // 스킴 시작점 — 구분자 왼쪽의 스킴 문자 run 을 되짚고, 알파벳 시작 규칙을 맞춘다.
+      let start = sep
+      while (start > 0 && URL_SCHEME_CHAR.test(token[start - 1])) start--
+      while (start < sep && !URL_ALPHA.test(token[start])) start++
+      if (start === sep) continue
+      let end = sep + 3
+      while (end < token.length && !'/?#'.includes(token[end])) end++
+      if (end === sep + 3 || !token.slice(sep + 3, end).includes('@')) continue
+      if (urlHasUserinfo(token.slice(start, end))) return true
     }
-    if (url.username !== '' || url.password !== '') return true
   }
   return false
 }

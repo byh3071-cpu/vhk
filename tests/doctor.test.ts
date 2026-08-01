@@ -286,10 +286,29 @@ describe('doctor 규칙 불일치 설명', () => {
       expect(lines.join('\n')).not.toContain(cred)
     })
 
+    it('한 token 안 두 번째 URL 의 자격증명도 숨긴다 (쉼표·세미콜론·중첩 query)', () => {
+      // #552 검수: 첫 `://` 만 검사하면 안전한 URL 뒤에 이어붙은 credential URL 을 놓친다.
+      const cred = 'aB3kZ9mQ1rT7wX2pL5nC8vD4' // 가짜
+      for (const line of [
+        `DATABASE_ENDPOINTS=https://safe.example,postgres://app:${cred}@db.internal/app`,
+        `ENDPOINTS=https://safe.example;amqp://svc:${cred}@queue.internal`,
+        `https://safe.example/redirect?next=postgres://app:${cred}@db.internal`,
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+        expect(lines.join('\n')).not.toContain(cred)
+      }
+    })
+
     it('userinfo 없는 일반 URL 은 그대로 보여준다', () => {
       for (const line of [
         'https://example.com/docs/setup',
         '참고: https://github.com/byh3071-cpu/sample-repo/issues/1',
+        'MIRRORS=https://a.example,https://b.example/docs', // 일반 다중 URL
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
@@ -359,6 +378,9 @@ describe('doctor 규칙 불일치 설명', () => {
       const lines = [
         'a1'.repeat(50_000), // 10만자, URL 구분자 없음
         'a1'.repeat(25_000) + '://', // 5만자 + 미완성 구분자(구 구현의 최악 백트래킹 경로)
+        'a1'.repeat(500_000), // 100만자, URL 구분자 없음
+        'x://@'.repeat(20_000), // 10만자, `://` 2만 개 — sep 마다 bounded authority 만 봐야 선형
+        'REGISTRY=https://safe.example/pkg,'.repeat(30_000), // 100만자, 일반 URL 3만 개
       ]
       const started = performance.now()
       for (const line of lines) {
