@@ -53,6 +53,9 @@ describe('work — 프롬프트 빌더', () => {
     // SoT 최적화 1층: 작업 전 Source of Truth 체크 블록이 프롬프트에 포함되어야 함.
     expect(p).toContain('Source of Truth')
     expect(p).toContain('RULES.md 한 곳')
+    expect(p).toContain('RULES.md와 프로젝트 문서')
+    expect(p).toContain('프로젝트 규칙이 지정한 추적 문서')
+    expect(p).toContain('파생 스냅샷')
   })
 
   it('buildStartPrompt — git 비면 "(변경 없음)"', async () => {
@@ -66,6 +69,8 @@ describe('work — 프롬프트 빌더', () => {
     expect(p).toContain('완료된 일 / 미완료된 일')
     expect(p).toContain('미실행')
     expect(p).toContain('docs/state/next-task.md')
+    expect(p).toContain('이미 있으면')
+    expect(p).toContain('프로젝트 규칙이 지정한 추적 원본')
     expect(p).toContain('커밋 가능한 상태')
     expect(p).toContain('vhk goal done 실행 금지')
     expect(p).toContain('git commit')

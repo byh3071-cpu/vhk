@@ -108,8 +108,8 @@ function extractTechStack(): Record<string, string> {
 }
 
 function getVhkCommands(): string[] {
-  // SoT(2층): 명령 목록은 command-registry.ts(TOP_LEVEL_COMMANDS) 단일 소스에서만 가져온다.
-  // 과거엔 여기 명령을 하드코딩해 work/goal 등이 누락·드리프트됐다(영상의 "같은 진실을 또 정의" 안티패턴).
+  // 명령 목록은 command-registry.ts(TOP_LEVEL_COMMANDS) 한 곳에서만 가져온다.
+  // 과거엔 여기 명령을 하드코딩해 work/goal 등이 누락되거나 서로 달라졌다.
   // 출력 형태(`- \`vhk gate — ...\``)는 그대로 유지.
   return TOP_LEVEL_COMMANDS.map((c) => `${c.name} — ${c.desc}`)
 }
@@ -127,6 +127,10 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   const stack = extractTechStack()
   const tree = buildTree('.', '', compact ? 2 : 3).join('\n')
   const commands = getVhkCommands()
+  const trackedWorkSources = [
+    { label: '작업 정의·순서(원본)', path: 'docs/roadmap/2.x-roadmap.md' },
+    { label: '수용 기준(원본)', path: 'docs/PRD-2.x.md' },
+  ].filter((source) => existsSync(source.path))
 
   const lines: string[] = []
   lines.push('# 프로젝트 컨텍스트')
@@ -135,14 +139,21 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   lines.push('> AI 어시스턴트에게 프로젝트 맥락을 제공합니다.')
   lines.push('')
 
-  // SoT(2층) 원본 지도: "무엇을 고칠 때 어디를 고쳐야 하는가"를 AI·사람 모두에게 명시.
-  // 규칙은 RULES.md 한 곳만 원본, 나머지는 vhk sync 파생본 — 중복 수정·드리프트 방지.
+  // 원본 지도: 정의·로컬 실행 상태·파생 스냅샷을 구분해 같은 사실을 여러 곳에서
+  // 수정하지 않게 한다. 분류 기준은 ADR-010과 RULES.md다.
   lines.push('## 원본 지도 (Source of Truth)')
   lines.push('')
-  lines.push('> 무엇을 고칠 땀 "원본" 한 곳만 고치세요. 나머지는 파생본이라 자동 생성됩니다.')
+  lines.push('> 같은 사실은 원본 한 곳에서만 고치세요. 스냅샷은 원본을 읽어 다시 만듭니다.')
   lines.push('')
   lines.push('- **규칙(원본)**: `RULES.md` — 규칙은 여기 한 곳에서만 수정')
-  lines.push('- **작업 상태**: `docs/state/next-task.md`, `docs/state/blockers.md`')
+  if (trackedWorkSources.length === 0) {
+    lines.push('- **작업 정의·수용 기준**: `RULES.md`나 프로젝트 문서가 지정한 추적 원본 — 경로를 추측하지 않음')
+  } else {
+    for (const source of trackedWorkSources) lines.push(`- **${source.label}**: \`${source.path}\``)
+  }
+  lines.push('- **로컬 Goal 실행 상태**: `goals/*.md` frontmatter — 원본에서 만든 비추적 실행 카드')
+  lines.push('- **파생 스냅샷**: `.vhk/context.md`, `docs/state/next-task.md` — 원본 아님')
+  lines.push('- **로컬 차단 기록**: `docs/state/blockers.md` — append-only, 작업 정의 원본 아님')
   lines.push('- **버전·릴리스**: `package.json`, `CHANGELOG.md`')
   lines.push('- **명령 목록**: `COMMANDS.md` (+ `vhk help`)')
   lines.push('- **파생본(직접 수정 금지)**: `.cursorrules`·`.windsurfrules`·`.github/copilot-instructions.md`·`AGENTS.md`·`GEMINI.md` 등 7종 + `CLAUDE.md` 규칙 영역 → `vhk sync` 로 생성')
@@ -268,7 +279,9 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     lines.push('- 운영 안내·기록: `CLAUDE.md`')
     lines.push('- 명령 상세: `COMMANDS.md`')
     lines.push('- 구조 상세: `docs/ARCHITECTURE.md`')
-    lines.push('- 현재 상태: `docs/state/next-task.md`')
+    lines.push('- 작업 정의·수용 기준: `RULES.md`가 지정한 추적 원본')
+    for (const source of trackedWorkSources) lines.push(`  - ${source.label}: \`${source.path}\``)
+    lines.push('- 로컬 상태 스냅샷: `docs/state/next-task.md` (있을 때만 참고)')
     lines.push('')
   }
 

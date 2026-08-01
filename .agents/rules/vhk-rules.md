@@ -11,8 +11,9 @@
 
 - **현 사이클 원본:** [docs/roadmap/2.x-roadmap.md](docs/roadmap/2.x-roadmap.md) — 작업 단위·순서·릴리스 종료 조건 전량. 작업 시작 전 여기부터 읽는다.
 - **수용 기준:** [docs/PRD-2.x.md](docs/PRD-2.x.md)
-- 실행 단위인 `goals/*.md` 카드와 `scripts/check-goal-<번호>.mjs` 는 위 원본에서 파생된 **비추적** 산출물이다. 소실되면 원본에서 재생성하고 `vhk goal sync` 로 검사 스크립트를 백필한다.
-- 로컬 작업 상태는 추적되지 않는 `.vhk/context.md` 가 SoT다. 원본 문서와 혼동하지 않는다.
+- 실행 단위인 `goals/*.md` 카드와 `scripts/check-goal-<번호>.mjs` 는 위 원본에서 파생된 **비추적** 산출물이다. Goal 카드가 있으면 그 frontmatter가 로컬 실행 상태를 보존한다. 소실되면 정의·완료 조건은 원본에서 재생성하고 `vhk goal sync` 로 검사 스크립트를 백필한다. 단, 과거 로컬 진행 상태는 복구된 것으로 추측하지 않고 unknown으로 돌아간다.
+- `.vhk/context.md` 와 `docs/state/next-task.md` 는 현재 상태를 보기 쉽게 모은 **파생 스냅샷**이다. 작업 정의나 완료 조건의 원본으로 사용하지 않는다.
+- `docs/state/blockers.md` 는 로컬 차단 기록이다. append-only로 다루되 제품 작업 정의의 원본으로 승격하지 않는다.
 
 ## 기술 스택
 > 변경 시 ADR(docs/adr/) 필수.

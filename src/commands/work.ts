@@ -18,7 +18,8 @@ const VHK_DIR = '.vhk'
 
 // vhk work / vhk work handoff — AI 작업 세션 시작/인수인계.
 // 핵심 원칙: CLI 는 "상태 수집 + Claude 에게 줄 프롬프트 준비" 만 한다.
-// 실제 판단·개발·커밋은 Claude 가 한다. 커밋/stash/reset/goal done/파일 삭제는 절대 안 한다.
+// 실제 판단·개발·커밋은 연결된 에이전트가 한다. 이 명령은 상태를 수집하고 프롬프트만 만든다.
+// 커밋/stash/reset/goal done/파일 삭제는 실행하지 않는다.
 
 // git status --short — safeExecFile 래퍼라 비-git/실패 시 throw 없이 '' 반환(읽기 전용).
 function gitShort(): string {
@@ -76,13 +77,14 @@ export function buildStartPrompt(git: string, goalLine: string): string {
     '[규칙 우선순위]',
     '1. CLAUDE.md 를 1순위 규칙으로 읽고 그대로 따르세요. (충돌 시 CLAUDE.md 우선)',
     '2. AGENTS.md 는 Codex/보조 에이전트용 참고 규칙입니다. 당신은 참고만 하세요.',
-    '3. docs/state/next-task.md · docs/state/blockers.md · .vhk/context.md 를 읽고 그 기준으로 이어서 작업하세요. (블로커가 있으면 가장 먼저 언급)',
+    '3. RULES.md와 프로젝트 문서가 지정한 추적 원본에서 작업 정의·수용 기준을 확인하세요. goals/*.md가 있으면 로컬 실행 상태로 참고하고, 블로커가 있으면 가장 먼저 언급하세요.',
     '',
     '[작업 전 Source of Truth 체크]',
     '1. 새 타입·규칙·상수·명령어·프롬프트를 만들기 전에 기존 정의가 있는지 먼저 찾아보고, 있으면 재사용(import)하세요.',
     '2. 규칙은 RULES.md 한 곳에서만 고치세요. CLAUDE.md·AGENTS.md·.cursorrules 등은 vhk sync 로 만드는 파생본이라 직접 수정 금지.',
-    '3. 원본 구분 — 규칙=RULES.md / 작업 상태=docs/state/next-task.md / 버전·릴리스=package.json·CHANGELOG.md.',
-    '4. DTO·계층 분리처럼 일부러 타입을 나눌 땐 이유를 한 줄 설명하세요. (의미가 같은 걸 새로 또 정의하는 것만 금지)',
+    '3. 원본 구분 — 규칙=RULES.md / 작업 정의·수용 기준=프로젝트 규칙이 지정한 추적 문서 / 버전·릴리스=package.json·CHANGELOG.md.',
+    '4. .vhk/context.md와 docs/state/next-task.md는 파생 스냅샷입니다. 원본처럼 수정하지 마세요.',
+    '5. DTO·계층 분리처럼 일부러 타입을 나눌 땐 이유를 한 줄 설명하세요. (의미가 같은 걸 새로 또 정의하는 것만 금지)',
     '',
     '[지금 상태 — 자동 수집됨]',
     '- 변경된 파일 (git status --short):',
@@ -120,9 +122,10 @@ export function buildHandoffPrompt(
     '[해주세요 — 정리만, 새 개발 시작 금지]',
     '1. 현재 변경사항을 확인하고, 완료된 일 / 미완료된 일로 나눠 한국어로 정리해 주세요.',
     "2. 테스트를 실행했는지/안 했는지, 결과가 어땠는지 docs/log/YYYY-MM-DD-<작업명>.md 에 기록해 주세요. (안 돌렸으면 '미실행'. dev log 는 append-only — 추가만, 과거 항목 수정·삭제 금지)",
-    '3. docs/state/next-task.md 를 지금 상태에 맞게 업데이트해 주세요. (다음 사람이 이어받을 지점 명확히)',
-    '4. 지금 커밋 가능한 상태인지 판단해 주세요. (이유 설명)',
-    '5. 완료(done) 처리하면 안 되는 상태라면 정리 맨 위에 굵게 표시해 주세요.',
+    '3. 작업 정의·수용 기준이 바뀌었다면 프로젝트 규칙이 지정한 추적 원본의 변경 필요 여부를 먼저 명시해 주세요.',
+    '4. docs/state/next-task.md가 이미 있으면 다음 사람이 이어받을 파생 스냅샷으로만 갱신하세요. 없으면 새 원본처럼 만들지 마세요.',
+    '5. 지금 커밋 가능한 상태인지 판단해 주세요. (이유 설명)',
+    '6. 완료(done) 처리하면 안 되는 상태라면 정리 맨 위에 굵게 표시해 주세요.',
     '',
     '[금지] 직접 git commit / git stash / git reset / vhk goal done 실행 금지. 파일 되돌리기·삭제 금지.',
     '모든 응답은 한국어로.',

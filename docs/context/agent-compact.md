@@ -20,10 +20,12 @@
 - 사용자 변경 **revert 금지**. `git status --short` 먼저 확인, 기존 수정 보존, 최소 범위 패치.
 - 추측으로 코드 바꾸지 않는다. 원인 모르면 멈추고 보고.
 
-## SoT (Single Source of Truth)
-- 현재 상태: `docs/state/next-task.md` / `blockers.md` / `learnings.md`.
-- `docs/state/blockers.md`·`learnings.md` 는 **append-only** (과거 항목 삭제·수정 금지).
-- 규칙 SoT: `RULES.md` (→ `vhk sync` 로 각 도구에 전파).
+## 원본 지도 (Source of Truth)
+- 규칙 원본: `RULES.md` (→ `vhk sync` 로 각 도구에 전파).
+- 작업 정의·순서 원본: `docs/roadmap/2.x-roadmap.md`. 수용 기준 원본: `docs/PRD-2.x.md`.
+- `goals/*.md`가 있으면 frontmatter를 로컬 실행 상태로만 읽는다.
+- `.vhk/context.md`·`docs/state/next-task.md`는 파생 스냅샷이다. `docs/state/blockers.md`는 append-only 로컬 차단 기록이다.
+- 구 `docs/state/learnings.md`는 동결됐다. 새 교훈은 `vhk memory`의 failures.lesson에 기록한다.
 
 ## 게이트
 - 기본: `pnpm.cmd exec tsc --noEmit` / `pnpm.cmd run test:run` / `pnpm.cmd run build`.

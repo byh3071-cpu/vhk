@@ -36,7 +36,7 @@
 | `docs/devlog/` | 세션 작업 내역 | Notion Dev Log 또는 로컬 파일 |
 | `docs/log/` | 구 세션 dev log | 위와 같음 |
 | `goals/` | 작업 단위 카드 (실행 단위) | 원본 = [roadmap/](roadmap/) · 재생성 후 `vhk goal sync` |
-| `.vhk/context.md` | 로컬 작업 상태 SoT | — |
+| `.vhk/context.md` | `vhk context`가 만든 로컬 맥락 스냅샷 | 원본이 아니며 다시 생성 가능 |
 
 ## 루트 문서
 
