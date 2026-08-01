@@ -33,7 +33,9 @@ const GATE_STATUS: Record<GateResult['status'], { color: string; label: string }
 }
 
 function renderGateRow(g: GateResult): string {
-  const s = GATE_STATUS[g.status]
+  const s = g.status === 'skip' && g.declaredOptional === true
+    ? { color: '#64748b', label: '미도입' }
+    : GATE_STATUS[g.status]
   const exit = g.exitCode === null ? '—' : String(g.exitCode)
   const detail = g.detail ? escapeHtml(g.detail) : ''
   return `      <tr>
@@ -52,6 +54,12 @@ export function renderReportHtml(report: VerifyReport): string {
   const c = STATUS_COLOR[report.status]
   const s = report.summary
   const rows = report.gates.map(renderGateRow).join('\n')
+  const declaredOptionalCount = report.gates.filter(
+    (gate) => gate.status === 'skip' && gate.declaredOptional === true
+  ).length
+  const declaredOptionalSummary = declaredOptionalCount > 0
+    ? ` · 미도입 ${declaredOptionalCount}종(선언됨)`
+    : ''
   const actions = report.nextActions
     .map((a) => `        <li>${escapeHtml(a)}</li>`)
     .join('\n')
@@ -107,7 +115,7 @@ export function renderReportHtml(report: VerifyReport): string {
       <span class="badge">${c.label}</span>
     </header>
     <p class="summary">
-      게이트 <strong>${s.total}</strong>개 — 통과 ${s.pass} / 실패 ${s.fail} / 건너뜀 ${s.skip} / 불완전 ${s.warn}
+      게이트 <strong>${s.total}</strong>개 — 통과 ${s.pass} / 실패 ${s.fail} / 건너뜀 ${s.skip} / 불완전 ${s.warn}${declaredOptionalSummary}
     </p>
     <table>
       <thead>

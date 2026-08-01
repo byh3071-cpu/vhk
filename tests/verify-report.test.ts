@@ -63,6 +63,17 @@ describe('verify-report — renderReportHtml (게이트 표 + nextActions)', () 
     // 통과 시 nextActions = 저장 안내
     expect(html).toMatch(/<li>[^<]*(저장|vhk save)[^<]*<\/li>/)
   })
+
+  it('선언된 미도입은 일반 건너뜀 집계와 분리해 렌더', () => {
+    const optional = gate('build', 'skip', null, '미도입(선언됨) — 정적 사이트')
+    optional.declaredOptional = true
+    const html = renderReportHtml(report([gate('secure', 'pass'), optional]))
+
+    expect(html).toContain('게이트 <strong>1</strong>개')
+    expect(html).toContain('건너뜀 0')
+    expect(html).toContain('미도입 1종(선언됨)')
+    expect(html).toContain('>미도입</span>')
+  })
 })
 
 describe('verify-report — renderReportHtml (안전성)', () => {

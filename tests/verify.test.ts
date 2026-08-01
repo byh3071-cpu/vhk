@@ -163,7 +163,7 @@ describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
 
     const { report } = verifyEvidence(d)
     expect(report.status).toBe('PASS')
-    expect(report.summary).toEqual({ total: 5, pass: 1, fail: 0, skip: 4, warn: 0 })
+    expect(report.summary).toEqual({ total: 1, pass: 1, fail: 0, skip: 0, warn: 0 })
     expect(report.gates.filter((g) => g.declaredOptional)).toHaveLength(4)
     expect(report.nextActions).toEqual(['검증 통과 — vhk save 로 저장하세요.'])
 

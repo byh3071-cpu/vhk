@@ -316,12 +316,15 @@ export function buildReport(
   date: string,
   commit: CommitInfo | null = null
 ): VerifyReport {
+  // 선언된 미도입은 일반 skip이 아니다. 게이트 원문에는 증거로 남기되 집계에서는 제외하고,
+  // 사람용 출력에서 별도 "미도입 N종"으로만 보여 경고와 의도를 섞지 않는다.
+  const aggregatedGates = gates.filter((gate) => !isDeclaredOptionalSkip(gate))
   const summary = {
-    total: gates.length,
-    pass: gates.filter((g) => g.status === 'pass').length,
-    fail: gates.filter((g) => g.status === 'fail').length,
-    skip: gates.filter((g) => g.status === 'skip').length,
-    warn: gates.filter((g) => g.status === 'warn').length, // Goal 59: warn 게이트도 집계(합=total).
+    total: aggregatedGates.length,
+    pass: aggregatedGates.filter((g) => g.status === 'pass').length,
+    fail: aggregatedGates.filter((g) => g.status === 'fail').length,
+    skip: aggregatedGates.filter((g) => g.status === 'skip').length,
+    warn: aggregatedGates.filter((g) => g.status === 'warn').length, // Goal 59: warn 게이트도 집계(합=total).
   }
   return {
     schemaVersion: REPORT_SCHEMA_VERSION,

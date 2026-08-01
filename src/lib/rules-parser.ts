@@ -89,8 +89,12 @@ function isStructureSection(section: string): boolean {
 
 /** '금지' 인접 백틱 코드 토큰을 추출. URL/경로면 null(오탐 방지). 없으면 null. */
 function extractBanToken(ruleText: string): string | null {
-  const banPattern = /금지|사용하지|쓰지\s*마|하지\s*않는다|never use|do not use/i
-  const requiredPattern = /필수|반드시|\bmust\b|\brequired\b/i
+  // `must never use`/`must not be used`는 must까지 금지 구에 포함해야 한다.
+  // must를 별도 필수 표지로 먼저 떼면 실제 금지가 양성 의도로 뒤집힌다.
+  const banPattern = /\bmust\s+(?:never\s+use|not\s+(?:be\s+)?used?)\b|금지|사용하지|쓰지\s*마|하지\s*않는다|never use|do not use/i
+  // 토큰 뒤의 `반드시`는 "반드시 사용 금지"처럼 금지를 강조할 수도 있다.
+  // 긍정 의도가 분명한 표지만 제외하고, 실제 금지 강조를 조용히 버리지 않는다.
+  const positiveRequiredAfterTokenPattern = /필수|\bmust\b|\brequired\b/i
   const clauses = ruleText.split(/\s*[—·,;]\s*|\s+\/\s+/)
 
   for (const clause of clauses) {
@@ -112,7 +116,7 @@ function extractBanToken(ruleText: string): string | null {
       const beforeToken = clause.slice(0, tokenStart)
       const betweenTokenAndBan = clause.slice(tokenEnd, banStart)
       const requiredImmediatelyBefore = /(?:필수|반드시|\bmust\b|\brequired\b)\s*[:：]?\s*$/i.test(beforeToken)
-      if (requiredImmediatelyBefore || requiredPattern.test(betweenTokenAndBan)) continue
+      if (requiredImmediatelyBefore || positiveRequiredAfterTokenPattern.test(betweenTokenAndBan)) continue
     } else {
       // 금지 '바로 뒤' 인접 백틱 (금지: `X`) — 구분자만 허용(먼 URL 제외)
       const after = clause.slice(banEnd).match(/^\s*[:：]?\s*`([^`]+)`/)

@@ -92,6 +92,24 @@ describe('parseRules (VHK-011/012)', () => {
     fs.rmSync(path.dirname(p), { recursive: true })
   })
 
+  it('#520: 반드시·must로 강조한 실제 금지를 양성 필수 표지로 오인하지 않음', () => {
+    const p = writeRules(
+      [
+        '## 코딩 규칙',
+        '- `execSync` 반드시 사용 금지',
+        '- `eval` 반드시 사용하지 않는다',
+        '- `dangerousCall` must never use',
+        '- `Function` must not be used',
+      ].join('\n')
+    )
+
+    const patterns = parseRules(p)
+      .filter((rule) => rule.type === 'content')
+      .map((rule) => rule.pattern?.source)
+    expect(patterns).toEqual(['execSync', 'eval', 'dangerousCall', 'Function'])
+    fs.rmSync(path.dirname(p), { recursive: true })
+  })
+
   it('camelCase 룰이 위반 파일을 실제로 잡는다 (과거 silent 무시 회귀 가드)', () => {
     const proj = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-naming-'))
     fs.mkdirSync(path.join(proj, 'src'))
