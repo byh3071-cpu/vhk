@@ -83,16 +83,30 @@ function mentionsSensitiveKey(line: string): boolean {
   )
 }
 
+const URL_SCHEME_CHAR = /[A-Za-z0-9+.-]/
+const URL_ALPHA = /[A-Za-z]/
+
 /**
  * URL userinfo 자격증명 — postgres://app:pw@host 처럼 스킴 무관하게 유출된다.
  * 프로토콜 목록 대신 `스킴://` 후보를 전부 URL parser 로 확인해
  * username/password 가 하나라도 있으면 숨긴다(키 이름과 무관 — 항상 자격증명).
+ * 후보 추출은 정규식 `[A-Za-z0-9+.-]*:\/\/` 백트래킹이 구분자 없는 장문
+ * 영숫자 줄에서 O(n²) 라(#552 성능 검수 실측) 선형 스캔으로 한다:
+ * `://` 없으면 즉시 false, 있으면 공백/따옴표류로 토큰을 갈라 토큰당 1회만 파싱.
  */
 function hasUrlCredentials(line: string): boolean {
-  for (const match of line.matchAll(/[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s'"<>]+/g)) {
+  if (!line.includes('://')) return false
+  for (const token of line.split(/[\s'"<>]+/)) {
+    const sep = token.indexOf('://')
+    if (sep <= 0 || sep + 3 >= token.length) continue
+    // 스킴 시작점 — 구분자 왼쪽의 스킴 문자 run 을 되짚고, 알파벳 시작 규칙을 맞춘다.
+    let start = sep
+    while (start > 0 && URL_SCHEME_CHAR.test(token[start - 1])) start--
+    while (start < sep && !URL_ALPHA.test(token[start])) start++
+    if (start === sep) continue
     let url: URL
     try {
-      url = new URL(match[0])
+      url = new URL(token.slice(start))
     } catch {
       continue // URL 형태가 아니면 자격증명도 없다
     }
