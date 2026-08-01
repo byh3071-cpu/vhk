@@ -73,22 +73,28 @@ const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
  * passwordlessLogin·apiKeyboardShortcut 까지 숨기는 과차단(검수 Medium)이라,
  * identifier 를 구분자·camel/약어/숫자 경계로 분해한 '정확한 segment' 로 판정한다:
  *   - 어느 위치든 민감: secret/password/passwd/pwd/credential(+joined apikey·
- *     accesskey·accesstoken) — credentialStore 처럼 수식어 자리여도 내용물이 시크릿.
+ *     accesskey·accesstoken) 및 그 명백한 복수형(secrets·apiKeys·credentials …,
+ *     검수 High — 복수형이 단수 exact 를 비껴 원문 노출) — credentialStore 처럼
+ *     수식어 자리여도 내용물이 시크릿.
  *   - token 은 '같은 identifier 안'에서만 측정 메타로 완화된다. identifier =
  *     영숫자·_·- 의 연속(camel/snake/kebab/SCREAMING 을 한 단위로) — 그 안에서
  *     token 다음 segment 가 count/budget/usage/limit … 이면 안전(tokenCount·
  *     TOKEN_LIMIT), 그 외 접미사(value/file/env)나 identifier 끝이면 민감.
  *     완화를 identifier 밖(할당·공백·인용 너머)으로 새게 하면 TOKEN=limit-… 의
  *     '값 첫 segment' 가 안전 메타를 오인 충족해 원문이 노출된다(검수 High).
- *   - 인접 segment 쌍 api+key/access+key 는 identifier 경계를 넘어 판정
+ *   - 복수형 tokens 는 반대 방향: 같은 identifier 의 직전 segment 가 정확히
+ *     max 일 때(maxTokens/max_tokens/MAX_TOKENS — LLM 설정 관용구)만 허용,
+ *     그 외(TOKENS 단독·accessTokens·authTokens·refreshTokens …)는 전부 민감.
+ *   - 인접 segment 쌍 api+key(s)/access+key(s) 는 identifier 경계를 넘어 판정
  *     ("API key"·api_key·apiKey) — 최소 상태(직전 segment)만 유지.
  * 이 경계는 모든 시크릿 형식을 보장하지 않는다 — 민감 키 언급 + 알려진 값
  * 패턴(scan-secrets) + URL userinfo 세 판정이 잡는 범위까지다.
  */
 const SENSITIVE_ANYWHERE = new Set([
   'secret', 'password', 'passwd', 'pwd', 'credential', 'apikey', 'accesskey', 'accesstoken',
+  'secrets', 'passwords', 'passwds', 'pwds', 'credentials', 'apikeys', 'accesskeys', 'accesstokens',
 ])
-const SENSITIVE_PAIRS = new Set(['apikey', 'accesskey'])
+const SENSITIVE_PAIRS = new Set(['apikey', 'accesskey', 'apikeys', 'accesskeys'])
 // token 뒤에 와도 안전한 측정 메타만 명시 — 나머지(모르는 segment 포함)는 deny.
 const SAFE_AFTER_TOKEN = new Set([
   'count', 'counts', 'budget', 'budgets', 'usage', 'usages', 'limit', 'limits',
@@ -113,15 +119,19 @@ function mentionsSensitiveKey(line: string): boolean {
   let previous = ''
   for (const identifier of line.match(/[A-Za-z0-9_-]+/g) ?? []) {
     let pendingToken = false
+    let previousInIdentifier = ''
     for (const segment of identifierSegments(identifier)) {
       if (SENSITIVE_ANYWHERE.has(segment)) return true
       if (previous !== '' && SENSITIVE_PAIRS.has(previous + segment)) return true
+      // 복수형 tokens 는 같은 identifier 에서 max 접두일 때만 허용(maxTokens 관용구).
+      if (segment === 'tokens' && previousInIdentifier !== 'max') return true
       if (pendingToken) {
         if (!SAFE_AFTER_TOKEN.has(segment)) return true
         pendingToken = false
       }
       if (segment === 'token') pendingToken = true
       previous = segment
+      previousInIdentifier = segment
     }
     // identifier 가 token 으로 끝나면(TOKEN=…·$env:NPM_TOKEN·TOKEN 단독) 민감 —
     // 할당/공백/인용 너머의 값은 완화 근거가 될 수 없다.

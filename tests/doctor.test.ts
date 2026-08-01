@@ -387,6 +387,20 @@ describe('doctor 규칙 불일치 설명', () => {
         `authToken=usage-${v}`,
         `"accessToken": "count-${v}"`,
         `Set-Item Env:NPM_TOKEN limit-${v}`,
+        // #552 검수 High: 복수형이 단수 exact 를 비껴 노출 — 복수형 family 도 민감.
+        `TOKENS=${v}`,
+        `accessTokens: ${v}`,
+        `refreshTokens=${v}`,
+        `clientSecrets=${v}`,
+        `apiKeys: ${v}`,
+        `accessKeys=${v}`,
+        `credentials: ${v}`,
+        `passwords=${v}`,
+        `ACCESS_TOKENS=${v}`, // SCREAMING/snake/kebab/quoted/PS 동형
+        `api-keys: ${v}`,
+        `"authTokens": "${v}"`,
+        `Set-Item Env:API_KEYS -Value ${v}`,
+        `$env:TOKENS = '${v}'`,
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
@@ -401,7 +415,6 @@ describe('doctor 규칙 불일치 설명', () => {
     it('비민감 identifier 행렬 — token/secret 을 품은 합성어는 그대로 보여준다', () => {
       for (const line of [
         'tokenizerMode: strict',
-        'maxTokens = 4096',
         'passwordlessLogin: enabled',
         'secretariat = office',
         'apiKeyboardShortcut: ctrl+k',
@@ -411,6 +424,11 @@ describe('doctor 규칙 불일치 설명', () => {
         'tokenBudget: 50000',
         'tokenUsage = 0.7',
         'TOKEN_LIMIT=8192', // SCREAMING 도 camel 과 같은 판정(비대칭 해소)
+        // 복수형 tokens 의 유일한 허용 — max 접두 관용구(LLM 설정) 전 표기.
+        'maxTokens = 4096',
+        'max_tokens: 4096',
+        'MAX_TOKENS=8192',
+        'tokenCounts: [1, 2]', // token(단수)+counts 는 측정 메타로 기존과 동일
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
