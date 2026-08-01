@@ -71,9 +71,10 @@ export function parseStackInput(input?: string): string[] {
 
 /**
  * init 의 스택 결정 (우선순위):
- * ① JS deps 감지 → 비-JS 매니페스트 언어 병합 (Tauri = React + Rust)
- * ② 프리셋 있는 타입 → 프리셋 (떠돌이 매니페스트가 명시적 --type 을 silent 대체하지 않도록)
- * ③ 프리셋 없는 타입(other) → 매니페스트 언어 (Cargo.toml→Rust 등), 없으면 [] → 직접 입력/미정
+ * ① 명시적 --stack → 확정값
+ * ② JS deps 감지 → 비-JS 매니페스트 언어 병합 (Tauri = React + Rust)
+ * ③ 프리셋 있는 타입 → 프리셋 (떠돌이 매니페스트가 명시적 --type 을 silent 대체하지 않도록)
+ * ④ 프리셋 없는 타입(other) → 매니페스트 언어 (Cargo.toml→Rust 등), 없으면 [] → 직접 입력/미정
  */
 export function resolveInitStack(
   cwd: string,

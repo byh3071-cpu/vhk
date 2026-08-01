@@ -52,7 +52,17 @@ describe('실제 CLI start 기술 스택 계약', () => {
     expect(rules).toContain('Vite')
     expect(rules).not.toContain('Next.js')
     expect(fs.readFileSync(path.join(dir, 'docs', 'ARCHITECTURE.md'), 'utf-8')).toContain('기술 스택 상태: 확정')
-    expect(fs.readFileSync(path.join(dir, '.vhk', 'context.md'), 'utf-8')).toContain('기술 스택 상태: 확정')
+    const context = fs.readFileSync(path.join(dir, '.vhk', 'context.md'), 'utf-8')
+    expect(context).toContain('기술 스택 상태: 확정')
+    expect(context).toContain([
+      '### 선언된 기술 스택 (RULES.md)',
+      '',
+      '- Vite',
+      '- React',
+      '- TypeScript',
+      '',
+      '### 실제 감지된 기술 스택 (package.json)',
+    ].join('\n'))
   })
 
   it('--stack 미지정 preset은 후보로 남아 첫 세션 확인 대상이 된다', () => {

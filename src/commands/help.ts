@@ -21,7 +21,7 @@ export function formatRootHelp(
 ): string {
   const commands = helper
     .visibleCommands(cmd)
-    .filter((command) => command.name() !== 'help')
+    .filter((command) => options.all === true || command.name() !== 'help')
     .filter((command) => options.all === true || !DEFAULT_HELP_HIDDEN_SET.has(command.name()))
   const terms = commands.map((command) => {
     const aliases = command.aliases()

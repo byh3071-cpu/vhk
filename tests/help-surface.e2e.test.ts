@@ -34,5 +34,6 @@ describe('실제 CLI 도움말 표면', () => {
     expect(result.status, output).toBe(0)
     expect(output).toContain('전체 명령:')
     for (const command of HIDDEN) expect(hasCommandLine(output, command), command).toBe(true)
+    expect(hasCommandLine(output, 'help')).toBe(true)
   })
 })

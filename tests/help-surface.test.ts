@@ -43,6 +43,7 @@ describe('도움말 명령 표면', () => {
       expect(hasCommandLine(output, command), command).toBe(true)
     }
     expect(output).toContain('전체 명령:')
+    expect(hasCommandLine(output, 'help')).toBe(true)
   })
 
   it('숨긴 8종과 help --all은 commander에 실제 등록된 상태다', () => {

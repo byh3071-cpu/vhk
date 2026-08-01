@@ -19,7 +19,12 @@ import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
 import { TOP_LEVEL_COMMANDS } from '../lib/command-registry.js'
 import { loadCoreRuleset } from '../lib/core-rules.js'
-import { formatStackStatusNote, inferStackStatus, type StackStatus } from '../lib/stack-state.js'
+import {
+  extractRulesStack,
+  formatStackStatusNote,
+  inferStackStatus,
+  type StackStatus,
+} from '../lib/stack-state.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
 
@@ -115,11 +120,12 @@ function getVhkCommands(): string[] {
   return TOP_LEVEL_COMMANDS.map((c) => `${c.name} — ${c.desc}`)
 }
 
-function readProjectStackStatus(): StackStatus {
+function readDeclaredStack(): { status: StackStatus; items: string[] } {
   try {
-    return inferStackStatus(readFileSync('RULES.md', 'utf-8'))
+    const rules = readFileSync('RULES.md', 'utf-8')
+    return { status: inferStackStatus(rules), items: extractRulesStack(rules) }
   } catch {
-    return 'confirmed'
+    return { status: 'confirmed', items: [] }
   }
 }
 
@@ -133,8 +139,8 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   console.log(chalk.bold('\n🧠 ' + t('context.title')))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const stack = extractTechStack()
-  const stackStatus = readProjectStackStatus()
+  const detectedStack = extractTechStack()
+  const declaredStack = readDeclaredStack()
   const tree = buildTree('.', '', compact ? 2 : 3).join('\n')
   const commands = getVhkCommands()
 
@@ -160,10 +166,24 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
 
   lines.push('## 기술 스택')
   lines.push('')
-  lines.push(formatStackStatusNote(stackStatus))
+  lines.push(formatStackStatusNote(declaredStack.status))
   lines.push('')
-  for (const [key, value] of Object.entries(stack)) {
-    lines.push(`- **${key}**: ${value}`)
+  lines.push('### 선언된 기술 스택 (RULES.md)')
+  lines.push('')
+  if (declaredStack.items.length > 0) {
+    for (const item of declaredStack.items) lines.push(`- ${item}`)
+  } else {
+    lines.push('- (표준 기술 스택 목록 없음)')
+  }
+  lines.push('')
+  lines.push('### 실제 감지된 기술 스택 (package.json)')
+  lines.push('')
+  if (Object.keys(detectedStack).length > 0) {
+    for (const [key, value] of Object.entries(detectedStack)) {
+      lines.push(`- **${key}**: ${value}`)
+    }
+  } else {
+    lines.push('- (감지 결과 없음)')
   }
   lines.push('')
 
@@ -308,7 +328,7 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   atomicWriteFile(CONTEXT_PATH, lines.join('\n'))
 
   console.log(chalk.green(`\n✅ ${CONTEXT_PATH} 생성 완료!`))
-  console.log(chalk.gray(`   기술 스택 ${Object.keys(stack).length}개 감지`))
+  console.log(chalk.gray(`   기술 스택 ${Object.keys(detectedStack).length}개 감지`))
   console.log(chalk.gray('   AI 어시스턴트에게 이 파일을 참조하게 하세요.'))
 
   printNextStep({
