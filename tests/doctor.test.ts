@@ -371,6 +371,15 @@ describe('doctor 규칙 불일치 설명', () => {
         `"clientSecret": "${v}"`,
         `API key = ${v}`, // 두 단어 표기
         `apikey=${v}`, // joined canonical
+        // #552 검수 High: token+접미사 — camel 과 snake/kebab/SCREAMING 이 같은 stream 판정.
+        `tokenValue=${v}`,
+        'tokenFile: /run/secrets/npm',
+        `tokenEnv=${v}`,
+        `accessTokenValue: ${v}`,
+        `token_value=${v}`,
+        'token-file: /run/secrets/npm',
+        `TOKEN_ENV=${v}`,
+        `ACCESS_TOKEN_VALUE=${v}`,
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',
@@ -389,7 +398,10 @@ describe('doctor 규칙 불일치 설명', () => {
         'passwordlessLogin: enabled',
         'secretariat = office',
         'apiKeyboardShortcut: ctrl+k',
-        'tokenCount: 1200', // token 이 수식어 자리 — 토큰에 '관한' 값이지 토큰이 아니다
+        'tokenCount: 1200', // token+측정 메타 — 토큰에 '관한' 값이지 토큰이 아니다
+        'tokenBudget: 50000',
+        'tokenUsage = 0.7',
+        'TOKEN_LIMIT=8192', // SCREAMING 도 camel 과 같은 stream 판정(비대칭 해소)
       ]) {
         const lines = formatRuleDriftDetails([{
           path: 'AGENTS.md',

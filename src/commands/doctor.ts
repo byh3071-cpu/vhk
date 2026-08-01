@@ -74,8 +74,12 @@ const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
  * identifier 를 구분자·camel/약어/숫자 경계로 분해한 '정확한 segment' 로 판정한다:
  *   - 어느 위치든 민감: secret/password/passwd/pwd/credential(+joined apikey·
  *     accesskey·accesstoken) — credentialStore 처럼 수식어 자리여도 내용물이 시크릿.
- *   - token 은 마지막 segment 일 때만(TOKEN·NPM_TOKEN·authToken) — tokenCount·
- *     maxTokens·tokenizerMode 는 토큰에 '관한' 값이지 토큰이 아니다.
+ *   - token 은 stream 규칙(검수 High — '마지막 segment' 규칙은 word 경계 탓에
+ *     tokenValue camel 만 노출되고 TOKEN_VALUE snake 는 숨는 비대칭): token 을
+ *     pending 으로 두고 '다음 segment' 가 측정 메타(count/budget/usage/limit …)일
+ *     때만 통과 — tokenCount 는 토큰에 '관한' 값이지 토큰이 아니다. 그 외
+ *     (value/file/env 같은 접미사·모르는 segment·stream 끝)는 전부 민감.
+ *     word 경계와 camel/snake/kebab/SCREAMING/space/quoted 모두 같은 stream 이다.
  *   - 인접 segment 쌍 api+key/access+key ("API key"·api_key·apiKey).
  * 이 경계는 모든 시크릿 형식을 보장하지 않는다 — 민감 키 언급 + 알려진 값
  * 패턴(scan-secrets) + URL userinfo 세 판정이 잡는 범위까지다.
@@ -84,6 +88,11 @@ const SENSITIVE_ANYWHERE = new Set([
   'secret', 'password', 'passwd', 'pwd', 'credential', 'apikey', 'accesskey', 'accesstoken',
 ])
 const SENSITIVE_PAIRS = new Set(['apikey', 'accesskey'])
+// token 뒤에 와도 안전한 측정 메타만 명시 — 나머지(모르는 segment 포함)는 deny.
+const SAFE_AFTER_TOKEN = new Set([
+  'count', 'counts', 'budget', 'budgets', 'usage', 'usages', 'limit', 'limits',
+  'length', 'size', 'type', 'kind', 'status', 'metrics',
+])
 
 /** 영숫자 word 를 camel/약어/숫자 경계로 분해해 소문자 segment 로 (선형). */
 function identifierSegments(word: string): string[] {
@@ -97,18 +106,22 @@ function identifierSegments(word: string): string[] {
 }
 
 function mentionsSensitiveKey(line: string): boolean {
-  // 인접 쌍은 word 경계를 넘어서도 본다("API key") — 직전 segment 하나만 들고 간다.
+  // 단일 stream 순회, O(1) 상태: 인접 쌍(previous)과 token pending 만 들고 간다.
   let previous = ''
+  let pendingToken = false
   for (const word of line.match(/[A-Za-z0-9]+/g) ?? []) {
-    const segments = identifierSegments(word)
-    for (const segment of segments) {
+    for (const segment of identifierSegments(word)) {
       if (SENSITIVE_ANYWHERE.has(segment)) return true
       if (previous !== '' && SENSITIVE_PAIRS.has(previous + segment)) return true
+      if (pendingToken) {
+        if (!SAFE_AFTER_TOKEN.has(segment)) return true
+        pendingToken = false
+      }
+      if (segment === 'token') pendingToken = true
       previous = segment
     }
-    if (segments[segments.length - 1] === 'token') return true
   }
-  return false
+  return pendingToken // stream 이 token 으로 끝나면(TOKEN 단독 등) 민감
 }
 
 const URL_SCHEME_CHAR = /[A-Za-z0-9+.-]/
