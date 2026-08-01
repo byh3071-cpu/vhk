@@ -76,10 +76,45 @@ const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
 const KEY_ASSIGNMENT = /(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9_.-]+))\s*[:=]\s*(?=\S)/g
 const SENSITIVE_KEY = /token|secret|password|passwd|pwd|apikey|accesskey|credential/
 
+function isSensitiveKey(rawKey: string): boolean {
+  return SENSITIVE_KEY.test(rawKey.toLowerCase().replace(/[^a-z0-9]/g, ''))
+}
+
 function hasSensitiveAssignment(line: string): boolean {
   for (const match of line.matchAll(KEY_ASSIGNMENT)) {
-    const key = (match[1] ?? match[2] ?? match[3]).toLowerCase().replace(/[^a-z0-9]/g, '')
-    if (SENSITIVE_KEY.test(key)) return true
+    if (isSensitiveKey(match[1] ?? match[2] ?? match[3])) return true
+  }
+  return false
+}
+
+/**
+ * URL userinfo 자격증명 — postgres://app:pw@host 처럼 스킴 무관하게 유출된다.
+ * 프로토콜 목록 대신 `스킴://` 후보를 전부 URL parser 로 확인해
+ * username/password 가 하나라도 있으면 숨긴다(키 이름과 무관 — 항상 자격증명).
+ */
+function hasUrlCredentials(line: string): boolean {
+  for (const match of line.matchAll(/[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s'"<>]+/g)) {
+    let url: URL
+    try {
+      url = new URL(match[0])
+    } catch {
+      continue // URL 형태가 아니면 자격증명도 없다
+    }
+    if (url.username !== '' || url.password !== '') return true
+  }
+  return false
+}
+
+/**
+ * PowerShell env 쓰기 — `${env:KEY}=값`(brace 가 키와 = 를 갈라 KEY_ASSIGNMENT 미탐)과
+ * `Set-Item -Path Env:KEY -Value 값`. cmdlet 목록 대신 일반 규칙으로:
+ * env:KEY 뒤에 `=값` 이 바로 오거나 같은 줄 뒤쪽에 `-Value 값` 이 있으면 쓰기로 본다.
+ */
+function hasSensitivePowershellEnvWrite(line: string): boolean {
+  for (const match of line.matchAll(/\$?\{?env:([A-Za-z0-9_.-]+)\}?/gi)) {
+    if (!isSensitiveKey(match[1])) continue
+    const rest = line.slice(match.index + match[0].length)
+    if (/^\s*=\s*\S/.test(rest) || /-value\s+\S/i.test(rest)) return true
   }
   return false
 }
@@ -88,12 +123,17 @@ function hasSensitiveAssignment(line: string): boolean {
  * #552: 드리프트 기대/실제 줄에 시크릿·토큰이 섞이면 원문 노출 자체가 유출이다.
  * findSecretsInLine 은 MAX_LINE_CHARS(4000자) 초과 줄을 조용히 건너뛰는데, 표시는
  * 앞 240자를 여전히 보여주므로 검사 대상을 slice 로 한도 안에 맞춰 표시 영역이
- * 반드시 검사되게 한다. 스캐너(패턴 기반) + 민감 키 할당(deny-by-default) 이중 판정.
+ * 반드시 검사되게 한다. 스캐너(패턴) + 민감 키 할당 + URL 자격증명 + PS env 쓰기 판정.
  */
 export function driftLineHasSecret(line: string | null, filePath: string): boolean {
   if (line === null || line.length === 0) return false
   const target = line.slice(0, MAX_LINE_CHARS)
-  return findSecretsInLine(target, filePath, 1).length > 0 || hasSensitiveAssignment(target)
+  return (
+    findSecretsInLine(target, filePath, 1).length > 0 ||
+    hasSensitiveAssignment(target) ||
+    hasUrlCredentials(target) ||
+    hasSensitivePowershellEnvWrite(target)
+  )
 }
 
 function displayDriftLine(line: string | null): string {

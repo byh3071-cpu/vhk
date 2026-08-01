@@ -254,6 +254,71 @@ describe('doctor 규칙 불일치 설명', () => {
       }
     })
 
+    // #552 최종 재현 2종 — URL userinfo 자격증명 · PowerShell env 쓰기.
+    it('URL userinfo 자격증명은 스킴 무관하게 숨긴다', () => {
+      const cred = 'aB3kZ9mQ1rT7wX2pL5nC8vD4' // 가짜
+      for (const line of [
+        `postgres://app:${cred}@db.internal:5432/app`,
+        `amqp://svc:${cred}@queue.internal`,
+        `https://${cred}@git.example.com/repo.git`, // password 없이 username 만 있어도 자격증명
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+        expect(lines.join('\n')).not.toContain(cred)
+      }
+    })
+
+    it('userinfo 없는 일반 URL 은 그대로 보여준다', () => {
+      for (const line of [
+        'https://example.com/docs/setup',
+        '참고: https://github.com/byh3071-cpu/sample-repo/issues/1',
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(line)
+        expect(lines[0]).not.toContain(ko.doctor.driftSensitiveHidden)
+      }
+    })
+
+    it('PowerShell braced env 할당·Set-Item Env: 쓰기의 민감 키는 숨긴다', () => {
+      const value = 'aB3kZ9mQ1rT7wX2pL5nC8vD4' // 가짜
+      for (const line of [
+        `\${env:NPM_TOKEN}=${value}`,
+        `Set-Item -Path Env:CLIENT_SECRET -Value ${value}`,
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+        expect(lines.join('\n')).not.toContain(value)
+      }
+    })
+
+    it('비민감 PowerShell env 쓰기·env 읽기는 그대로 보여준다', () => {
+      for (const line of [
+        'Set-Item -Path Env:BUILD_MODE -Value release',
+        '${env:NODE_OPTIONS}=--max-old-space-size=4096',
+        'echo $env:NPM_TOKEN', // 읽기 — 줄 자체엔 값이 없다
+      ]) {
+        const lines = formatRuleDriftDetails([{
+          path: 'AGENTS.md',
+          status: 'drifted',
+          differences: [{ line: 1, expected: line, actual: '실제 줄' }],
+        }])
+        expect(lines[0]).toContain(line)
+        expect(lines[0]).not.toContain(ko.doctor.driftSensitiveHidden)
+      }
+    })
+
     it('4000자 초과 초장문 줄의 앞부분 시크릿도 놓치지 않고 숨긴다', () => {
       // findSecretsInLine 은 4000자 초과 줄을 조용히 스킵하지만 표시는 앞 240자를 보여준다
       // — slice 가드가 없으면 이 시크릿이 그대로 노출되는 회귀.
