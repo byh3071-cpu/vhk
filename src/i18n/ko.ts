@@ -328,6 +328,7 @@ export const ko = {
     driftAction: '조치: vhk sync 로 다시 맞추세요 (전체 차이: vhk doctor --diff)',
     driftMissingLine: '(줄 없음)',
     driftEmptyLine: '(빈 줄)',
+    driftSensitiveHidden: '[민감정보로 숨김]',
     driftGeneratedFile: 'RULES.md에서 생성될 규칙 파일',
     driftMissingFile: '(파일 없음)',
     driftDiffLimited: (files: string) =>

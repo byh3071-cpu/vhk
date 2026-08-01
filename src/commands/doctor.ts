@@ -8,6 +8,7 @@ import { projectMaturity } from '../lib/project-maturity.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
 import { checkRuleDrift, checkContextDrift, type RuleDriftResult } from '../lib/drift.js'
+import { findSecretsInLine, MAX_LINE_CHARS } from '../lib/scan-secrets.js'
 import os from 'node:os'
 import type { Runner } from '../lib/preflight.js'
 import { runDiagnostics } from '../doctor/runner.js'
@@ -64,6 +65,17 @@ export interface CheckResult {
 
 const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
 
+/**
+ * #552: 드리프트 기대/실제 줄에 시크릿·토큰이 섞이면 원문 노출 자체가 유출이다.
+ * findSecretsInLine 은 MAX_LINE_CHARS(4000자) 초과 줄을 조용히 건너뛰는데, 표시는
+ * 앞 240자를 여전히 보여주므로 검사 대상을 slice 로 한도 안에 맞춰 표시 영역이
+ * 반드시 검사되게 한다. relPath 를 넘겨 주석/env 템플릿의 placeholder 완화(오탐 방지)는 유지.
+ */
+export function driftLineHasSecret(line: string | null, filePath: string): boolean {
+  if (line === null || line.length === 0) return false
+  return findSecretsInLine(line.slice(0, MAX_LINE_CHARS), filePath, 1).length > 0
+}
+
 function displayDriftLine(line: string | null): string {
   if (line === null) return ko.doctor.driftMissingLine
   if (line.length === 0) return ko.doctor.driftEmptyLine
@@ -113,6 +125,21 @@ export function formatRuleDriftDetails(
     }
     if (!detail.difference) continue
     const location = `${detail.path}:${detail.difference.line}`
+    // #552: 한쪽 줄만 패턴에 걸려도 다른쪽이 같은 시크릿의 잘린/회전된 변형일 수 있어
+    // (diff 특성상 두 줄이 거의 동일) 쌍으로 함께 숨긴다 — 원문은 어떤 줄에도 반복 금지.
+    const sensitive =
+      driftLineHasSecret(detail.difference.expected, detail.path) ||
+      driftLineHasSecret(detail.difference.actual, detail.path)
+    if (sensitive) {
+      // (줄 없음)/(빈 줄)은 내용이 없어 유출도 없다 — 고정 표식을 유지해 진단 정보 보존.
+      const hidden = (line: string | null) =>
+        line === null || line.length === 0
+          ? displayDriftLine(line)
+          : ko.doctor.driftSensitiveHidden
+      lines.push(ko.doctor.driftExpected(location, hidden(detail.difference.expected)))
+      lines.push(ko.doctor.driftActual(location, hidden(detail.difference.actual)))
+      continue
+    }
     lines.push(ko.doctor.driftExpected(location, displayDriftLine(detail.difference.expected)))
     lines.push(ko.doctor.driftActual(location, displayDriftLine(detail.difference.actual)))
   }

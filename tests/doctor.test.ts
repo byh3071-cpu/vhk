@@ -120,6 +120,78 @@ describe('doctor 규칙 불일치 설명', () => {
     expect(lines[0].length).toBeLessThan(320)
   })
 
+  // #552: 기대/실제 줄에 시크릿이 섞이면 원문 노출 자체가 유출 — 줄 전체를 고정 문구로 대체.
+  describe('드리프트 줄 시크릿 마스킹', () => {
+    // 가짜(패턴만 일치) — 완성 토큰 리터럴을 소스에 남기지 않는다(레포 시크릿 스캔 관례).
+    const fakeToken = 'ghp_' + 'aB3kZ9mQ1rT7wX2pL5nC8vD4fG6hJ0sKbCdE'
+
+    it('기대 줄의 시크릿은 기대/실제 두 줄 모두 고정 문구로 숨긴다', () => {
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 7, expected: `TOKEN=${fakeToken}`, actual: 'TOKEN=changed' }],
+      }])
+      expect(lines[0]).toBe(ko.doctor.driftExpected('AGENTS.md:7', ko.doctor.driftSensitiveHidden))
+      expect(lines[1]).toBe(ko.doctor.driftActual('AGENTS.md:7', ko.doctor.driftSensitiveHidden))
+      expect(lines.join('\n')).not.toContain(fakeToken)
+      expect(lines.join('\n')).not.toContain('TOKEN=changed')
+      expect(lines.at(-1)).toContain('조치')
+    })
+
+    it('실제 줄에만 시크릿이 있어도 쌍(기대 줄 포함)으로 숨긴다', () => {
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 3, expected: '깨끗한 규칙 줄', actual: `key: ${fakeToken}` }],
+      }])
+      expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+      expect(lines[1]).toContain(ko.doctor.driftSensitiveHidden)
+      expect(lines.join('\n')).not.toContain(fakeToken)
+      expect(lines.join('\n')).not.toContain('깨끗한 규칙 줄')
+    })
+
+    it('주석 줄의 placeholder 예시값은 오탐 완화를 유지해 그대로 보여준다', () => {
+      const placeholder = '# GITHUB_TOKEN=ghp_' + 'x'.repeat(36)
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 1, expected: placeholder, actual: '실제 줄' }],
+      }])
+      expect(lines[0]).toContain(placeholder)
+      expect(lines[0]).not.toContain(ko.doctor.driftSensitiveHidden)
+    })
+
+    it('4000자 초과 초장문 줄의 앞부분 시크릿도 놓치지 않고 숨긴다', () => {
+      // findSecretsInLine 은 4000자 초과 줄을 조용히 스킵하지만 표시는 앞 240자를 보여준다
+      // — slice 가드가 없으면 이 시크릿이 그대로 노출되는 회귀.
+      const longLine = `TOKEN=${fakeToken}` + 'z'.repeat(5_000)
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 2, expected: longLine, actual: '실제 줄' }],
+      }])
+      expect(lines[0]).toContain(ko.doctor.driftSensitiveHidden)
+      expect(lines.join('\n')).not.toContain(fakeToken)
+    })
+
+    it('--diff 전체 출력에서도 시크릿 쌍만 숨기고 나머지 차이는 그대로 보여준다', () => {
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [
+          { line: 1, expected: '기대 정상', actual: '실제 정상' },
+          { line: 8, expected: `TOKEN=${fakeToken}`, actual: null },
+        ],
+      }], true)
+      expect(lines[0]).toContain('기대 정상')
+      expect(lines[1]).toContain('실제 정상')
+      expect(lines[2]).toBe(ko.doctor.driftExpected('AGENTS.md:8', ko.doctor.driftSensitiveHidden))
+      // 상대편이 (줄 없음)이면 내용 유출이 없으므로 표식을 유지한다.
+      expect(lines[3]).toBe(ko.doctor.driftActual('AGENTS.md:8', ko.doctor.driftMissingLine))
+      expect(lines.join('\n')).not.toContain(fakeToken)
+    })
+  })
+
   it('doctor --diff는 --차이 한글 별칭과 i18n 설명을 함께 등록한다', () => {
     const doctorCommand = program.commands.find(command => command.name() === 'doctor')
     const diffOption = doctorCommand?.options.find(option => option.long === '--diff')

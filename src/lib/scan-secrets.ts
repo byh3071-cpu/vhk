@@ -4,7 +4,7 @@ import { SECRET_PATTERNS, maskSecret, type SecretFinding } from './secret-patter
 import { walkProjectFiles, MAX_SCAN_FILE_BYTES } from './scan-files.js'
 
 export const MAX_SECRET_FINDINGS = 200
-const MAX_LINE_CHARS = 4_000
+export const MAX_LINE_CHARS = 4_000
 const PLACEHOLDER_MARKER =
   /(?:example|placeholder|your[_-]|fake[_-]|dummy|redacted|changeme|replace[_-]?me|x{4,}|<[^>]+>)/i
 const STATUS_KEY_PREFIX = /^(?:missing|invalid|status|error|has|is|needs?)[_-]/i
