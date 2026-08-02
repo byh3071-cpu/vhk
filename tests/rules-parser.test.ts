@@ -47,6 +47,69 @@ describe('parseRules (VHK-011/012)', () => {
     fs.rmSync(path.dirname(p), { recursive: true })
   })
 
+  it('#520: 필수 토큰과 무관한 금지 절이 섞인 원문에서는 규칙을 추출하지 않음', () => {
+    const p = writeRules(
+      [
+        '## 코딩 규칙',
+        '- 모든 프랭크 씬은 `mercyMs` 필수(타입 레벨 강제) — 통과 불가 상태 0, 무한 좌절 금지',
+      ].join('\n')
+    )
+
+    expect(parseRules(p)).toHaveLength(0)
+    fs.rmSync(path.dirname(p), { recursive: true })
+  })
+
+  it('#520: 필수·반드시·must·required 인접 토큰은 금지 후보에서 제외', () => {
+    const p = writeRules(
+      [
+        '## 코딩 규칙',
+        '- `alpha` 필수 사용 금지',
+        '- 반드시 `beta` 사용 금지',
+        '- `gamma` must remain enabled do not use fallback',
+        '- required `delta` 사용 금지',
+      ].join('\n')
+    )
+
+    expect(parseRules(p).filter((rule) => rule.type === 'content')).toHaveLength(0)
+    fs.rmSync(path.dirname(p), { recursive: true })
+  })
+
+  it('#520: 같은 절의 실제 금지 토큰과 혼합 문장의 금지 토큰은 계속 추출', () => {
+    const p = writeRules(
+      [
+        '## 코딩 규칙',
+        '- `execSync` 신규 사용 금지',
+        '- 금지: `eval`',
+        '- `foo` 는 쓰되 `bar` 사용 금지',
+        '- `a` 필수, `b` 금지',
+      ].join('\n')
+    )
+
+    const patterns = parseRules(p)
+      .filter((rule) => rule.type === 'content')
+      .map((rule) => rule.pattern?.source)
+    expect(patterns).toEqual(['execSync', 'eval', 'bar', 'b'])
+    fs.rmSync(path.dirname(p), { recursive: true })
+  })
+
+  it('#520: 반드시·must로 강조한 실제 금지를 양성 필수 표지로 오인하지 않음', () => {
+    const p = writeRules(
+      [
+        '## 코딩 규칙',
+        '- `execSync` 반드시 사용 금지',
+        '- `eval` 반드시 사용하지 않는다',
+        '- `dangerousCall` must never use',
+        '- `Function` must not be used',
+      ].join('\n')
+    )
+
+    const patterns = parseRules(p)
+      .filter((rule) => rule.type === 'content')
+      .map((rule) => rule.pattern?.source)
+    expect(patterns).toEqual(['execSync', 'eval', 'dangerousCall', 'Function'])
+    fs.rmSync(path.dirname(p), { recursive: true })
+  })
+
   it('camelCase 룰이 위반 파일을 실제로 잡는다 (과거 silent 무시 회귀 가드)', () => {
     const proj = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-naming-'))
     fs.mkdirSync(path.join(proj, 'src'))

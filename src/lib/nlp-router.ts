@@ -78,6 +78,7 @@ export const NLP_KEYWORDS: Partial<Record<NlpCommand, readonly string[]>> = {
   undo: ['되돌려', '되돌리기', '취소', '원래대로', '롤백', '리셋', 'reset', 'rollback'],
   status: ['상태', '현황', '어떻게', '어때', '지금'],
   diff: ['변경', '바뀐', '뭐바뀜', '바뀌었', '차이', '달라진', '수정된'],
+  doctor: ['진단', '환경점검', '환경 점검', 'drift', '설정불일치', '설정 불일치', '규칙불일치', '규칙 불일치'],
   work: ['이어서', '이어하기', 'work'],
 }
 
@@ -342,17 +343,29 @@ const RULES: NlpRule[] = [
     test: t => /보안|시크릿|비밀|키\s*유출|secure|scan/.test(t),
   },
   {
+    command: 'doctor',
+    explanation: '설정 불일치 전체 차이 (vhk doctor --diff)',
+    confidence: 'high',
+    args: ['--diff'],
+    test: t =>
+      /(drift|설정\s*불일치|규칙\s*불일치)/.test(t) &&
+      /(전체|모두|자세히|차이)/.test(t),
+  },
+  {
     command: 'check',
     explanation: '규칙 점검 (vhk 점검)',
     confidence: 'high',
-    test: t => /규칙.*(점검|위반)|린트|check|위반/.test(t),
+    test: t =>
+      /규칙.*(점검|위반)|린트|check|위반/.test(t) &&
+      !/(drift|설정\s*불일치|규칙\s*불일치)/.test(t),
   },
   {
     command: 'doctor',
-    explanation: '환경 점검 (vhk doctor)',
+    explanation: '환경·설정 불일치 점검 (vhk doctor)',
     confidence: 'high',
     test: t =>
-      /뭔가\s*안|안\s*돼|안돼|환경\s*(점검|진단|확인)|진단|doctor|설치.*확인|왜\s*안/.test(t),
+      matchesKeywords(t, 'doctor') ||
+      /환경\s*(점검|진단|확인)|뭔가\s*안|안\s*돼|안돼|설치.*확인|왜\s*안|doctor/.test(t),
   },
   {
     command: 'diff',

@@ -18,6 +18,8 @@ import { commitPaths } from '../lib/git-session.js'
 import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
 import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evidence-ledger.js'
 import { detectAgent } from '../lib/detect-agent.js'
+import { readGatesConfig, type GateId } from '../lib/gates-config.js'
+import { log } from '../utils/logger.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -52,15 +54,26 @@ export type ReportStatus = 'PASS' | 'WARN' | 'FAIL'
 
 export interface GateResult {
   /** 안정 식별자 (기계용) */
-  id: 'typecheck' | 'lint' | 'test' | 'build' | 'secure'
+  id: GateId
   /** 사람용 라벨 */
   label: string
   status: GateRunStatus
   /** 실제 프로세스 종료코드. skip/in-process 게이트는 null. */
   exitCode: number | null
   skipped: boolean
+  /** `.vhk/gates.json`에서 사유와 함께 명시된 의도적 미도입인가. */
+  declaredOptional?: boolean
   /** 사람용 한 줄 사유 (시크릿 본문은 절대 넣지 않음 — count 등 메타만). */
   detail?: string
+}
+
+export function isDeclaredOptionalSkip(gate: GateResult): boolean {
+  return gate.status === 'skip' && gate.declaredOptional === true
+}
+
+/** WARN을 만들어야 하는 미실행/불완전 게이트인지. 선언된 미도입은 제외한다. */
+export function isGateWarning(gate: GateResult): boolean {
+  return gate.status === 'warn' || (gate.status === 'skip' && !isDeclaredOptionalSkip(gate))
 }
 
 export interface VerifyReport {
@@ -159,6 +172,19 @@ export function readPackageScripts(cwd: string): Record<string, string> {
   }
 }
 
+function applyDeclaredGateIntents(gates: GateResult[], cwd: string): GateResult[] {
+  const config = readGatesConfig(cwd)
+  return gates.map((gate) => {
+    const intent = config.gates[gate.id]
+    if (gate.status !== 'skip' || intent?.optional !== true) return gate
+    return {
+      ...gate,
+      declaredOptional: true,
+      detail: `미도입(선언됨) — ${intent.reason}`,
+    }
+  })
+}
+
 /**
  * 게이트 5종 실행 → 결과 배열. tsc/lint/test/build 는 외부 프로세스(실제 종료코드),
  * secure 는 in-process 스캐너(시크릿 본문 미수집 — count 만).
@@ -202,7 +228,7 @@ export function runGates(cwd: string): GateResult[] {
   // secure — in-process 스캔. 시크릿 본문은 리포트에 넣지 않고 severe count 만 기록(누출 0).
   gates.push(runSecureGate(cwd))
 
-  return gates
+  return applyDeclaredGateIntents(gates, cwd)
 }
 
 /**
@@ -249,11 +275,11 @@ export function runSecureGate(cwd: string): GateResult {
   }
 }
 
-/** 게이트 결과 → 전체 상태. fail 하나라도 → FAIL, 없고 skip/warn 있으면 → WARN, 전부 pass → PASS. */
+/** 게이트 결과 → 전체 상태. fail → FAIL, 선언 없는 skip/warn → WARN, 나머지 → PASS. */
 export function aggregateStatus(gates: GateResult[]): ReportStatus {
   if (gates.some((g) => g.status === 'fail')) return 'FAIL'
-  // Goal 59: warn(스캔 불완전)도 skip 과 동일하게 WARN 으로 — 거짓 PASS 차단.
-  if (gates.some((g) => g.status === 'skip' || g.status === 'warn')) return 'WARN'
+  // Goal 59: warn(스캔 불완전)도 WARN. 선언 없는 skip만 WARN이며 명시적 미도입은 제외한다.
+  if (gates.some(isGateWarning)) return 'WARN'
   return 'PASS'
 }
 
@@ -264,7 +290,7 @@ export function buildNextActions(gates: GateResult[]): string[] {
     if (g.status === 'fail') {
       if (g.id === 'secure') actions.push('시크릿 제거 후 재검증 — vhk secure scan 으로 위치 확인')
       else actions.push(`${g.label} 실패(종료코드 ${g.exitCode}) — 로그 확인 후 수정`)
-    } else if (g.status === 'skip') {
+    } else if (g.status === 'skip' && !isDeclaredOptionalSkip(g)) {
       actions.push(`${g.label} 게이트 없음 — package.json scripts 에 추가하면 검증 커버리지 ↑`)
     } else if (g.status === 'warn') {
       // Goal 59: 스캔 불완전 — severe 0 이지만 다 못 봤다. 사유는 게이트 detail 에.
@@ -291,12 +317,15 @@ export function buildReport(
   date: string,
   commit: CommitInfo | null = null
 ): VerifyReport {
+  // 선언된 미도입은 일반 skip이 아니다. 게이트 원문에는 증거로 남기되 집계에서는 제외하고,
+  // 사람용 출력에서 별도 "미도입 N종"으로만 보여 경고와 의도를 섞지 않는다.
+  const aggregatedGates = gates.filter((gate) => !isDeclaredOptionalSkip(gate))
   const summary = {
-    total: gates.length,
-    pass: gates.filter((g) => g.status === 'pass').length,
-    fail: gates.filter((g) => g.status === 'fail').length,
-    skip: gates.filter((g) => g.status === 'skip').length,
-    warn: gates.filter((g) => g.status === 'warn').length, // Goal 59: warn 게이트도 집계(합=total).
+    total: aggregatedGates.length,
+    pass: aggregatedGates.filter((g) => g.status === 'pass').length,
+    fail: aggregatedGates.filter((g) => g.status === 'fail').length,
+    skip: aggregatedGates.filter((g) => g.status === 'skip').length,
+    warn: aggregatedGates.filter((g) => g.status === 'warn').length, // Goal 59: warn 게이트도 집계(합=total).
   }
   return {
     schemaVersion: REPORT_SCHEMA_VERSION,
@@ -556,11 +585,25 @@ export async function verify(
   console.log(chalk.dim(`  현재 Safety Mode: ${mode} — ${SAFETY_MODE_DESC[mode]}`))
 
   // 게이트별 한 줄
-  const icon = (s: GateRunStatus) =>
-    s === 'pass' ? chalk.green('✓') : s === 'fail' ? chalk.red('✗') : s === 'warn' ? chalk.yellow('⚠') : chalk.yellow('⊘')
+  const icon = (g: GateResult) =>
+    isDeclaredOptionalSkip(g)
+      ? chalk.gray('⊘')
+      : g.status === 'pass'
+        ? chalk.green('✓')
+        : g.status === 'fail'
+          ? chalk.red('✗')
+          : g.status === 'warn'
+            ? chalk.yellow('⚠')
+            : chalk.yellow('⊘')
+  // 게이트 행·미도입 요약은 출력 SoT(src/utils/logger.ts)를 거친다.
   for (const g of report.gates) {
     const tail = g.detail ? chalk.dim(` — ${g.detail}`) : ''
-    console.log(`   ${icon(g.status)} ${g.label}${tail}`)
+    log.plain(`   ${icon(g)} ${g.label}${tail}`)
+  }
+
+  const declaredOptionalCount = report.gates.filter(isDeclaredOptionalSkip).length
+  if (declaredOptionalCount > 0) {
+    log.dim(`  미도입 ${declaredOptionalCount}종(선언됨)`)
   }
 
   // 한 줄 요약 + 파일 경로

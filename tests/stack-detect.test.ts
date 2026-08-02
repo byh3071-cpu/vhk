@@ -90,8 +90,9 @@ describe('resolveInitStack — init 스택 결정 우선순위', () => {
       JSON.stringify({ dependencies: { react: '^19' } })
     )
     fs.writeFileSync(path.join(dir, 'Cargo.toml'), '[package]\n')
-    const { stack, detected } = resolveInitStack(dir, 'webapp')
+    const { stack, detected, status } = resolveInitStack(dir, 'webapp')
     expect(detected).toBe(true)
+    expect(status).toBe('candidate')
     expect(stack).toContain('React')
     expect(stack).toContain('Rust')
     fs.rmSync(dir, { recursive: true })
@@ -101,8 +102,9 @@ describe('resolveInitStack — init 스택 결정 우선순위', () => {
     const { resolveInitStack } = await import('../src/commands/init.js')
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stack-'))
     fs.writeFileSync(path.join(dir, 'requirements.txt'), '') // 빈 떠돌이 매니페스트
-    const { stack, detected } = resolveInitStack(dir, 'webapp')
+    const { stack, detected, status } = resolveInitStack(dir, 'webapp')
     expect(detected).toBe(false)
+    expect(status).toBe('candidate')
     expect(stack).toContain('Next.js') // 프리셋 보존
     expect(stack).not.toContain('Python')
     fs.rmSync(dir, { recursive: true })
@@ -112,8 +114,9 @@ describe('resolveInitStack — init 스택 결정 우선순위', () => {
     const { resolveInitStack } = await import('../src/commands/init.js')
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stack-'))
     fs.writeFileSync(path.join(dir, 'Cargo.toml'), '[package]\n')
-    const { stack, detected } = resolveInitStack(dir, 'other')
+    const { stack, detected, status } = resolveInitStack(dir, 'other')
     expect(detected).toBe(true)
+    expect(status).toBe('candidate')
     expect(stack).toEqual(['Rust'])
     fs.rmSync(dir, { recursive: true })
   })
@@ -121,9 +124,36 @@ describe('resolveInitStack — init 스택 결정 우선순위', () => {
   it('other + 매니페스트 없음 → 빈 스택 (직접 입력/미정 흐름으로)', async () => {
     const { resolveInitStack } = await import('../src/commands/init.js')
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stack-'))
-    const { stack, detected } = resolveInitStack(dir, 'other')
+    const { stack, detected, status } = resolveInitStack(dir, 'other')
     expect(detected).toBe(false)
+    expect(status).toBe('candidate')
     expect(stack).toEqual([])
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('명시 --stack은 실제 의존성·타입 프리셋보다 우선하고 확정된다', async () => {
+    const { resolveInitStack } = await import('../src/commands/init.js')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stack-'))
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ dependencies: { next: '^15', react: '^19' } })
+    )
+    const resolved = resolveInitStack(dir, 'webapp', 'Vite, React, TypeScript')
+    expect(resolved).toMatchObject({
+      stack: ['Vite', 'React', 'TypeScript'],
+      status: 'confirmed',
+      source: 'explicit',
+    })
+    fs.rmSync(dir, { recursive: true })
+  })
+
+  it('빈 --stack은 확정으로 위장하지 않고 자동 결과를 후보로 돌린다', async () => {
+    const { resolveInitStack } = await import('../src/commands/init.js')
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stack-'))
+    const resolved = resolveInitStack(dir, 'webapp', '   ')
+    expect(resolved.status).toBe('candidate')
+    expect(resolved.source).toBe('preset')
+    expect(resolved.stack).toContain('Next.js')
     fs.rmSync(dir, { recursive: true })
   })
 })

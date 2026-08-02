@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { setSink } from '../src/utils/logger.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -17,6 +18,12 @@ import {
 } from '../src/commands/verify.js'
 import { buildLedgerEntry, readLedger } from '../src/lib/evidence-ledger.js'
 import { MAX_SCAN_FILE_BYTES } from '../src/lib/scan-files.js'
+import {
+  GATES_SCHEMA_VERSION,
+  readGatesConfig,
+  type GateId,
+} from '../src/lib/gates-config.js'
+import { collectReceipt } from '../src/commands/receipt.js'
 
 function gate(id: GateResult['id'], status: GateResult['status'], exitCode: number | null = 0): GateResult {
   return { id, label: id, status, exitCode, skipped: status === 'skip' }
@@ -26,12 +33,29 @@ function tmp(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-verify-'))
 }
 
+function declareOptionalGates(dir: string, ids: GateId[]): void {
+  fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+  fs.writeFileSync(
+    path.join(dir, '.vhk', 'gates.json'),
+    JSON.stringify({
+      schemaVersion: GATES_SCHEMA_VERSION,
+      gates: Object.fromEntries(ids.map((id) => [id, { optional: true, reason: `${id} 미도입` }])),
+    }),
+    'utf-8'
+  )
+}
+
 describe('verify — 상태 집계 (aggregateStatus)', () => {
   it('fail 하나라도 → FAIL (skip/pass 무관)', () => {
     expect(aggregateStatus([gate('typecheck', 'pass'), gate('test', 'fail', 1), gate('build', 'skip', null)])).toBe('FAIL')
   })
   it('fail 없고 skip 있으면 → WARN (거짓 PASS 금지)', () => {
     expect(aggregateStatus([gate('typecheck', 'pass'), gate('test', 'skip', null)])).toBe('WARN')
+  })
+  it('명시적으로 미도입한 skip만 있으면 → PASS', () => {
+    const skipped = gate('test', 'skip', null)
+    skipped.declaredOptional = true
+    expect(aggregateStatus([gate('typecheck', 'pass'), skipped])).toBe('PASS')
   })
   it('전부 pass → PASS', () => {
     expect(aggregateStatus([gate('typecheck', 'pass'), gate('secure', 'pass')])).toBe('PASS')
@@ -78,6 +102,42 @@ describe('verify — detectPm', () => {
   })
 })
 
+describe('gates-config — 검사 도입 의도 reader', () => {
+  it('schemaVersion 1 + optional/reason 선언을 BOM-safe로 읽는다', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(
+      path.join(d, '.vhk', 'gates.json'),
+      '\ufeff' + JSON.stringify({
+        schemaVersion: GATES_SCHEMA_VERSION,
+        gates: { lint: { optional: true, reason: '  일회성 프로젝트  ' } },
+      }),
+      'utf-8'
+    )
+    expect(readGatesConfig(d).gates.lint).toEqual({ optional: true, reason: '일회성 프로젝트' })
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('미지원 버전·빈 사유는 경고 억제 선언으로 채택하지 않는다', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+    fs.writeFileSync(
+      path.join(d, '.vhk', 'gates.json'),
+      JSON.stringify({ schemaVersion: 99, gates: { lint: { optional: true, reason: '미도입' } } }),
+      'utf-8'
+    )
+    expect(readGatesConfig(d).gates).toEqual({})
+
+    fs.writeFileSync(
+      path.join(d, '.vhk', 'gates.json'),
+      JSON.stringify({ schemaVersion: GATES_SCHEMA_VERSION, gates: { lint: { optional: true, reason: ' ' } } }),
+      'utf-8'
+    )
+    expect(readGatesConfig(d).gates).toEqual({})
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+})
+
 describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
   it('scripts 없으면 외부 게이트 skip → WARN, latest.json 항상 생성 + 스키마 통과', () => {
     const d = tmp()
@@ -94,6 +154,23 @@ describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
     expect(report.gates.find((g) => g.id === 'secure')?.status).toBe('pass')
     // reports/ 로컬 전용 등재
     expect(fs.readFileSync(path.join(d, '.vhk', '.gitignore'), 'utf-8')).toContain('reports/')
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('신규 프로젝트의 선언된 미도입은 WARN·Receipt soft warning에서 제외한다', () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+    declareOptionalGates(d, ['typecheck', 'lint', 'test', 'build'])
+
+    const { report } = verifyEvidence(d)
+    expect(report.status).toBe('PASS')
+    expect(report.summary).toEqual({ total: 1, pass: 1, fail: 0, skip: 0, warn: 0 })
+    expect(report.gates.filter((g) => g.declaredOptional)).toHaveLength(4)
+    expect(report.nextActions).toEqual(['검증 통과 — vhk save 로 저장하세요.'])
+
+    const receipt = collectReceipt(d)
+    expect(receipt.evidence.gates.status).toBe('PASS')
+    expect(receipt.evidence.gates.hasSoftWarning).toBe(false)
     fs.rmSync(d, { recursive: true, force: true })
   })
 
@@ -273,6 +350,31 @@ describe('verify — CLI (--json / HARD_STOP)', () => {
     expect(parsed.schemaVersion).toBe(REPORT_SCHEMA_VERSION)
     expect(['PASS', 'WARN', 'FAIL']).toContain(parsed.status)
     process.chdir(origCwd) // Windows: cwd 인 디렉터리는 rmSync 불가 → 먼저 빠져나온다
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('선언된 미도입은 "미도입 N종(선언됨)" 한 줄로 표시하고 WARN을 내지 않는다', async () => {
+    const d = tmp()
+    fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+    declareOptionalGates(d, ['typecheck', 'lint', 'test', 'build'])
+    process.chdir(d)
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    await verify()
+    const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(printed).toContain('미도입 4종(선언됨)')
+    // #552 리뷰 대응 — 게이트 행·미도입 요약은 logger 단일 sink 를 거친다.
+    const sinkLines: string[] = []
+    const restoreSink = setSink((line) => sinkLines.push(line))
+    try {
+      await verify()
+    } finally {
+      restoreSink()
+    }
+    expect(sinkLines.join('|')).toContain('미도입 4종(선언됨)')
+    expect(printed).toMatch(/결과: PASS/)
+    expect(printed).not.toMatch(/결과: WARN/)
+    expect(process.exitCode).toBe(0)
+    process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
   })
 

@@ -30,10 +30,8 @@ describe('#345 유령 KNOWN 토큰 제거 — KNOWN ⊆ 실제 commander 명령/
     expect(routeNaturalLanguage(input!)?.command).toBe('status')
   })
 
-  it('help(미등록 단일토큰) → 자연어로 흘러 help quick actions 로 라우팅', () => {
-    const input = detectNaturalLanguageInput(['node', 'vhk', 'help'])
-    expect(input).toBe('help')
-    expect(routeNaturalLanguage(input!)?.command).toBe('help')
+  it('help(정식 명령) → 자연어 라우터가 아닌 commander가 처리', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'help'])).toBeNull()
   })
 
   it('스캔/scan(미등록 단일토큰) → 자연어로 흘러 친절 폴백(미지 단어와 동급, raw 에러 아님)', () => {

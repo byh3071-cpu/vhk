@@ -78,7 +78,7 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
     case 'ship':
       return ship()
     case 'doctor':
-      return doctor()
+      return doctor({ diff: route.args?.includes('--diff') })
     case 'save':
       return save()
     case 'undo':

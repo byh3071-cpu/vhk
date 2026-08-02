@@ -17,6 +17,7 @@ export type StartOptions = {
   name?: string
   description?: string
   type?: string
+  stack?: string
 }
 
 const VHK_FOOTPRINT_FILES = [
@@ -111,6 +112,7 @@ export async function start(options: StartOptions = {}): Promise<void> {
     name: options.name,
     description: options.description,
     type: options.type,
+    stack: options.stack,
     yes: options.yes,
   }))
 

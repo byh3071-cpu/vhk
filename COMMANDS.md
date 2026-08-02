@@ -3,6 +3,24 @@
 이 프로젝트에서 자주 쓰는 명령어입니다.
 Cursor에게 한국어로 말해도 됩니다.
 
+## 새 프로젝트 시작
+
+| 하고 싶은 것 | 터미널 명령 | 결과 |
+|-------------|-----------|------|
+| 기술 스택을 바로 확정 | `vhk start --stack "Vite, React, TypeScript"` | 지정한 기술 스택을 확정값으로 기록 |
+| 기술 스택을 나중에 확정 | `vhk start` | 자동 감지·유형 프리셋을 후보로 기록하고 첫 세션에서 확인 |
+
+> `--stack`의 값은 쉼표로 구분합니다. 비어 있거나 공백뿐이면 확정으로 기록하지 않고 후보 흐름으로 돌아갑니다.
+
+## 도움말
+
+| 범위 | 명령 | 표시 내용 |
+|------|------|----------|
+| 기본 명령 | `vhk --help` 또는 `vhk help` | 코딩 하네스 중심 명령 |
+| 전체 명령 | `vhk help --all` | 기본 명령 + 마케팅·커머스 8종(`content`·`launch`·`ops`·`sell`·`seo`·`cost`·`design-palette`·`theme`) |
+
+> 기본 목록에서 숨긴 8종도 삭제되거나 비활성화된 것이 아닙니다. 이름을 직접 입력하면 그대로 실행됩니다.
+
 ## 매일 쓰는 명령어
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
@@ -160,7 +178,7 @@ vhk doctor
 | 명령 | 하는 일 |
 |------|---------|
 | `vhk gate` | 아이디어 검증 |
-| `vhk start` | 새 프로젝트 시작 마법사 |
+| `vhk start` | 새 프로젝트 시작 마법사 (`--stack "Vite, React, TypeScript"` = 기술 스택 확정, 미지정 = 후보) |
 | `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
 | `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선(세션일지 없는 코드 커밋 차단, `[skip-record]` 우회 — RFC 0061) |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
@@ -169,7 +187,7 @@ vhk doctor
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
 | `vhk ship` | 배포 체크리스트 + 회고 |
-| `vhk doctor` | 개발 환경 점검 (+ `--strict` 드리프트 게이트) |
+| `vhk doctor` | 개발 환경 점검 (+ `--strict` 드리프트 게이트 — 규칙 파일이 **달라진 경우와 생성 파일이 없어진 경우 모두** 실패 처리) |
 | `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 |
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
@@ -227,7 +245,7 @@ vhk doctor
 | `vhk pattern` | 반복 패턴 감지·목록 (`pattern detect` · `pattern list` · `pattern dismiss`) |
 | `vhk evolve` | 패턴 → 룰 후보 제안·반영·undo |
 | `vhk seo` | SEO·수익 대시보드 (init: 사이트 등록 + 자격증명 보관) |
-| `vhk help` | 도움말 |
+| `vhk help` | 기본 명령 도움말 (`--all` = 전체 명령) |
 
 > 내부 구현 파일(verify-report·memory-eval)은 독립 명령이 아님 — 각각 `vhk verify --report`,
 > `vhk memory eval` 로 노출됩니다.

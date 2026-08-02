@@ -82,6 +82,34 @@ describe('vhk context — Goal 2 자율 루프 확장', () => {
     expect(out).not.toContain('## Active Goal')
     expect(out).not.toContain('## Recent Learnings')
   })
+
+  it('RULES.md의 기술 스택 후보 상태를 context 재생성 뒤에도 보존한다', async () => {
+    writeFileSync(
+      join(dir, 'RULES.md'),
+      '# Rules\n\n## 기술 스택\n> 기술 스택 상태: 후보, 첫 세션에서 확정\n\n- Vite\n',
+      'utf-8',
+    )
+    const { context } = await import('../src/commands/context.js')
+    await context()
+    const out = readFileSync(join(dir, '.vhk/context.md'), 'utf-8')
+    expect(out).toContain('기술 스택 상태: 후보, 첫 세션에서 확정')
+    expect(out).toContain('### 선언된 기술 스택 (RULES.md)')
+    expect(out).toContain('- Vite')
+  })
+
+  it('첫 인터뷰에서 확정한 RULES 기술 스택을 context 재생성 뒤에도 보존한다', async () => {
+    writeFileSync(
+      join(dir, 'RULES.md'),
+      '# Rules\n\n## 기술 스택\n> 기술 스택 상태: 확정\n\n- Vite\n- React\n- TypeScript\n',
+      'utf-8',
+    )
+    const { context } = await import('../src/commands/context.js')
+    await context()
+    const out = readFileSync(join(dir, '.vhk/context.md'), 'utf-8')
+    expect(out).toContain('기술 스택 상태: 확정')
+    expect(out).toContain('### 선언된 기술 스택 (RULES.md)\n\n- Vite\n- React\n- TypeScript')
+    expect(out).toContain('### 실제 감지된 기술 스택 (package.json)')
+  })
 })
 
 describe('vhk context --compact (배치2 토큰 절감)', () => {

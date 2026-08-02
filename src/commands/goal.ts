@@ -390,6 +390,11 @@ export async function goalCheck(opts: { id?: string; force?: boolean }): Promise
     console.log(
       chalk.red(`  ❌ 게이트 스크립트 없음: scripts/check-goal-${id}.{mjs,sh}`)
     )
+    printNextStep({
+      message: '누락된 게이트 스크립트를 백필한 뒤 다시 확인하세요:',
+      command: 'vhk goal sync',
+      cursorHint: 'goal 게이트 스크립트 동기화해줘',
+    })
     process.exitCode = 1
     return
   }

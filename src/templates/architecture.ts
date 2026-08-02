@@ -1,13 +1,21 @@
+import { formatStackStatusNote, type StackStatus } from '../lib/stack-state.js'
+
 // RFC 0060 T1: 빈 칸을 계약서식 관행 마커 [여기에 작성: 질문] 으로. 상단 가드로 AI 추측 채움 금지.
 const ask = (question: string): string => `[여기에 작성: ${question}]`
 
-export function ARCHITECTURE_TEMPLATE(name: string, stack: string): string {
+export function ARCHITECTURE_TEMPLATE(
+  name: string,
+  stack: string,
+  stackStatus: StackStatus = 'confirmed',
+): string {
   return [
     '# Architecture — ' + name,
     '',
     '> ⚠️ [여기에 작성: …] 칸은 사용자와 대화로 채웁니다 — AI가 추측으로 채우지 않기.',
     '',
     '## 기술 스택',
+    formatStackStatusNote(stackStatus),
+    '',
     stack,
     '',
     '## 폴더 구조',

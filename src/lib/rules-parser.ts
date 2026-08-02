@@ -89,23 +89,53 @@ function isStructureSection(section: string): boolean {
 
 /** '금지' 인접 백틱 코드 토큰을 추출. URL/경로면 null(오탐 방지). 없으면 null. */
 function extractBanToken(ruleText: string): string | null {
-  const banKw = ruleText.search(/금지|사용하지|쓰지\s*마|하지\s*않는다|never use|do not use/i)
-  if (banKw < 0) return null
-  let token: string | null = null
-  // A: 금지 '앞'의 마지막 백틱 (`execSync` 신규 사용 금지)
-  const before = [...ruleText.slice(0, banKw).matchAll(/`([^`]+)`/g)].pop()
-  if (before) token = before[1]
-  else {
-    // B: 금지 '바로 뒤' 인접 백틱 (금지: `X`) — 구분자만 허용(먼 URL 제외)
-    const after = ruleText
-      .slice(banKw)
-      .match(/^(?:금지|사용하지|쓰지\s*마|do not use|never use)\s*[:：]?\s*`([^`]+)`/i)
-    if (after) token = after[1]
+  // `must never use`/`must not be used`는 must까지 금지 구에 포함해야 한다.
+  // must를 별도 필수 표지로 먼저 떼면 실제 금지가 양성 의도로 뒤집힌다.
+  const banPattern = /\bmust\s+(?:never\s+use|not\s+(?:be\s+)?used?)\b|금지|사용하지|쓰지\s*마|하지\s*않는다|never use|do not use/i
+  // 토큰 뒤의 `반드시`는 "반드시 사용 금지"처럼 금지를 강조할 수도 있다.
+  // 긍정 의도가 분명한 표지만 제외하고, 실제 금지 강조를 조용히 버리지 않는다.
+  const positiveRequiredAfterTokenPattern = /필수|\bmust\b|\brequired\b/i
+  const clauses = ruleText.split(/\s*[—·,;]\s*|\s+\/\s+/)
+
+  for (const clause of clauses) {
+    const banMatch = clause.match(banPattern)
+    if (!banMatch || banMatch.index === undefined) continue
+
+    const banStart = banMatch.index
+    const banEnd = banStart + banMatch[0].length
+    const before = [...clause.slice(0, banStart).matchAll(/`([^`]+)`/g)].pop()
+    let token: string | null = null
+    let tokenStart = -1
+    let tokenEnd = -1
+
+    if (before && before.index !== undefined) {
+      token = before[1]
+      tokenStart = before.index
+      tokenEnd = tokenStart + before[0].length
+
+      const beforeToken = clause.slice(0, tokenStart)
+      const betweenTokenAndBan = clause.slice(tokenEnd, banStart)
+      const requiredImmediatelyBefore = /(?:필수|반드시|\bmust\b|\brequired\b)\s*[:：]?\s*$/i.test(beforeToken)
+      if (requiredImmediatelyBefore || positiveRequiredAfterTokenPattern.test(betweenTokenAndBan)) continue
+    } else {
+      // 금지 '바로 뒤' 인접 백틱 (금지: `X`) — 구분자만 허용(먼 URL 제외)
+      const after = clause.slice(banEnd).match(/^\s*[:：]?\s*`([^`]+)`/)
+      if (after) {
+        token = after[1]
+        tokenStart = banEnd + after[0].indexOf('`')
+        tokenEnd = tokenStart + token.length + 2
+
+        if (/^\s*(?:필수|반드시|\bmust\b|\brequired\b)/i.test(clause.slice(tokenEnd))) continue
+      }
+    }
+
+    if (!token) continue
+    // URL/경로/넓은 토큰은 금지 패턴으로 부적절 → 제외
+    if (/:\/\/|www\.|\.(com|io|dev|net|org|app)\b|\//.test(token)) continue
+    return token
   }
-  if (!token) return null
-  // URL/경로/넓은 토큰은 금지 패턴으로 부적절 → 제외
-  if (/:\/\/|www\.|\.(com|io|dev|net|org|app)\b|\//.test(token)) return null
-  return token
+
+  return null
 }
 
 function createNamingRule(

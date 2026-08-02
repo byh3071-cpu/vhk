@@ -1,4 +1,50 @@
 import chalk from 'chalk'
+import type { Command, Help } from 'commander'
+import { log } from '../utils/logger.js'
+
+export const DEFAULT_HELP_HIDDEN_COMMANDS = [
+  'content',
+  'launch',
+  'ops',
+  'sell',
+  'seo',
+  'cost',
+  'design-palette',
+  'theme',
+] as const
+
+const DEFAULT_HELP_HIDDEN_SET = new Set<string>(DEFAULT_HELP_HIDDEN_COMMANDS)
+
+export function formatRootHelp(
+  cmd: Command,
+  helper: Help,
+  options: { all?: boolean } = {},
+): string {
+  // 기본 도움말이 숨기는 것은 DEFAULT_HELP_HIDDEN_COMMANDS 8종뿐이다.
+  // `help` 자신은 기본 목록에도 남는다 — 초보자가 `vhk help --all` 로 가는 입구다.
+  const commands = helper
+    .visibleCommands(cmd)
+    .filter((command) => options.all === true || !DEFAULT_HELP_HIDDEN_SET.has(command.name()))
+  const terms = commands.map((command) => {
+    const aliases = command.aliases()
+    return aliases.length > 0 ? `${command.name()} (${aliases[0]})` : command.name()
+  })
+  const termWidth = Math.max(...terms.map((term) => term.length), 0)
+  const lines = [
+    helper.commandDescription(cmd),
+    '',
+    options.all === true ? '전체 명령:' : '기본 명령:',
+    ...commands.map((command, index) => {
+      const term = terms[index].padEnd(termWidth + 2)
+      return `  ${term}${command.description()}`
+    }),
+  ]
+
+  if (options.all !== true) {
+    lines.push('', '전체 명령 보기: vhk help --all')
+  }
+  return lines.join('\n') + '\n'
+}
 
 /**
  * 초보자용 quick actions — 자연어 "도움말/사용법/명령어" 라우팅의 **읽기전용** 대상.
@@ -15,16 +61,17 @@ export const QUICK_ACTIONS: ReadonlyArray<{ say: string; does: string }> = [
   { say: '백업 복원해줘', does: 'vhk restore' },
   { say: '보안 점검해줘', does: 'vhk secure scan' },
   { say: '새 프로젝트 시작', does: 'vhk start' },
-  { say: '전체 명령어 보기', does: 'vhk --help' },
+  { say: '전체 명령어 보기', does: 'vhk help --all' },
 ]
 
 /** 자연어로 vhk 를 쓰는 법(quick actions) 출력. 부수효과 없음(콘솔 출력만). */
 export function quickActions(): void {
-  console.log(chalk.bold('\n🧭 VHK — 이렇게 말하면 됩니다 (quick actions)'))
-  console.log(chalk.gray('─'.repeat(40)))
+  // 출력 SoT(src/utils/logger.ts)만 거친다 — raw console.log 는 quiet 모드·테스트 캡처를 우회한다.
+  log.plain(chalk.bold('\n🧭 VHK — 이렇게 말하면 됩니다 (quick actions)'))
+  log.plain(chalk.gray('─'.repeat(40)))
   for (const a of QUICK_ACTIONS) {
-    console.log(`  "${chalk.cyan(a.say)}"  →  ${chalk.dim(a.does)}`)
+    log.plain(`  "${chalk.cyan(a.say)}"  →  ${chalk.dim(a.does)}`)
   }
-  console.log(chalk.gray('\n  전체 명령은 `vhk --help` 또는 COMMANDS.md 를 보세요.'))
-  console.log('')
+  log.plain(chalk.gray('\n  기본 명령은 `vhk help`, 전체 명령은 `vhk help --all` 또는 COMMANDS.md 를 보세요.'))
+  log.plain('')
 }

@@ -10,7 +10,7 @@ import { localDate } from '../lib/date.js'
 import { stripBom } from '../lib/read-json.js'
 import { ko } from '../i18n/ko.js'
 import { getCommitInfo, gitOut } from '../lib/git-repo.js'
-import { verifyEvidence } from './verify.js'
+import { isGateWarning, verifyEvidence } from './verify.js'
 import { diffUnified0 } from '../lib/git-session.js'
 import { addedLinesByFile } from '../lib/diff-hunks.js'
 import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
@@ -249,7 +249,7 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
   // ① 게이트(tsc/test/build/secure) 실종료코드 — 자기보고 거부, 실제 프로세스만(verify.ts 가 보장).
   const { report } = verifyEvidence(cwd)
   const failedGateIds = report.gates.filter((g) => g.status === 'fail').map((g) => g.id)
-  const hasSoftWarning = report.gates.some((g) => g.status === 'skip' || g.status === 'warn')
+  const hasSoftWarning = report.gates.some(isGateWarning)
 
   // ② git dirty — Goal 85 자기파일 제외가 getCommitInfo 안에 이미 적용됨.
   const commit = getCommitInfo(cwd)

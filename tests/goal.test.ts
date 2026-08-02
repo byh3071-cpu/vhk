@@ -410,6 +410,25 @@ describe('goalCheck — DONE goal 게이트 스킵 (#155)', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('게이트 스크립트 부재 시 vhk goal sync 복구 경로를 안내한다 (#523)', async () => {
+    const dir = tmpProject('check-missing-gate')
+    makeGoalFile(dir, 7, 'IN_PROGRESS')
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    process.chdir(dir)
+    try {
+      const { goalCheck } = await import('../src/commands/goal.js')
+      await goalCheck({ id: '7' })
+      const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(out).toContain('게이트 스크립트 없음')
+      expect(out).toContain('vhk goal sync')
+      expect(process.exitCode).toBe(1)
+      expect(existsSync(join(dir, 'scripts', 'check-goal-7.mjs'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('goalSync — 누락 게이트 스크립트 백필 (goal 7)', () => {

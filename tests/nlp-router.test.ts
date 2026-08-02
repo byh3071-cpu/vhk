@@ -2,12 +2,32 @@ import { describe, it, expect } from 'vitest'
 import { routeNaturalLanguage, NLP_KEYWORDS } from '../src/lib/nlp-router.js'
 
 describe('자연어 라우팅', () => {
-  it('NLP_KEYWORDS — save·undo·status·diff 키워드 맵', () => {
+  it('NLP_KEYWORDS — save·undo·status·diff·doctor 키워드 맵', () => {
     expect(NLP_KEYWORDS.save).toContain('저장')
     expect(NLP_KEYWORDS.save).toContain('push')
     expect(NLP_KEYWORDS.undo).toContain('롤백')
     expect(NLP_KEYWORDS.status).toContain('현황')
     expect(NLP_KEYWORDS.diff).toContain('뭐바뀜')
+    expect(NLP_KEYWORDS.doctor).toContain('drift')
+    expect(NLP_KEYWORDS.doctor).toContain('설정불일치')
+  })
+
+  it.each(['설정 불일치 보여줘', 'drift 확인해줘', '규칙 불일치 전체 보여줘'])(
+    '"%s" → doctor (일반 git diff 아님)',
+    phrase => {
+      expect(routeNaturalLanguage(phrase)?.command).toBe('doctor')
+    },
+  )
+
+  it('"규칙 불일치 전체 보여줘" → doctor --diff 의미까지 전달', () => {
+    expect(routeNaturalLanguage('규칙 불일치 전체 보여줘')?.args).toEqual(['--diff'])
+  })
+
+  it('설정 불일치 점검은 doctor, 기존 규칙 위반·린트 진단은 check로 보존', () => {
+    expect(routeNaturalLanguage('설정 불일치 점검')?.command).toBe('doctor')
+    expect(routeNaturalLanguage('환경 확인해줘')?.command).toBe('doctor')
+    expect(routeNaturalLanguage('규칙 위반 진단해줘')?.command).toBe('check')
+    expect(routeNaturalLanguage('린트 진단해줘')?.command).toBe('check')
   })
 
   it('"프로젝트 만들고 싶어" → start (마법사)', () => {

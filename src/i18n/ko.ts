@@ -1,3 +1,5 @@
+import { STACK_CANDIDATE_LABEL } from '../lib/stack-state.js'
+
 export const ko = {
   stats: {
     title: '통계 대시보드',
@@ -192,13 +194,14 @@ export const ko = {
     description: '📝 한 줄로 설명하면?',
     descriptionHint: '예: "3초 만에 할 일 추가"',
     projectType: '🏗️ 어떤 종류인가요?',
-    confirmStack: '이 기술 묶음으로 진행할까요?',
-    stackInput: '🧱 주요 언어·기술은? (쉼표로 구분, Enter = 건너뛰고 나중에 결정)',
-    stackEdit: '🧱 사용할 기술 묶음을 직접 입력하세요 (쉼표로 구분, Enter = 취소)',
-    stackSkipHint: '기술 묶음 미정 — 정해지면 CLAUDE.md·RULES.md에서 채우면 돼요',
-    chosenStack: '기술 묶음:',
-    canceled: '취소했어요. 기술 묶음을 바꾸려면 다시 vhk init을 실행하세요.',
-    recommendedStack: '추천 기술 묶음:',
+    confirmStack: '이 기술 스택을 확정할까요?',
+    stackInput: '🧱 기술 스택은? (쉼표로 구분, Enter = 건너뛰고 나중에 확정)',
+    stackEdit: '🧱 사용할 기술 스택을 직접 입력하세요 (쉼표로 구분, Enter = 취소)',
+    stackSkipHint: `기술 스택 미정 — ${STACK_CANDIDATE_LABEL} 상태로 기록합니다`,
+    canceled: '취소했어요. 기술 스택을 바꾸려면 다시 vhk init을 실행하세요.',
+    candidateStack: `기술 스택 ${STACK_CANDIDATE_LABEL}:`,
+    confirmedStack: '기술 스택 확정:',
+    emptyStack: '--stack에 유효한 기술 스택이 없습니다. 감지·기본값으로 찾은 스택을 후보로 기록하고, 못 찾으면 미정으로 둡니다.',
     filesGenerating: '📂 필관리자 파일 만드는 중...',
     overwrite: (filePath: string) => `  ⚠️ ${filePath} 파일이 있어요. 덮어쓸까요?`,
     skipped: (filePath: string) => `${filePath} — 건너뜀`,
@@ -319,7 +322,18 @@ export const ko = {
     driftNoRules: '⬚ RULES.md 없음 — 규칙 불일치(drift) 점검 생략',
     driftRuleClean: '✅ 규칙 파일이 RULES.md와 일치',
     driftRuleWarn: (files: string) =>
-      `⚠️ RULES.md와 어긋난 규칙 파일: ${files} — vhk sync 를 다시 실행하세요`,
+      `⚠️ 없거나 RULES.md와 어긋난 규칙 파일: ${files}`,
+    driftExpected: (location: string, content: string) => `기대 (${location}): ${content}`,
+    driftActual: (location: string, content: string) => `실제 (${location}): ${content}`,
+    driftAction: '조치: vhk sync 로 다시 맞추세요 (전체 차이: vhk doctor --diff)',
+    driftMissingLine: '(줄 없음)',
+    driftEmptyLine: '(빈 줄)',
+    driftSensitiveHidden: '[민감정보로 숨김]',
+    driftGeneratedFile: 'RULES.md에서 생성될 규칙 파일',
+    driftMissingFile: '(파일 없음)',
+    driftDiffLimited: (files: string) =>
+      `전체 차이 생략 (크기 제한, 첫 상이 지점만 표시): ${files}`,
+    diffOption: '규칙 파일의 전체 차이 출력 (기본은 첫 상이 지점만)',
     driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
     goalSchemaTitle: 'Goal frontmatter',
     goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,

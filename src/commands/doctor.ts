@@ -7,7 +7,8 @@ import { ko } from '../i18n/ko.js'
 import { projectMaturity } from '../lib/project-maturity.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
-import { checkRuleDrift, checkContextDrift } from '../lib/drift.js'
+import { checkRuleDrift, checkContextDrift, type RuleDriftResult } from '../lib/drift.js'
+import { findSecretsInLine, MAX_LINE_CHARS } from '../lib/scan-secrets.js'
 import os from 'node:os'
 import type { Runner } from '../lib/preflight.js'
 import { runDiagnostics } from '../doctor/runner.js'
@@ -62,6 +63,237 @@ export interface CheckResult {
   hint: string
 }
 
+const MAX_DRIFT_LINE_DISPLAY_LENGTH = 240
+
+/**
+ * #552 최종 — doctor 출력 전용 deny-by-default 경계. 할당·PowerShell writer 구문을
+ * 파싱하는 접근은 검수마다 새 구문(SetEnvironmentVariable·setx …)이 뚫어서 폐기했다.
+ * 줄의 identifier 에 민감 키 계열이 '언급'되기만 하면 읽기/쓰기/placeholder 구분
+ * 없이 줄 전체를 숨긴다. 단, 경계 없는 substring 은 tokenizerMode·maxTokens·
+ * passwordlessLogin·apiKeyboardShortcut 까지 숨기는 과차단(검수 Medium)이라,
+ * identifier 를 구분자·camel/약어/숫자 경계로 분해한 '정확한 segment' 로 판정한다:
+ *   - 어느 위치든 민감: secret/password/passwd/pwd/credential(+joined apikey·
+ *     accesskey·accesstoken) 및 그 명백한 복수형(secrets·apiKeys·credentials …,
+ *     검수 High — 복수형이 단수 exact 를 비껴 원문 노출) — credentialStore 처럼
+ *     수식어 자리여도 내용물이 시크릿.
+ *   - token 은 '같은 identifier 안'에서만 측정 메타로 완화된다. identifier =
+ *     영숫자·_·- 의 연속(camel/snake/kebab/SCREAMING 을 한 단위로) — 그 안에서
+ *     token 다음 segment 가 count/budget/usage/limit … 이면 안전(tokenCount·
+ *     TOKEN_LIMIT), 그 외 접미사(value/file/env)나 identifier 끝이면 민감.
+ *     완화를 identifier 밖(할당·공백·인용 너머)으로 새게 하면 TOKEN=limit-… 의
+ *     '값 첫 segment' 가 안전 메타를 오인 충족해 원문이 노출된다(검수 High).
+ *   - 복수형 tokens 는 반대 방향: 같은 identifier 의 직전 segment 가 정확히
+ *     max 일 때(maxTokens/max_tokens/MAX_TOKENS — LLM 설정 관용구)만 허용,
+ *     그 외(TOKENS 단독·accessTokens·authTokens·refreshTokens …)는 전부 민감.
+ *   - 인접 segment 쌍 api+key(s)/access+key(s) 는 identifier 경계를 넘어 판정
+ *     ("API key"·api_key·apiKey) — 최소 상태(직전 segment)만 유지.
+ * 이 경계는 모든 시크릿 형식을 보장하지 않는다 — 민감 키 언급 + 알려진 값
+ * 패턴(scan-secrets) + URL userinfo 세 판정이 잡는 범위까지다.
+ */
+const SENSITIVE_ANYWHERE = new Set([
+  'secret', 'password', 'passwd', 'pwd', 'credential', 'apikey', 'accesskey', 'accesstoken',
+  'secrets', 'passwords', 'passwds', 'pwds', 'credentials', 'apikeys', 'accesskeys', 'accesstokens',
+])
+const SENSITIVE_PAIRS = new Set(['apikey', 'accesskey', 'apikeys', 'accesskeys'])
+// token 뒤에 와도 안전한 측정 메타만 명시 — 나머지(모르는 segment 포함)는 deny.
+const SAFE_AFTER_TOKEN = new Set([
+  'count', 'counts', 'budget', 'budgets', 'usage', 'usages', 'limit', 'limits',
+  'length', 'size', 'type', 'kind', 'status', 'metrics',
+])
+
+/** identifier(영숫자·_·-)를 구분자·camel/약어/숫자 경계로 분해해 소문자 segment 로 (선형). */
+function identifierSegments(identifier: string): string[] {
+  return identifier
+    .replace(/([a-z])([A-Z])/g, '$1 $2') // fooBar → foo Bar
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2') // APIKey → API Key
+    .replace(/([A-Za-z])([0-9])/g, '$1 $2') // oauth2 → oauth 2
+    .replace(/([0-9])([A-Za-z])/g, '$1 $2') // 2fa → 2 fa
+    .replace(/[_-]+/g, ' ') // snake/kebab → 같은 identifier 내부 경계
+    .toLowerCase()
+    .split(' ')
+    .filter((segment) => segment !== '')
+}
+
+function mentionsSensitiveKey(line: string): boolean {
+  // O(1) 상태 선형 순회 — previous(인접 쌍)는 identifier 를 넘어, pending 은 안에서만.
+  let previous = ''
+  for (const identifier of line.match(/[A-Za-z0-9_-]+/g) ?? []) {
+    let pendingToken = false
+    let previousInIdentifier = ''
+    for (const segment of identifierSegments(identifier)) {
+      if (SENSITIVE_ANYWHERE.has(segment)) return true
+      if (previous !== '' && SENSITIVE_PAIRS.has(previous + segment)) return true
+      // 복수형 tokens 는 같은 identifier 에서 max 접두일 때만 허용(maxTokens 관용구).
+      if (segment === 'tokens' && previousInIdentifier !== 'max') return true
+      if (pendingToken) {
+        if (!SAFE_AFTER_TOKEN.has(segment)) return true
+        pendingToken = false
+      }
+      if (segment === 'token') pendingToken = true
+      previous = segment
+      previousInIdentifier = segment
+    }
+    // identifier 가 token 으로 끝나면(TOKEN=…·$env:NPM_TOKEN·TOKEN 단독) 민감 —
+    // 할당/공백/인용 너머의 값은 완화 근거가 될 수 없다.
+    if (pendingToken) return true
+  }
+  return false
+}
+
+const URL_SCHEME_CHAR = /[A-Za-z0-9+.-]/
+const URL_ALPHA = /[A-Za-z]/
+
+/** bounded 후보를 실제 URL 로 확인 — 파싱 불가면 자격증명도 없다. */
+function urlHasUserinfo(candidate: string): boolean {
+  try {
+    const url = new URL(candidate)
+    return url.username !== '' || url.password !== ''
+  } catch {
+    return false
+  }
+}
+
+/**
+ * URL userinfo 자격증명 — postgres://app:pw@host 처럼 스킴 무관하게 유출된다.
+ * 프로토콜 목록 대신 `스킴://` 후보를 전부 URL parser 로 확인해
+ * username/password 가 하나라도 있으면 숨긴다(키 이름과 무관 — 항상 자격증명).
+ * 후보 추출은 선형 유지(#552 성능 검수 — 정규식 백트래킹 O(n²) 회피): token 안
+ * 모든 `://` 를 왼쪽부터 순회하되, userinfo(@)는 정의상 authority(`://` 뒤 첫
+ * /?# 전)에만 있으므로 그 bounded 구간만 검사한다 — 쉼표/세미콜론/query 로
+ * 이어붙은 두 번째 URL 도 놓치지 않는다. 스킴 되짚기는 이전 `://` 를(스킴 문자에
+ * / · : 없음), authority 훑기는 다음 `://` 를 넘지 못해 전체 작업량이 선형이다.
+ */
+function hasUrlCredentials(line: string): boolean {
+  if (!line.includes('://')) return false
+  for (const token of line.split(/[\s'"<>]+/)) {
+    for (let sep = token.indexOf('://'); sep !== -1; sep = token.indexOf('://', sep + 3)) {
+      if (sep === 0) continue
+      // 스킴 시작점 — 구분자 왼쪽의 스킴 문자 run 을 되짚고, 알파벳 시작 규칙을 맞춘다.
+      let start = sep
+      while (start > 0 && URL_SCHEME_CHAR.test(token[start - 1])) start--
+      while (start < sep && !URL_ALPHA.test(token[start])) start++
+      if (start === sep) continue
+      let end = sep + 3
+      while (end < token.length && !'/?#'.includes(token[end])) end++
+      if (end === sep + 3 || !token.slice(sep + 3, end).includes('@')) continue
+      if (urlHasUserinfo(token.slice(start, end))) return true
+    }
+  }
+  return false
+}
+
+/**
+ * #552: 드리프트 기대/실제 줄에 시크릿·토큰이 섞이면 원문 노출 자체가 유출이다.
+ * 판정 3종 = 알려진 값 패턴(scan-secrets) + 민감 키 언급 + URL userinfo.
+ * findSecretsInLine 만 스캐너 계약대로 MAX_LINE_CHARS(4000자) cap 을 유지하고
+ * 커스텀 판정 2종은 전체 줄을 본다 — 표시는 앞 240자지만 판정 근거(URL 의 @ 등)가
+ * 4000자 밖에 있어도 표시 구간의 원문 유출은 막아야 하기 때문.
+ */
+export function driftLineHasSecret(line: string | null, filePath: string): boolean {
+  if (line === null || line.length === 0) return false
+  return (
+    findSecretsInLine(line.slice(0, MAX_LINE_CHARS), filePath, 1).length > 0 ||
+    mentionsSensitiveKey(line) ||
+    hasUrlCredentials(line)
+  )
+}
+
+function displayDriftLine(line: string | null): string {
+  if (line === null) return ko.doctor.driftMissingLine
+  if (line.length === 0) return ko.doctor.driftEmptyLine
+
+  // C0/C1 제어문자에 더해 양방향(bidi)·제로폭·줄 구분 문자도 이스케이프한다(#552).
+  // 이 문자들은 터미널에서 줄 내용을 시각적으로 뒤집거나 지우거나 쪼갤 수 있다 —
+  // 드리프트 대상 파일은 사람이 손으로 고칠 수 있어 출력 위조 여지를 남기지 않는다.
+  const CONTROL_OR_SPOOFING = new RegExp(
+    '[' +
+      '\u0000-\u001f\u007f-\u009f' + // C0/C1
+      '\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069' + // 양방향 제어
+      '\u200b-\u200d\ufeff' + // 제로폭
+      '\u2028\u2029' + // 줄·문단 구분
+      ']',
+    'g',
+  )
+  const visible = line.replace(CONTROL_OR_SPOOFING, character => {
+    if (character === '\t') return '\\t'
+    if (character === '\n') return '\\n'
+    if (character === '\r') return '\\r'
+    return `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`
+  })
+  return visible.length > MAX_DRIFT_LINE_DISPLAY_LENGTH
+    ? `${visible.slice(0, MAX_DRIFT_LINE_DISPLAY_LENGTH - 1)}…`
+    : visible
+}
+
+/**
+ * `--strict` 실패로 승격할 규칙 드리프트인가 (#552).
+ * 내용 불일치(`drifted`)뿐 아니라 **생성 파일 누락(`missing`)도 드리프트**다 —
+ * 규칙이 실제로 동기화돼 있지 않다는 뜻이라 CI 게이트에서 통과시키지 않는다.
+ * (README·COMMANDS.md·`--strict` 옵션 설명도 이 의미로 적혀 있다.)
+ */
+export function isRuleDriftFailure(status: RuleDriftResult['status']): boolean {
+  return status !== 'ok'
+}
+
+export function formatRuleDriftDetails(
+  mismatched: RuleDriftResult[],
+  fullDiff = false,
+): string[] {
+  const limitedFiles = mismatched
+    .filter(result => result.fullDiffLimited)
+    .map(result => result.path)
+  const details: Array<{
+    path: string
+    difference?: NonNullable<RuleDriftResult['differences']>[number]
+    missing: boolean
+  }> = []
+  for (const result of mismatched) {
+    if (result.status === 'missing') {
+      details.push({ path: result.path, missing: true })
+      continue
+    }
+    for (const difference of result.differences ?? []) {
+      details.push({ path: result.path, difference, missing: false })
+    }
+  }
+
+  const selected = fullDiff ? details : details.slice(0, 1)
+  if (selected.length === 0) return []
+
+  const lines: string[] = []
+  for (const detail of selected) {
+    if (detail.missing) {
+      lines.push(ko.doctor.driftExpected(detail.path, ko.doctor.driftGeneratedFile))
+      lines.push(ko.doctor.driftActual(detail.path, ko.doctor.driftMissingFile))
+      continue
+    }
+    if (!detail.difference) continue
+    const location = `${detail.path}:${detail.difference.line}`
+    // #552: 한쪽 줄만 패턴에 걸려도 다른쪽이 같은 시크릿의 잘린/회전된 변형일 수 있어
+    // (diff 특성상 두 줄이 거의 동일) 쌍으로 함께 숨긴다 — 원문은 어떤 줄에도 반복 금지.
+    const sensitive =
+      driftLineHasSecret(detail.difference.expected, detail.path) ||
+      driftLineHasSecret(detail.difference.actual, detail.path)
+    if (sensitive) {
+      // (줄 없음)/(빈 줄)은 내용이 없어 유출도 없다 — 고정 표식을 유지해 진단 정보 보존.
+      const hidden = (line: string | null) =>
+        line === null || line.length === 0
+          ? displayDriftLine(line)
+          : ko.doctor.driftSensitiveHidden
+      lines.push(ko.doctor.driftExpected(location, hidden(detail.difference.expected)))
+      lines.push(ko.doctor.driftActual(location, hidden(detail.difference.actual)))
+      continue
+    }
+    lines.push(ko.doctor.driftExpected(location, displayDriftLine(detail.difference.expected)))
+    lines.push(ko.doctor.driftActual(location, displayDriftLine(detail.difference.actual)))
+  }
+  if (fullDiff && limitedFiles.length > 0) {
+    lines.push(ko.doctor.driftDiffLimited(limitedFiles.join(', ')))
+  }
+  lines.push(ko.doctor.driftAction)
+  return lines
+}
+
 export function checkCommand(name: string, command: string, hint: string): CheckResult {
   const result = safeExecFile(command, ['--version'])
   if (!result.ok) return { name, command, ok: false, hint }
@@ -89,7 +321,7 @@ function getVhkVersion(): string | undefined {
   return undefined
 }
 
-export async function doctor(opts: DoctorOptions = {}) {
+export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
   // 읽기전용 진단 — HARD_STOP 으로 막지 않는다(가드 docstring: '제외: 읽기전용(status 등)').
   // 오히려 HARD_STOP 켜진 순간이 환경 진단이 가장 필관리자 때.
   const cwd = process.cwd()
@@ -171,17 +403,20 @@ export async function doctor(opts: DoctorOptions = {}) {
   // 드리프트 점검 (passive — doctor 안에서 자동 경고, 읽기 전용)
   console.log('')
   console.log(chalk.bold(`  ${ko.doctor.driftTitle}`))
-  const ruleDrift = checkRuleDrift(cwd)
+  const ruleDrift = checkRuleDrift(cwd, { fullDiff: opts.diff === true })
   // --strict 게이트용 — 규칙 드리프트 발생 여부만 추적(context 드리프트는 제외: 생성물이라 비차단).
   let ruleDrifted = false
   if (!ruleDrift.checked) {
     console.log(chalk.dim(`    ${ko.doctor.driftNoRules}`))
   } else {
-    const drifted = ruleDrift.results.filter(r => r.status === 'drifted')
-    if (drifted.length === 0) {
+    const mismatched = ruleDrift.results.filter(r => isRuleDriftFailure(r.status))
+    if (mismatched.length === 0) {
       console.log(chalk.green(`    ${ko.doctor.driftRuleClean}`))
     } else {
-      console.log(chalk.yellow(`    ${ko.doctor.driftRuleWarn(drifted.map(d => d.path).join(', '))}`))
+      console.log(chalk.yellow(`    ${ko.doctor.driftRuleWarn(mismatched.map(d => d.path).join(', '))}`))
+      for (const line of formatRuleDriftDetails(mismatched, opts.diff === true)) {
+        console.log(chalk.dim(`      ${line}`))
+      }
       ruleDrifted = true
     }
   }

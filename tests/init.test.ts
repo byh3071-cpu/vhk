@@ -10,6 +10,7 @@ import { VHK_CONTEXT_SEED } from '../src/templates/vhk-dir.js'
 import { parseRulesMd } from '../src/commands/sync.js'
 import { writeFile } from '../src/utils/file.js'
 import { ko } from '../src/i18n/ko.js'
+import { STACK_CANDIDATE_LABEL } from '../src/lib/stack-state.js'
 
 const EXPECTED_FILES = [
   'CLAUDE.md',
@@ -125,6 +126,20 @@ describe('vhk init — RULES.md 단일 소스(SoT) 생성', () => {
     expect(rules).toContain('## 기록 규칙')
     expect(rules).toContain('## 커밋')
     expect(rules).toContain('Node.js')
+  })
+
+  it('generateFiles 직접 호출은 기존 호환을 위해 기술 스택을 확정으로 기록한다', () => {
+    const files = generateFiles('demo', '설명', ['Node.js'])
+    expect(files['RULES.md']).toContain('기술 스택 상태: 확정')
+    expect(files['docs/ARCHITECTURE.md']).toContain('기술 스택 상태: 확정')
+    expect(files['.vhk/context.md']).toContain('기술 스택 상태: 확정')
+  })
+
+  it('후보 상태는 RULES·파생 규칙·ARCHITECTURE·context에 같은 용어로 기록된다', () => {
+    const files = generateFiles('demo', '설명', ['Vite', 'React'], {}, 'webapp', 'candidate')
+    for (const file of ['RULES.md', 'CLAUDE.md', '.cursorrules', 'docs/ARCHITECTURE.md', '.vhk/context.md']) {
+      expect(files[file], file).toContain(STACK_CANDIDATE_LABEL)
+    }
   })
 
   it('RULES.md 가 sync 파서로 다시 파싱된다 (init↔sync 연결)', () => {
@@ -572,5 +587,17 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
       expect(ko.init.gitHintCommand).toContain('git init')
       expect(ko.init.gitHintCommand).toContain('vhk init')
     })
+  })
+})
+
+// #552 리뷰 대응 — emptyStack 문구는 detected 만이 아니라 preset·undecided 도 포괄해야 한다.
+describe('init emptyStack 문구', () => {
+  it('감지·기본값·미정 세 경우를 모두 설명한다', () => {
+    const message = ko.init.emptyStack
+    expect(message).toContain('--stack')
+    expect(message).toContain('기본값')
+    expect(message).toContain('미정')
+    // 감지된 것이 없을 때도 뜨므로 '자동 감지 결과' 단정은 쓰지 않는다.
+    expect(message).not.toContain('자동 감지 결과를')
   })
 })
