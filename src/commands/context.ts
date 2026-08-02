@@ -152,6 +152,7 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     for (const source of trackedWorkSources) lines.push(`- **${source.label}**: \`${source.path}\``)
   }
   lines.push('- **로컬 Goal 실행 상태**: `goals/*.md` frontmatter — 원본에서 만든 비추적 실행 카드')
+  lines.push('- **Goal 검사 스크립트(파생)**: `scripts/check-goal-<번호>.mjs` — 직접 수정 금지, `vhk goal sync`로 재생성')
   lines.push('- **파생 스냅샷**: `.vhk/context.md`, `docs/state/next-task.md` — 원본 아님')
   lines.push('- **로컬 차단 기록**: `docs/state/blockers.md` — append-only, 작업 정의 원본 아님')
   lines.push('- **버전·릴리스**: `package.json`, `CHANGELOG.md`')
@@ -281,6 +282,8 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
     lines.push('- 구조 상세: `docs/ARCHITECTURE.md`')
     lines.push('- 작업 정의·수용 기준: `RULES.md`가 지정한 추적 원본')
     for (const source of trackedWorkSources) lines.push(`  - ${source.label}: \`${source.path}\``)
+    lines.push('- 로컬 Goal 실행 상태: `goals/*.md` frontmatter — 카드가 없으면 상태는 unknown')
+    lines.push('- Goal 검사 스크립트: `scripts/check-goal-<번호>.mjs` — 직접 수정 금지, `vhk goal sync`로 재생성')
     lines.push('- 로컬 상태 스냅샷: `docs/state/next-task.md` (있을 때만 참고)')
     lines.push('')
   }

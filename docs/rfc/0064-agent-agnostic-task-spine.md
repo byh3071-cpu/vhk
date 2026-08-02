@@ -191,11 +191,12 @@ v0에는 `done`, `released`, `ready`, `verified`가 없다.
 v0는 새 스케줄러를 만들지 않고 현재 `selectActiveId` 순서만 보존한다.
 
 1. id 오름차순 Goal 중 첫 `IN_PROGRESS`
-2. 없으면 첫 `NOT_STARTED`
+2. 없으면 첫 `NOT_STARTED` 또는 상태가 누락된 legacy Goal
 3. 둘 다 없으면 active task는 `null`
 
-`BLOCKED`, `DONE`, `CANCELED`, `DEFERRED`, `OBSERVING`은 자동 선택하지 않는다. priority, dependency,
-부모·자식 정보는 v0 선택에 사용하지 않는다.
+`BLOCKED`, `DONE`, `CANCELED`, `DEFERRED`, `OBSERVING`은 자동 선택하지 않는다. 상태 누락 Goal을
+선택하는 것은 기존 호환 동작이며 투영 상태는 `unknown`으로 유지한다. priority, dependency, 부모·자식
+정보는 v0 선택에 사용하지 않는다.
 
 따라서 v0는 `get_next_tasks`가 아니라 **현재 호환 active task 하나**만 제공한다.
 

@@ -199,16 +199,17 @@ clean-room 방식이다. 코드를 직접 가져와야 할 때만 대상 파일,
 - 기존 원본 무쓰기와 Goal 선택 순서 회귀 테스트
 - 별도 독립 검토
 
-## 외부 방법론 근거 스냅샷
+## 외부 방법론 공개 근거
 
-확인일은 2026-07-31이다. 고정 HEAD는 읽기 기준이며 해당 코드를 가져온다는 뜻이 아니다.
+확인일은 2026-07-31이다. 공개 문서에는 저장소 단위 근거만 남기며, 상세 커밋 객체 ID는 공개 경계 밖의
+검증 기록으로 분리한다. 아래 항목은 코드를 가져온다는 뜻이 아니다.
 
-| 원천 | 고정 근거 | 라이선스 관찰 |
+| 원천 | 공개 근거 | 라이선스 관찰 |
 |---|---|---|
-| OMC | [README@41a4c0f](https://github.com/Yeachan-Heo/oh-my-claudecode/blob/41a4c0f77144c5beb5f5f000a89cff379c680606/README.md) | [MIT](https://github.com/Yeachan-Heo/oh-my-claudecode/blob/41a4c0f77144c5beb5f5f000a89cff379c680606/LICENSE) |
-| Superpowers | [README@44c9b2d](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/README.md) | [MIT](https://github.com/obra/superpowers/blob/44c9b2d6e889982ac18c27d05a19fefe335194e1/LICENSE) |
-| MCP Shrimp Task Manager | [README@8a3be6b](https://github.com/cjo4m06/mcp-shrimp-task-manager/blob/8a3be6bced310c7b660e5cfc3f42e4e5e45f2f61/README.md) | [MIT](https://github.com/cjo4m06/mcp-shrimp-task-manager/blob/8a3be6bced310c7b660e5cfc3f42e4e5e45f2f61/LICENSE) |
-| Caveman | [README@0d95a81](https://github.com/JuliusBrussee/caveman/blob/0d95a81d35a9f2d123a5e9430d1cfc43d55f1bb0/README.md) | [MIT](https://github.com/JuliusBrussee/caveman/blob/0d95a81d35a9f2d123a5e9430d1cfc43d55f1bb0/LICENSE) |
+| OMC | [공개 저장소](https://github.com/Yeachan-Heo/oh-my-claudecode) | MIT(저장소 LICENSE 확인) |
+| Superpowers | [공개 저장소](https://github.com/obra/superpowers) | MIT(저장소 LICENSE 확인) |
+| MCP Shrimp Task Manager | [공개 저장소](https://github.com/cjo4m06/mcp-shrimp-task-manager) | MIT(저장소 LICENSE 확인) |
+| Caveman | [공개 저장소](https://github.com/JuliusBrussee/caveman) | MIT(저장소 LICENSE 확인) |
 
 ## 관련
 

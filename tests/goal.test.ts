@@ -55,6 +55,26 @@ describe('selectActiveId', () => {
     expect(selectActiveId(goals)).toBe(1)
   })
 
+  it('입력 배열 순서와 무관하게 가장 작은 IN_PROGRESS id를 선택한다', async () => {
+    const { selectActiveId } = await import('../src/commands/goal.js')
+    const goals = [
+      { filePath: 'c', frontmatter: { id: 9, status: 'IN_PROGRESS' as const }, body: '' },
+      { filePath: 'a', frontmatter: { id: 1, status: 'NOT_STARTED' as const }, body: '' },
+      { filePath: 'b', frontmatter: { id: 3, status: 'IN_PROGRESS' as const }, body: '' },
+    ]
+    expect(selectActiveId(goals)).toBe(3)
+  })
+
+  it('IN_PROGRESS가 없으면 가장 작은 legacy/NOT_STARTED id를 선택한다', async () => {
+    const { selectActiveId } = await import('../src/commands/goal.js')
+    const goals = [
+      { filePath: 'c', frontmatter: { id: 9, status: 'NOT_STARTED' as const }, body: '' },
+      { filePath: 'a', frontmatter: { id: 1 }, body: '' },
+      { filePath: 'b', frontmatter: { id: 3, status: 'NOT_STARTED' as const }, body: '' },
+    ]
+    expect(selectActiveId(goals)).toBe(1)
+  })
+
   it('전부 DONE 이면 null', async () => {
     const { selectActiveId } = await import('../src/commands/goal.js')
     const goals = [

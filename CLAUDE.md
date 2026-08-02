@@ -76,7 +76,7 @@
 - Git 작성자 이메일은 GitHub noreply, npm 공개 연락처는 `opensource@yohanstudio.co` 사용
 
 ## 기록 규칙
-- 의사결정 → docs/adr/ · 에러 → docs/troubleshooting/ · 배움 → docs/til.md · 설계 → docs/rfc/
+- 의사결정 → docs/adr/ · 에러 → docs/troubleshooting/ · 공개 범용 배움 → docs/til.md · 설계 → docs/rfc/
 - 기록 경로 판단표 (governance-v2):
   - 작은 구현 선택(국소·되돌리기 쉬움) → commit 메시지 본문
   - 패키지·아키텍처·정책 결정 → docs/adr/ `ADR-NNN-슬러그.md`
@@ -87,7 +87,7 @@
 - 세션 종료 시 미기록 ADR·트러블슈팅 후보를 확인하고 해당하면 공개 문서에는 일반화된 기술 사실만 기록
 - 개인 세션 기록·현재 작업 큐·외부 서비스 식별자는 커밋하지 않음
 - 코드 변경이 동작/사용법을 바꾸면 README를 같이 갱신
-- 교훈·결정·실패·성공 = `vhk memory`(4버킷) / `vhk learn`. learnings.md 는 v2 흡수·동결 → 신규 기록 금지.
+- 교훈·결정·실패·성공의 운영 원본 = `vhk memory`(4버킷) / `vhk learn`. `docs/til.md`는 검증된 범용 배움만 공개 요약으로 승격하는 파생 문서다. learnings.md 는 v2 흡수·동결 → 신규 기록 금지.
 - 제품 작업 정의·순서의 원본 = 추적되는 `docs/roadmap/2.x-roadmap.md`, 수용 기준의 원본 = `docs/PRD-2.x.md` (ADR-010 §2).
 - 로컬 Goal 실행 상태 = 비추적 `goals/*.md` frontmatter. 원본 정의를 바꿀 때는 Goal 카드가 아니라 roadmap·PRD를 먼저 고친다.
 - `.vhk/context.md`·`docs/state/next-task.md` = 재생성 가능한 상태 스냅샷, `docs/state/blockers.md` = append-only 로컬 차단 기록. 셋 모두 제품 작업 정의의 원본이 아니다.

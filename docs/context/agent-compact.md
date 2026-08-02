@@ -25,7 +25,7 @@
 - 작업 정의·순서 원본: `docs/roadmap/2.x-roadmap.md`. 수용 기준 원본: `docs/PRD-2.x.md`.
 - `goals/*.md`가 있으면 frontmatter를 로컬 실행 상태로만 읽는다.
 - `.vhk/context.md`·`docs/state/next-task.md`는 파생 스냅샷이다. `docs/state/blockers.md`는 append-only 로컬 차단 기록이다.
-- 구 `docs/state/learnings.md`는 동결됐다. 새 교훈은 `vhk memory`의 failures.lesson에 기록한다.
+- 교훈·결정·실패·성공의 운영 원본은 `vhk memory` 4버킷이다. `docs/til.md`는 검증된 범용 배움의 공개 승격본이며, 구 `docs/state/learnings.md`에는 새로 기록하지 않는다.
 
 ## 게이트
 - 기본: `pnpm.cmd exec tsc --noEmit` / `pnpm.cmd run test:run` / `pnpm.cmd run build`.

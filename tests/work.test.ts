@@ -56,6 +56,9 @@ describe('work — 프롬프트 빌더', () => {
     expect(p).toContain('RULES.md와 프로젝트 문서')
     expect(p).toContain('프로젝트 규칙이 지정한 추적 문서')
     expect(p).toContain('파생 스냅샷')
+    expect(p).toContain('카드가 없으면 상태를 unknown')
+    expect(p).toContain('scripts/check-goal-<번호>.mjs')
+    expect(p).toContain('vhk goal sync')
   })
 
   it('buildStartPrompt — git 비면 "(변경 없음)"', async () => {
@@ -68,6 +71,8 @@ describe('work — 프롬프트 빌더', () => {
     const p = buildHandoffPrompt(' M a.ts')
     expect(p).toContain('완료된 일 / 미완료된 일')
     expect(p).toContain('미실행')
+    expect(p).toContain('docs/devlog/YYYY-MM-DD-<작업명>.md')
+    expect(p).not.toContain('docs/log/YYYY-MM-DD-<작업명>.md')
     expect(p).toContain('docs/state/next-task.md')
     expect(p).toContain('이미 있으면')
     expect(p).toContain('프로젝트 규칙이 지정한 추적 원본')

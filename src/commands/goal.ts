@@ -55,16 +55,20 @@ function reportNoActiveGoal(goals: ParsedGoal[]): boolean {
   return true
 }
 
-// active goal 선택: IN_PROGRESS 우선, 없으면 첫 NOT_STARTED.
+// active goal 선택: id 오름차순 IN_PROGRESS 우선, 없으면 NOT_STARTED/legacy 상태 누락.
 // (BLOCKED 는 자동 선택 안 함 — 사람이 풀어야 함.)
 export function selectActiveId(goals: ParsedGoal[]): number | null {
-  const ip = goals.find((g) => effectiveGoalStatus(g.frontmatter) === 'IN_PROGRESS')
-  if (ip && typeof ip.frontmatter.id === 'number') return ip.frontmatter.id
-  const ns = goals.find((g) => {
-    const s = effectiveGoalStatus(g.frontmatter)
+  // why: 호출자가 파일·배열 순서를 바꿔도 같은 Goal을 골라야 RFC 0064의 결정론 계약을 지킨다.
+  const sorted = goals
+    .flatMap((goal) => typeof goal.frontmatter.id === 'number' ? [{ goal, id: goal.frontmatter.id }] : [])
+    .sort((a, b) => a.id - b.id)
+  const ip = sorted.find(({ goal }) => effectiveGoalStatus(goal.frontmatter) === 'IN_PROGRESS')
+  if (ip) return ip.id
+  const ns = sorted.find(({ goal }) => {
+    const s = effectiveGoalStatus(goal.frontmatter)
     return s === 'NOT_STARTED' || s === undefined
   })
-  if (ns && typeof ns.frontmatter.id === 'number') return ns.frontmatter.id
+  if (ns) return ns.id
   return null
 }
 
