@@ -137,6 +137,25 @@ describe('vhk context --compact (배치2 토큰 절감)', () => {
     expect(out).not.toContain('## VHK CLI 명령어')
     expect(out).toContain('참조 문서')
     expect(out).toContain('docs/state/next-task.md')
+    expect(out).toContain('경로를 추측하지 않음')
+    expect(out).not.toContain('docs/roadmap/2.x-roadmap.md')
+    expect(out).not.toContain('docs/PRD-2.x.md')
+    expect(out).toContain('파생 스냅샷')
+    expect(out).not.toContain('로컬 작업 상태 SoT')
+  })
+
+  it('프로젝트에 추적 작업 원본이 있을 때만 정확한 경로를 표시한다', async () => {
+    mkdirSync(join(dir, 'docs', 'roadmap'), { recursive: true })
+    writeFileSync(join(dir, 'docs', 'roadmap', '2.x-roadmap.md'), '# roadmap\n', 'utf-8')
+    writeFileSync(join(dir, 'docs', 'PRD-2.x.md'), '# acceptance\n', 'utf-8')
+    const { context } = await import('../src/commands/context.js')
+    await context({ compact: true })
+    const out = readFileSync(join(dir, '.vhk/context.md'), 'utf-8')
+    expect(out).toContain('docs/roadmap/2.x-roadmap.md')
+    expect(out).toContain('docs/PRD-2.x.md')
+    expect(out).not.toContain('경로를 추측하지 않음')
+    expect(out).toContain('scripts/check-goal-<번호>.mjs')
+    expect(out).toContain('vhk goal sync')
   })
 
   it('기본(full) 모드는 전체 명령 목록을 유지한다 (back-compat)', async () => {

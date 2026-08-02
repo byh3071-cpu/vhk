@@ -129,6 +129,9 @@ describe('vhk sync — AGENTS.md 생성 (배치3 6번째 타겟)', () => {
     expect(out).toContain('execSync 금지') // 코딩 규칙 섹션 본문
     // compact 안내는 AGENTS.md 에 하드코딩이 아니라 생성기(toAgentsMd)를 거쳐 들어간다.
     expect(out).toContain('agent-compact.md')
+    expect(out).toContain('- 작업 정의·수용 기준은 RULES.md가 지정한 추적 원본을 따른다. Goal 카드는 로컬 실행 상태다.')
+    expect(out).toContain('- `.vhk/context.md`·`docs/state/next-task.md`는 파생 스냅샷. blockers만 append-only 로컬 기록이다.')
+    expect(out).not.toContain('- active goal 만 작업. `docs/state`(next-task/blockers)는 append-only.')
   })
 
   it('agentsMdEcosystemBlock — contract SoT + tier + roster + 금지', () => {
