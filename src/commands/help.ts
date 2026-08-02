@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 import type { Command, Help } from 'commander'
+import { log } from '../utils/logger.js'
 
 export const DEFAULT_HELP_HIDDEN_COMMANDS = [
   'content',
@@ -19,9 +20,10 @@ export function formatRootHelp(
   helper: Help,
   options: { all?: boolean } = {},
 ): string {
+  // 기본 도움말이 숨기는 것은 DEFAULT_HELP_HIDDEN_COMMANDS 8종뿐이다.
+  // `help` 자신은 기본 목록에도 남는다 — 초보자가 `vhk help --all` 로 가는 입구다.
   const commands = helper
     .visibleCommands(cmd)
-    .filter((command) => options.all === true || command.name() !== 'help')
     .filter((command) => options.all === true || !DEFAULT_HELP_HIDDEN_SET.has(command.name()))
   const terms = commands.map((command) => {
     const aliases = command.aliases()
@@ -64,11 +66,12 @@ export const QUICK_ACTIONS: ReadonlyArray<{ say: string; does: string }> = [
 
 /** 자연어로 vhk 를 쓰는 법(quick actions) 출력. 부수효과 없음(콘솔 출력만). */
 export function quickActions(): void {
-  console.log(chalk.bold('\n🧭 VHK — 이렇게 말하면 됩니다 (quick actions)'))
-  console.log(chalk.gray('─'.repeat(40)))
+  // 출력 SoT(src/utils/logger.ts)만 거친다 — raw console.log 는 quiet 모드·테스트 캡처를 우회한다.
+  log.plain(chalk.bold('\n🧭 VHK — 이렇게 말하면 됩니다 (quick actions)'))
+  log.plain(chalk.gray('─'.repeat(40)))
   for (const a of QUICK_ACTIONS) {
-    console.log(`  "${chalk.cyan(a.say)}"  →  ${chalk.dim(a.does)}`)
+    log.plain(`  "${chalk.cyan(a.say)}"  →  ${chalk.dim(a.does)}`)
   }
-  console.log(chalk.gray('\n  기본 명령은 `vhk help`, 전체 명령은 `vhk help --all` 또는 COMMANDS.md 를 보세요.'))
-  console.log('')
+  log.plain(chalk.gray('\n  기본 명령은 `vhk help`, 전체 명령은 `vhk help --all` 또는 COMMANDS.md 를 보세요.'))
+  log.plain('')
 }

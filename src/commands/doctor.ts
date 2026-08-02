@@ -202,7 +202,19 @@ function displayDriftLine(line: string | null): string {
   if (line === null) return ko.doctor.driftMissingLine
   if (line.length === 0) return ko.doctor.driftEmptyLine
 
-  const visible = line.replace(/[\u0000-\u001f\u007f-\u009f]/g, character => {
+  // C0/C1 제어문자에 더해 양방향(bidi)·제로폭·줄 구분 문자도 이스케이프한다(#552).
+  // 이 문자들은 터미널에서 줄 내용을 시각적으로 뒤집거나 지우거나 쪼갤 수 있다 —
+  // 드리프트 대상 파일은 사람이 손으로 고칠 수 있어 출력 위조 여지를 남기지 않는다.
+  const CONTROL_OR_SPOOFING = new RegExp(
+    '[' +
+      '\u0000-\u001f\u007f-\u009f' + // C0/C1
+      '\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069' + // 양방향 제어
+      '\u200b-\u200d\ufeff' + // 제로폭
+      '\u2028\u2029' + // 줄·문단 구분
+      ']',
+    'g',
+  )
+  const visible = line.replace(CONTROL_OR_SPOOFING, character => {
     if (character === '\t') return '\\t'
     if (character === '\n') return '\\n'
     if (character === '\r') return '\\r'
@@ -211,6 +223,16 @@ function displayDriftLine(line: string | null): string {
   return visible.length > MAX_DRIFT_LINE_DISPLAY_LENGTH
     ? `${visible.slice(0, MAX_DRIFT_LINE_DISPLAY_LENGTH - 1)}…`
     : visible
+}
+
+/**
+ * `--strict` 실패로 승격할 규칙 드리프트인가 (#552).
+ * 내용 불일치(`drifted`)뿐 아니라 **생성 파일 누락(`missing`)도 드리프트**다 —
+ * 규칙이 실제로 동기화돼 있지 않다는 뜻이라 CI 게이트에서 통과시키지 않는다.
+ * (README·COMMANDS.md·`--strict` 옵션 설명도 이 의미로 적혀 있다.)
+ */
+export function isRuleDriftFailure(status: RuleDriftResult['status']): boolean {
+  return status !== 'ok'
 }
 
 export function formatRuleDriftDetails(
@@ -387,7 +409,7 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
   if (!ruleDrift.checked) {
     console.log(chalk.dim(`    ${ko.doctor.driftNoRules}`))
   } else {
-    const mismatched = ruleDrift.results.filter(r => r.status !== 'ok')
+    const mismatched = ruleDrift.results.filter(r => isRuleDriftFailure(r.status))
     if (mismatched.length === 0) {
       console.log(chalk.green(`    ${ko.doctor.driftRuleClean}`))
     } else {

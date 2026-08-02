@@ -157,6 +157,7 @@ program.configureHelp({
 
 program
   .command('help')
+  .alias('도움말')
   .description('도움말 — 기본 명령만 표시')
   .option('--all', '전체 명령 표시')
   .action((options: { all?: boolean }) => {
@@ -291,7 +292,7 @@ program
   .command('doctor')
   .alias('환경')
   .alias('진단')
-  .option('--strict', '규칙 드리프트 발견 시 실패 처리 (exit 1, CI 게이트용)')
+  .option('--strict', '규칙 드리프트(내용 불일치 + 생성 파일 누락) 발견 시 실패 처리 (exit 1, CI 게이트용)')
   .option('--audit', '의존성 보안 audit 포함 (기본 생략 — pnpm/yarn/npm audit)')
   .option('--json', '진단 결과를 JSON 으로 출력 (CI/MCP용 — 제목·드리프트 생략)')
   .option('--차이, --diff', ko.doctor.diffOption)

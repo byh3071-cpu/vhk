@@ -9,7 +9,7 @@ id: PAT-004
 출처프로젝트: VHK
 태그: [build-artifact, e2e, cli, verification-order]
 발견일: 2026-08-01
-출처DevLog: docs/devlog/2026-08-01-goals-115-118.md
+출처DevLog: 로컬 전용 — `docs/devlog/2026-08-01-goals-115-118.md` (docs/devlog/ 는 .gitignore 대상이라 저장소에는 없다)
 ---
 
 # 빌드 산출물을 실행하는 E2E는 빌드 뒤에 실행한다

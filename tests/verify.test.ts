@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { setSink } from '../src/utils/logger.js'
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -361,6 +362,15 @@ describe('verify — CLI (--json / HARD_STOP)', () => {
     await verify()
     const printed = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
     expect(printed).toContain('미도입 4종(선언됨)')
+    // #552 리뷰 대응 — 게이트 행·미도입 요약은 logger 단일 sink 를 거친다.
+    const sinkLines: string[] = []
+    const restoreSink = setSink((line) => sinkLines.push(line))
+    try {
+      await verify()
+    } finally {
+      restoreSink()
+    }
+    expect(sinkLines.join('|')).toContain('미도입 4종(선언됨)')
     expect(printed).toMatch(/결과: PASS/)
     expect(printed).not.toMatch(/결과: WARN/)
     expect(process.exitCode).toBe(0)

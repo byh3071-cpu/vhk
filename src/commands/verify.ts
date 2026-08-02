@@ -19,6 +19,7 @@ import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
 import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evidence-ledger.js'
 import { detectAgent } from '../lib/detect-agent.js'
 import { readGatesConfig, type GateId } from '../lib/gates-config.js'
+import { log } from '../utils/logger.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -594,14 +595,15 @@ export async function verify(
           : g.status === 'warn'
             ? chalk.yellow('⚠')
             : chalk.yellow('⊘')
+  // 게이트 행·미도입 요약은 출력 SoT(src/utils/logger.ts)를 거친다.
   for (const g of report.gates) {
     const tail = g.detail ? chalk.dim(` — ${g.detail}`) : ''
-    console.log(`   ${icon(g)} ${g.label}${tail}`)
+    log.plain(`   ${icon(g)} ${g.label}${tail}`)
   }
 
   const declaredOptionalCount = report.gates.filter(isDeclaredOptionalSkip).length
   if (declaredOptionalCount > 0) {
-    console.log(chalk.dim(`  미도입 ${declaredOptionalCount}종(선언됨)`))
+    log.dim(`  미도입 ${declaredOptionalCount}종(선언됨)`)
   }
 
   // 한 줄 요약 + 파일 경로

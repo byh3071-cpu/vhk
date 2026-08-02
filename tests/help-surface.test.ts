@@ -56,3 +56,28 @@ describe('도움말 명령 표면', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', 'help'])).toBeNull()
   })
 })
+
+// #552 리뷰 대응 — 기본 도움말이 숨기는 것은 8종뿐이고 `help` 자신은 남는다.
+describe('기본 도움말의 help 노출과 한국어 별칭', () => {
+  it('기본 도움말에도 help 가 표시된다(숨김은 정확히 8종)', () => {
+    const output = formatRootHelp(program, program.createHelp())
+    expect(hasCommandLine(output, 'help')).toBe(true)
+    for (const command of EXPECTED_HIDDEN) {
+      expect(hasCommandLine(output, command), command).toBe(false)
+    }
+  })
+
+  it('help 는 한국어 별칭 도움말을 갖고 KNOWN 토큰에도 등록돼 있다', () => {
+    const help = program.commands.find((command) => command.name() === 'help')
+    expect(help?.aliases()).toContain('도움말')
+    expect(KNOWN_COMMAND_TOKENS.has('도움말')).toBe(true)
+    // 한국어 별칭도 commander 로 직행한다(자연어 라우터가 가로채지 않는다).
+    expect(detectNaturalLanguageInput(['node', 'vhk', '도움말'])).toBeNull()
+    expect(detectNaturalLanguageInput(['node', 'vhk', '도움말', '--all'])).toBeNull()
+  })
+
+  it('도움말 목록에는 별칭이 함께 보인다', () => {
+    const output = formatRootHelp(program, program.createHelp())
+    expect(output).toContain('help (도움말)')
+  })
+})

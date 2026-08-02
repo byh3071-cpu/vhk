@@ -201,7 +201,7 @@ export const ko = {
     canceled: '취소했어요. 기술 스택을 바꾸려면 다시 vhk init을 실행하세요.',
     candidateStack: `기술 스택 ${STACK_CANDIDATE_LABEL}:`,
     confirmedStack: '기술 스택 확정:',
-    emptyStack: '--stack에 유효한 기술 스택이 없습니다. 자동 감지 결과를 후보로 기록합니다.',
+    emptyStack: '--stack에 유효한 기술 스택이 없습니다. 감지·기본값으로 찾은 스택을 후보로 기록하고, 못 찾으면 미정으로 둡니다.',
     filesGenerating: '📂 필관리자 파일 만드는 중...',
     overwrite: (filePath: string) => `  ⚠️ ${filePath} 파일이 있어요. 덮어쓸까요?`,
     skipped: (filePath: string) => `${filePath} — 건너뜀`,

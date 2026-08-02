@@ -76,7 +76,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   'work', '작업',
   'seo',
   'config', '설정',
-  'help',
+  'help', '도움말',
 ])
 
 function isOptionToken(token: string): boolean {

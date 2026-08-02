@@ -589,3 +589,15 @@ describe('vhk init — 커스터마이징 트리거 (goal 89)', () => {
     })
   })
 })
+
+// #552 리뷰 대응 — emptyStack 문구는 detected 만이 아니라 preset·undecided 도 포괄해야 한다.
+describe('init emptyStack 문구', () => {
+  it('감지·기본값·미정 세 경우를 모두 설명한다', () => {
+    const message = ko.init.emptyStack
+    expect(message).toContain('--stack')
+    expect(message).toContain('기본값')
+    expect(message).toContain('미정')
+    // 감지된 것이 없을 때도 뜨므로 '자동 감지 결과' 단정은 쓰지 않는다.
+    expect(message).not.toContain('자동 감지 결과를')
+  })
+})

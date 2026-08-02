@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { QUICK_ACTIONS, quickActions } from '../src/commands/help.js'
+import { setSink } from '../src/utils/logger.js'
 import { requiresConfirmation } from '../src/lib/nlp-run.js'
 import type { NlpRoute } from '../src/lib/nlp-router.js'
 
@@ -17,6 +18,20 @@ describe('quick actions (자연어 도움말 — 읽기전용)', () => {
     expect(says).toContain('뭐 바뀌었어?')
     expect(says).toContain('저장해줘')
     expect(QUICK_ACTIONS.at(-1)?.does).toBe('vhk help --all')
+  })
+
+  // #552 리뷰 대응 — 출력은 logger 단일 sink 를 거친다(raw console.log 금지).
+  it('quickActions() 출력은 logger sink 로 흐른다', () => {
+    const lines: string[] = []
+    const restore = setSink((line) => lines.push(line))
+    try {
+      quickActions()
+    } finally {
+      restore()
+    }
+    expect(lines.length).toBeGreaterThan(0)
+    expect(lines.join('|')).toContain('quick actions')
+    expect(lines.join('|')).toContain('vhk help --all')
   })
 
   it('quickActions() 는 콘솔 출력만 — 상태변경(파일/git) 없음', () => {

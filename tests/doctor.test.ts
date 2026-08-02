@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest'
 import { execSync } from 'node:child_process'
-import { checkCommand, compareSemver, formatRuleDriftDetails, driftLineHasSecret } from '../src/commands/doctor.js'
+import {
+  checkCommand,
+  compareSemver,
+  formatRuleDriftDetails,
+  driftLineHasSecret,
+  isRuleDriftFailure,
+} from '../src/commands/doctor.js'
 import type { RuleDriftResult } from '../src/lib/drift.js'
 import { program } from '../src/index.js'
 import { ko } from '../src/i18n/ko.js'
@@ -511,5 +517,51 @@ describe('doctor 규칙 불일치 설명', () => {
     expect(diffOption?.short).toBe('--차이')
     expect(diffOption?.attributeName()).toBe('diff')
     expect(diffOption?.description).toBe(ko.doctor.diffOption)
+  })
+})
+
+// #552 리뷰 대응 — 양방향·제로폭·줄 구분 문자도 이스케이프한다(터미널 출력 위조 차단).
+describe('드리프트 줄 유니코드 위조 문자 이스케이프', () => {
+  const cases: Array<{ name: string; char: string; escaped: string }> = [
+    { name: 'RTL override', char: '\u202e', escaped: '\\u202e' },
+    { name: 'LTR embedding', char: '\u202a', escaped: '\\u202a' },
+    { name: 'zero-width space', char: '\u200b', escaped: '\\u200b' },
+    { name: 'zero-width joiner', char: '\u200d', escaped: '\\u200d' },
+    { name: 'line separator', char: '\u2028', escaped: '\\u2028' },
+    { name: 'paragraph separator', char: '\u2029', escaped: '\\u2029' },
+    { name: 'arabic letter mark', char: '\u061c', escaped: '\\u061c' },
+    { name: 'isolate initiator', char: '\u2066', escaped: '\\u2066' },
+    { name: 'BOM', char: '\ufeff', escaped: '\\ufeff' },
+  ]
+
+  for (const c of cases) {
+    it(`${c.name} 를 이스케이프한다`, () => {
+      const lines = formatRuleDriftDetails([{
+        path: 'AGENTS.md',
+        status: 'drifted',
+        differences: [{ line: 1, expected: `규칙${c.char}줄`, actual: '실제 줄' }],
+      }])
+      const joined = lines.join('\n')
+      expect(joined).not.toContain(c.char)
+      expect(joined).toContain(c.escaped)
+    })
+  }
+
+  it('일반 한글·영문은 그대로 남는다', () => {
+    const lines = formatRuleDriftDetails([{
+      path: 'AGENTS.md',
+      status: 'drifted',
+      differences: [{ line: 2, expected: '규칙 line 그대로', actual: '실제 줄' }],
+    }])
+    expect(lines[0]).toContain('규칙 line 그대로')
+  })
+})
+
+// #552 리뷰 대응 — --strict 는 내용 불일치와 생성 파일 누락을 모두 실패로 본다.
+describe('--strict 규칙 드리프트 판정', () => {
+  it('drifted 와 missing 은 실패, ok 만 통과다', () => {
+    expect(isRuleDriftFailure('drifted')).toBe(true)
+    expect(isRuleDriftFailure('missing')).toBe(true)
+    expect(isRuleDriftFailure('ok')).toBe(false)
   })
 })
