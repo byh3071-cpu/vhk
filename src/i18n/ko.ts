@@ -248,7 +248,7 @@ export const ko = {
     recordHookHooksPath: '⚠️  core.hooksPath 설정 감지(husky 등) — .git/hooks 는 git 이 무시하므로 기록 집행 훅 미배선. 해당 훅 디렉터리의 commit-msg 에 node .vhk/hooks/record-check.mjs 호출을 수동 추가하세요.',
     recordHookFailed: '⚠️  기록 집행 훅 배선 실패(선택 기능 — init 은 계속):',
     coreRulesBundledWarn: (version: string) => {
-      const v = version === 'unknown' ? '버전 미상' : `v${version}`
+      const v = version === 'unknown' ? '버전 확인 안 됨' : `v${version}`
       return (
         `사용자 규칙 파일이 없어 core-rules가 번들 스냅샷(${v})으로 사용되고 있어요. ` +
         `별도 규칙을 사용하려면 VHK_RULES_FILE을 설정하거나 ` +

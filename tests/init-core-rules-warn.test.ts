@@ -42,6 +42,8 @@ describe('vhk init — 범용 규칙 소스 가시화', () => {
     await init({ yes: true, name: 'demo', description: 'd', type: 'cli' })
 
     expect(logs.join('\n')).toContain('번들 스냅샷')
+    expect(logs.join('\n')).toContain('VHK 내장 기본 규칙')
+    expect(logs.join('\n')).toContain('사용자 규칙 파일이 연결된 상태가 아닙니다')
     const context = fs.readFileSync(path.join(dir, '.vhk', 'context.md'), 'utf-8')
     expect(context).toContain('bundled')
   })
@@ -67,6 +69,8 @@ describe('vhk init — 범용 규칙 소스 가시화', () => {
 
     const context = fs.readFileSync(path.join(dir, '.vhk', 'context.md'), 'utf-8')
     expect(context).toContain('configured')
-    expect(logs.join('\n')).not.toContain('번들 스냅샷')
+    const joined = logs.join('\n')
+    expect(joined).not.toContain('번들 스냅샷')
+    expect(joined).toContain('사용자 규칙 파일 · v3.0.0')
   })
 })

@@ -411,7 +411,11 @@ export async function init(options: InitOptions = {}) {
 
   console.log(chalk.bold.green(`\n${ko.init.done}`))
   // RFC 0060 T3: 설치 점검 영수증 — "썼다"가 아니라 디스크에서 읽어 확인한 현황(거짓완료 금지).
-  console.log('\n' + formatInstallReceipt(collectInstallReceipt(cwd)))
+  const receiptCoreRules = {
+    source: coreRulesCheck.source,
+    ...(coreRulesCheck.version === 'unknown' ? {} : { version: coreRulesCheck.version }),
+  }
+  console.log('\n' + formatInstallReceipt(collectInstallReceipt(cwd, receiptCoreRules)))
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
   if (options.fromNotion) {
     console.log(`  1. ${ko.init.notionReviewHint}`)
