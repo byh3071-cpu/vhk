@@ -469,7 +469,7 @@ const RULES: NlpRule[] = [
   },
   {
     command: 'evolve',
-    explanation: '진화 후보 목록 (vhk evolve list) — apply/undo는 직접 실행',
+    explanation: '현재 진화 후보 확인 (vhk evolve list) — 반영·되돌리기는 직접 실행',
     confidence: 'high',
     test: t => matchesKeywords(t, 'evolve') || /^evolve$/.test(t),
   },

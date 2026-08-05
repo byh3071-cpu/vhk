@@ -10,7 +10,19 @@ import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { readMemory, loadForMutation, writeMemory, type FailEntry } from './memory.js'
 import { sync } from './sync.js'
 import { reconcilePatterns, type PatternEntryV19 } from './pattern.js'
-import { appendEvolveLog, buildEvolveLogEntry } from '../lib/evolve-log.js'
+import {
+  appendEvolveLog,
+  buildEvolveLogEntry,
+  buildEvolveUndoLogEntry,
+  currentEvolveDecisionKeys,
+  currentEvolveDecisions,
+  readEvolveLog,
+} from '../lib/evolve-log.js'
+import {
+  buildCandidateDraft,
+  generateInlineCandidates,
+  type InlineEvolveCandidate,
+} from '../lib/evolve-candidates.js'
 import { parsePatMarkdown, failureToSeed, tsToSeed, renderSeedPreview, type SeedCandidate } from '../lib/seed-mine.js'
 
 /**
@@ -53,15 +65,7 @@ export interface EvolveQueueFile {
  * 예: "- 태그 'build' 관련 작업 시 사전 점검 필수 (근거: 3건 반복, [avoid] 태그 'build' 3건 반복)"
  */
 export function buildDraft(p: PatternEntryV19): string {
-  const axisLabel = p.axis === 'tag' ? `태그 '${p.signal}'` : `키워드 '${p.signal}'`
-  if (p.kind === 'reinforce') {
-    // N2: 성공패턴 → 긍정형 룰(이렇게 하면 됐다 → 계속 권장). avoid(사전 점검)와 대칭.
-    // 적대리뷰(low): p.summary 는 내부 라벨 '[reinforce]' + '건 반복'(성공에 '반복'은 모순)을 담아
-    //   RULES.md 로 새므로 임베드 금지 → signal/count 로 재조립(사용자 노출 문구 정합, 정보손실 0).
-    return `- ${axisLabel} 관련 작업 시 이 접근 계속 권장 (근거: ${p.count}건 성공 사례)`
-  }
-  const countDesc = `${p.count}건 반복`
-  return `- ${axisLabel} 관련 작업 시 사전 점검 필수 (근거: ${countDesc}, ${p.summary})`
+  return buildCandidateDraft(p)
 }
 
 /** dedupeKey = `${patternId}:${targetLayer}`. v1 의 `${patternId}:rule` 과 하위호환(targetLayer 기본 'rule'). */
@@ -473,61 +477,60 @@ export async function evolveSeed(opts: { write?: boolean; json?: boolean } = {})
   })
 }
 
+function loadInlineCandidates(cwd: string, nowIso = new Date().toISOString()): InlineEvolveCandidate[] {
+  const patterns = readMemory(cwd).patterns as PatternEntryV19[]
+  const decidedKeys = currentEvolveDecisionKeys(readEvolveLog(cwd))
+  return generateInlineCandidates(patterns, decidedKeys, nowIso)
+}
+
+function printInlineCandidate(item: InlineEvolveCandidate): void {
+  const expires = new Date(item.expiresAt).toLocaleDateString('ko-KR')
+  console.log(chalk.cyan(`\n  [${item.id}] 규칙 후보`))
+  console.log(`      ${item.draft}`)
+  console.log(chalk.dim(`      ${expires}까지 선택하지 않으면 사라집니다.`))
+  console.log(chalk.dim(`      승인: vhk evolve apply ${item.id}`))
+  console.log(chalk.dim(`      기각: vhk evolve reject ${item.id} "이유"`))
+}
+
 export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void> {
   const cwd = process.cwd()
 
-  // RULES.md 없으면 suggest 의미 없음 (반영 타깃 없음)
   if (!existsSync(join(cwd, 'RULES.md'))) {
     console.log(chalk.yellow('\n⚠️  ' + t('evolve.noRules')))
     process.exitCode = 1
     return
   }
 
-  const mem = readMemory(cwd)
-  const patterns = mem.patterns as PatternEntryV19[]
-  const queue = readQueue(cwd)
-  const newItems = generateCandidates(patterns, queue.items)
+  const patterns = readMemory(cwd).patterns as PatternEntryV19[]
+  const candidates = loadInlineCandidates(cwd)
 
-  if (newItems.length === 0 && !opts.json) {
-    const activePatterns = patterns.filter(p => (p.kind === 'avoid' || p.kind === 'reinforce') && p.status === 'active')
+  if (opts.json) {
+    console.log(JSON.stringify(candidates, null, 2))
+    return
+  }
+
+  if (candidates.length === 0) {
+    const activePatterns = patterns.filter(
+      (pattern) => (pattern.kind === 'avoid' || pattern.kind === 'reinforce') && pattern.status === 'active',
+    )
     if (activePatterns.length === 0) {
       console.log(chalk.yellow('\n📭 ' + t('evolve.noPatterns')))
       return
     }
-    console.log(chalk.dim('\n  ' + t('evolve.allSuggested')))
-    return
-  }
-
-  const now = new Date().toISOString()
-  for (const c of newItems) {
-    queue.items.push({ ...c, id: nextQueueId(queue), createdAt: now })
-  }
-  // suggest는 --json 여부와 무관하게 항상 큐에 기록함 (write-first, then output).
-  // CI에서 read-only 조회가 필요하면 evolveList --json 사용.
-  writeQueue(cwd, queue)
-
-  if (opts.json) {
-    const pending = queue.items.filter(i => i.status === 'pending')
-    console.log(JSON.stringify(pending, null, 2))
+    console.log(chalk.dim('\n  판정할 후보가 없습니다. 기존 후보는 이미 결정됐거나 7일이 지났습니다.'))
     return
   }
 
   console.log(chalk.bold('\n🔄 ' + t('evolve.suggestTitle')))
   console.log(chalk.gray('─'.repeat(40)))
-  console.log(chalk.dim('  ' + t('evolve.newCandidates', newItems.length)))
-
-  const pending = queue.items.filter(i => i.status === 'pending')
-  console.log(chalk.cyan(`\n후보 ${pending.length}개:\n`))
-  for (const item of pending) {
-    console.log(`  [${item.id}] (${item.status}) 패턴 ${item.patternId} → rule`)
-    console.log(chalk.dim(`      초안: ${item.draft}`))
-  }
+  console.log(chalk.dim(`  후보 ${candidates.length}개를 저장하지 않고 바로 보여줍니다.`))
+  for (const candidate of candidates) printInlineCandidate(candidate)
 
   printNextStep({
-    message: `진화 후보 ${pending.length}개 생성됨!`,
-    command: 'vhk evolve list',
-    cursorHint: '진화 후보 보여줘',
-    alternative: 'vhk evolve apply <id> 로 반영',
+    message: `판정할 규칙 후보 ${candidates.length}개`,
+    command: `vhk evolve apply ${candidates[0].id}`,
+    cursorHint: '첫 번째 규칙 후보 승인해줘',
+    alternative: `vhk evolve reject ${candidates[0].id} "이유"`,
   })
 }
 
@@ -566,8 +569,7 @@ export function buildDigest(pending: EvolveQueueItem[], patterns: PatternEntryV1
  */
 export async function evolveDigest(): Promise<void> {
   const cwd = process.cwd()
-  const queue = readQueue(cwd)
-  const pending = queue.items.filter((i) => i.status === 'pending')
+  const pending = loadInlineCandidates(cwd)
   // 읽기 전용: loadForMutation 은 비영속(persistOnRead write 회피 — loop 과 동일 계약).
   const loaded = loadForMutation(cwd)
   const patterns = (loaded.ok ? loaded.mem.patterns : []) as PatternEntryV19[]
@@ -603,10 +605,21 @@ export async function evolveDigest(): Promise<void> {
 
 export async function evolveList(opts: { status?: string; json?: boolean } = {}): Promise<void> {
   const cwd = process.cwd()
-  const queue = readQueue(cwd)
-
   const VALID: EvolveItemStatus[] = ['pending', 'rejected', 'applied']
-  let items = queue.items
+  const pending = loadInlineCandidates(cwd)
+  const decided = currentEvolveDecisions(readEvolveLog(cwd)).map((entry): EvolveQueueItem => ({
+    id: entry.suggId,
+    patternId: entry.patternId,
+    kind: 'rule',
+    targetLayer: entry.targetLayer ?? 'rule',
+    status: entry.applied ? 'applied' : 'rejected',
+    draft: entry.draft ?? '(이전 기록에는 초안이 없습니다)',
+    dedupeKey: `${entry.patternId}:${entry.targetLayer ?? 'rule'}`,
+    createdAt: entry.ts,
+    appliedAt: entry.applied ? entry.ts : undefined,
+    rulesBackupPath: entry.rulesBackupPath,
+  }))
+  let items: EvolveQueueItem[] = [...pending, ...decided]
   if (opts.status && VALID.includes(opts.status as EvolveItemStatus)) {
     items = items.filter(i => i.status === opts.status)
   }
@@ -620,7 +633,7 @@ export async function evolveList(opts: { status?: string; json?: boolean } = {})
   console.log(chalk.gray('─'.repeat(40)))
 
   if (items.length === 0) {
-    console.log(chalk.yellow('\n📭 ' + t('evolve.noQueue')))
+    console.log(chalk.yellow('\n📭 판정할 후보나 결정 기록이 없습니다.'))
     console.log(chalk.gray('   ' + t('evolve.suggestHint')))
     return
   }
@@ -650,47 +663,39 @@ export async function evolveApply(idStr: string): Promise<void> {
     return
   }
 
-  // 3. 큐 로드 + 항목 찾기
-  const queue = readQueue(cwd)
-  const item = queue.items.find(i => i.id === idStr?.trim())
-  if (!item) {
-    console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
-    process.exitCode = 1
-    return
-  }
-  if (item.status === 'applied') {
-    console.log(chalk.yellow('\n⚠️  ' + t('evolve.alreadyApplied')))
-    process.exitCode = 1
-    return
-  }
-
-  // 4. C1 단일 apply 제약: 미해소 apply 항목 있으면 차단
-  const hasUnresolved = queue.items.some(i => i.status === 'applied')
-  if (hasUnresolved) {
-    console.log(chalk.red('\n❌ ' + t('evolve.pendingApplyExists')))
-    process.exitCode = 1
-    return
-  }
-
-  // 5. A4 댕글링 참조 가드 (loadForMutation 단일 사용 — readMemory 이중 I/O 제거)
+  // 후보는 큐가 아니라 현재 패턴과 결정 기록에서 계산한다.
   const memLoaded = loadForMutation(cwd)
   if (!memLoaded.ok) {
     console.log(chalk.red('\n❌ memory.json 손상 의심 — apply 중단 (원본 보존).'))
     process.exitCode = 1
     return
   }
-  const srcPattern = (memLoaded.mem.patterns as PatternEntryV19[]).find(p => p.id === item.patternId)
-  const refResult = checkApplyRef(srcPattern, queue.items)
-  if (refResult === 'dismissed') {
-    console.log(chalk.red('\n❌ ' + t('evolve.dismissed')))
+  const decisions = readEvolveLog(cwd)
+  const patterns = memLoaded.mem.patterns as PatternEntryV19[]
+  const item = generateInlineCandidates(
+    patterns,
+    currentEvolveDecisionKeys(decisions),
+    new Date().toISOString(),
+  ).find((candidate) => candidate.id === idStr?.trim())
+  if (!item) {
+    const decided = currentEvolveDecisions(decisions).find((entry) =>
+      entry.suggId === idStr?.trim()
+      || `${entry.patternId}:${entry.targetLayer ?? 'rule'}` === idStr?.trim(),
+    )
+    if (decided?.applied) console.log(chalk.yellow('\n⚠️  ' + t('evolve.alreadyApplied')))
+    else console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
     process.exitCode = 1
     return
   }
-  if (refResult === 'already-applied') {
-    console.log(chalk.red('\n❌ ' + t('evolve.alreadyAppliedPattern')))
+  const hasUndoableApply = currentEvolveDecisions(decisions).some(
+    (entry) => entry.applied && Boolean(entry.rulesBackupPath),
+  )
+  if (hasUndoableApply) {
+    console.log(chalk.red('\n❌ ' + t('evolve.pendingApplyExists')))
     process.exitCode = 1
     return
   }
+  const srcPattern = patterns.find((pattern) => pattern.id === item.patternId)
 
   // 6. B3: RULES.md 중복 룰 감지
   const rulesContent = readFileSync(rulesPath, 'utf-8')
@@ -742,19 +747,38 @@ export async function evolveApply(idStr: string): Promise<void> {
     return
   }
 
-  // 10. A3: queue item → applied, 소스 패턴 → archived
+  // 결정 기록만 남기고 소스 패턴은 archived 처리한다. 신규 큐 쓰기는 없다.
   const now = new Date().toISOString()
-  item.status = 'applied'
-  item.draft = editedDraft
-  item.appliedAt = now
-  item.rulesBackupPath = backupPath
-  writeQueue(cwd, queue)
+  const appliedItem: EvolveQueueItem = {
+    ...item,
+    status: 'applied',
+    draft: editedDraft,
+    appliedAt: now,
+    rulesBackupPath: backupPath,
+  }
 
-  // #374: 결정 이벤트(applied) 1줄 append — best-effort(로그 실패가 반영 판정을 막지 않음).
+  // 결정 기록이 원장이므로 저장 실패 시 RULES.md와 파생 규칙을 원상복구한다.
   try {
-    appendEvolveLog(cwd, buildEvolveLogEntry(item, true, now))
-  } catch {
-    /* 원장 append 실패 비치명 — RULES.md 반영은 이미 완료됨 */
+    appendEvolveLog(cwd, {
+      ...buildEvolveLogEntry(appliedItem, true, now),
+      draft: editedDraft,
+      rulesBackupPath: backupPath,
+    })
+  } catch (error) {
+    try {
+      copyFileSync(backupPath, rulesPath)
+      await sync({ yes: true })
+    } catch (rollbackError) {
+      console.error(chalk.red('\n❌ 결정 기록 저장과 규칙 원상복구가 모두 실패했습니다.'))
+      console.error(chalk.dim(`   기록 오류: ${error instanceof Error ? error.message : String(error)}`))
+      console.error(chalk.dim(`   복구 오류: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`))
+      process.exitCode = 1
+      return
+    }
+    console.error(chalk.red('\n❌ 결정 기록을 저장하지 못해 규칙 반영을 취소했습니다.'))
+    console.error(chalk.dim(`   ${error instanceof Error ? error.message : String(error)}`))
+    process.exitCode = 1
+    return
   }
 
   // 소스 패턴 archived (18 status 선순환 재사용, 신규 status 금지)
@@ -769,7 +793,7 @@ export async function evolveApply(idStr: string): Promise<void> {
     }
   }
 
-  console.log(chalk.green(`\n✅ 룰 반영 완료! [${item.id}]`))
+  console.log(chalk.green(`\n✅ 룰 반영 완료! [${appliedItem.id}]`))
   console.log(chalk.dim('   RULES.md에 추가 + vhk sync 재생성됨'))
   printNextStep({
     message: '룰 반영 완료!',
@@ -785,35 +809,38 @@ export async function evolveApply(idStr: string): Promise<void> {
 export async function evolveReject(idStr: string, reason?: string): Promise<void> {
   if (!ensureNotHardStopped('evolve reject')) return
   const cwd = process.cwd()
-  const queue = readQueue(cwd)
-  const item = queue.items.find(i => i.id === idStr?.trim())
+  const decisions = readEvolveLog(cwd)
+  const item = generateInlineCandidates(
+    readMemory(cwd).patterns as PatternEntryV19[],
+    currentEvolveDecisionKeys(decisions),
+    new Date().toISOString(),
+  ).find((candidate) => candidate.id === idStr?.trim())
 
   if (!item) {
+    const decided = currentEvolveDecisions(decisions).find((entry) =>
+      entry.suggId === idStr?.trim()
+      || `${entry.patternId}:${entry.targetLayer ?? 'rule'}` === idStr?.trim(),
+    )
+    if (decided) {
+      console.log(chalk.dim(`  이미 판정한 후보입니다 — 변경 없음: ${decided.suggId}`))
+      return
+    }
     console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
     process.exitCode = 1
     return
   }
 
-  if (item.status === 'rejected') {
-    console.log(chalk.dim(`  이미 기각된 후보입니다 — 변경 없음: ${item.id}`))
-    return
-  }
-
-  if (item.status === 'applied') {
-    console.log(chalk.red(`\n❌ 이미 반영된 항목은 기각할 수 없습니다 — vhk evolve undo 로 되돌리세요: ${item.id}`))
-    process.exitCode = 1
-    return
-  }
-
-  item.status = 'rejected'
-  writeQueue(cwd, queue)
-
-  // #374: 결정 이벤트(rejected) 1줄 append — best-effort(로그 실패가 기각 판정을 막지 않음).
   const trimmedReason = reason?.trim()
   try {
-    appendEvolveLog(cwd, buildEvolveLogEntry(item, false, new Date().toISOString(), trimmedReason || null))
-  } catch {
-    /* 원장 append 실패 비치명 — 기각 처리는 이미 완료됨 */
+    appendEvolveLog(cwd, {
+      ...buildEvolveLogEntry(item, false, new Date().toISOString(), trimmedReason || null),
+      draft: item.draft,
+    })
+  } catch (error) {
+    console.error(chalk.red('\n❌ 기각 기록을 저장하지 못했습니다. 후보 상태는 바뀌지 않았습니다.'))
+    console.error(chalk.dim(`   ${error instanceof Error ? error.message : String(error)}`))
+    process.exitCode = 1
+    return
   }
 
   console.log(chalk.green(`\n❌ 후보 기각됨: [${item.id}] ${item.draft}`))
@@ -828,24 +855,32 @@ export async function evolveReject(idStr: string, reason?: string): Promise<void
 
 export async function evolveUndo(): Promise<void> {
   if (!ensureNotHardStopped('evolve undo')) return
-  // 1. TTY 가드
   if (!ensureInteractive('undo는 TTY 확인이 필요합니다. 터미널에서 직접 실행하세요.')) return
 
   const cwd = process.cwd()
-  const queue = readQueue(cwd)
-  const applied = queue.items.filter(i => i.status === 'applied')
+  const applied = currentEvolveDecisions(readEvolveLog(cwd))
+    .filter((entry) => entry.applied && entry.rulesBackupPath)
+    .sort((a, b) => b.ts.localeCompare(a.ts))
 
   if (applied.length === 0) {
     console.log(chalk.yellow('\n📭 ' + t('evolve.noAppliedToUndo')))
     return
   }
 
-  // 2. 가장 최근 apply 1건 (appliedAt 기준 내림차순)
-  const last = applied.sort((a, b) =>
-    (b.appliedAt ?? '').localeCompare(a.appliedAt ?? '')
-  )[0]
+  const lastEntry = applied[0]
+  const last: EvolveQueueItem = {
+    id: lastEntry.suggId,
+    patternId: lastEntry.patternId,
+    kind: 'rule',
+    targetLayer: lastEntry.targetLayer ?? 'rule',
+    status: 'applied',
+    draft: lastEntry.draft ?? '(이전 기록에는 초안이 없습니다)',
+    dedupeKey: `${lastEntry.patternId}:${lastEntry.targetLayer ?? 'rule'}`,
+    createdAt: lastEntry.ts,
+    appliedAt: lastEntry.ts,
+    rulesBackupPath: lastEntry.rulesBackupPath,
+  }
 
-  // 3. .bak 존재 확인
   if (!last.rulesBackupPath || !existsSync(last.rulesBackupPath)) {
     console.log(chalk.red('\n❌ ' + t('evolve.noBackup')))
     process.exitCode = 1
@@ -855,7 +890,6 @@ export async function evolveUndo(): Promise<void> {
   console.log(chalk.bold('\n🔄 ' + t('evolve.undoTitle')))
   console.log(chalk.dim(`  되돌릴 항목: [${last.id}] ${last.draft}`))
 
-  // 4. 확인 프롬프트
   const { confirmed } = await prompt<{ confirmed: boolean }>([{
     type: 'confirm',
     name: 'confirmed',
@@ -868,26 +902,25 @@ export async function evolveUndo(): Promise<void> {
     return
   }
 
-  // 5. RULES.md .bak 복원
   copyFileSync(last.rulesBackupPath, join(cwd, 'RULES.md'))
 
-  // 6. undo 재sync 비대화형 (이중 프롬프트 금지)
   try {
     await sync({ yes: true })
   } catch (err) {
     console.error(chalk.red('\n❌ sync 재실행 중 오류. RULES.md는 복원됐으나 .cursorrules 등 재생성 실패.'))
     console.error(chalk.dim(`   ${err instanceof Error ? err.message : String(err)}`))
     console.error(chalk.dim('   수동으로 `vhk sync` 실행하세요.'))
-    // queue/pattern 상태는 아래에서 계속 업데이트 (sync 실패해도 queue는 정리)
   }
 
-  // 7. queue item → pending (되돌리기), appliedAt + rulesBackupPath 제거
-  last.status = 'pending'
-  delete last.appliedAt
-  delete last.rulesBackupPath
-  writeQueue(cwd, queue)
+  try {
+    appendEvolveLog(cwd, buildEvolveUndoLogEntry(last, new Date().toISOString()))
+  } catch (error) {
+    console.error(chalk.red('\n❌ 되돌리기 기록 저장 실패 — RULES.md는 복원됐지만 후보 기록을 확인해야 합니다.'))
+    console.error(chalk.dim(`   ${error instanceof Error ? error.message : String(error)}`))
+    process.exitCode = 1
+    return
+  }
 
-  // 8. 소스 패턴 → active 복구 (archived → active)
   const memLoaded = loadForMutation(cwd)
   if (memLoaded.ok) {
     const p = (memLoaded.mem.patterns as PatternEntryV19[]).find(x => x.id === last.patternId)

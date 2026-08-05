@@ -212,10 +212,12 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 
 ```powershell
 vhk learn "비-TTY 명령은 프롬프트 없이 실패해야 한다"
-vhk pattern detect      # 반복되는 실패/성공 신호 탐지
-vhk evolve suggest      # 사람이 승인할 RULES.md 후보 생성 (자동 적용 아님 — diff·확인)
+vhk pattern detect      # 반복되는 실패/성공 신호와 새 규칙 후보를 바로 표시
+vhk evolve suggest      # 현재 7일 후보 계산(저장 안 함) — apply는 사람 확인 필수
 vhk stats               # 패스율/차단율/진화 적용율 집계 (읽기 전용)
 ```
+
+규칙 후보는 별도 큐에 쌓이지 않습니다. 패턴이 생긴 뒤 7일 동안만 표시되고, `apply` 또는 `reject`로 결정한 결과만 로컬 로그에 남습니다. 조회·JSON·MCP 경로는 `RULES.md`를 자동으로 바꾸지 않습니다.
 
 ## 🤖 오토파일럿 스킬 `/vhk-auto` (1단계 MVP)
 

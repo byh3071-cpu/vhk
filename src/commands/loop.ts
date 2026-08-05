@@ -9,9 +9,10 @@ import {
   BLOCKERS_PATH,
   HARD_STOP_BLOCKER_THRESHOLD,
 } from '../lib/state-files.js'
-import { readQueue, generateCandidates } from './evolve.js'
 import type { PatternEntryV19 } from './pattern.js'
 import { loadForMutation } from './memory.js'
+import { generateInlineCandidates } from '../lib/evolve-candidates.js'
+import { currentEvolveDecisionKeys, readEvolveLog } from '../lib/evolve-log.js'
 import { readReceiptLog } from '../lib/receipt-log.js'
 import { computeReceiptTrend } from './stats.js'
 import { selectActiveId } from './goal.js'
@@ -28,9 +29,9 @@ export interface LoopTickState {
   hardStop: boolean
   activeBlockers: number
   blockerThreshold: number
-  /** evolve 큐 pending 후보 수. */
+  /** 현재 시점에 유효한 인라인 evolve 후보 수. */
   evolvePending: number
-  /** 아직 큐에 안 오른 active 패턴 수(avoid+reinforce) = 지금 suggest 하면 생길 후보 수. */
+  /** 하위호환 필드. 큐 폐지 후에는 항상 0. */
   unqueuedPatterns: number
   /** receipt 추세 block율 델타(recent-earlier). 표본<2 → null. 양수=악화. */
   trendDelta: number | null
@@ -60,7 +61,7 @@ export function computeLoopTick(s: LoopTickState): LoopTickCard {
   const closed: string[] = []
   if (!s.hardStop) closed.push('HARD_STOP 없음')
   if (s.activeBlockers === 0) closed.push('블로커 0')
-  if (s.evolvePending === 0) closed.push('진화 대기 0')
+  if (s.evolvePending === 0) closed.push('규칙 후보 0')
   if (s.trendDelta !== null && s.trendDelta <= 0) closed.push('추세 비악화')
   if (s.unqueuedPatterns === 0) closed.push('미제안 패턴 0')
 
@@ -76,7 +77,7 @@ export function computeLoopTick(s: LoopTickState): LoopTickCard {
   } else if (s.activeBlockers >= s.blockerThreshold) {
     nextMove = { priority: '블로커 임계', action: `블로커 ${s.activeBlockers}건(임계 ${s.blockerThreshold}) — 해소 우선`, command: 'vhk blocker' }
   } else if (s.evolvePending > 0) {
-    nextMove = { priority: '진화 대기', action: `evolve 후보 ${s.evolvePending}건 대기 — 검토·반영(사람 승인)`, command: 'vhk evolve list' }
+    nextMove = { priority: '규칙 후보', action: `현재 규칙 후보 ${s.evolvePending}건 — 사람 판정 필요`, command: 'vhk evolve list' }
   } else if (s.trendDelta !== null && s.trendDelta > 0) {
     nextMove = { priority: '추세 악화', action: 'block율 상승 — 최근 거짓완료 원인 점검', command: 'vhk stats --trend' }
   } else if (s.unqueuedPatterns > 0) {
@@ -96,10 +97,12 @@ function collectState(cwd: string): LoopTickState {
   // loadForMutation 은 in-memory 정규화만(비영속) — 손상/미래스키마면 ok=false → 빈 패턴(적대리뷰 med 반영).
   const loaded = loadForMutation(cwd)
   const patterns = (loaded.ok ? loaded.mem.patterns : []) as PatternEntryV19[]
-  const queue = readQueue(cwd)
-  const evolvePending = queue.items.filter((i) => i.status === 'pending').length
-  // 지금 suggest 하면 생길 후보 수 = 미제안 active 패턴(generateCandidates 재사용 — 단일 진실원).
-  const unqueuedPatterns = generateCandidates(patterns, queue.items).length
+  const evolvePending = generateInlineCandidates(
+    patterns,
+    currentEvolveDecisionKeys(readEvolveLog(cwd)),
+    new Date().toISOString(),
+  ).length
+  const unqueuedPatterns = 0
   const trend = computeReceiptTrend(readReceiptLog(cwd)).trend
   // 최소 표본 가드(measure-first): 절반당 3건 미만이면 델타는 잡음 → null(n=1 대 n=1 거짓 추세악화 방지, 적대리뷰 반영).
   const TREND_MIN = 3

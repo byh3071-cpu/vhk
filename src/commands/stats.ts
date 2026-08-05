@@ -4,7 +4,7 @@ import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readLedger, type LedgerEntry } from '../lib/evidence-ledger.js'
 import { readAiActions, type AiActionEntry } from '../lib/ai-actions-ledger.js'
-import { readQueue, type EvolveQueueItem } from './evolve.js'
+import type { EvolveQueueItem } from './evolve.js'
 import { readReceiptLog, type ReceiptLogEntry } from '../lib/receipt-log.js'
 import { readEvolveLog, type EvolveLogEntry } from '../lib/evolve-log.js'
 import { readCheckLog, type CheckLogEntry } from '../lib/check-log.js'
@@ -12,7 +12,7 @@ import { readAutonomyLog, type AutonomyRunEntry } from '../lib/autonomy-log.js'
 
 /**
  * Goal 61: vhk stats — 읽기전용 통계·대시보드 집계.
- * 3소스: 증거 원장(ledger.jsonl, PASS/WARN/FAIL) + AI 행동 원장(ai-actions.jsonl, 차단율) + 진화 큐(적용율).
+ * 3소스: 증거 원장(ledger.jsonl, PASS/WARN/FAIL) + AI 행동 원장(ai-actions.jsonl, 차단율) + 진화 결정 로그(채택률).
  * 파일 쓰기 0건(읽기 전용). 각 소스 부재 시 기본값 안전(빈 집계).
  * ⚠️ 차단율 실데이터는 Goal 55(action-ledger) 머지 후 — 미연동 시 0건 표기.
  */
@@ -151,10 +151,11 @@ export interface AdoptionStats {
  * 기각 사유 분포도 함께 — "왜 기각되는지" 실측(표본이 대부분 '(사유 없음)' 일 수 있음, 정직 표기).
  */
 export function calcAdoptionStats(entries: EvolveLogEntry[]): AdoptionStats {
-  const total = entries.length
-  const applied = entries.filter((e) => e.applied).length
+  const decisions = entries.filter((entry) => entry.event !== 'undo')
+  const total = decisions.length
+  const applied = decisions.filter((e) => e.applied).length
   const reasonCounts = new Map<string, number>()
-  for (const e of entries) {
+  for (const e of decisions) {
     if (e.applied) continue
     const key = e.rejectReason && e.rejectReason.trim() ? e.rejectReason.trim() : '(사유 없음)'
     reasonCounts.set(key, (reasonCounts.get(key) ?? 0) + 1)
@@ -272,14 +273,14 @@ export async function stats(opts: { trend?: boolean } = {}): Promise<void> {
     return
   }
 
-  // 3소스 읽기 (전부 읽기 전용 — readQueue 는 in-memory v2 변환만, 디스크 미변경)
+  // 모든 소스는 읽기 전용이다. 진화 통계는 폐지된 큐가 아니라 결정 로그를 사용한다.
   const ledger = readLedger(cwd)
   const actions = readAiActions(cwd)
-  const queue = readQueue(cwd)
+  const evolveLog = readEvolveLog(cwd)
 
   const ls = countLedgerStatus(ledger)
   const block = calcBlockRate(actions)
-  const apply = calcApplyRate(queue.items)
+  const apply = calcAdoptionStats(evolveLog).applied
 
   log.bold(`\n📊 ${t('stats.title')}`)
   log.plain(chalk.gray('─'.repeat(40)))

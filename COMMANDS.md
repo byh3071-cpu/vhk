@@ -143,12 +143,14 @@ Cursor에게 한국어로 말해도 됩니다.
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
-| 반복 패턴 감지 | `vhk pattern detect` | "패턴 찾아줘" |
-| 룰 후보 제안 | `vhk evolve suggest` | "규칙 제안해" |
+| 반복 패턴 감지 + 새 규칙 후보 즉시 표시 | `vhk pattern detect` | "패턴 찾아줘" |
+| 현재 7일 룰 후보 확인(저장 없음) | `vhk evolve suggest` | "규칙 제안해" |
 | 부정 예시 후보 수집 | `vhk evolve negatives` | "실패에서 하지 말 것 뽑아줘" |
 | cold-start 역채굴(PAT·failures·TS → patterns) | `vhk evolve seed` (미리보기) · `vhk evolve seed --write` (실반영) | "과거 기록으로 패턴 채워줘" |
-| 후보 목록 / 반영 / 기각 / 되돌리기 | `vhk evolve list` · `vhk evolve apply <id>` · `vhk evolve reject <id> [reason]` · `vhk evolve undo` | "규칙 반영해" |
-| 후보 묶음 초안(신뢰도별·읽기전용) | `vhk evolve digest` | "후보 묶어서 초안 보여줘" |
+| 현재 후보·결정 목록 / 사람 확인 반영 / 기각 / 되돌리기 | `vhk evolve list` · `vhk evolve apply <id>` · `vhk evolve reject <id> [reason]` · `vhk evolve undo` | "규칙 반영해" |
+| 현재 후보 묶음(신뢰도별·읽기전용) | `vhk evolve digest` | "후보 묶어서 초안 보여줘" |
+
+> 새 후보는 `queue.json`에 저장되지 않고 패턴 생성 후 7일 동안만 계산됩니다. `suggest --json`과 MCP 조회는 읽기 전용이며, RULES 반영은 TTY에서 `apply`를 확인한 경우에만 실행됩니다.
 
 ## SEO·수익 대시보드 (seo — Goals 21~26)
 
@@ -195,7 +197,7 @@ vhk doctor
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
 | `vhk status` | 프로젝트 상태 대시보드 |
-| `vhk stats` | 통계 대시보드 — 패스율/차단율/진화 적용율 (읽기 전용) |
+| `vhk stats` | 통계 대시보드 — 패스율/차단율/진화 결정 중 채택률 (읽기 전용) |
 | `vhk stats --trend` | receipt-log 시계열 추세(거짓완료 판정 추이) + evolve 채택률·RULES.md 위반수 추세 (#374, 읽기 전용) |
 | `vhk loop` | 자가진화 조율 1틱 — 닫힌 것/다음 한 수 (읽기 전용, 집행 0) |
 | `vhk diff` | Git 변경사항 한국어 요약 |

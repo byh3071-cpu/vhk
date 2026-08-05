@@ -25,6 +25,12 @@ describe('calcAdoptionStats', () => {
     expect(r.applied).toEqual({ count: 2, total: 4, rate: 0.5 })
   })
 
+  it('undo 기록은 승인·기각 통계에서 제외한다', () => {
+    const undo: EvolveLogEntry = { ...ev(false), event: 'undo' }
+    const r = calcAdoptionStats([ev(true), ev(false), undo])
+    expect(r.applied).toEqual({ count: 1, total: 2, rate: 0.5 })
+  })
+
   it('기각 사유 분포 — 사유 있는 것끼리 그룹핑, 내림차순 정렬', () => {
     const r = calcAdoptionStats([
       ev(false, '문구 부정확'),

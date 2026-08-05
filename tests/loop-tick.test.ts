@@ -31,7 +31,7 @@ describe('computeLoopTick 우선순위 사다리', () => {
 
   it('진화 대기 > 추세 악화', () => {
     const c = computeLoopTick(state({ evolvePending: 1, trendDelta: 0.5 }))
-    expect(c.nextMove.priority).toBe('진화 대기')
+    expect(c.nextMove.priority).toBe('규칙 후보')
     expect(c.nextMove.command).toBe('vhk evolve list')
   })
 
@@ -75,7 +75,7 @@ describe('computeLoopTick 우선순위 사다리', () => {
     const c = computeLoopTick(state({ trendDelta: -0.1 }))
     expect(c.closed).toContain('HARD_STOP 없음')
     expect(c.closed).toContain('블로커 0')
-    expect(c.closed).toContain('진화 대기 0')
+    expect(c.closed).toContain('규칙 후보 0')
     expect(c.closed).toContain('추세 비악화')
     expect(c.closed).toContain('미제안 패턴 0')
   })

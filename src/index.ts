@@ -975,14 +975,14 @@ patternCmd
 const evolveCmd = program
   .command('evolve')
   .alias('진화')
-  .description('패턴 → 룰 후보 제안·반영·undo (Evolution Loop 도미노 4) — apply/undo는 TTY 필수')
+  .description('패턴 → 7일 룰 후보 표시·사람 승인·되돌리기 — apply/undo는 TTY 필수')
   .action(async () => { await evolveList() })
 
 evolveCmd
   .command('suggest')
   .alias('제안')
   .option('--json', 'JSON 출력 (CI/MCP용)')
-  .description('active avoid 패턴 → 룰 초안 후보 생성·큐 적재')
+  .description('활성 패턴 → 7일 룰 후보 계산·즉시 표시 (큐 저장 없음)')
   .action(async (opts: { json?: boolean }) => { await evolveSuggest(opts) })
 
 evolveCmd
@@ -1004,13 +1004,13 @@ evolveCmd
   .alias('목록')
   .option('--status <status>', 'pending|rejected|applied 필터')
   .option('--json', 'JSON 출력 (CI/MCP용)')
-  .description('진화 후보 목록')
+  .description('현재 룰 후보와 결정 기록 목록')
   .action(async (opts: { status?: string; json?: boolean }) => { await evolveList(opts) })
 
 evolveCmd
   .command('digest')
   .alias('묶음')
-  .description('진화 후보 묶음 초안 — 신뢰도별 정렬 (읽기 전용·자동 반영 0, PR 초안용)')
+  .description('현재 룰 후보 묶음 — 신뢰도별 정렬 (읽기 전용·자동 반영 0)')
   .action(async () => { await evolveDigest() })
 
 evolveCmd

@@ -25,6 +25,8 @@ import type { EvolveQueueItem, TargetLayer } from '../commands/evolve.js'
 export const EVOLVE_LOG_REL = join('.vhk', 'events', 'evolve-log.jsonl')
 
 export interface EvolveLogEntry {
+  /** 생략된 이전 기록은 decision으로 읽는다. */
+  event?: 'decision' | 'undo'
   /** 결정 시각 ISO. */
   ts: string
   /** 큐 항목 id('e1' 등) — 로컬전용 queue.json 조인키(위 캐비어트 참고). */
@@ -37,6 +39,49 @@ export interface EvolveLogEntry {
   applied: boolean
   /** reject 사유(선택 입력, 비대화형 위치인자). apply 이거나 사유 미입력 reject → null. */
   rejectReason: string | null
+  /** 신규 기록의 표시·되돌리기용 선택 필드. 이전 기록에는 없을 수 있다. */
+  draft?: string
+  rulesBackupPath?: string
+}
+
+function evolveDecisionKey(entry: EvolveLogEntry): string | null {
+  if (typeof entry.patternId !== 'string' || entry.patternId.length === 0) return null
+  return `${entry.patternId}:${entry.targetLayer ?? 'rule'}`
+}
+
+export function currentEvolveDecisions(entries: EvolveLogEntry[]): EvolveLogEntry[] {
+  const current = new Map<string, EvolveLogEntry>()
+  for (const entry of entries) {
+    const key = evolveDecisionKey(entry)
+    if (!key) continue
+    if (entry.event === 'undo') current.delete(key)
+    else current.set(key, entry)
+  }
+  return [...current.values()]
+}
+
+export function currentEvolveDecisionKeys(entries: EvolveLogEntry[]): Set<string> {
+  const keys = new Set<string>()
+  for (const entry of currentEvolveDecisions(entries)) {
+    const key = evolveDecisionKey(entry)
+    if (key) keys.add(key)
+  }
+  return keys
+}
+
+export function buildEvolveUndoLogEntry(
+  item: Pick<EvolveQueueItem, 'id' | 'patternId' | 'targetLayer'>,
+  ts: string,
+): EvolveLogEntry {
+  return {
+    event: 'undo',
+    ts,
+    suggId: item.id,
+    patternId: item.patternId,
+    targetLayer: item.targetLayer ?? 'rule',
+    applied: false,
+    rejectReason: null,
+  }
 }
 
 /**

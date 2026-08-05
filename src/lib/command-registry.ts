@@ -177,7 +177,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'watch', desc: '무인 세션 정지 감시 — idle 초과 시 텔레그램·콘솔 알림' },
   { name: 'resume', desc: '.vhk/HARD_STOP 해제 (--confirm 필요)' },
   { name: 'pattern', desc: '반복 패턴 감지·목록 (avoid/reinforce)' },
-  { name: 'evolve', desc: '패턴 → 룰 후보 제안·반영·undo' },
+  { name: 'evolve', desc: '패턴 → 7일 룰 후보 표시·사람 승인·되돌리기' },
   { name: 'loop', desc: '자가진화 조율 1틱 — 다음 한 수 (읽기 전용)' },
   { name: 'seo', desc: 'SEO·수익 대시보드 (init: 사이트 등록 + 자격증명 보관)' },
   { name: 'config', desc: 'vhk 사용자 설정 (set-rules-file: 사용자 규칙 YAML, 재시작 불필요)' },

@@ -4,6 +4,9 @@ import os from 'node:os'
 import path from 'node:path'
 import {
   buildEvolveLogEntry,
+  buildEvolveUndoLogEntry,
+  currentEvolveDecisionKeys,
+  currentEvolveDecisions,
   readEvolveLog,
   appendEvolveLog,
   EVOLVE_LOG_REL,
@@ -71,6 +74,17 @@ describe('buildEvolveLogEntry', () => {
     const a = buildEvolveLogEntry(item(), false, 't', '사유')
     const b = buildEvolveLogEntry(item(), false, 't', '사유')
     expect(a).toEqual(b)
+  })
+})
+
+describe('현재 진화 결정 계산', () => {
+  it('이전 형식 결정도 읽고 undo가 나오면 다시 미판정으로 돌린다', () => {
+    const applied = buildEvolveLogEntry(item(), true, 't1')
+    const undone = buildEvolveUndoLogEntry(item(), 't2')
+
+    expect(currentEvolveDecisionKeys([applied])).toEqual(new Set(['p1:rule']))
+    expect(currentEvolveDecisionKeys([applied, undone])).toEqual(new Set())
+    expect(currentEvolveDecisions([applied, undone])).toEqual([])
   })
 })
 
