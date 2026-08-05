@@ -286,7 +286,14 @@ export async function init(options: InitOptions = {}) {
           default: true,
         }])
         if (adopt) {
-          adoptedRules = buildAdoptedRules(existingRules, answers.name)
+          try {
+            adoptedRules = buildAdoptedRules(existingRules, answers.name)
+          } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error)
+            log.error(ko.init.adoptIntegrityFailed(detail))
+            process.exitCode = 1
+            return
+          }
           allowAutoSync = true
           console.log(chalk.dim(`  ${ko.init.adoptPreview(existingRules.length)}`))
         }
@@ -294,7 +301,14 @@ export async function init(options: InitOptions = {}) {
         // #132: 비대화형(-y)에서도 RULES.md 가 아직 없으면 기존 규칙을 자동 adopt.
         // thin 템플릿이 SoT 가 돼 알맹이 .cursorrules/CLAUDE.md 를 빈약하게 덮어쓰는 함정 방지.
         // (RULES.md 가 이미 있으면 건드리지 않음 — 아래 write 루프가 보존.)
-        adoptedRules = buildAdoptedRules(existingRules, answers.name)
+        try {
+          adoptedRules = buildAdoptedRules(existingRules, answers.name)
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error)
+          log.error(ko.init.adoptIntegrityFailed(detail))
+          process.exitCode = 1
+          return
+        }
         allowAutoSync = true
         console.log(
           chalk.cyan(`  기존 규칙 파일 ${existingRules.length}개 감지 → RULES.md 로 자동 병합(adopt)`)

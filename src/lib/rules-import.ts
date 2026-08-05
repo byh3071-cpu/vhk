@@ -26,6 +26,81 @@ export interface DetectedRuleFile {
   content: string
 }
 
+interface ManagedBlock {
+  key: string
+  start: number
+  end: number
+  normalized: string
+}
+
+const MANAGED_MARKER_RE = /<!--\s*([A-Za-z0-9][A-Za-z0-9._-]*):(BEGIN|END)\b[^>]*-->/g
+
+function managedBlockError(source: string, detail: string): Error {
+  return new Error(
+    `${source} 관리형 블록 오류: ${detail} 원본 파일은 변경하지 않았습니다. ` +
+    'BEGIN/END 마커를 한 쌍으로 맞춘 뒤 vhk init을 다시 실행하세요.'
+  )
+}
+
+function inspectManagedBlocks(file: DetectedRuleFile): ManagedBlock[] {
+  const blocks: ManagedBlock[] = []
+  let open: { key: string; start: number; contentStart: number } | null = null
+  MANAGED_MARKER_RE.lastIndex = 0
+  for (const match of file.content.matchAll(MANAGED_MARKER_RE)) {
+    const key = match[1]
+    const kind = match[2]
+    const markerStart = match.index
+    const markerEnd = markerStart + match[0].length
+    if (kind === 'BEGIN') {
+      if (open) {
+        throw managedBlockError(file.path, `${open.key} 블록 안에 ${key} BEGIN이 중첩됐습니다.`)
+      }
+      open = { key, start: markerStart, contentStart: markerEnd }
+      continue
+    }
+    if (!open) throw managedBlockError(file.path, `${key} END에 대응하는 BEGIN이 없습니다.`)
+    if (open.key !== key) {
+      throw managedBlockError(file.path, `${open.key} BEGIN이 ${key} END로 닫혔습니다.`)
+    }
+    const innerContent = file.content.slice(open.contentStart, markerStart)
+    blocks.push({
+      key,
+      start: open.start,
+      end: markerEnd,
+      normalized: innerContent.replace(/\r\n/g, '\n').trim(),
+    })
+    open = null
+  }
+  if (open) throw managedBlockError(file.path, `${open.key} BEGIN에 대응하는 END가 없습니다.`)
+  return blocks
+}
+
+function validateAndDedupeManagedBlocks(files: DetectedRuleFile[]): DetectedRuleFile[] {
+  const firstByKey = new Map<string, { normalized: string; source: string }>()
+  return files.map((file) => {
+    const duplicateRanges: Array<{ start: number; end: number }> = []
+    for (const block of inspectManagedBlocks(file)) {
+      const first = firstByKey.get(block.key)
+      if (!first) {
+        firstByKey.set(block.key, { normalized: block.normalized, source: file.path })
+        continue
+      }
+      if (first.normalized !== block.normalized) {
+        throw managedBlockError(
+          file.path,
+          `${block.key} 내용이 다릅니다(${first.source}와 비교). 어느 쪽이 맞는지 자동으로 선택하지 않습니다.`
+        )
+      }
+      duplicateRanges.push({ start: block.start, end: block.end })
+    }
+    let content = file.content
+    for (const range of duplicateRanges.sort((a, b) => b.start - a.start)) {
+      content = content.slice(0, range.start) + content.slice(range.end)
+    }
+    return { ...file, content }
+  })
+}
+
 /** cwd 에서 존재하는 규칙 파일만 골라 경로+내용을 반환. */
 export function detectExistingRuleFiles(cwd: string): DetectedRuleFile[] {
   const found: DetectedRuleFile[] = []
@@ -90,7 +165,7 @@ export function buildAdoptedRules(files: DetectedRuleFile[], projectName: string
   const order: string[] = []
   const byTitle = new Map<string, MergedSection>()
 
-  for (const file of files) {
+  for (const file of validateAndDedupeManagedBlocks(files)) {
     for (const sec of splitSections(file.content)) {
       let merged = byTitle.get(sec.title)
       if (!merged) {

@@ -106,3 +106,47 @@ describe('rules-import — ⑥ 인트로 보존 + 빈 섹션 0 (회귀)', () => 
     expect(out).toContain('## 코딩 규칙')
   })
 })
+
+describe('rules-import — 관리형 블록 무결성 (#544)', () => {
+  const block = [
+    '<!-- MY-BLOCK:BEGIN (managed by sample — 직접수정 금지) -->',
+    '## 공통 규칙',
+    '- 같은 규칙',
+    '<!-- MY-BLOCK:END -->',
+  ].join('\n')
+
+  it('여러 입력의 동일 관리형 블록은 첫 번째 한 벌만 남긴다', () => {
+    const out = buildAdoptedRules([
+      { path: 'CLAUDE.md', content: block },
+      { path: 'AGENTS.md', content: block },
+    ], 'P')
+    expect(out.match(/MY-BLOCK:BEGIN/g)).toHaveLength(1)
+    expect(out.match(/MY-BLOCK:END/g)).toHaveLength(1)
+  })
+
+  it('같은 파일에 반복되거나 BEGIN 설명만 달라도 내용이 같으면 한 벌만 남긴다', () => {
+    const alternateMarker = block.replace('(managed by sample — 직접수정 금지)', '(managed by another tool)')
+    const out = buildAdoptedRules([
+      { path: 'CLAUDE.md', content: `${block}\n\n${alternateMarker}` },
+    ], 'P')
+    expect(out.match(/MY-BLOCK:BEGIN/g)).toHaveLength(1)
+    expect(out.match(/MY-BLOCK:END/g)).toHaveLength(1)
+  })
+
+  it('같은 키의 내용이 다르면 자동 선택하지 않고 충돌 오류를 낸다', () => {
+    const changed = block.replace('- 같은 규칙', '- 다른 규칙')
+    expect(() => buildAdoptedRules([
+      { path: 'CLAUDE.md', content: block },
+      { path: 'AGENTS.md', content: changed },
+    ], 'P')).toThrow(/MY-BLOCK.*내용이 다릅니다/)
+  })
+
+  it.each([
+    ['닫는 마커 없음', '<!-- X:BEGIN -->\n## 규칙\n- a'],
+    ['여는 마커 없음', '## 규칙\n- a\n<!-- X:END -->'],
+    ['중첩 마커', '<!-- X:BEGIN -->\n<!-- Y:BEGIN -->\n<!-- Y:END -->\n<!-- X:END -->'],
+    ['키 불일치', '<!-- X:BEGIN -->\n## 규칙\n<!-- Y:END -->'],
+  ])('%s이면 무수정 실패용 오류를 낸다', (_label, content) => {
+    expect(() => buildAdoptedRules([{ path: 'AGENTS.md', content }], 'P')).toThrow(/관리형 블록/)
+  })
+})

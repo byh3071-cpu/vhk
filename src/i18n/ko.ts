@@ -261,6 +261,8 @@ export const ko = {
       `📥 기존 규칙 파일 ${n}개 발견 (${list}). RULES.md로 가져올까요?`,
     adoptPreview: (n: number) =>
       `기존 규칙 ${n}개를 RULES.md 표준 섹션으로 병합했어요 (출처 주석 포함).`,
+    adoptIntegrityFailed: (detail: string) =>
+      `기존 규칙을 가져오지 않았습니다 — ${detail}`,
     adoptDone: '📥 RULES.md — 기존 규칙 adopt 완료',
     missionScaffold: '🎯 .vhk/mission.json 생성 (작업 계약 뼈대 — vhk mission set 으로 목표·범위 채우기)',
     missionScaffoldFailed: '⚠️  .vhk/mission.json 생성 실패 (권한 확인) — 작업 계약 없이 계속합니다:',
