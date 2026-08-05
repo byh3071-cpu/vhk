@@ -333,7 +333,7 @@ id: 1
 title: 로그인 기능
 status: NOT_STARTED
 priority: P0
-depends_on: 1
+# 선택: depends_on: 1,2
 ---
 
 # Goal 1: 로그인 기능

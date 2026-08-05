@@ -40,6 +40,12 @@ describe('CI 워크플로 템플릿', () => {
     expect(runs).toContain('npm run boundary:check --if-present')
     expect(source).not.toContain('continue-on-error')
   })
+
+  it('잘못된 버전 문자열을 workflow 명령에 넣지 않는다', () => {
+    const source = CI_WORKFLOW_TEMPLATE('2.14.0\n      - run: echo injected')
+    expect(source).not.toContain('echo injected')
+    expect(source).toContain('@byh3071/vhk@latest verify')
+  })
 })
 
 describe('init --ci 워크플로 설치', () => {

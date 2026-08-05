@@ -2,7 +2,8 @@ const FALLBACK_VERSION = 'latest'
 
 function packageSpec(version: string): string {
   const normalized = version.trim()
-  return normalized && normalized !== '0.0.0' ? normalized : FALLBACK_VERSION
+  const safeVersion = /^[0-9A-Za-z][0-9A-Za-z._+-]*$/.test(normalized)
+  return safeVersion && normalized !== '0.0.0' ? normalized : FALLBACK_VERSION
 }
 
 export function CI_WORKFLOW_TEMPLATE(version: string): string {
