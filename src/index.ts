@@ -206,6 +206,7 @@ program
   .alias('만들기')
   .description('하네스 파일만 생성 (git/MCP/context는 제외) — 보통 vhk start 권장')
   .option('--skip-gate', 'gate 검증 스킵')
+  .option('--ci', 'GitHub PR 필수 검사 워크플로 생성 (기존 워크플로 보존)')
   .option('--from-notion <url>', 'Notion PRD 페이지에서 import')
   .option('--name <name>', '프로젝트 이름')
   .option('--description <desc>', '한 줄 설명')

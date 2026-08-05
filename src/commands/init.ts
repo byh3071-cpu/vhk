@@ -35,6 +35,8 @@ import { detectProjectStack, detectManifestLangs } from '../lib/stack-detect.js'
 import { isInteractive } from '../lib/interactive.js'
 import { scaffoldMission, writeMission, readMission, MISSION_PATH_REL } from './mission.js'
 import { upsertRulesStackSection, type StackStatus } from '../lib/stack-state.js'
+import { CI_WORKFLOW_TEMPLATE } from '../templates/ci-workflow.js'
+import { getVhkVersion } from '../lib/version.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -109,6 +111,7 @@ export function resolveInitStack(
 
 export type InitOptions = {
   skipGate?: boolean
+  ci?: boolean
   name?: string
   description?: string
   type?: string
@@ -344,6 +347,19 @@ export async function init(options: InitOptions = {}) {
 
   await writeInitExtras(cwd, !isInteractive(options))
 
+  if (options.ci) {
+    const ciVersion = getVhkVersion()
+    const ciResult = installCiWorkflow(cwd, ciVersion)
+    if (ciResult.status === 'created') {
+      log.success(ko.init.ciCreated(ciResult.workflowPath))
+    } else {
+      log.warn(ko.init.ciExisting(ciResult.existingWorkflows))
+      log.dim(ko.init.ciMergeHeader)
+      for (const command of ko.init.ciMergeCommands(ciVersion)) log.list(command)
+    }
+    log.info(ko.init.ciRequiredCheckHint)
+  }
+
   // 작업 계약(mission) 뼈대 — 이미 있으면 절대 덮어쓰지 않는다(조건부). isInteractive 분기 밖:
   // 비대화형 --yes 에서도 생성해 "미설정 0"(거짓 안전)을 없애고 work/receipt 가 합류 지점을 갖게 한다.
   // 선택 기능이라 실패(권한 등)해도 init 전체를 중단하지 않는다 — 경고만 (missionSet 과 동일 방어).
@@ -450,6 +466,37 @@ export function generateFiles(
     // core-ruleset 마커블록 상속 — 사용자 지정 규칙이 있으면 적용하고, 없으면 번들 스냅샷을 쓴다.
     '.agents/CORE-RULES.md': generateCoreRulesContent(null),
     '.cursor/rules/ecosystem.mdc': generateEcosystemMdcContent(),
+  }
+}
+
+export const CI_WORKFLOW_PATH_REL = '.github/workflows/vhk-gate.yml'
+
+export type CiWorkflowInstallResult =
+  | { status: 'created'; workflowPath: string; existingWorkflows: [] }
+  | { status: 'existing'; workflowPath: string; existingWorkflows: string[] }
+
+export function installCiWorkflow(projectDir: string, version: string): CiWorkflowInstallResult {
+  const workflowsDir = path.join(projectDir, '.github', 'workflows')
+  const existingWorkflows = fs.existsSync(workflowsDir)
+    ? fs.readdirSync(workflowsDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && /\.ya?ml$/i.test(entry.name))
+        .map((entry) => `.github/workflows/${entry.name}`)
+        .sort()
+    : []
+
+  if (existingWorkflows.length > 0) {
+    return {
+      status: 'existing',
+      workflowPath: CI_WORKFLOW_PATH_REL,
+      existingWorkflows,
+    }
+  }
+
+  writeFile(path.join(projectDir, ...CI_WORKFLOW_PATH_REL.split('/')), CI_WORKFLOW_TEMPLATE(version))
+  return {
+    status: 'created',
+    workflowPath: CI_WORKFLOW_PATH_REL,
+    existingWorkflows: [],
   }
 }
 

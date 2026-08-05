@@ -9,8 +9,11 @@ Cursor에게 한국어로 말해도 됩니다.
 |-------------|-----------|------|
 | 기술 스택을 바로 확정 | `vhk start --stack "Vite, React, TypeScript"` | 지정한 기술 스택을 확정값으로 기록 |
 | 기술 스택을 나중에 확정 | `vhk start` | 자동 감지·유형 프리셋을 후보로 기록하고 첫 세션에서 확인 |
+| GitHub PR 검사까지 생성 | `vhk init -y --ci` | 검증·규칙·공개 경계가 묶인 `.github/workflows/vhk-gate.yml` 생성 |
 
 > `--stack`의 값은 쉼표로 구분합니다. 비어 있거나 공백뿐이면 확정으로 기록하지 않고 후보 흐름으로 돌아갑니다.
+>
+> 기존 `.github/workflows/*.yml` 또는 `*.yaml`이 있으면 `--ci`는 아무 파일도 덮어쓰지 않고 병합을 안내합니다. 생성 후 GitHub **Settings → Rules**에서 상태 검사 `VHK Gate`를 필수로 지정해야 실패한 PR의 병합이 실제로 막힙니다.
 
 ## 도움말
 
@@ -180,7 +183,7 @@ vhk doctor
 | `vhk gate` | 아이디어 검증 |
 | `vhk start` | 새 프로젝트 시작 마법사 (`--stack "Vite, React, TypeScript"` = 기술 스택 확정, 미지정 = 후보) |
 | `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
-| `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선(세션일지 없는 코드 커밋 차단, `[skip-record]` 우회 — RFC 0061) |
+| `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선. `--ci`를 붙이면 GitHub PR 필수 검사 워크플로 생성(기존 워크플로 보존) |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화. `<!-- vhk:sync=all -->` 절은 8개 타겟 필수. `--check`는 재생성 결과 불일치와 필수 섹션 누락을 별도 집계하고, 문서-실측 drift는 경고로 표시 |
 | `vhk check` | RULES.md 규칙 점검. 규칙 줄의 `<!-- vhk:check=no-exec-sync -->`를 `scripts/check-rule-no-exec-sync.mjs`에 연결하며 검사 비율 출력 (`--json` = 선언·검사·미검사 수와 비율 포함) |

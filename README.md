@@ -99,11 +99,13 @@ vhk start --stack "Vite, React, TypeScript"
 # 아직 모르면 후보로 시작하고 첫 세션에서 확정
 vhk start
 
-# 기존 프로젝트에 하네스만 얹기
-vhk init -y && vhk sync && vhk mcp-init
+# 기존 프로젝트에 하네스와 PR 검사 얹기
+vhk init -y --ci && vhk sync && vhk mcp-init
 ```
 
 Node.js 22 이상이 필요합니다. `vhk start --stack "..."`은 지정한 기술 스택을 확정값으로 기록합니다. `--stack`을 생략하면 자동 감지·유형 프리셋은 후보로만 기록되고 기존 `NEEDS_CUSTOMIZATION` 첫 세션 인터뷰에서 먼저 확인합니다. 아이디어부터 검증하려면 `vhk gate`로 시작하세요.
+
+`vhk init --ci`는 `.github/workflows/vhk-gate.yml`을 만들고 PR마다 검증·규칙·공개 경계 검사를 실행합니다. 기존 GitHub Actions 워크플로가 있으면 파일을 건드리지 않고 병합 방법을 안내합니다. GitHub에서 병합을 실제로 막으려면 저장소 **Settings → Rules**에서 상태 검사 `VHK Gate`를 필수로 지정하세요.
 
 ### 선택: 사용자 규칙 YAML 연결
 
@@ -250,7 +252,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 
 | 영역 | 명령 | 용도 |
 | --- | --- | --- |
-| 시작 | `vhk`, `vhk gate`, `vhk start [--stack "목록"]`, `vhk init` | 메뉴, 아이디어 검증, 새 프로젝트 마법사(기술 스택 지정 시 확정·미지정 시 후보), 하네스 초기화(+기록 집행 커밋훅 배선 — 세션일지 없는 코드 커밋 차단, `[skip-record]` 우회) |
+| 시작 | `vhk`, `vhk gate`, `vhk start [--stack "목록"]`, `vhk init [--ci]` | 메뉴, 아이디어 검증, 새 프로젝트 마법사(기술 스택 지정 시 확정·미지정 시 후보), 하네스 초기화(+선택적 GitHub PR 필수 검사) |
 | 규칙/맥락 | `vhk sync`, `vhk context`, `vhk context-show`, `vhk brief`, `vhk loop-brief`, `vhk remind`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, 루프 1틱 의도 앵커, 치명 규칙 재주입, 세션 시작/인수인계 |
 | 풀사이클 뒷단 | `vhk content`, `vhk launch`, `vhk ops`, `vhk sell` | 콘텐츠/런칭/운영/판매 초안 프롬프트 생성 (초안만, 게시·발송·결제는 사람이) · RULES.md 치명 규칙 자동 상속 · 과거 교훈(`.vhk/memory`) ≤3 자동 회상 주입 — 다음 사이클로 복리 |
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 불일치(drift) 관리 |

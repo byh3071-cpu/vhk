@@ -220,6 +220,18 @@ export const ko = {
     startDev: '이제 개발해 보세요! 🚀',
     commandsMdDone: '📋 COMMANDS.md 생성',
     scriptsDone: '📦 package.json scripts 추가',
+    ciCreated: (workflowPath: string) => `${workflowPath} 생성 — PR 검사 준비 완료`,
+    ciExisting: (workflows: string[]) =>
+      `기존 GitHub Actions 워크플로 보존: ${workflows.join(', ')} — VHK Gate 단계를 기존 파일에 병합하세요.`,
+    ciMergeHeader: '기존 job에 아래 명령을 실패 허용 없이 순서대로 추가하세요:',
+    ciMergeCommands: (version: string) => [
+      `npx --yes @byh3071/vhk@${version} verify`,
+      `npx --yes @byh3071/vhk@${version} sync --check`,
+      `npx --yes @byh3071/vhk@${version} check`,
+      `npx --yes @byh3071/vhk@${version} secure scan`,
+      'npm run boundary:check --if-present',
+    ],
+    ciRequiredCheckHint: 'GitHub 저장소 Settings → Rules에서 상태 검사 “VHK Gate”를 필수로 지정하세요.',
     gitignoreCreated: '🔒 .gitignore 생성 (.env·node_modules·dist 제외)',
     gitignoreUpdated: '🔒 .gitignore 보강 (누락 항목 추가)',
     customizationMarkerDone: '🎯 .vhk/NEEDS_CUSTOMIZATION 생성 — 첫 세션에서 도메인 인터뷰 자동 트리거',
