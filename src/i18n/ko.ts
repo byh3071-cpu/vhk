@@ -422,10 +422,17 @@ export const ko = {
     noRules: '⚠️ RULES.md 파일이 없어요.',
     // Goal 63 — sync --check (검사 전용)
     checkNoRules: '⚠️ RULES.md 없음 — 검사 비적용 통과',
-    checkPass: '✅ 규칙 동기화 상태 — sync 산출 전부(RULES 미러 + bootstrap) 일치',
     checkDrift: (p: string) => `↯ ${p} — 생성본과 다름 (직접 수정 또는 sync 미실행)`,
     checkMissing: (p: string) => `∅ ${p} — 파일 없음 (sync 가 생성할 타겟)`,
-    checkFail: (n: number) => `❌ drift ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
+    checkSectionMissing: (target: string, section: string) =>
+      `∅ ${target} — 필수 섹션 「${section}」 누락`,
+    checkDriftSummary: (n: number) =>
+      n === 0 ? '✅ 재생성 결과 불일치 0건' : `❌ 재생성 결과 불일치 ${n}건`,
+    checkFileMissingSummary: (n: number) =>
+      n === 0 ? '✅ 타겟 파일 누락 0건' : `❌ 타겟 파일 누락 ${n}건`,
+    checkSectionMissingSummary: (n: number) =>
+      n === 0 ? '✅ 필수 섹션 누락 0건' : `❌ 필수 섹션 누락 ${n}건`,
+    checkFail: (n: number) => `❌ 동기화 문제 ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
     // 미매핑 섹션은 차단 대상이 아니지만 조용하면 안 된다 — 코딩 규칙 파일 6종에서 빠진다.
     checkUnmappedClean: '🧩 미매핑 섹션 0건 — RULES.md 전 섹션이 코딩 규칙 파일까지 전파됨',
     checkUnmapped: (titles: string[]) =>
@@ -455,8 +462,10 @@ export const ko = {
       `위 ${n}개 파일의 기존 내용을 덮어쓸까요? (백업은 이미 저장됨)`,
     skipped: (p: string) => `⏭️  건너뜀: ${p} (덮어쓰기 거부 — 백업만 보관)`,
     dryRunHeader: '🔎 미리보기 (--dry-run) — 실제 파일 변경 없음',
-    dryRunWouldWrite: (p: string, drift: boolean) =>
-      `  ${drift ? '✏️  변경됨' : '·  동일'} : ${p}`,
+    itemState: (p: string, state: 'created' | 'updated' | 'unchanged') => {
+      const label = state === 'created' ? '✚  생성됨' : state === 'updated' ? '✏️  변경됨' : '·  동일'
+      return `  ${label} : ${p}`
+    },
     nonTtyAuto: (n: number, id: string) =>
       `🤖 비대화형(CI/에이전트) — ${n}개 백업 후 진행. 복원: vhk restore ${id}`,
     // 배치1 — CLAUDE.md 를 vhk 마커(<!-- vhk:rules:start/end -->) 형식으로 1회 정리할 때의 안내.

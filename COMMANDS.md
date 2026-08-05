@@ -182,7 +182,7 @@ vhk doctor
 | `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
 | `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선(세션일지 없는 코드 커밋 차단, `[skip-record]` 우회 — RFC 0061) |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
-| `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63 + 문서-실측 드리프트 warn: 버전·MCP수·RFC헤더 모순·블로커 모순, RFC 0062) |
+| `vhk sync` | RULES.md → 규칙 파일 동기화. `<!-- vhk:sync=all -->` 절은 8개 타겟 필수. `--check`는 재생성 결과 불일치와 필수 섹션 누락을 별도 집계하고, 문서-실측 drift는 경고로 표시 |
 | `vhk check` | RULES.md 규칙 점검. 규칙 줄의 `<!-- vhk:check=no-exec-sync -->`를 `scripts/check-rule-no-exec-sync.mjs`에 연결하며 검사 비율 출력 (`--json` = 선언·검사·미검사 수와 비율 포함) |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |

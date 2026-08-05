@@ -58,6 +58,11 @@ describe('findRulesDrift', () => {
     expect(findRulesDrift(RULES, SYNCED)).toEqual([])
   })
 
+  it('전 타겟 필수 표시는 제목 비교에서 메타데이터로 제거한다', () => {
+    const required = RULES.replace('## 코딩 규칙', '## 코딩 규칙 <!-- vhk:sync=all -->')
+    expect(findRulesDrift(required, SYNCED)).toEqual([])
+  })
+
   it('RULES.md 만 수정(sync 안 함) → mismatch 감지', () => {
     const edited = RULES.replace('- B 규칙', '- B 규칙 수정됨')
     const drift = findRulesDrift(edited, SYNCED)

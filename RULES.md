@@ -64,7 +64,7 @@
 - 형식: `feat:` / `fix:` / `refactor:` / `docs:` / `chore:`
 - 1 iteration = 작은 commit 하나 + 게이트 통과(or 정직한 블로커)
 
-## VHK 운영 — Forbidden (전역 금지)
+## VHK 운영 — Forbidden (전역 금지) <!-- vhk:sync=all -->
 
 > 단일 Forbidden 목록(통합 SoT — 파생 산출물은 이 섹션을 포인터로 참조한다).
 > CLAUDE.md 헌법 영구구역의 Forbidden 은 불가침이라 그대로 둠 — 의례 수준 금지는 그쪽, 코드/운영 수준 금지는 여기.

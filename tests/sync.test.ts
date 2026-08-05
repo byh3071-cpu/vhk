@@ -22,6 +22,7 @@ import {
   ANTIGRAVITY_CHAR_LIMIT,
   SYNC_TARGETS,
   findUnmappedSections,
+  getRequiredSectionTitles,
   syncCore,
   syncCheck,
 } from '../src/commands/sync.js'
@@ -466,6 +467,22 @@ describe('vhk sync — goal 90: 도메인 규칙 섹션이 .cursorrules + CLAUDE
 
       expect(outputs).toHaveLength(8)
       outputs.forEach((output) => expect(output).toContain(marker))
+    })
+
+    it('기본 RULES 템플릿의 안전 규칙은 제목 하드코딩 없이 8개 타겟 필수로 파생된다', () => {
+      const sections = parseRulesMd(RULES_MD_TEMPLATE('P', 'desc', 'Next.js'))
+      expect(getRequiredSectionTitles(sections)).toEqual(['안전 규칙'])
+      const outputs = [
+        toCursorrules(sections, 'P'),
+        toWindsurfrules(sections, 'P'),
+        toCopilotInstructions(sections, 'P'),
+        toAntigravityRules(sections, 'P'),
+        toAgentsMd(sections, 'P'),
+        toGeminiMd(sections, 'P'),
+        toClineRules(sections, 'P'),
+        toClaudeMd(sections, '# 기록 규칙 (P)\n\n## 현재 상태\n- P1\n'),
+      ]
+      outputs.forEach((output) => expect(output).toContain('## 안전 규칙'))
     })
   })
 })

@@ -58,10 +58,13 @@ function reportDocDrift(cwd: string): void {
   }
 }
 
-interface RulesSection {
+export interface RulesSection {
   title: string
   content: string
+  requiredInAllTargets: boolean
 }
+
+const SYNC_ALL_MARKER = '<!-- vhk:sync=all -->'
 
 // 113-T6 / ADR-010 §3: 진입점 절('## 세션 시작 필독')은 도구를 가리지 않고 규칙 파일 8종
 // 전부에 실려야 한다 — 어떤 도구로 세션을 열든 자기 규칙 파일에서 원본 문서 경로를 읽게 하는 것이
@@ -97,8 +100,16 @@ export function findUnmappedSections(sections: RulesSection[]): string[] {
   const allKeys = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
   return sections
     // PREAMBLE_TITLE(서문)은 도구 산출물 대상이 아니라 RULES.md 보존용 → 미매칭 경고에서 제외(노이즈 0).
-    .filter((s) => s.title !== PREAMBLE_TITLE && !allKeys.some((k) => s.title.includes(k)))
+    .filter((s) => (
+      s.title !== PREAMBLE_TITLE
+      && !s.requiredInAllTargets
+      && !allKeys.some((k) => s.title.includes(k))
+    ))
     .map((s) => s.title)
+}
+
+export function getRequiredSectionTitles(sections: RulesSection[]): string[] {
+  return sections.filter((section) => section.requiredInAllTargets).map((section) => section.title)
 }
 
 /**
@@ -109,13 +120,20 @@ export function parseRulesMd(content: string): RulesSection[] {
   const lines = content.split('\n')
   let currentTitle = ''
   let currentContent: string[] = []
+  let currentRequired = false
 
   for (const line of lines) {
     if (line.startsWith('## ')) {
       if (currentTitle) {
-        sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
+        sections.push({
+          title: currentTitle,
+          content: currentContent.join('\n').trim(),
+          requiredInAllTargets: currentRequired,
+        })
       }
-      currentTitle = line.replace('## ', '').trim()
+      const rawTitle = line.replace('## ', '').trim()
+      currentRequired = rawTitle.includes(SYNC_ALL_MARKER)
+      currentTitle = rawTitle.replace(SYNC_ALL_MARKER, '').trim()
       currentContent = []
     } else {
       currentContent.push(line)
@@ -123,7 +141,11 @@ export function parseRulesMd(content: string): RulesSection[] {
   }
 
   if (currentTitle) {
-    sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
+    sections.push({
+      title: currentTitle,
+      content: currentContent.join('\n').trim(),
+      requiredInAllTargets: currentRequired,
+    })
   }
 
   return sections
@@ -137,7 +159,7 @@ export function parseRulesMd(content: string): RulesSection[] {
  */
 function buildCodingDoc(headerTitle: string, sections: RulesSection[], projectName: string): string {
   const codingSections = sections.filter(s =>
-    CURSORRULES_KEYS.some(k => s.title.includes(k))
+    s.requiredInAllTargets || CURSORRULES_KEYS.some(k => s.title.includes(k))
   )
 
   const lines = [
@@ -374,7 +396,9 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
   // #133: CLAUDE.md 도 .cursorrules·AGENTS.md 수준으로 코딩 규칙/커밋/아키텍처까지 전파.
   // 코딩 섹션 먼저, 그 다음 기록/운영 섹션 (AGENTS.md 순서와 동일). 한 섹션이 양쪽 키에
   // 걸쳐도 1회만 — 중복 emit 방지(dedup).
-  const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
+  const codingSections = sections.filter(s => (
+    s.requiredInAllTargets || CURSORRULES_KEYS.some(k => s.title.includes(k))
+  ))
   const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
   const seen = new Set<string>()
   const managedSections = [...codingSections, ...recordSections].filter(s => {
@@ -440,7 +464,9 @@ export function toAgentsMd(
   compactRel: string | null | undefined = 'docs/context/agent-compact.md',
   rootDir?: string,
 ): string {
-  const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
+  const codingSections = sections.filter(s => (
+    s.requiredInAllTargets || CURSORRULES_KEYS.some(k => s.title.includes(k))
+  ))
   const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
   // #131: 한 섹션이 양쪽 키에 걸리면(예: '기술 스택 (변경 시 ADR 필수)' = '기술 스택'+'ADR')
   // 두 번 출력되던 버그 → 제목 기준 dedup(코딩 먼저).
@@ -454,6 +480,7 @@ export function toAgentsMd(
   // 전파 → 사용자 핵심 가드가 조용히 누락되지 않게.
   const extraSections = sections.filter(s =>
     s.title !== PREAMBLE_TITLE &&
+    !s.requiredInAllTargets &&
     !CURSORRULES_KEYS.some(k => s.title.includes(k)) &&
     !CLAUDE_MD_KEYS.some(k => s.title.includes(k))
   )
@@ -610,7 +637,50 @@ export interface SyncCheckResult {
   unmapped: string[]
   /** 디스크에 없는 타겟 (sync 가 만들 파일) */
   missing: string[]
+  /** RULES.md가 전 타겟 필수로 표시한 섹션 제목. */
+  requiredSections: string[]
+  /** 생성 설계 또는 디스크 파생본에서 빠진 필수 섹션. */
+  missingSections: SyncSectionOmission[]
   ok: boolean
+}
+
+export interface SyncSectionOmission {
+  target: string
+  section: string
+}
+
+function managedContentForTarget(content: string, target: string): string {
+  if (target !== 'CLAUDE.md') return content
+  const start = content.indexOf(VHK_BLOCK_START)
+  const end = content.indexOf(VHK_BLOCK_END, start + VHK_BLOCK_START.length)
+  if (start === -1 || end === -1) return ''
+  return content.slice(start + VHK_BLOCK_START.length, end)
+}
+
+function hasSection(content: string, target: string, title: string): boolean {
+  return parseRulesMd(managedContentForTarget(content, target))
+    .some((section) => section.title === title)
+}
+
+function findRequiredSectionOmissions(
+  rootDir: string,
+  plan: SyncPlanItem[],
+  requiredSections: string[]
+): SyncSectionOmission[] {
+  const omissions: SyncSectionOmission[] = []
+  for (const item of plan) {
+    if (!item.exists) continue
+    const onDisk = fs.readFileSync(path.join(rootDir, item.path), 'utf-8')
+    for (const section of requiredSections) {
+      if (
+        !hasSection(item.newContent, item.path, section)
+        || !hasSection(onDisk, item.path, section)
+      ) {
+        omissions.push({ target: item.path, section })
+      }
+    }
+  }
+  return omissions
 }
 
 /**
@@ -624,6 +694,8 @@ export function syncCheck(rootDir: string): SyncCheckResult {
   const plan = buildSyncPlan(rootDir, sections, deriveProjectName(rulesContent))
   const drifted = plan.filter((p) => p.exists && p.drift).map((p) => p.path)
   const missing = plan.filter((p) => !p.exists).map((p) => p.path)
+  const requiredSections = getRequiredSectionTitles(sections)
+  const missingSections = findRequiredSectionOmissions(rootDir, plan, requiredSections)
 
   // bootstrap 산출 — sync -y 가 injectBootstrapAll 로 만드는 파일. 8미러만 보면 커버리지 구멍.
   for (const t of SYNC_BOOTSTRAP_TARGETS) {
@@ -650,8 +722,10 @@ export function syncCheck(rootDir: string): SyncCheckResult {
   return {
     drifted,
     missing,
+    requiredSections,
+    missingSections,
     unmapped: findUnmappedSections(sections),
-    ok: drifted.length === 0 && missing.length === 0,
+    ok: drifted.length === 0 && missing.length === 0 && missingSections.length === 0,
   }
 }
 
@@ -665,6 +739,13 @@ export interface SyncPlanItem {
   drift: boolean
   /** CLAUDE.md 전용 — 마커 없는 기존 파일을 마이그레이션할 때 보존/제거 섹션 집계(조용한 드롭 방지 경고용). */
   migration?: ClaudeMdMigration
+}
+
+export type SyncItemState = 'created' | 'updated' | 'unchanged'
+
+export function syncItemState(item: SyncPlanItem): SyncItemState {
+  if (!item.exists) return 'created'
+  return item.drift ? 'updated' : 'unchanged'
 }
 
 export interface SyncResult {
@@ -835,12 +916,23 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
       return
     }
     const r = syncCheck(cwd)
-    if (r.ok) {
-      console.log(chalk.green(ko.sync.checkPass))
-    } else {
-      for (const p of r.drifted) console.log(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
-      for (const p of r.missing) console.log(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
-      console.log(chalk.red(ko.sync.checkFail(r.drifted.length + r.missing.length)))
+    for (const p of r.drifted) console.log(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
+    for (const p of r.missing) console.log(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
+    for (const omission of r.missingSections) {
+      console.log(chalk.yellow(`  ${ko.sync.checkSectionMissing(omission.target, omission.section)}`))
+    }
+    console.log((r.drifted.length === 0 ? chalk.green : chalk.red)(
+      ko.sync.checkDriftSummary(r.drifted.length)
+    ))
+    console.log((r.missing.length === 0 ? chalk.green : chalk.red)(
+      ko.sync.checkFileMissingSummary(r.missing.length)
+    ))
+    console.log((r.missingSections.length === 0 ? chalk.green : chalk.red)(
+      ko.sync.checkSectionMissingSummary(r.missingSections.length)
+    ))
+    if (!r.ok) {
+      const problemCount = r.drifted.length + r.missing.length + r.missingSections.length
+      console.log(chalk.red(ko.sync.checkFail(problemCount)))
       process.exitCode = 1
     }
     // 113-T6 실측: 진입점 절이 코딩 규칙 파일 6종에서 조용히 빠졌는데 게이트는 통과했다.
@@ -926,7 +1018,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   if (result.dryRun) {
     console.log(chalk.cyan(`\n${ko.sync.dryRunHeader}`))
     for (const item of result.plan) {
-      console.log(ko.sync.dryRunWouldWrite(item.path, item.exists && item.drift))
+      console.log(ko.sync.itemState(item.path, syncItemState(item)))
     }
     const wouldBackup = result.plan
       .filter((p) => p.exists && (p.drift || result.firstSync))
@@ -947,7 +1039,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   }
   for (const p of result.written) {
     const item = result.plan.find((i) => i.path === p)
-    if (item) console.log(chalk.green(`  ${item.doneMessage}`))
+    if (item) console.log(chalk.green(ko.sync.itemState(item.path, syncItemState(item))))
   }
   for (const _ of result.truncated) {
     console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))
