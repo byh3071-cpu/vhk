@@ -65,4 +65,25 @@ describe('sync 실행·미리보기 출력 어휘', () => {
     expect(output).toContain('.cursorrules — 필수 섹션 「안전 약속」 누락')
     expect(process.exitCode).toBe(1)
   })
+
+  it('#546: 미연결 섹션은 표준 제목과 sync=all 해결 방법을 보여주되 실패로 바꾸지 않는다', async () => {
+    fs.writeFileSync(
+      path.join(dir, 'RULES.md'),
+      '# 데모 — 테스트\n\n## 코딩 규칙\n- 파일명은 kebab-case\n\n## 안전 규칙\n- 시크릿을 숨긴다\n',
+      'utf-8',
+    )
+    await syncCore(dir, { yes: true }, async () => true)
+    process.exitCode = 0
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await sync({ check: true })
+
+    const output = log.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(output).toContain('안전 규칙')
+    expect(output).toContain('인식하는 표준 제목')
+    expect(output).toContain('코딩 규칙 · 기술 스택')
+    expect(output).toContain('기록')
+    expect(output).toContain('<!-- vhk:sync=all -->')
+    expect(process.exitCode).toBe(0)
+  })
 })

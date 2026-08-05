@@ -90,11 +90,12 @@ const CLAUDE_MD_KEYS = ['기록', '로그', 'ADR', '트러블슈팅', 'TIL', '/d
 // 담도록 통합 키셋. toClaudeMd 출력과 마이그레이션(stripLegacyAutogen)의 옛 자동생성 판정이
 // 같은 집합을 써야 재생성 섹션이 사용자 섹션으로 오인돼 중복되지 않는다.
 const VHK_MANAGED_KEYS = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
+export const SYNC_STANDARD_SECTION_KEYS = [...new Set(VHK_MANAGED_KEYS)]
 
 /**
  * RULES.md 섹션 중 어느 sync 타깃 키(CURSORRULES_KEYS ∪ CLAUDE_MD_KEYS)에도
- * 매핑되지 않는 섹션 제목. 이 섹션들은 모든 산출물에서 빠지므로(예: `## 프로젝트 정체성`)
- * sync 가 **조용히 버리지 않고 경고**하도록 sync() 가 이걸로 사용자에게 알린다.
+ * 매핑되지 않는 섹션 제목. 이 섹션들은 AGENTS.md의 「기타 규칙」에만 남으므로
+ * sync 가 전용 규칙 파일의 누락을 **조용히 넘기지 않고 경고**하도록 사용자에게 알린다.
  */
 export function findUnmappedSections(sections: RulesSection[]): string[] {
   const allKeys = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
@@ -941,7 +942,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
       chalk.dim(
         r.unmapped.length === 0
           ? `  ${ko.sync.checkUnmappedClean}`
-          : `  ${ko.sync.checkUnmapped(r.unmapped)}`,
+          : `  ${ko.sync.checkUnmapped(r.unmapped, SYNC_STANDARD_SECTION_KEYS)}`,
       ),
     )
     reportDocDrift(cwd)

@@ -41,6 +41,8 @@ Cursor에게 한국어로 말해도 됩니다.
 > 🤖 **헤드리스/AI 실행:** `vhk recap`(오늘 정리)은 비-TTY(파이프·AI 에이전트 셸)에서도 동작합니다 — `--summary` · `--next` · `--decisions` · `--blockers` 로 내용을 넘기거나 `--yes` 로 기본값을 씁니다. 미지정 항목은 "미입력"으로 기록되고, ADR/트러블슈팅 문서 **생성**은 대화형(터미널)에서만 진행돼요(비-TTY 에서는 후보만 보고). (#288)
 
 > `vhk sync` 대상(7): `.cursorrules` · `.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/vhk-rules.md` · `AGENTS.md` · `GEMINI.md`(Gemini CLI) · `.clinerules/vhk-rules.md`(Cline) + `CLAUDE.md`(하이브리드). 모두 RULES.md 단일소스에서 생성.
+>
+> `vhk sync --check`가 미연결 섹션을 찾으면 실제 섹션명, 인식하는 표준 제목, 두 해결 방법을 함께 보여줍니다. 제목에 맞는 표준 말을 넣거나 제목 뒤에 `<!-- vhk:sync=all -->`을 붙이세요. 미연결 경고만으로는 기존 종료 코드를 실패로 바꾸지 않습니다.
 
 ## Cursor bootstrap (#467)
 
