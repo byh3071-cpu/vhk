@@ -38,7 +38,9 @@ export const ko = {
     behind: (n: number) => `↓${n} behind`,
     package: 'package.json:',
     noPackage: 'package.json 없음',
-    unstarted: (count: number, days: number) => `미착수 작업 ${count}건 · 최고령 ${days}일`,
+    unstarted: (count: number) => `아직 시작하지 않은 작업 ${count}개`,
+    oldestUnstarted: (id: number, title: string, days: number) =>
+      `가장 오래된 작업: #${id} ${title} · ${days}일 전 등록`,
     detached: '(detached HEAD)',
     unknownBranch: '(알 수 없음)',
     nextWithChangesMessage: '변경사항이 있어요. 먼저 무엇이 바뀌었는지 확인하세요.',
@@ -340,14 +342,14 @@ export const ko = {
     updateAvailable: (latest: string) =>
       `🆕 v${latest} 사용 가능 — npm i -g @byh3071/vhk`,
     updateCurrent: '최신 버전을 쓰고 있어요',
-    driftTitle: '🔀 설정 불일치(drift) 점검 (규칙·맥락 어긋남):',
+    driftTitle: '🔀 규칙·작업 안내 최신 상태 확인:',
     driftNoRules: '⬚ RULES.md 없음 — 규칙 불일치(drift) 점검 생략',
     driftRuleClean: '✅ 규칙 파일이 RULES.md와 일치',
     driftRuleWarn: (files: string) =>
-      `⚠️ 없거나 RULES.md와 어긋난 규칙 파일: ${files}`,
+      `⚠️ RULES.md와 맞지 않는 규칙 파일: ${files}`,
     driftExpected: (location: string, content: string) => `기대 (${location}): ${content}`,
     driftActual: (location: string, content: string) => `실제 (${location}): ${content}`,
-    driftAction: '조치: vhk sync 로 다시 맞추세요 (전체 차이: vhk doctor --diff)',
+    driftAction: '맞추기: vhk sync (전체 차이: vhk doctor --diff)',
     driftMissingLine: '(줄 없음)',
     driftEmptyLine: '(빈 줄)',
     driftSensitiveHidden: '[민감정보로 숨김]',
@@ -356,10 +358,10 @@ export const ko = {
     driftDiffLimited: (files: string) =>
       `전체 차이 생략 (크기 제한, 첫 상이 지점만 표시): ${files}`,
     diffOption: '규칙 파일의 전체 차이 출력 (기본은 첫 상이 지점만)',
-    driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
-    driftNextTaskWarn: (source: string) =>
-      `⚠️ docs/state/next-task.md 가 원본(${source})보다 낡았어요 — vhk goal next 로 갱신하세요`,
-    unstarted: (count: number, days: number) => `🕰️ 미착수 작업 ${count}건 · 최고령 ${days}일`,
+    driftContextWarn: '⚠️ 작업 맥락에 최신 변경사항이 반영되지 않았습니다.',
+    driftContextAction: '갱신: vhk context',
+    driftNextTaskWarn: '⚠️ 다음 작업 안내에 최신 변경사항이 반영되지 않았습니다.',
+    driftNextTaskAction: '갱신: vhk goal next',
     goalSchemaTitle: 'Goal frontmatter',
     goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,
     goalSchemaSkipped: (n: number) => `⚠️ 스키마 불일치로 무시된 goal 파일 ${n}개`,

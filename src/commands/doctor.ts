@@ -25,7 +25,7 @@ import { findSkippedGoalFiles, listGoals } from '../lib/goal-frontmatter.js'
 import { ECOSYSTEM_MDC_REL } from '../lib/inject-bootstrap.js'
 import { agentsMdReferencesEcosystemMd } from './sync.js'
 import { readSelectedPM } from '../doctor/pm.js'
-import { summarizeUnstartedGoals } from './status.js'
+import { formatUnstartedGoalLines, summarizeUnstartedGoals } from './status.js'
 import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
 // (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
@@ -424,10 +424,12 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
   const ctxDrift = checkContextDrift(cwd)
   if (ctxDrift.checked && ctxDrift.stale) {
     console.log(chalk.yellow(`    ${ko.doctor.driftContextWarn}`))
+    console.log(chalk.dim(`       ${ko.doctor.driftContextAction}`))
   }
   const nextTaskFreshness = checkNextTaskFreshness(cwd)
   if (nextTaskFreshness.checked && nextTaskFreshness.stale) {
-    console.log(chalk.yellow(`    ${ko.doctor.driftNextTaskWarn(nextTaskFreshness.sourcePath ?? 'goal')}`))
+    console.log(chalk.yellow(`    ${ko.doctor.driftNextTaskWarn}`))
+    console.log(chalk.dim(`       ${ko.doctor.driftNextTaskAction}`))
   }
 
   // Goal frontmatter — silent skip 감지 (#465)
@@ -461,7 +463,9 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
       console.log(chalk.green(`    ${ko.doctor.goalSchemaOk(parsed.length)}`))
     }
     const unstarted = summarizeUnstartedGoals(parsed)
-    console.log(chalk.yellow(`    ${ko.doctor.unstarted(unstarted.count, unstarted.oldestDays)}`))
+    const unstartedLines = formatUnstartedGoalLines(unstarted)
+    console.log(chalk.yellow(`    🕰️ ${unstartedLines[0]}`))
+    for (const line of unstartedLines.slice(1)) console.log(chalk.yellow(`       ${line}`))
   }
 
   const agentsPath = path.join(cwd, 'AGENTS.md')

@@ -337,18 +337,21 @@ export function buildVerifyAdvisories(gates: GateResult[]): VerifyAdvisory[] {
       advisories.push({
         id: `${gate.id}-failure`,
         message: gate.id === 'secure'
-          ? '시크릿 제거 후 재검증 — vhk secure scan 으로 위치 확인'
-          : `${gate.label} 실패(종료코드 ${gate.exitCode}) — 로그 확인 후 수정`,
+          ? '시크릿이 발견되었습니다.\n확인: vhk secure scan'
+          : `${gate.label} 검사가 실패했습니다 (종료코드 ${gate.exitCode}).\n해결: 위 로그를 확인하고 오류 수정`,
       })
     } else if (gate.status === 'skip' && !isDeclaredOptionalSkip(gate)) {
+      const resolution = gate.id === 'typecheck'
+        ? 'tsconfig.json을 추가하거나 package.json에 typecheck 스크립트 추가'
+        : `package.json에 ${gate.id === 'test' ? 'test:run 또는 test' : gate.id} 스크립트 추가`
       advisories.push({
         id: `${gate.id}-gate`,
-        message: `${gate.label} 게이트 없음 — package.json scripts 에 추가하면 검증 커버리지 ↑`,
+        message: `${gate.label} 검사가 설정되어 있지 않습니다.\n해결: ${resolution}`,
       })
     } else if (gate.status === 'warn') {
       advisories.push({
         id: `${gate.id}-incomplete`,
-        message: `${gate.label} 불완전 — ${gate.detail ?? '한도로 일부 미스캔'}. 한도 완화/대상 축소 후 재검증 권장`,
+        message: `${gate.label} 검사가 끝까지 실행되지 않았습니다.\n이유: ${gate.detail ?? '검사 한도로 일부를 확인하지 못함'}\n해결: 검사 범위나 한도를 조정한 뒤 다시 실행`,
       })
     }
   }
@@ -357,9 +360,17 @@ export function buildVerifyAdvisories(gates: GateResult[]): VerifyAdvisory[] {
 
 export function formatVerifyAdvisory(advisory: VerifyAdvisory): string {
   const age = formatAdvisoryAge(advisory.ageMs ?? 0)
-  const ignored = (advisory.dismissCount ?? 0) > 0 ? ` · 이전 무시 ${advisory.dismissCount}회` : ''
-  const prefix = advisory.escalated ? '🚨 반복 무시 — ' : '⚠️ '
-  return `${prefix}${advisory.message} (${age} 미반영${ignored}) [${advisory.id}]`
+  const hidden = (advisory.dismissCount ?? 0) > 0
+    ? ` · 이전에 이 알림을 ${advisory.dismissCount}번 숨김`
+    : ''
+  const [problem = '', ...actions] = advisory.message.split('\n').filter(Boolean)
+  const lines = advisory.escalated
+    ? ['🚨 같은 문제가 다시 발생했습니다.', `   ${problem}`]
+    : [`⚠️ ${problem}`]
+  lines.push(`   ${age === '방금' ? '방금 확인됨' : `${age} 계속됨`}${hidden}`)
+  lines.push(...actions.map((action) => `   ${action}`))
+  lines.push(`   알림 ID: ${advisory.id}`)
+  return lines.join('\n')
 }
 
 /** 게이트 결과 → 리포트 객체(스키마). head(요약·기계용) + body(gates·사람용). */
@@ -646,11 +657,11 @@ export async function verify(
 
   if (opts.dismiss !== undefined) {
     if (dismissVerifyAdvisory(cwd, opts.dismiss)) {
-      console.log(chalk.green(`  ✅ 권고 무시 기록: ${opts.dismiss}`))
-      console.log(chalk.dim('  같은 문제가 사라졌다 다시 생기면 누적 무시 횟수와 함께 더 강하게 알립니다.'))
+      console.log(chalk.green(`  ✅ 이 알림을 숨겼습니다: ${opts.dismiss}`))
+      console.log(chalk.dim('  같은 문제가 해결됐다가 다시 발생하면 다시 표시합니다.'))
       process.exitCode = 0
     } else {
-      console.error(chalk.red(`  ❌ 현재 권고에서 '${opts.dismiss}'를 찾을 수 없습니다.`))
+      console.error(chalk.red(`  ❌ 현재 확인할 항목에서 '${opts.dismiss}'를 찾을 수 없습니다.`))
       process.exitCode = 1
     }
     return
@@ -716,9 +727,9 @@ export async function verify(
 
   const visibleAdvisories = (report.advisories ?? []).filter((advisory) => !advisory.dismissed)
   if (visibleAdvisories.length > 0) {
-    console.log(chalk.bold('\n  권고'))
-    for (const advisory of visibleAdvisories) log.plain(`   ${formatVerifyAdvisory(advisory)}`)
-    console.log(chalk.dim('   무시: vhk verify --dismiss <권고-id>'))
+    console.log(chalk.bold('\n  확인이 필요한 항목'))
+    for (const advisory of visibleAdvisories) log.plain(formatVerifyAdvisory(advisory))
+    console.log(chalk.dim('   숨기기: vhk verify --dismiss <알림-id>'))
   }
 
   const declaredOptionalCount = report.gates.filter(isDeclaredOptionalSkip).length

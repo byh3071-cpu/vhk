@@ -15,9 +15,20 @@ import { listGoals } from '../lib/goal-frontmatter.js'
 export interface UnstartedGoalSummary {
   count: number
   oldestDays: number
+  oldestGoal?: {
+    id: number
+    title: string
+  }
 }
 
-type GoalAgeInput = { frontmatter: { status?: string | number; created?: string | number } }
+type GoalAgeInput = {
+  frontmatter: {
+    id?: string | number
+    title?: string | number
+    status?: string | number
+    created?: string | number
+  }
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -38,7 +49,7 @@ function localDayNumber(value: string | number | Date): number | null {
   return Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
 }
 
-// 미착수 goal 수와 created 기준 최고령 일수. 날짜가 없는 카드도 개수에는 포함한다.
+// 아직 시작하지 않은 goal의 수와 등록 후 경과일. 날짜가 없는 카드도 개수에는 포함한다.
 export function summarizeUnstartedGoals(
   goals: GoalAgeInput[],
   now: Date = new Date(),
@@ -48,15 +59,41 @@ export function summarizeUnstartedGoals(
     return status === undefined || status === 'NOT_STARTED'
   })
   const nowDay = localDayNumber(now)
-  const ages = unstarted.flatMap((goal) => {
+  const datedGoals = unstarted.flatMap((goal) => {
     const rawCreated = goal.frontmatter.created
     if (rawCreated === undefined) return []
     const createdDay = localDayNumber(rawCreated)
     return createdDay !== null && nowDay !== null
-      ? [Math.max(0, Math.floor((nowDay - createdDay) / DAY_MS))]
+      ? [{ goal, days: Math.max(0, Math.floor((nowDay - createdDay) / DAY_MS)) }]
       : []
   })
-  return { count: unstarted.length, oldestDays: ages.length > 0 ? Math.max(...ages) : 0 }
+  const oldest = datedGoals.reduce<(typeof datedGoals)[number] | undefined>(
+    (current, candidate) => current === undefined || candidate.days > current.days ? candidate : current,
+    undefined,
+  )
+  const id = oldest?.goal.frontmatter.id
+  const title = oldest?.goal.frontmatter.title
+  const oldestGoal = typeof id === 'number' && typeof title === 'string' && title.trim().length > 0
+    ? { id, title: title.trim() }
+    : undefined
+  return {
+    count: unstarted.length,
+    oldestDays: oldest?.days ?? 0,
+    oldestGoal,
+  }
+}
+
+export function formatUnstartedGoalLines(summary: UnstartedGoalSummary): string[] {
+  const lines = [t('status.unstarted', summary.count)]
+  if (summary.oldestGoal !== undefined) {
+    lines.push(t(
+      'status.oldestUnstarted',
+      summary.oldestGoal.id,
+      summary.oldestGoal.title,
+      summary.oldestDays,
+    ))
+  }
+  return lines
 }
 
 export interface FileChangeCounts {
@@ -244,7 +281,9 @@ export async function status(): Promise<void> {
   const goalsDir = path.join(process.cwd(), 'goals')
   if (fs.existsSync(goalsDir)) {
     const unstarted = summarizeUnstartedGoals(listGoals(goalsDir))
-    console.log(chalk.yellow(`🕰️ ${t('status.unstarted', unstarted.count, unstarted.oldestDays)}`))
+    const lines = formatUnstartedGoalLines(unstarted)
+    console.log(chalk.yellow(`🕰️ ${lines[0]}`))
+    for (const line of lines.slice(1)) console.log(chalk.yellow(`   ${line}`))
   }
 
   const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0

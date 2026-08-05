@@ -96,21 +96,30 @@ describe('verify — nextActions', () => {
   })
 })
 
-describe('verify — 권고 안정 ID와 무시', () => {
-  it('같은 게이트 문제는 반복 실행에도 같은 권고 ID', () => {
+describe('verify — 알림 안정 ID와 숨김', () => {
+  it('같은 게이트 문제는 반복 실행에도 같은 알림 ID', () => {
     expect(buildVerifyAdvisories([gate('lint', 'skip', null)])).toEqual([
-      expect.objectContaining({ id: 'lint-gate' }),
+      expect.objectContaining({
+        id: 'lint-gate',
+        message: 'lint 검사가 설정되어 있지 않습니다.\n해결: package.json에 lint 스크립트 추가',
+      }),
     ])
   })
 
-  it('오래 반복 무시한 권고는 나이·횟수와 강화 표현을 함께 출력', () => {
+  it('다시 발생한 문제는 경과 시간과 이전 숨김 횟수를 명확하게 출력', () => {
     expect(formatVerifyAdvisory({
       id: 'lint-gate',
-      message: 'lint 게이트 없음',
+      message: 'lint 검사가 설정되어 있지 않습니다.\n해결: package.json에 lint 스크립트 추가',
       ageMs: 2 * 24 * 60 * 60 * 1000,
       dismissCount: 3,
       escalated: true,
-    })).toContain('🚨 반복 무시 — lint 게이트 없음 (2일째 미반영 · 이전 무시 3회) [lint-gate]')
+    })).toBe([
+      '🚨 같은 문제가 다시 발생했습니다.',
+      '   lint 검사가 설정되어 있지 않습니다.',
+      '   2일째 계속됨 · 이전에 이 알림을 3번 숨김',
+      '   해결: package.json에 lint 스크립트 추가',
+      '   알림 ID: lint-gate',
+    ].join('\n'))
   })
 
   it('latest.json의 권고를 무시하면 action-ledger에 누적', () => {

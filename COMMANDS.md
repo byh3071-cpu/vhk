@@ -190,7 +190,7 @@ vhk doctor
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
 | `vhk ship` | 배포 체크리스트 + 회고 |
-| `vhk doctor` | 개발 환경 점검 + 낡은 파생본·미착수 작업 나이 알림 (`--strict` 드리프트 게이트 포함) |
+| `vhk doctor` | 개발 환경 점검 + 최신 변경사항이 빠진 안내·아직 시작하지 않은 작업 알림 (`--strict` 설정 불일치 검사 포함) |
 | `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 |
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
@@ -217,7 +217,7 @@ vhk doctor
 | `vhk update` | VHK CLI 셀프 업데이트 |
 | `vhk context` | 프로젝트 맥락 파일 생성 (.vhk/context.md) |
 | `vhk mode` | Safety Mode 조회/변경 (lite\|standard\|strict) |
-| `vhk verify` | 검증 게이트 실행 + 권고 나이·무시 횟수 + 증거·행동 기록 (`--dismiss <id>`) |
+| `vhk verify` | 검증 실행 + 확인이 필요한 항목의 경과 시간·숨긴 횟수 + 증거·행동 기록 (`--dismiss <id>`) |
 | `vhk cost` | 비용·예산 가드 — add/check/budget (자문형) |
 | `vhk preflight` | 출고 전 안전점검 (치명 실패 시 차단) |
 | `vhk testmap` | test-first 매핑 점검 (변경 기능 ↔ 테스트 누락 경고) |
