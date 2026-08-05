@@ -90,6 +90,7 @@ vhk goal next
 vhk mission set --objective "checkout bug fix" --scope "src/**" --forbidden ".env"
 # ...develop...
 vhk verify
+vhk verify --dismiss lint-gate  # dismiss a current advisory; repeated dismissals stay counted
 vhk review
 vhk preflight --pr
 vhk goal done
@@ -104,7 +105,7 @@ vhk work handoff
 **2. Goals & HARD_STOP** — Goals link `goals/*.md` to `scripts/check-goal-<id>.mjs`. `vhk goal done` only transitions to DONE when the gate re-passes. Repeated blockers halt progress.
 
 **3. Trust / evidence gates**
-- `vhk verify` — runs 5 gates (tsc / lint / test / build / secure) and writes `.vhk/reports/latest.json`
+- `vhk verify` — runs 5 gates, shows advisory age/dismiss count, and writes `.vhk/reports/latest.json`
 - `vhk review` — cross-checks the latest evidence against the goal's done-conditions
 - `vhk receipt` — 4 machine proofs (tsc/test/build exit codes, git dirty, stale SHA, diff-cover) to catch false "done", **zero LLM**
 - `vhk preflight` — pre-ship checks (2FA / shim / env / lint / type / test / git / branch)

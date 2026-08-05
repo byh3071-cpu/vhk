@@ -8,6 +8,7 @@ import {
   extractContextSha,
   checkRuleDrift,
   checkContextDrift,
+  checkNextTaskFreshness,
   CONTEXT_GIT_MARKER,
 } from '../src/lib/drift.js'
 import { buildSyncPlan, parseRulesMd, deriveProjectName, SYNC_TARGETS } from '../src/commands/sync.js'
@@ -326,5 +327,36 @@ describe('checkContextDrift — file-change 기반 정밀화', () => {
     )
     expect(checkContextDrift(nogit).checked).toBe(false)
     fs.rmSync(nogit, { recursive: true, force: true })
+  })
+})
+
+describe('checkNextTaskFreshness', () => {
+  it('next-task 파생본보다 연결된 goal 원본이 새로우면 stale', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-next-fresh-'))
+    try {
+      const goal = path.join(dir, 'goals', '7-sample.md')
+      const derived = path.join(dir, 'docs', 'state', 'next-task.md')
+      fs.mkdirSync(path.dirname(goal), { recursive: true })
+      fs.mkdirSync(path.dirname(derived), { recursive: true })
+      fs.writeFileSync(goal, '# Goal 7\n', 'utf-8')
+      fs.writeFileSync(derived, `# Next Task\n  file: ${goal}\n`, 'utf-8')
+      fs.utimesSync(derived, new Date('2026-08-01T00:00:00Z'), new Date('2026-08-01T00:00:00Z'))
+      fs.utimesSync(goal, new Date('2026-08-02T00:00:00Z'), new Date('2026-08-02T00:00:00Z'))
+      expect(checkNextTaskFreshness(dir)).toMatchObject({ checked: true, stale: true })
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('레포 밖 경로는 원본으로 읽지 않는다', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-next-boundary-'))
+    try {
+      const derived = path.join(dir, 'docs', 'state', 'next-task.md')
+      fs.mkdirSync(path.dirname(derived), { recursive: true })
+      fs.writeFileSync(derived, '# Next Task\n  file: C:\\outside\\goal.md\n', 'utf-8')
+      expect(checkNextTaskFreshness(dir).checked).toBe(false)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

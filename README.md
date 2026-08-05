@@ -176,7 +176,8 @@ vhk blocker "테스트가 같은 원인으로 계속 실패"
 ### 3. 증거와 자기검증 — "실행했다"와 "완료됐다"를 분리
 
 ```powershell
-vhk verify     # tsc/lint/test/build/secure 게이트 실행 → .vhk/reports/latest.json
+vhk verify     # 게이트 실행 → 권고 나이·무시 횟수 표시 + .vhk/reports/latest.json
+vhk verify --dismiss lint-gate  # 적용하지 않을 권고를 명시적으로 무시 처리
 vhk review     # 최신 증거와 goal 완료조건 교차검증
 vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale SHA·diff-cover)로 완료 보고 검증 (LLM 0)
 vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
@@ -258,7 +259,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 불일치(drift) 관리 |
 | Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 완료 보고 검증, 검증 리포트, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
 | 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan` | HARD_STOP, safety mode, 시크릿 스캔 |
-| Git | `vhk status`, `vhk diff`, `vhk save`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인, 커밋/푸시, 되돌리기, 세션 로그 |
+| Git | `vhk status`, `vhk diff`, `vhk save`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인(미착수 수·최고령 포함), 커밋/푸시, 되돌리기, 세션 로그 |
 | 환경/품질 | `vhk doctor`, `vhk check`, `vhk env`, `vhk env-check`, `vhk harness`, `vhk audit`, `vhk worktree check/add` | 개발환경, RULES 린트, env, 통합 품질, 보안 감사, worktree 가드 |
 | 배포/패키지 | `vhk ship`, `vhk deploy`, `vhk publish`, `vhk update`, `vhk migrate` | 배포 체크, 배포 실행, npm 릴리스 자동화, 셀프 업데이트, 패키지 매니저 전환 |
 | MCP/클라우드 | `vhk mcp`, `vhk mcp-init`, `vhk cloud push/pull` | MCP stdio 서버, 클라이언트 설정, `.vhk/` secret gist 백업/복원 |

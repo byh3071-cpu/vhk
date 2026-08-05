@@ -4,6 +4,7 @@ import { atomicWriteFile } from './atomic-write.js'
 import { stripBom } from './read-json.js'
 import type { VerifyReport, ReportStatus } from '../commands/verify.js'
 import type { AgentId } from './detect-agent.js'
+import type { AiActionEntry } from './action-ledger.js'
 
 // Goal 45: 증거 원장.
 // latest.json 은 .vhk/reports/ → .vhk/.gitignore 로 휘발(로컬 전용). 그래서 레포만 보고
@@ -15,12 +16,28 @@ import type { AgentId } from './detect-agent.js'
 //   .vhk/ 루트는 ignore 대상이 아니라(특정 파일만 제외) ledger.jsonl 이 자연히 추적된다.
 
 export const LEDGER_PATH_REL = join('.vhk', 'ledger.jsonl')
+export const ADVISORY_ESCALATION_THRESHOLD = 3
+
+export interface LedgerAdvisory {
+  id: string
+  message: string
+}
+
+export interface TrackedAdvisory extends LedgerAdvisory {
+  firstSeenAt: string
+  ageMs: number
+  dismissCount: number
+  dismissed: boolean
+  escalated: boolean
+}
 
 export interface LedgerEntry {
   /** package.json version */
   version: string
   /** 사람용 날짜(localDate) */
   date: string
+  /** 실제 증거 생성 시각. 선택 필드라 구버전 원장도 계속 읽힌다. */
+  generatedAt?: string
   /** 게이트 종합 — PASS/WARN/FAIL */
   status: ReportStatus
   /** 증거가 묶인 커밋(Goal 44). git 레포 아님/커밋 0개 → null */
@@ -32,6 +49,8 @@ export interface LedgerEntry {
    * 프로퍼티 자체 없음)을 읽어도 타입이 깨지지 않게(하위호환).
    */
   agent?: AgentId
+  /** 이 증거에서 발견된 권고. 선택 필드라 구버전 원장도 계속 읽힌다. */
+  advisories?: LedgerAdvisory[]
 }
 
 /**
@@ -42,12 +61,69 @@ export function buildLedgerEntry(report: VerifyReport, version: string, agent: A
   return {
     version,
     date: report.date,
+    generatedAt: report.generatedAt,
     status: report.status,
     sha: report.commit?.sha ?? null,
     shortSha: report.commit?.shortSha ?? null,
     dirty: report.commit?.dirty ?? null,
     agent,
+    advisories: (report.advisories ?? []).map(({ id, message }) => ({ id, message })),
   }
+}
+
+function observationTime(entry: LedgerEntry): string | null {
+  const candidate = entry.generatedAt ?? `${entry.date}T00:00:00.000Z`
+  return Number.isFinite(Date.parse(candidate)) ? candidate : null
+}
+
+/** 현재 권고를 과거 증거·무시 행동과 합쳐 최초 발견 시각과 누적 무시를 계산한다. */
+export function trackAdvisories(
+  current: LedgerAdvisory[],
+  history: LedgerEntry[],
+  actions: AiActionEntry[],
+  nowIso: string,
+): TrackedAdvisory[] {
+  const nowMs = Date.parse(nowIso)
+  return current.map((advisory) => {
+    let firstSeenAt = nowIso
+    for (let index = history.length - 1; index >= 0; index -= 1) {
+      const observations = history[index].advisories
+      // 구버전 줄은 권고 관측 여부를 알 수 없으므로 연속성 판정에서 건너뛴다.
+      if (observations === undefined) continue
+      if (!observations.some((item) => item.id === advisory.id)) break
+      const observedAt = observationTime(history[index])
+      if (observedAt) firstSeenAt = observedAt
+    }
+
+    const dismissals = actions.filter((entry) =>
+      entry.action === 'advisory-dismiss' && entry.target === advisory.id && entry.ran,
+    )
+    const firstSeenMs = Date.parse(firstSeenAt)
+    const latestDismissMs = dismissals.reduce((latest, entry) => {
+      const timestamp = Date.parse(entry.ts)
+      return Number.isFinite(timestamp) ? Math.max(latest, timestamp) : latest
+    }, Number.NEGATIVE_INFINITY)
+    const ageMs = Number.isFinite(nowMs) && Number.isFinite(firstSeenMs)
+      ? Math.max(0, nowMs - firstSeenMs)
+      : 0
+
+    return {
+      ...advisory,
+      firstSeenAt,
+      ageMs,
+      dismissCount: dismissals.length,
+      dismissed: latestDismissMs >= firstSeenMs,
+      escalated: dismissals.length >= ADVISORY_ESCALATION_THRESHOLD,
+    }
+  })
+}
+
+/** 권고 경과 시간을 짧고 안정적인 한국어로 표시한다. */
+export function formatAdvisoryAge(ageMs: number): string {
+  const hours = Math.floor(Math.max(0, ageMs) / (60 * 60 * 1000))
+  if (hours < 1) return '방금'
+  if (hours < 24) return `${hours}시간째`
+  return `${Math.floor(hours / 24)}일째`
 }
 
 /** .vhk/ledger.jsonl 파싱(JSONL). 손상 라인은 관용적으로 skip(증거 원장이 한 줄 깨졌다고 죽지 않음). */
@@ -71,7 +147,11 @@ export function readLedger(cwd: string): LedgerEntry[] {
 function sameAsLast(entries: LedgerEntry[], e: LedgerEntry): boolean {
   const last = entries[entries.length - 1]
   if (!last) return false
-  return last.version === e.version && last.sha === e.sha && last.status === e.status && last.dirty === e.dirty
+  const advisoryKey = (entry: LedgerEntry): string => JSON.stringify(
+    (entry.advisories ?? []).map(({ id, message }) => ({ id, message })).sort((a, b) => a.id.localeCompare(b.id)),
+  )
+  return last.version === e.version && last.sha === e.sha && last.status === e.status &&
+    last.dirty === e.dirty && advisoryKey(last) === advisoryKey(e)
 }
 
 /**

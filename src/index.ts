@@ -527,8 +527,9 @@ program
   .option('--report', 'latest.json 을 사람용 정적 HTML(.vhk/reports/latest.html) 로 렌더 (외부 의존 0)')
   .option('--open', '리포트 생성 후 기본 브라우저로 열기 (비대화형/CI/MCP 자동 스킵)')
   .option('--check-fresh', '기존 증거(latest.json)가 현재 HEAD 와 일치하는지 검사 — 낡으면 exit 1 (증거 안 만듦)')
+  .option('--dismiss <id>', '현재 권고를 무시 처리하고 횟수를 누적 (예: lint-gate)')
   .description('검증 게이트(tsc/test/build/secure) 실제 실행 + 증거 기록 (.vhk/reports/latest.json)')
-  .action(async (opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean }) => { await verify(opts) })
+  .action(async (opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string }) => { await verify(opts) })
 
 program
   .command('preflight')

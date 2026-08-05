@@ -38,6 +38,7 @@ export const ko = {
     behind: (n: number) => `↓${n} behind`,
     package: 'package.json:',
     noPackage: 'package.json 없음',
+    unstarted: (count: number, days: number) => `미착수 작업 ${count}건 · 최고령 ${days}일`,
     detached: '(detached HEAD)',
     unknownBranch: '(알 수 없음)',
     nextWithChangesMessage: '변경사항이 있어요. 먼저 무엇이 바뀌었는지 확인하세요.',
@@ -356,6 +357,9 @@ export const ko = {
       `전체 차이 생략 (크기 제한, 첫 상이 지점만 표시): ${files}`,
     diffOption: '규칙 파일의 전체 차이 출력 (기본은 첫 상이 지점만)',
     driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
+    driftNextTaskWarn: (source: string) =>
+      `⚠️ docs/state/next-task.md 가 원본(${source})보다 낡았어요 — vhk goal next 로 갱신하세요`,
+    unstarted: (count: number, days: number) => `🕰️ 미착수 작업 ${count}건 · 최고령 ${days}일`,
     goalSchemaTitle: 'Goal frontmatter',
     goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,
     goalSchemaSkipped: (n: number) => `⚠️ 스키마 불일치로 무시된 goal 파일 ${n}개`,

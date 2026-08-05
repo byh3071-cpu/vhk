@@ -5,6 +5,7 @@ import {
   parseSyncCounts,
   formatSyncLabel,
   selectStatusNextStep,
+  summarizeUnstartedGoals,
 } from '../src/commands/status.js'
 import { t } from '../src/i18n/ko.js'
 
@@ -77,5 +78,29 @@ describe('status — 안전한 다음 액션 (배치3 §2: diff 우선)', () => 
   it('클린 상태면 다음 미션(goal next) 추천', () => {
     const step = selectStatusNextStep(false)
     expect(step.command).toBe('vhk goal next')
+  })
+})
+
+describe('status — 미착수 작업 나이 요약', () => {
+  it('NOT_STARTED만 세고 created 기준 최고령 일수를 계산', () => {
+    const goals = [
+      { filePath: 'a', frontmatter: { id: 1, status: 'NOT_STARTED', created: '2026-08-01' }, body: '' },
+      { filePath: 'b', frontmatter: { id: 2, status: 'DONE', created: '2026-07-01' }, body: '' },
+      { filePath: 'c', frontmatter: { id: 3, status: 'NOT_STARTED', created: '2026-08-04' }, body: '' },
+    ]
+    expect(summarizeUnstartedGoals(goals, new Date('2026-08-05T12:00:00Z'))).toEqual({
+      count: 2,
+      oldestDays: 4,
+    })
+  })
+
+  it('자정 직후에도 시간 차가 아니라 현지 달력 날짜 차이로 계산', () => {
+    const goals = [
+      { filePath: 'a', frontmatter: { id: 1, status: 'NOT_STARTED', created: '2026-08-01' }, body: '' },
+    ]
+    expect(summarizeUnstartedGoals(goals, new Date(2026, 7, 5, 0, 5))).toEqual({
+      count: 1,
+      oldestDays: 4,
+    })
   })
 })

@@ -8,6 +8,9 @@ import {
   aggregateStatus,
   buildReport,
   buildNextActions,
+  buildVerifyAdvisories,
+  dismissVerifyAdvisory,
+  formatVerifyAdvisory,
   detectPm,
   runSecureGate,
   verifyEvidence,
@@ -24,6 +27,7 @@ import {
   type GateId,
 } from '../src/lib/gates-config.js'
 import { collectReceipt } from '../src/commands/receipt.js'
+import { readActionLedger } from '../src/lib/action-ledger.js'
 
 function gate(id: GateResult['id'], status: GateResult['status'], exitCode: number | null = 0): GateResult {
   return { id, label: id, status, exitCode, skipped: status === 'skip' }
@@ -92,6 +96,38 @@ describe('verify — nextActions', () => {
   })
 })
 
+describe('verify — 권고 안정 ID와 무시', () => {
+  it('같은 게이트 문제는 반복 실행에도 같은 권고 ID', () => {
+    expect(buildVerifyAdvisories([gate('lint', 'skip', null)])).toEqual([
+      expect.objectContaining({ id: 'lint-gate' }),
+    ])
+  })
+
+  it('오래 반복 무시한 권고는 나이·횟수와 강화 표현을 함께 출력', () => {
+    expect(formatVerifyAdvisory({
+      id: 'lint-gate',
+      message: 'lint 게이트 없음',
+      ageMs: 2 * 24 * 60 * 60 * 1000,
+      dismissCount: 3,
+      escalated: true,
+    })).toContain('🚨 반복 무시 — lint 게이트 없음 (2일째 미반영 · 이전 무시 3회) [lint-gate]')
+  })
+
+  it('latest.json의 권고를 무시하면 action-ledger에 누적', () => {
+    const d = tmp()
+    try {
+      fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+      verifyEvidence(d)
+      expect(dismissVerifyAdvisory(d, 'lint-gate')).toBe(true)
+      expect(readActionLedger(d)).toEqual(expect.arrayContaining([
+        expect.objectContaining({ action: 'advisory-dismiss', target: 'lint-gate', ran: true }),
+      ]))
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('verify — detectPm', () => {
   it('lockfile 로 pm 감지 (없으면 npm)', () => {
     const d = tmp()
@@ -152,6 +188,9 @@ describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
     expect(report.status).toBe('WARN')
     expect(report.gates.find((g) => g.id === 'typecheck')?.status).toBe('skip')
     expect(report.gates.find((g) => g.id === 'secure')?.status).toBe('pass')
+    expect(readActionLedger(d)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'verify', result: 'WARN', ran: true }),
+    ]))
     // reports/ 로컬 전용 등재
     expect(fs.readFileSync(path.join(d, '.vhk', '.gitignore'), 'utf-8')).toContain('reports/')
     fs.rmSync(d, { recursive: true, force: true })

@@ -93,6 +93,29 @@ describe('action-ledger — 저수준 append/read (evidence-ledger 미러)', () 
       fs.rmSync(d, { recursive: true, force: true })
     }
   })
+
+  it('검사 결과·커밋 메타데이터 선택 필드를 보존', () => {
+    const d = tmp()
+    try {
+      appendActionEntry(d, entry({
+        action: 'verify',
+        reason: 'result-pass',
+        result: 'PASS',
+        changedFiles: 3,
+        sessionRecord: true,
+        bypassed: false,
+      }))
+      expect(readActionLedger(d)[0]).toMatchObject({
+        action: 'verify',
+        result: 'PASS',
+        changedFiles: 3,
+        sessionRecord: true,
+        bypassed: false,
+      })
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('action-ledger — runGuarded 자동 기록 (chokepoint hook)', () => {

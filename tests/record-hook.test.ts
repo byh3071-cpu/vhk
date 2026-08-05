@@ -39,6 +39,11 @@ describe('RECORD_CHECK_TEMPLATE (배출 스크립트 내용)', () => {
   it('fail-open 처리를 포함한다 — 게이트 자체 결함이 작업을 막지 않게', () => {
     expect(content).toContain('process.exit(0)')
   })
+
+  it('커밋 허용·차단 결과를 ai-actions 원장에 남긴다', () => {
+    expect(content).toContain('.vhk/events/ai-actions.jsonl')
+    expect(content).toContain("action: 'commit'")
+  })
 })
 
 describe('COMMIT_MSG_HOOK_TEMPLATE (.git/hooks/commit-msg shim)', () => {
@@ -154,6 +159,10 @@ describe('record-check.mjs 실행 통합 (실제 git 픽스처)', () => {
     fs.writeFileSync(path.join(repo, 'docs', 'log', `${today()}-work.md`), '# log\n')
     git('add', 'src/a.ts', `docs/log/${today()}-work.md`)
     expect(runCheck('feat: with log')).toBe(0)
+    const events = fs.readFileSync(path.join(repo, '.vhk', 'events', 'ai-actions.jsonl'), 'utf-8')
+    expect(events).toContain('"action":"commit"')
+    expect(events).toContain('"ran":true')
+    expect(events).toContain('"result":"ALLOW"')
   })
 
   it('문서만 스테이지면 통과 — 과안정화 경계', () => {

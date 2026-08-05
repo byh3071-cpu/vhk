@@ -7,9 +7,13 @@ import {
   appendLedgerEntry,
   readLedger,
   LEDGER_PATH_REL,
+  ADVISORY_ESCALATION_THRESHOLD,
+  formatAdvisoryAge,
+  trackAdvisories,
   type LedgerEntry,
 } from '../src/lib/evidence-ledger.js'
 import { buildReport } from '../src/commands/verify.js'
+import type { AiActionEntry } from '../src/lib/action-ledger.js'
 
 const COMMIT = { sha: 'a'.repeat(40), shortSha: 'aaaaaaa', dirty: false }
 
@@ -24,12 +28,14 @@ describe('buildLedgerEntry', () => {
     expect(e).toEqual({
       version: '2.4.3',
       date: '2026-06-08',
+      generatedAt: 't',
       status: 'PASS',
       sha: COMMIT.sha,
       shortSha: COMMIT.shortSha,
       dirty: false,
       // RFC 0057 트랙②: agent 인자 생략 시 정적 기본값 'unknown'(순수함수 유지).
       agent: 'unknown',
+      advisories: [],
     })
   })
   it('commit 없으면(v1/비-git) sha 계열 null', () => {
@@ -85,6 +91,14 @@ describe('appendLedgerEntry / readLedger', () => {
     fs.rmSync(d, { recursive: true, force: true })
   })
 
+  it('같은 커밋·상태라도 권고가 사라지면 새 관측을 append', () => {
+    const d = tmp()
+    appendLedgerEntry(d, { ...mk('a'.repeat(40)), advisories: [{ id: 'lint-gate', message: 'lint 없음' }] })
+    expect(appendLedgerEntry(d, { ...mk('a'.repeat(40)), advisories: [] }).appended).toBe(true)
+    expect(readLedger(d)).toHaveLength(2)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
   it('손상 라인은 관용적으로 skip', () => {
     const d = tmp()
     fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
@@ -97,5 +111,72 @@ describe('appendLedgerEntry / readLedger', () => {
     expect(LEDGER_PATH_REL).toContain('.vhk')
     expect(LEDGER_PATH_REL).toContain('ledger.jsonl')
     expect(LEDGER_PATH_REL).not.toContain('reports')
+  })
+})
+
+describe('권고 나이·무시 추적', () => {
+  const ledger = (over: Partial<LedgerEntry> = {}): LedgerEntry => ({
+    version: '2.4.3',
+    date: '2026-08-01',
+    generatedAt: '2026-08-01T00:00:00.000Z',
+    status: 'WARN',
+    sha: null,
+    shortSha: null,
+    dirty: null,
+    advisories: [{ id: 'lint-gate', message: 'lint 게이트 없음' }],
+    ...over,
+  })
+
+  const dismiss = (ts: string): AiActionEntry => ({
+    ts,
+    action: 'advisory-dismiss',
+    channel: 'cli',
+    guard: 'allow',
+    ran: true,
+    reason: 'user-dismissed',
+    target: 'lint-gate',
+  })
+
+  it('최초 발견 시각부터 경과 시간과 현재 무시 여부를 계산', () => {
+    const tracked = trackAdvisories(
+      [{ id: 'lint-gate', message: 'lint 게이트 없음' }],
+      [ledger()],
+      [dismiss('2026-08-01T12:00:00.000Z')],
+      '2026-08-03T00:00:00.000Z',
+    )
+    expect(tracked[0]).toMatchObject({
+      id: 'lint-gate',
+      firstSeenAt: '2026-08-01T00:00:00.000Z',
+      ageMs: 2 * 24 * 60 * 60 * 1000,
+      dismissCount: 1,
+      dismissed: true,
+    })
+    expect(formatAdvisoryAge(tracked[0].ageMs)).toBe('2일째')
+  })
+
+  it('사라졌다 다시 생긴 권고는 새 나이로 시작하고, 누적 무시가 임계면 표현 강화', () => {
+    const actions = Array.from({ length: ADVISORY_ESCALATION_THRESHOLD }, (_, index) =>
+      dismiss(`2026-08-0${index + 1}T12:00:00.000Z`),
+    )
+    const tracked = trackAdvisories(
+      [{ id: 'lint-gate', message: 'lint 게이트 없음' }],
+      [
+        ledger(),
+        ledger({
+          generatedAt: '2026-08-04T00:00:00.000Z',
+          date: '2026-08-04',
+          status: 'PASS',
+          advisories: [],
+        }),
+      ],
+      actions,
+      '2026-08-05T00:00:00.000Z',
+    )
+    expect(tracked[0]).toMatchObject({
+      firstSeenAt: '2026-08-05T00:00:00.000Z',
+      dismissCount: ADVISORY_ESCALATION_THRESHOLD,
+      dismissed: false,
+      escalated: true,
+    })
   })
 })
