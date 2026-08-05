@@ -690,6 +690,19 @@ export const ko = {
     notFound: (id: number) => `goal id ${id} 없음 — vhk goal list 로 확인하세요.`,
     invalidId: (raw: string) =>
       `유효하지 않은 goal 번호: '${raw}' — 양의 정수만 됩니다 (예: --id 3). vhk goal list 로 확인하세요.`,
+    dependencyWaiting: (ids: string) => `선행 작업 대기: ${ids}`,
+    dependencyIssueHeader: (n: number) => `Goal 선행 조건 설정 오류 ${n}건`,
+    dependencyInvalid: (id: number, tokens: string) =>
+      `Goal ${id}의 depends_on 값이 숫자 목록이 아닙니다: ${tokens}`,
+    dependencyMissing: (id: number, dependencyId: number) =>
+      `Goal ${id}가 존재하지 않는 Goal ${dependencyId}를 기다립니다.`,
+    dependencySelf: (id: number) => `Goal ${id}가 자기 자신을 선행 작업으로 가리킵니다.`,
+    dependencyCycle: (cycle: string) => `Goal 선행 조건이 순환합니다: ${cycle}`,
+    dependencyFixHint: 'goals/*.md의 depends_on을 고친 뒤 vhk goal list로 다시 확인하세요.',
+    dependencyInvalidInProgress: (id: number, waiting: string) =>
+      `Goal ${id}가 시작됐지만 선행 작업 ${waiting}이 완료되지 않았습니다. 상태와 로드맵을 먼저 맞추세요.`,
+    dependencyDoneBlocked: (id: number, waiting: string) =>
+      `Goal ${id} 완료 처리 거부 — 먼저 끝내야 할 Goal: ${waiting}`,
     // 여기의 "불일치(drift)"는 설정이 아니라 goal 상태 ↔ 코드 현실의 어긋남이다 (ADR-011 대응표 적용 시 의미 보존).
     driftTitle: '🔍 Goal 상태↔코드 불일치(drift) 점검',
     driftClean: 'goal 상태 불일치(drift) 없음 (구현 흔적 있는데 NOT_STARTED 인 goal 0건)',

@@ -61,6 +61,8 @@ Cursor에게 한국어로 말해도 됩니다.
 | 게이트 검증 | `vhk goal check --id 0` 또는 `vhk check --goal 0` | "목표 점검" |
 | 완료 처리 | `vhk goal done --id 0` | "목표 완료" |
 
+Goal frontmatter에 `depends_on: 1,2`를 선택적으로 쓰면 선행 Goal이 모두 `DONE`일 때만 `next/peek/done` 대상이 됩니다. 잘못된 ID·자기 참조·순환 참조는 설정 오류로 표시됩니다.
+
 ## 적대적 자기검증 (review)
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |

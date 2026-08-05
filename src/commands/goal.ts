@@ -20,6 +20,12 @@ import {
   type ParsedGoal,
 } from '../lib/goal-frontmatter.js'
 import { findStatusDriftCandidates } from '../lib/goal-drift.js'
+import {
+  analyzeGoalDependencies,
+  dependencyIssuesForGoal,
+  type GoalDependencyAnalysis,
+  type GoalDependencyIssue,
+} from '../lib/goal-dependencies.js'
 
 const GOALS_DIR = 'goals'
 const STATE_DIR = 'docs/state'
@@ -62,14 +68,55 @@ export function selectActiveId(goals: ParsedGoal[]): number | null {
   const sorted = goals
     .flatMap((goal) => typeof goal.frontmatter.id === 'number' ? [{ goal, id: goal.frontmatter.id }] : [])
     .sort((a, b) => a.id - b.id)
-  const ip = sorted.find(({ goal }) => effectiveGoalStatus(goal.frontmatter) === 'IN_PROGRESS')
+  const dependencyAnalysis = analyzeGoalDependencies(goals)
+  if (dependencyAnalysis.issues.length > 0 || dependencyAnalysis.invalidInProgress.length > 0) return null
+  const isReady = (id: number): boolean => (dependencyAnalysis.waiting.get(id) ?? []).length === 0
+  const ip = sorted.find(({ goal, id }) =>
+    effectiveGoalStatus(goal.frontmatter) === 'IN_PROGRESS' && isReady(id)
+  )
   if (ip) return ip.id
-  const ns = sorted.find(({ goal }) => {
+  const ns = sorted.find(({ goal, id }) => {
     const s = effectiveGoalStatus(goal.frontmatter)
-    return s === 'NOT_STARTED' || s === undefined
+    return (s === 'NOT_STARTED' || s === undefined) && isReady(id)
   })
   if (ns) return ns.id
   return null
+}
+
+function dependencyIssueText(issue: GoalDependencyIssue): string {
+  switch (issue.kind) {
+    case 'invalid':
+      return ko.goal.dependencyInvalid(issue.goalId, issue.invalidTokens.map((token) => token || '(빈 값)').join(', '))
+    case 'missing':
+      return ko.goal.dependencyMissing(issue.goalId, issue.dependencyId)
+    case 'self':
+      return ko.goal.dependencySelf(issue.goalId)
+    case 'cycle':
+      return ko.goal.dependencyCycle(issue.cycle.join(' → '))
+  }
+}
+
+function printDependencyIssues(issues: GoalDependencyIssue[]): void {
+  if (issues.length === 0) return
+  console.log(chalk.red(`  ❌ ${ko.goal.dependencyIssueHeader(issues.length)}`))
+  for (const issue of issues) console.log(chalk.red(`     - ${dependencyIssueText(issue)}`))
+  console.log(chalk.dim(`     ${ko.goal.dependencyFixHint}`))
+}
+
+function validateGoalSelection(analysis: GoalDependencyAnalysis): boolean {
+  if (analysis.issues.length > 0) {
+    printDependencyIssues(analysis.issues)
+    process.exitCode = 1
+    return false
+  }
+  if (analysis.invalidInProgress.length > 0) {
+    for (const item of analysis.invalidInProgress) {
+      console.log(chalk.red(`  ❌ ${ko.goal.dependencyInvalidInProgress(item.goalId, item.waitingFor.join(', '))}`))
+    }
+    process.exitCode = 1
+    return false
+  }
+  return true
 }
 
 // #317: --id 는 양의 정수 문자열만 허용. Number() 강제변환은 ''·'   '→0, ' 1'→1, '1.5'→1.5 처럼
@@ -98,6 +145,7 @@ export async function goalList(): Promise<void> {
     printSkippedGoalWarnings(skipped)
     return
   }
+  const dependencyAnalysis = analyzeGoalDependencies(goals)
   for (const g of goals) {
     const fm = g.frontmatter
     const status = (effectiveGoalStatus(fm) ?? 'NOT_STARTED')
@@ -108,12 +156,20 @@ export async function goalList(): Promise<void> {
     console.log(
       `  [${id}] ${icon} ${status.padEnd(11)} ${pri} ${ver} ${fm.title ?? '(untitled)'}`
     )
+    const waitingFor = typeof fm.id === 'number' ? dependencyAnalysis.waiting.get(fm.id) ?? [] : []
+    if (waitingFor.length > 0) {
+      console.log(chalk.dim(`       ↳ ${ko.goal.dependencyWaiting(waitingFor.join(', '))}`))
+    }
   }
   // ① 중복 id 경고 — listGoals 는 첫 매치만 쓰므로 조용한 누락을 알린다.
   const dups = findDuplicateIds(goals)
   if (dups.length > 0) {
     console.log('')
     console.log(chalk.yellow(`  ${ko.goal.duplicateId(dups.join(', '))}`))
+  }
+  if (dependencyAnalysis.issues.length > 0) {
+    console.log('')
+    printDependencyIssues(dependencyAnalysis.issues)
   }
   // VHK-021: 스키마 불일치로 무시된 파일을 경고 (silent skip 제거).
   printSkippedGoalWarnings(skipped)
@@ -151,6 +207,7 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
     console.log(chalk.dim('  vhk goal init 으로 시작하세요.'))
     return
   }
+  if (!validateGoalSelection(analyzeGoalDependencies(goals))) return
   const activeId = selectActiveId(goals)
   if (activeId === null) {
     console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
@@ -222,6 +279,7 @@ export async function goalPeek(cwd: string = process.cwd()): Promise<void> {
     console.log(chalk.dim('  vhk goal init 으로 시작하세요.'))
     return
   }
+  if (!validateGoalSelection(analyzeGoalDependencies(goals))) return
   const activeId = selectActiveId(goals)
   if (activeId === null) {
     console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
@@ -261,6 +319,7 @@ frontmatter 를 만족하는 파일만 goal 로 인식한다. **하나라도 어
 | \`status\` | ✅ | \`NOT_STARTED\` \| \`IN_PROGRESS\` \| \`DONE\` \| \`BLOCKED\` |
 | \`priority\` | 권장 | \`P0\` \| \`P1\` \| \`P2\` |
 | \`title\` | 권장 | 한 줄 제목 |
+| \`depends_on\` | 선택 | 먼저 끝나야 할 Goal ID를 쉼표로 구분 (예: \`1,2\`) |
 
 파일명 규칙: \`goals/<id>-<name>.md\` (예: \`goals/1-login.md\`).
 
@@ -274,6 +333,7 @@ id: 1
 title: 로그인 기능
 status: NOT_STARTED
 priority: P0
+depends_on: 1
 ---
 
 # Goal 1: 로그인 기능
@@ -386,6 +446,7 @@ function warnIfBashOnWindows(scriptPath: string): void {
 export async function goalCheck(opts: { id?: string; force?: boolean }): Promise<void> {
   console.log(chalk.bold(`\n${ko.goal.checkTitle}\n`))
   const goals = listGoals(GOALS_DIR)
+  if (opts.id === undefined && !validateGoalSelection(analyzeGoalDependencies(goals))) return
   const id = resolveGoalId(opts.id, goals)
   // #317: 빈/공백/소수/문자 --id 는 강제변환 전에 거부 (goal 0 오염 방지).
   if (id === INVALID_GOAL_ID) {
@@ -466,6 +527,8 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   if (!ensureNotHardStopped('goal done')) return // HARD_STOP 활성 시 status 전이 차단
   console.log(chalk.bold(`\n${ko.goal.doneTitle}\n`))
   const goals = listGoals(GOALS_DIR)
+  const dependencyAnalysis = analyzeGoalDependencies(goals)
+  if (opts.id === undefined && !validateGoalSelection(dependencyAnalysis)) return
   const id = resolveGoalId(opts.id, goals)
   // #317: 잘못된 --id 로 goal 0 을 조용히 DONE 처리하던 데이터 오염 차단.
   if (id === INVALID_GOAL_ID) {
@@ -482,6 +545,18 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   if (!target) {
     // ② check 와 동일한 메시지로 통일.
     console.log(chalk.red(`  ❌ ${ko.goal.notFound(id)}`))
+    process.exitCode = 1
+    return
+  }
+  const targetDependencyIssues = dependencyIssuesForGoal(id, dependencyAnalysis)
+  if (targetDependencyIssues.length > 0) {
+    printDependencyIssues(targetDependencyIssues)
+    process.exitCode = 1
+    return
+  }
+  const waitingFor = dependencyAnalysis.waiting.get(id) ?? []
+  if (waitingFor.length > 0) {
+    console.log(chalk.red(`  ❌ ${ko.goal.dependencyDoneBlocked(id, waitingFor.join(', '))}`))
     process.exitCode = 1
     return
   }

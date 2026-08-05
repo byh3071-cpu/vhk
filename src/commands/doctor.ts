@@ -22,6 +22,7 @@ import { buildVhkDiag } from '../doctor/diagnostics/vhk.js'
 import { buildMcpDiag, mcpToolCount } from '../doctor/diagnostics/mcp.js'
 import { buildAuditDiag } from '../doctor/diagnostics/audit.js'
 import { findSkippedGoalFiles, listGoals } from '../lib/goal-frontmatter.js'
+import { analyzeGoalDependencies, type GoalDependencyIssue } from '../lib/goal-dependencies.js'
 import { ECOSYSTEM_MDC_REL } from '../lib/inject-bootstrap.js'
 import { agentsMdReferencesEcosystemMd } from './sync.js'
 import { readSelectedPM } from '../doctor/pm.js'
@@ -31,6 +32,19 @@ import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
 import { fetchLatestNpmVersion, compareSemver, recordLatest } from '../lib/version-check.js'
 export { fetchLatestNpmVersion, compareSemver }
+
+function goalDependencyIssueText(issue: GoalDependencyIssue): string {
+  switch (issue.kind) {
+    case 'invalid':
+      return ko.goal.dependencyInvalid(issue.goalId, issue.invalidTokens.map((token) => token || '(빈 값)').join(', '))
+    case 'missing':
+      return ko.goal.dependencyMissing(issue.goalId, issue.dependencyId)
+    case 'self':
+      return ko.goal.dependencySelf(issue.goalId)
+    case 'cycle':
+      return ko.goal.dependencyCycle(issue.cycle.join(' → '))
+  }
+}
 
 /**
  * Goal 84: doctor 통과 시 next-step — 신규/기존 레포 맥락 분기(D9).
@@ -441,6 +455,7 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
     console.log(chalk.bold(`  ${ko.doctor.goalSchemaTitle}`))
     const parsed = listGoals(goalsDir)
     const skipped = findSkippedGoalFiles(goalsDir)
+    const dependencyAnalysis = analyzeGoalDependencies(parsed)
     let mdCount = 0
     try {
       mdCount = fs.readdirSync(goalsDir).filter((n) => n.endsWith('.md') && n !== '_meta.md').length
@@ -461,6 +476,31 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
       console.log(chalk.dim('    → vhk goal migrate [--dry-run]'))
     } else {
       console.log(chalk.green(`    ${ko.doctor.goalSchemaOk(parsed.length)}`))
+    }
+    if (dependencyAnalysis.issues.length > 0) {
+      goalSchemaWarn = true
+      console.log(chalk.yellow(`    ${ko.goal.dependencyIssueHeader(dependencyAnalysis.issues.length)}`))
+      for (const issue of dependencyAnalysis.issues.slice(0, 5)) {
+        console.log(chalk.yellow(`      - ${goalDependencyIssueText(issue)}`))
+      }
+      if (dependencyAnalysis.issues.length > 5) {
+        console.log(chalk.dim(`      … 외 ${dependencyAnalysis.issues.length - 5}건`))
+      }
+      console.log(chalk.dim(`    → ${ko.goal.dependencyFixHint}`))
+    }
+    if (dependencyAnalysis.invalidInProgress.length > 0) {
+      goalSchemaWarn = true
+      for (const item of dependencyAnalysis.invalidInProgress) {
+        console.log(chalk.yellow(`    ${ko.goal.dependencyInvalidInProgress(item.goalId, item.waitingFor.join(', '))}`))
+      }
+    }
+    for (const goal of parsed) {
+      const id = goal.frontmatter.id
+      if (typeof id !== 'number') continue
+      const waitingFor = dependencyAnalysis.waiting.get(id) ?? []
+      if (waitingFor.length > 0) {
+        console.log(chalk.dim(`    Goal ${id} — ${ko.goal.dependencyWaiting(waitingFor.join(', '))}`))
+      }
     }
     const unstarted = summarizeUnstartedGoals(parsed)
     const unstartedLines = formatUnstartedGoalLines(unstarted)

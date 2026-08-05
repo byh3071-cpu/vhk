@@ -33,6 +33,8 @@ export interface GoalFrontmatter {
   priority?: GoalPriority
   version?: string
   completed?: string
+  /** 쉼표로 구분한 선행 Goal ID. flat frontmatter 계약을 유지하기 위해 문자열로 보존한다. */
+  depends_on?: string
   // 알 수 없는 키는 string 으로 보존 (extra 필드 허용 — extension point).
   [key: string]: string | number | undefined
 }
