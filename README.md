@@ -138,6 +138,22 @@ vhk sync
 vhk sync --check   # 검사만 — 8개 타겟이 RULES.md 와 일치하는지 (drift 시 exit 1, 쓰기 0)
 ```
 
+규칙 줄에 짧은 검사 ID를 붙이면 `vhk check`가 대응하는 스크립트를 실행하고 검사 비율을 보여줍니다.
+ID는 영문 소문자·숫자·하이픈만 사용합니다. `.mjs`가 있으면 먼저 실행하고, 없을 때 `.sh`를 찾습니다.
+
+```markdown
+- execSync 신규 사용 금지 <!-- vhk:check=no-exec-sync -->
+```
+
+```text
+scripts/check-rule-no-exec-sync.mjs
+```
+
+```powershell
+vhk check
+vhk check --json   # declaredRules·checkedRules·uncheckedRules·coveragePercent 포함
+```
+
 ### 2. Goal과 HARD_STOP
 
 Goal은 `goals/*.md`와 `scripts/check-goal-<id>.mjs`를 연결합니다. `vhk goal done`은 게이트를 다시 돌려 통과할 때만 DONE으로 전이합니다. 블로커가 반복되면(3건 누적) `.vhk/HARD_STOP`으로 진행을 멈춥니다.

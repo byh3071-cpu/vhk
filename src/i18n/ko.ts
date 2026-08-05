@@ -290,6 +290,15 @@ export const ko = {
     nextHint: 'goal/receipt/review/learn 루프를 vhk-gate skill 로 실행하세요.',
   },
   check: {
+    coverage: (checked: number, declared: number, percent: number) =>
+      `검사 비율: ${checked}/${declared} (${percent.toFixed(1)}%)`,
+    unchecked: (n: number) => `선언만(미검사): ${n}개`,
+    bindingPassed: (id: string) => `연결 검사 통과: ${id}`,
+    bindingInvalidId: (id: string) => `잘못된 검사 ID: ${id || '(비어 있음)'}`,
+    bindingMultiple: '검사 연결 표시는 규칙 하나에 하나만 쓸 수 있습니다.',
+    bindingMissing: (id: string) =>
+      `검사 파일이 없습니다: scripts/check-rule-${id}.mjs 또는 .sh`,
+    bindingFailed: (scriptPath: string) => `연결 검사 실패: ${scriptPath}`,
     title: '🔍 프로젝트 규칙 점검',
     noRules: '⚠️ RULES.md 파일이 없어요.',
     noAutoRules: '⚠️ 자동으로 검사할 규칙이 없어요.',

@@ -449,5 +449,23 @@ describe('vhk sync — goal 90: 도메인 규칙 섹션이 .cursorrules + CLAUDE
       expect(toCursorrules(sections, 'P')).toContain('[여기에 작성:')
       expect(toAgentsMd(sections, 'P')).toContain('[여기에 작성:')
     })
+
+    it('검사 연결 표시가 8개 파생 규칙 파일에 그대로 남는다', () => {
+      const marker = '<!-- vhk:check=no-exec-sync -->'
+      const sections = parseRulesMd(`# P — Rules\n\n## 코딩 규칙\n- execSync 금지 ${marker}\n`)
+      const outputs = [
+        toCursorrules(sections, 'P'),
+        toWindsurfrules(sections, 'P'),
+        toCopilotInstructions(sections, 'P'),
+        toAntigravityRules(sections, 'P'),
+        toAgentsMd(sections, 'P'),
+        toGeminiMd(sections, 'P'),
+        toClineRules(sections, 'P'),
+        toClaudeMd(sections, '# 기록 규칙 (P)\n\n## 현재 상태\n- P1\n'),
+      ]
+
+      expect(outputs).toHaveLength(8)
+      outputs.forEach((output) => expect(output).toContain(marker))
+    })
   })
 })

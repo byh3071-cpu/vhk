@@ -34,7 +34,7 @@
 - TypeScript strict (any 금지)
 - try-catch 필수, 빈 catch 금지
 - console.log 프로덕션 제거
-- `execSync` 신규 사용 금지 → `safeExecFile` 사용
+- `execSync` 신규 사용 금지 → `safeExecFile` 사용 <!-- vhk:check=no-exec-sync -->
 - 모든 커맨드 파일에 `printNextStep()` 패턴 사용
 - 한국어 별칭 `.alias()` + `ko.ts` 메시지 필수
 - 신규 커맨드 시 `nlp-router.ts` 키워드 추가 필수

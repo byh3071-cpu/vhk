@@ -328,12 +328,38 @@ export async function goalInit(): Promise<void> {
 
 // 게이트 스크립트 찾기 — .mjs 우선 (cross-platform), .sh fallback (POSIX 호환).
 // Windows 기본 환경에 bash/WSL 없어도 .mjs 가 있으면 통과.
-export function findGateScript(id: number | string): string | null {
-  const mjs = join(SCRIPTS_DIR, `check-goal-${id}.mjs`)
-  if (existsSync(mjs)) return mjs
-  const sh = join(SCRIPTS_DIR, `check-goal-${id}.sh`)
-  if (existsSync(sh)) return sh
+export function findCheckScript(
+  kind: 'goal' | 'rule',
+  id: number | string,
+  cwd = process.cwd()
+): string | null {
+  const mjs = join(SCRIPTS_DIR, `check-${kind}-${id}.mjs`)
+  if (existsSync(join(cwd, mjs))) return mjs
+  const sh = join(SCRIPTS_DIR, `check-${kind}-${id}.sh`)
+  if (existsSync(join(cwd, sh))) return sh
   return null
+}
+
+export function findGateScript(id: number | string): string | null {
+  return findCheckScript('goal', id)
+}
+
+export function findRuleCheckScript(id: string, cwd = process.cwd()): string | null {
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) return null
+  return findCheckScript('rule', id, cwd)
+}
+
+export function runCheckScript(scriptPath: string, cwd = process.cwd()): {
+  ok: boolean
+  out: string
+  err: string
+  runner: 'node' | 'bash'
+} {
+  const isMjs = scriptPath.endsWith('.mjs')
+  const runner: 'node' | 'bash' = isMjs ? 'node' : 'bash'
+  const r = safeExecFile(runner, [scriptPath], { cwd })
+  const failureDetail = r.ok ? '' : [r.err, r.stderr].filter(Boolean).join('\n')
+  return { ok: r.ok, out: r.out, err: failureDetail, runner }
 }
 
 function runGate(scriptPath: string): {
@@ -342,10 +368,7 @@ function runGate(scriptPath: string): {
   err: string
   runner: 'node' | 'bash'
 } {
-  const isMjs = scriptPath.endsWith('.mjs')
-  const runner: 'node' | 'bash' = isMjs ? 'node' : 'bash'
-  const r = safeExecFile(runner, [scriptPath])
-  return { ok: r.ok, out: r.out, err: r.ok ? '' : r.err, runner }
+  return runCheckScript(scriptPath)
 }
 
 // Windows 에서 .sh 게이트(=bash 필요)를 만났을 때 cryptic ENOENT 대신 친절 안내.

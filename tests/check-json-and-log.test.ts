@@ -34,10 +34,23 @@ describe('vhk check --json', () => {
     await check({ json: true })
 
     const out = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
-    const parsed = JSON.parse(out) as { totalRules: number; violations: unknown[]; errors: number; warnings: number }
+    const parsed = JSON.parse(out) as {
+      totalRules: number
+      violations: unknown[]
+      errors: number
+      warnings: number
+      declaredRules: number
+      checkedRules: number
+      uncheckedRules: number
+      coveragePercent: number
+    }
     expect(parsed.totalRules).toBeGreaterThan(0)
     expect(Array.isArray(parsed.violations)).toBe(true)
     expect(parsed.errors).toBeGreaterThan(0)
+    expect(parsed.declaredRules).toBe(1)
+    expect(parsed.checkedRules).toBe(1)
+    expect(parsed.uncheckedRules).toBe(0)
+    expect(parsed.coveragePercent).toBe(100)
     expect(process.exitCode).toBe(1)
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
@@ -84,7 +97,7 @@ describe('vhk check → check-log.jsonl 스냅샷', () => {
     fs.rmSync(d, { recursive: true, force: true })
   })
 
-  it('자동 검증 규칙 0개(RULES.md 는 있으나 검증 가능 규칙 없음) → check-log 미기록', async () => {
+  it('자동 검사 연결이 없는 선언도 비율 기록에 남긴다', async () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-check-json-'))
     fs.writeFileSync(path.join(d, 'RULES.md'), '## 지침\n- 그냥 텍스트\n')
     origCwd = process.cwd()
@@ -92,7 +105,14 @@ describe('vhk check → check-log.jsonl 스냅샷', () => {
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
     await check({})
-    expect(readCheckLog(d)).toEqual([])
+    const log = readCheckLog(d)
+    expect(log).toHaveLength(1)
+    expect(log[0]).toMatchObject({
+      declaredRules: 1,
+      checkedRules: 0,
+      uncheckedRules: 1,
+      coveragePercent: 0,
+    })
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
   })

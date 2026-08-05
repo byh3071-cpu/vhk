@@ -1,11 +1,17 @@
 import chalk from 'chalk'
 import path from 'node:path'
 import fs from 'node:fs'
-import { parseRules, type Rule, type RuleViolation } from '../lib/rules-parser.js'
+import {
+  parseRuleDeclarations,
+  parseRules,
+  type Rule,
+  type RuleDeclaration,
+  type RuleViolation,
+} from '../lib/rules-parser.js'
 import { ko } from '../i18n/ko.js'
 import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
-import { goalCheck } from './goal.js'
+import { findRuleCheckScript, goalCheck, runCheckScript } from './goal.js'
 import { appendCheckLog, buildCheckLogEntry } from '../lib/check-log.js'
 import { countFillSlots } from '../lib/install-receipt.js'
 
@@ -21,6 +27,24 @@ export interface CheckSummary {
   violations: RuleViolation[]
   errors: number
   warnings: number
+  declaredRules: number
+  checkedRules: number
+  uncheckedRules: number
+  coveragePercent: number
+}
+
+interface CoreCheckSummary {
+  totalRules: number
+  passCount: number
+  violations: RuleViolation[]
+  errors: number
+  warnings: number
+}
+
+export interface RuleBindingResult {
+  declaration: RuleDeclaration
+  scriptPath?: string
+  violations: RuleViolation[]
 }
 
 /**
@@ -28,7 +52,7 @@ export interface CheckSummary {
  * 이 결과를 공유해 `rule.check(cwd)` 를 중복 호출하지 않는다). fs 읽기는 있지만(rule.check 내부)
  * 콘솔 출력은 0.
  */
-export function computeCheckSummary(rules: Rule[], cwd: string): CheckSummary {
+export function computeCheckSummary(rules: Rule[], cwd: string): CoreCheckSummary {
   const allViolations: RuleViolation[] = []
   let passCount = 0
   for (const rule of rules) {
@@ -39,6 +63,78 @@ export function computeCheckSummary(rules: Rule[], cwd: string): CheckSummary {
   const errors = allViolations.filter(v => v.severity === 'error').length
   const warnings = allViolations.filter(v => v.severity === 'warning').length
   return { totalRules: rules.length, passCount, violations: allViolations, errors, warnings }
+}
+
+/** 연결 검사 파일을 찾아 실행한다. 잘못된 표시와 누락 파일도 명시적인 오류로 바꾼다. */
+export function executeRuleBindings(declarations: RuleDeclaration[], cwd: string): RuleBindingResult[] {
+  return declarations
+    .filter((declaration) => declaration.checkId !== undefined || declaration.bindingError !== undefined)
+    .map((declaration) => {
+      const ruleId = declaration.checkId ? `check-${declaration.checkId}` : declaration.id
+      if (declaration.bindingError) {
+        const reason = declaration.bindingError === 'multiple-markers'
+          ? ko.check.bindingMultiple
+          : ko.check.bindingInvalidId(declaration.invalidCheckId ?? '')
+        return {
+          declaration,
+          violations: [{
+            ruleId,
+            severity: 'error' as const,
+            message: `${reason} (RULES.md:${declaration.line})`,
+          }],
+        }
+      }
+
+      const checkId = declaration.checkId as string
+      const scriptPath = findRuleCheckScript(checkId, cwd)
+      if (!scriptPath) {
+        return {
+          declaration,
+          violations: [{
+            ruleId,
+            severity: 'error' as const,
+            message: ko.check.bindingMissing(checkId),
+          }],
+        }
+      }
+
+      const run = runCheckScript(scriptPath, cwd)
+      if (run.ok) return { declaration, scriptPath, violations: [] }
+
+      const detail = [run.out, run.err].filter(Boolean).join('\n').split(/\r?\n/).slice(-20).join('\n')
+      return {
+        declaration,
+        scriptPath,
+        violations: [{
+          ruleId,
+          severity: 'error' as const,
+          message: `${ko.check.bindingFailed(scriptPath)}${detail ? `\n${detail}` : ''}`,
+        }],
+      }
+    })
+}
+
+/** 선언 줄 기준으로 자동 해석 검사와 연결 검사를 합쳐 중복 없이 비율을 계산한다. */
+export function computeRuleCoverage(
+  declarations: RuleDeclaration[],
+  rules: Rule[],
+  bindings: RuleBindingResult[]
+): Pick<CheckSummary, 'declaredRules' | 'checkedRules' | 'uncheckedRules' | 'coveragePercent'> {
+  const checkedLines = new Set<number>()
+  for (const rule of rules) {
+    if (rule.sourceLine !== undefined) checkedLines.add(rule.sourceLine)
+  }
+  for (const binding of bindings) {
+    if (binding.scriptPath) checkedLines.add(binding.declaration.line)
+  }
+
+  const declaredRules = declarations.length
+  const checkedRules = declarations.filter((declaration) => checkedLines.has(declaration.line)).length
+  const uncheckedRules = declaredRules - checkedRules
+  const coveragePercent = declaredRules === 0
+    ? 0
+    : Math.round((checkedRules / declaredRules) * 1000) / 10
+  return { declaredRules, checkedRules, uncheckedRules, coveragePercent }
 }
 
 export async function check(opts: CheckOptions = {}, target?: string) {
@@ -95,11 +191,22 @@ async function checkRules(opts: CheckOptions = {}) {
     return
   }
 
+  const declarations = parseRuleDeclarations(rulesPath)
   const rules = parseRules(rulesPath)
 
-  if (rules.length === 0) {
+  if (rules.length === 0 && declarations.length === 0) {
     if (opts.json) {
-      console.log(JSON.stringify({ totalRules: 0, passCount: 0, violations: [], errors: 0, warnings: 0 }, null, 2))
+      console.log(JSON.stringify({
+        totalRules: 0,
+        passCount: 0,
+        violations: [],
+        errors: 0,
+        warnings: 0,
+        declaredRules: 0,
+        checkedRules: 0,
+        uncheckedRules: 0,
+        coveragePercent: 0,
+      }, null, 2))
       return
     }
     console.log(chalk.bold(`\n${ko.check.title}\n`))
@@ -110,8 +217,19 @@ async function checkRules(opts: CheckOptions = {}) {
     return
   }
 
-  // #374: 콘솔 렌더와 분리된 계산부 — rule.check(cwd) 중복 호출 없이 --json/check-log 가 공유.
-  const summary = computeCheckSummary(rules, cwd)
+  const coreSummary = computeCheckSummary(rules, cwd)
+  const bindings = executeRuleBindings(declarations, cwd)
+  const bindingViolations = bindings.flatMap((binding) => binding.violations)
+  const violations = [...coreSummary.violations, ...bindingViolations]
+  const summary: CheckSummary = {
+    totalRules: coreSummary.totalRules + bindings.filter((binding) => binding.scriptPath).length,
+    passCount: coreSummary.passCount
+      + bindings.filter((binding) => binding.scriptPath && binding.violations.length === 0).length,
+    violations,
+    errors: violations.filter((violation) => violation.severity === 'error').length,
+    warnings: violations.filter((violation) => violation.severity === 'warning').length,
+    ...computeRuleCoverage(declarations, rules, bindings),
+  }
 
   // #374: 실행마다 위반 총계 스냅샷 append(evolve 효과측정 토대) — best-effort, 판정을 막지 않음.
   try {
@@ -130,7 +248,16 @@ async function checkRules(opts: CheckOptions = {}) {
   }
 
   console.log(chalk.bold(`\n${ko.check.title}\n`))
-  console.log(chalk.dim(`  📏 자동 검증 가능한 규칙 ${rules.length}개 감지 (나머지 규칙은 수동/도구 확인)\n`))
+  console.log(chalk.dim(`  📏 자동 검사 ${summary.totalRules}개 실행`))
+  console.log(chalk.cyan(`  ${ko.check.coverage(
+    summary.checkedRules,
+    summary.declaredRules,
+    summary.coveragePercent
+  )}`))
+  if (summary.uncheckedRules > 0) {
+    console.log(chalk.yellow(`  ${ko.check.unchecked(summary.uncheckedRules)}`))
+  }
+  console.log('')
 
   const violationsByRule = new Map<string, RuleViolation[]>()
   for (const v of summary.violations) {
@@ -157,6 +284,18 @@ async function checkRules(opts: CheckOptions = {}) {
     }
   }
 
+  for (const binding of bindings) {
+    const id = binding.declaration.checkId ?? `RULES.md:${binding.declaration.line}`
+    if (binding.violations.length === 0) {
+      console.log(chalk.green(`  ✅ check-${id}`) + chalk.dim(` — ${ko.check.bindingPassed(id)}`))
+      continue
+    }
+    console.log(chalk.red(`  ❌ check-${id}`) + chalk.dim(` — ${binding.violations.length}건 위반`))
+    for (const violation of binding.violations) {
+      console.log(`    ${chalk.red('●')} ${violation.message}`)
+    }
+  }
+
   console.log('')
 
   // RFC 0060 T1b: 아직 못 채운 기획·설계 슬롯을 노출(진행 측정 + 다음 행동 유도).
@@ -170,8 +309,10 @@ async function checkRules(opts: CheckOptions = {}) {
 
   if (summary.violations.length === 0) {
     // VHK-011: "모든 규칙 통과" 거짓안심 금지 — 자동 검증된 부분만 통과라고 명시.
-    console.log(chalk.green.bold(`✅ 자동 검증 가능한 규칙 ${summary.passCount}개 통과`))
-    console.log(chalk.dim('   (RULES.md 의 나머지 규칙은 코드 자동 검사 불가 — 직접/도구로 확인하세요.)'))
+    console.log(chalk.green.bold(`✅ 실행한 자동 검사 ${summary.passCount}개 통과`))
+    if (summary.uncheckedRules > 0) {
+      console.log(chalk.dim(`   (${ko.check.unchecked(summary.uncheckedRules)} — 직접/도구로 확인하세요.)`))
+    }
     printNextStep({
       message: '모든 규칙 통과! 보안 스캔도 해볼까요?',
       command: 'vhk 보안 scan',
@@ -179,7 +320,7 @@ async function checkRules(opts: CheckOptions = {}) {
     })
   } else {
     console.log(chalk.bold(ko.check.summary))
-    console.log(`  규칙: ${chalk.cyan(String(rules.length))}개 | 통과: ${chalk.green(String(summary.passCount))}개 | 위반: ${chalk.red(String(summary.violations.length))}건`)
+    console.log(`  검사: ${chalk.cyan(String(summary.totalRules))}개 | 통과: ${chalk.green(String(summary.passCount))}개 | 위반: ${chalk.red(String(summary.violations.length))}건`)
     if (summary.errors > 0) console.log(`  ${chalk.red(`✖ ${summary.errors}개 에러`)}`)
     if (summary.warnings > 0) console.log(`  ${chalk.yellow(`⚠ ${summary.warnings}개 경고`)}`)
     printNextStep({

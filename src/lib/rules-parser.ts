@@ -4,10 +4,22 @@ import path from 'node:path'
 export interface Rule {
   id: string
   section: string
+  /** RULES.md 원본의 1-based 줄 번호. 선언 단위 검사 비율 계산에 사용한다. */
+  sourceLine?: number
   type: 'file-pattern' | 'naming' | 'structure' | 'content' | 'custom'
   description: string
   pattern?: RegExp
   check: (cwd: string) => RuleViolation[]
+}
+
+export interface RuleDeclaration {
+  id: string
+  section: string
+  description: string
+  line: number
+  checkId?: string
+  bindingError?: 'invalid-id' | 'multiple-markers'
+  invalidCheckId?: string
 }
 
 export interface RuleViolation {
@@ -19,6 +31,55 @@ export interface RuleViolation {
 }
 
 type NamingConvention = 'kebab-case' | 'camelCase'
+
+const CHECK_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+const CHECK_MARKER_PATTERN = /<!--\s*vhk:check=([^>]*)-->/gi
+
+/** RULES.md의 최상위 글머리표를 선언 단위로 읽고 선택적 검사 연결 표시를 해석한다. */
+export function parseRuleDeclarations(rulesPath: string): RuleDeclaration[] {
+  if (!fs.existsSync(rulesPath)) return []
+
+  const lines = fs.readFileSync(rulesPath, 'utf-8').split('\n')
+  const declarations: RuleDeclaration[] = []
+  let currentSection = ''
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    if (line.startsWith('## ')) {
+      currentSection = line.slice(3).trim()
+      continue
+    }
+
+    const bulletMatch = line.match(/^[-*]\s+(.+)/)
+    if (!bulletMatch || !currentSection) continue
+
+    const lineNo = i + 1
+    const rawText = bulletMatch[1]
+    const markers = [...rawText.matchAll(CHECK_MARKER_PATTERN)]
+    const description = rawText.replace(CHECK_MARKER_PATTERN, '').trim()
+    const declaration: RuleDeclaration = {
+      id: `declaration-L${lineNo}`,
+      section: currentSection,
+      description,
+      line: lineNo,
+    }
+
+    if (markers.length > 1) {
+      declaration.bindingError = 'multiple-markers'
+    } else if (markers.length === 1) {
+      const checkId = markers[0][1].trim()
+      if (CHECK_ID_PATTERN.test(checkId)) declaration.checkId = checkId
+      else {
+        declaration.bindingError = 'invalid-id'
+        declaration.invalidCheckId = checkId
+      }
+    }
+
+    declarations.push(declaration)
+  }
+
+  return declarations
+}
 
 /**
  * RULES.md에서 자동 검증 가능한 규칙을 추출한다.
@@ -47,26 +108,26 @@ export function parseRules(rulesPath: string): Rule[] {
     // VHK-012: 지침/기록/메타 섹션 불릿은 코드 규칙이 아님 → 추출 제외(오탐 방지).
     if (isMetaSection(currentSection)) continue
 
-    const ruleText = bulletMatch[1]
+    const ruleText = bulletMatch[1].replace(CHECK_MARKER_PATTERN, '').trim()
 
     if (/kebab[- ]?case/i.test(ruleText)) {
-      rules.push(createNamingRule(`naming-L${lineNo}`, currentSection, ruleText, 'kebab-case'))
+      rules.push(createNamingRule(`naming-L${lineNo}`, currentSection, ruleText, 'kebab-case', lineNo))
     } else if (/camel[- ]?case/i.test(ruleText)) {
-      rules.push(createNamingRule(`naming-L${lineNo}`, currentSection, ruleText, 'camelCase'))
+      rules.push(createNamingRule(`naming-L${lineNo}`, currentSection, ruleText, 'camelCase', lineNo))
     }
 
     // VHK-012: 구조(필수 디렉터리) 규칙은 '아키텍처/구조' 선언 섹션에서만 — 행동지침 경로 오탐 방지.
     if (isStructureSection(currentSection)) {
       const pathMatch = ruleText.match(/`([a-zA-Z0-9_/.-]+\/)`/)
       if (pathMatch) {
-        rules.push(createStructureRule(`structure-L${lineNo}`, currentSection, ruleText, pathMatch[1]))
+        rules.push(createStructureRule(`structure-L${lineNo}`, currentSection, ruleText, pathMatch[1], lineNo))
       }
     }
 
     // VHK-012: '금지' 인접 백틱 토큰만 — `X` 금지 / 금지: `X`. URL·경로는 제외(금지 뒤 먼 URL 오탐 방지).
     const banToken = extractBanToken(ruleText)
     if (banToken) {
-      rules.push(createContentRule(`ban-L${lineNo}`, currentSection, ruleText, banToken))
+      rules.push(createContentRule(`ban-L${lineNo}`, currentSection, ruleText, banToken, lineNo))
     }
   }
 
@@ -142,11 +203,13 @@ function createNamingRule(
   id: string,
   section: string,
   desc: string,
-  convention: NamingConvention
+  convention: NamingConvention,
+  sourceLine: number
 ): Rule {
   return {
     id,
     section,
+    sourceLine,
     type: 'naming',
     description: desc,
     check: (cwd: string) => {
@@ -185,11 +248,13 @@ function createStructureRule(
   id: string,
   section: string,
   desc: string,
-  expectedPath: string
+  expectedPath: string,
+  sourceLine: number
 ): Rule {
   return {
     id,
     section,
+    sourceLine,
     type: 'structure',
     description: desc,
     check: (cwd: string) => {
@@ -223,11 +288,13 @@ function createContentRule(
   id: string,
   section: string,
   desc: string,
-  pattern: string
+  pattern: string,
+  sourceLine: number
 ): Rule {
   return {
     id,
     section,
+    sourceLine,
     type: 'content',
     description: desc,
     pattern: new RegExp(escapeRegex(pattern), 'i'),
