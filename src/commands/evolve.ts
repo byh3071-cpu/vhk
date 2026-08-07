@@ -507,7 +507,7 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
   const candidates = loadInlineCandidates(cwd)
 
   if (opts.json) {
-    console.log(JSON.stringify(candidates, null, 2))
+    log.plain(JSON.stringify(candidates, null, 2))
     return
   }
 
