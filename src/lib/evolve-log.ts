@@ -26,7 +26,7 @@ export const EVOLVE_LOG_REL = join('.vhk', 'events', 'evolve-log.jsonl')
 
 export interface EvolveLogEntry {
   /** 생략된 이전 기록은 decision으로 읽는다. */
-  event?: 'decision' | 'undo'
+  event?: 'decision' | 'undo' | 'migration'
   /** 결정 시각 ISO. */
   ts: string
   /** 큐 항목 id('e1' 등) — 로컬전용 queue.json 조인키(위 캐비어트 참고). */
@@ -84,6 +84,24 @@ export function buildEvolveUndoLogEntry(
   }
 }
 
+/** 폐지된 queue.json의 결정을 새 원장으로 옮길 때 쓰는 보존 이벤트. 새 사람 결정으로 집계하지 않는다. */
+export function buildEvolveMigrationLogEntry(
+  item: Pick<EvolveQueueItem, 'id' | 'patternId' | 'targetLayer' | 'status' | 'draft' | 'rulesBackupPath'>,
+  ts: string,
+): EvolveLogEntry {
+  return {
+    event: 'migration',
+    ts,
+    suggId: item.id,
+    patternId: item.patternId,
+    targetLayer: item.targetLayer ?? 'rule',
+    applied: item.status === 'applied',
+    rejectReason: null,
+    draft: item.draft,
+    ...(item.rulesBackupPath ? { rulesBackupPath: item.rulesBackupPath } : {}),
+  }
+}
+
 /**
  * 결정(apply/reject) → 로그 엔트리(순수 함수, fs/시간 부수효과 0). ts 는 호출부가 주입(결정성 확보,
  * receipt-log.ts 의 buildReceiptLogEntry 와 동일 철학 — Date.now() 를 내부에서 부르지 않는다).
@@ -130,9 +148,16 @@ export function readEvolveLog(cwd: string): EvolveLogEntry[] {
  * 측정 엔트리 1개 append(append-only). 원자적 쓰기(temp→rename — 쓰기 중 kill 에도 손상 방지).
  */
 export function appendEvolveLog(cwd: string, entry: EvolveLogEntry): void {
+  appendEvolveLogEntries(cwd, [entry])
+}
+
+/** 여러 이벤트를 한 번의 원자 치환으로 추가한다. 빈 배열은 파일을 만들지 않는다. */
+export function appendEvolveLogEntries(cwd: string, entries: EvolveLogEntry[]): void {
+  if (entries.length === 0) return
   const p = join(cwd, EVOLVE_LOG_REL)
   mkdirSync(join(cwd, '.vhk', 'events'), { recursive: true })
   const existing = existsSync(p) ? stripBom(readFileSync(p, 'utf-8')).replace(/\n*$/, '') : ''
-  const body = (existing ? existing + '\n' : '') + JSON.stringify(entry) + '\n'
+  const appended = entries.map((entry) => JSON.stringify(entry)).join('\n')
+  const body = (existing ? existing + '\n' : '') + appended + '\n'
   atomicWriteFile(p, body)
 }

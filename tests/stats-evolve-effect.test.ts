@@ -31,6 +31,12 @@ describe('calcAdoptionStats', () => {
     expect(r.applied).toEqual({ count: 1, total: 2, rate: 0.5 })
   })
 
+  it('구버전 큐 이전 기록은 새 사람 결정으로 중복 집계하지 않는다', () => {
+    const migration: EvolveLogEntry = { ...ev(true), event: 'migration' }
+    const r = calcAdoptionStats([ev(true), migration])
+    expect(r.applied).toEqual({ count: 1, total: 1, rate: 1 })
+  })
+
   it('기각 사유 분포 — 사유 있는 것끼리 그룹핑, 내림차순 정렬', () => {
     const r = calcAdoptionStats([
       ev(false, '문구 부정확'),

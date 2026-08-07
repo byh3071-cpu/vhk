@@ -151,7 +151,7 @@ export interface AdoptionStats {
  * 기각 사유 분포도 함께 — "왜 기각되는지" 실측(표본이 대부분 '(사유 없음)' 일 수 있음, 정직 표기).
  */
 export function calcAdoptionStats(entries: EvolveLogEntry[]): AdoptionStats {
-  const decisions = entries.filter((entry) => entry.event !== 'undo')
+  const decisions = entries.filter((entry) => entry.event !== 'undo' && entry.event !== 'migration')
   const total = decisions.length
   const applied = decisions.filter((e) => e.applied).length
   const reasonCounts = new Map<string, number>()

@@ -1,4 +1,13 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, readdirSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { atomicWriteFile } from '../lib/atomic-write.js'
@@ -12,11 +21,14 @@ import { sync } from './sync.js'
 import { reconcilePatterns, type PatternEntryV19 } from './pattern.js'
 import {
   appendEvolveLog,
+  appendEvolveLogEntries,
   buildEvolveLogEntry,
+  buildEvolveMigrationLogEntry,
   buildEvolveUndoLogEntry,
   currentEvolveDecisionKeys,
   currentEvolveDecisions,
   readEvolveLog,
+  type EvolveLogEntry,
 } from '../lib/evolve-log.js'
 import {
   buildCandidateDraft,
@@ -33,6 +45,7 @@ import { log } from '../utils/logger.js'
  */
 
 export const QUEUE_PATH_REL = join('.vhk', 'evolve', 'queue.json')
+export const LEGACY_QUEUE_ARCHIVE_PATH_REL = join('.vhk', 'evolve', 'queue.pre-inline.json')
 // Goal 58: 스키마 v2 — 진화 큐가 5계층 자기개선(memory/rule/workflow/code/product)을 표현.
 export const QUEUE_VERSION = 2
 
@@ -69,6 +82,13 @@ export interface EvolveQueueFile {
 export function buildDraft(p: PatternEntryV19): string {
   return buildCandidateDraft(p)
 }
+
+type PendingEvolveCandidate = EvolveQueueItem & {
+  status: 'pending'
+  expiresAt: string
+}
+
+type EvolveCandidate = InlineEvolveCandidate | PendingEvolveCandidate
 
 /** dedupeKey = `${patternId}:${targetLayer}`. v1 의 `${patternId}:rule` 과 하위호환(targetLayer 기본 'rule'). */
 export function buildDedupeKey(patternId: string, targetLayer: TargetLayer = 'rule'): string {
@@ -192,6 +212,140 @@ export function readQueue(cwd: string): EvolveQueueFile {
   } catch {
     return { version: QUEUE_VERSION, items: [] }
   }
+}
+
+interface LegacyQueueSource {
+  raw: string
+  queue: EvolveQueueFile
+}
+
+function normalizeLegacyQueueItem(value: unknown, index: number): EvolveQueueItem {
+  if (!value || typeof value !== 'object') {
+    throw new Error(`기존 진화 큐 ${index + 1}번째 항목 형식이 올바르지 않습니다.`)
+  }
+  const item = value as Partial<EvolveQueueItem>
+  const targetLayer = item.targetLayer ?? 'rule'
+  if (
+    typeof item.id !== 'string' || item.id.length === 0
+    || typeof item.patternId !== 'string' || item.patternId.length === 0
+    || typeof item.draft !== 'string'
+    || typeof item.createdAt !== 'string'
+    || !['pending', 'rejected', 'applied'].includes(String(item.status))
+    || !TARGET_LAYERS.includes(targetLayer)
+    || (item.appliedAt !== undefined && typeof item.appliedAt !== 'string')
+    || (item.rulesBackupPath !== undefined && typeof item.rulesBackupPath !== 'string')
+  ) {
+    throw new Error(`기존 진화 큐 ${index + 1}번째 항목에 필수값이 빠졌거나 잘못됐습니다.`)
+  }
+  return {
+    id: item.id,
+    patternId: item.patternId,
+    kind: 'rule',
+    targetLayer,
+    status: item.status as EvolveItemStatus,
+    draft: item.draft,
+    dedupeKey: `${item.patternId}:${targetLayer}`,
+    createdAt: item.createdAt,
+    ...(item.appliedAt ? { appliedAt: item.appliedAt } : {}),
+    ...(item.rulesBackupPath ? { rulesBackupPath: item.rulesBackupPath } : {}),
+  }
+}
+
+function readLegacyQueueSource(cwd: string): LegacyQueueSource | null {
+  const queuePath = join(cwd, QUEUE_PATH_REL)
+  if (!existsSync(queuePath)) return null
+
+  const raw = readFileSync(queuePath, 'utf-8')
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stripBomStr(raw))
+  } catch (error) {
+    throw new Error(`기존 진화 큐를 읽지 못했습니다: ${error instanceof Error ? error.message : String(error)}`)
+  }
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as { items?: unknown }).items)) {
+    throw new Error('기존 진화 큐의 items 배열을 찾지 못했습니다.')
+  }
+  const version = typeof (parsed as { version?: unknown }).version === 'number'
+    ? (parsed as { version: number }).version
+    : 1
+  if (version > QUEUE_VERSION) {
+    throw new Error(`더 새로운 진화 큐 형식(v${version})은 이 버전에서 이전하지 않습니다.`)
+  }
+  const items = ((parsed as { items: unknown[] }).items)
+    .map((item, index) => normalizeLegacyQueueItem(item, index))
+  return { raw, queue: { version: QUEUE_VERSION, items } }
+}
+
+function legacyQueueForRead(cwd: string): EvolveQueueFile {
+  try {
+    return readLegacyQueueSource(cwd)?.queue ?? { version: QUEUE_VERSION, items: [] }
+  } catch {
+    // 읽기 명령은 구버전처럼 손상 큐를 무시한다. 실제 변경 시에는 아래 이전 함수가 오류로 차단한다.
+    return { version: QUEUE_VERSION, items: [] }
+  }
+}
+
+function evolveItemKey(item: Pick<EvolveQueueItem, 'patternId' | 'targetLayer'>): string {
+  return `${item.patternId}:${item.targetLayer ?? 'rule'}`
+}
+
+function needsLegacyDecisionMigration(
+  item: EvolveQueueItem,
+  current: EvolveLogEntry | undefined,
+): boolean {
+  if (item.status === 'pending') return false
+  if (!current) return true
+  if (current.applied !== (item.status === 'applied')) return false
+  return current.draft === undefined
+    || (Boolean(item.rulesBackupPath) && !current.rulesBackupPath)
+}
+
+export type LegacyQueueMigrationResult = {
+  status: 'none' | 'migrated'
+  migratedDecisions: number
+}
+
+/**
+ * 실제 승인·기각·되돌리기 직전에만 폐지된 큐를 옮긴다.
+ * 조회 명령은 디스크를 건드리지 않고, 결정·되돌리기 정보부터 원장에 보존한 뒤 원본을 로컬 보관한다.
+ */
+export function migrateLegacyQueueForMutation(
+  cwd: string,
+  nowIso = new Date().toISOString(),
+): LegacyQueueMigrationResult {
+  const source = readLegacyQueueSource(cwd)
+  if (!source) return { status: 'none', migratedDecisions: 0 }
+
+  const currentByKey = new Map(
+    currentEvolveDecisions(readEvolveLog(cwd)).map((entry) => [
+      `${entry.patternId}:${entry.targetLayer ?? 'rule'}`,
+      entry,
+    ]),
+  )
+  const migrationEntries = source.queue.items
+    .filter((item) => needsLegacyDecisionMigration(item, currentByKey.get(evolveItemKey(item))))
+    .map((item) => buildEvolveMigrationLogEntry(item, nowIso))
+
+  const queuePath = join(cwd, QUEUE_PATH_REL)
+  const archivePath = join(cwd, LEGACY_QUEUE_ARCHIVE_PATH_REL)
+  if (existsSync(archivePath)) {
+    const archived = readFileSync(archivePath, 'utf-8')
+    if (archived !== source.raw) {
+      throw new Error(
+        '기존 진화 큐 보관본의 내용이 다릅니다. queue.json과 queue.pre-inline.json을 확인한 뒤 다시 시도하세요.',
+      )
+    }
+  }
+
+  appendEvolveLogEntries(cwd, migrationEntries)
+
+  if (existsSync(archivePath)) {
+    unlinkSync(queuePath)
+  } else {
+    renameSync(queuePath, archivePath)
+  }
+
+  return { status: 'migrated', migratedDecisions: migrationEntries.length }
 }
 
 /**
@@ -479,13 +633,54 @@ export async function evolveSeed(opts: { write?: boolean; json?: boolean } = {})
   })
 }
 
-function loadInlineCandidates(cwd: string, nowIso = new Date().toISOString()): InlineEvolveCandidate[] {
+function loadInlineCandidates(cwd: string, nowIso = new Date().toISOString()): EvolveCandidate[] {
   const patterns = readMemory(cwd).patterns as PatternEntryV19[]
-  const decidedKeys = currentEvolveDecisionKeys(readEvolveLog(cwd))
-  return generateInlineCandidates(patterns, decidedKeys, nowIso)
+  const decisions = readEvolveLog(cwd)
+  const legacyQueue = legacyQueueForRead(cwd)
+  const decidedKeys = currentEvolveDecisionKeys(decisions)
+  for (const item of legacyQueue.items) {
+    if (item.status !== 'pending') decidedKeys.add(evolveItemKey(item))
+  }
+
+  const nowMs = Date.parse(nowIso)
+  const legacyPending = legacyQueue.items.flatMap((item): PendingEvolveCandidate[] => {
+    if (item.status !== 'pending' || decidedKeys.has(evolveItemKey(item))) return []
+    const createdMs = Date.parse(item.createdAt)
+    if (!Number.isFinite(nowMs) || !Number.isFinite(createdMs)) return []
+    const expiresAt = new Date(createdMs + EVOLVE_CANDIDATE_TTL_DAYS * 24 * 60 * 60 * 1000)
+    if (nowMs >= expiresAt.getTime()) return []
+    return [{ ...item, status: 'pending', expiresAt: expiresAt.toISOString() }]
+  })
+  const legacyPendingKeys = new Set(legacyPending.map(evolveItemKey))
+  const inline = generateInlineCandidates(patterns, decidedKeys, nowIso)
+    .filter((candidate) => !legacyPendingKeys.has(evolveItemKey(candidate)))
+  return [...legacyPending, ...inline]
+    .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
 }
 
-function printInlineCandidate(item: InlineEvolveCandidate): void {
+function currentDecisionItems(cwd: string): EvolveQueueItem[] {
+  const legacy = legacyQueueForRead(cwd).items.filter((item) => item.status !== 'pending')
+  const byKey = new Map(legacy.map((item) => [evolveItemKey(item), item]))
+  for (const entry of currentEvolveDecisions(readEvolveLog(cwd))) {
+    const key = `${entry.patternId}:${entry.targetLayer ?? 'rule'}`
+    const previous = byKey.get(key)
+    byKey.set(key, {
+      id: entry.suggId,
+      patternId: entry.patternId,
+      kind: 'rule',
+      targetLayer: entry.targetLayer ?? 'rule',
+      status: entry.applied ? 'applied' : 'rejected',
+      draft: entry.draft ?? previous?.draft ?? '(이전 기록에는 초안이 없습니다)',
+      dedupeKey: key,
+      createdAt: entry.ts,
+      appliedAt: entry.applied ? entry.ts : undefined,
+      rulesBackupPath: entry.rulesBackupPath ?? previous?.rulesBackupPath,
+    })
+  }
+  return [...byKey.values()]
+}
+
+function printInlineCandidate(item: EvolveCandidate): void {
   const expires = new Date(item.expiresAt).toLocaleDateString('ko-KR')
   log.plain(chalk.cyan(`\n  [${item.id}] 규칙 후보`))
   log.plain(`      ${item.draft}`)
@@ -609,18 +804,7 @@ export async function evolveList(opts: { status?: string; json?: boolean } = {})
   const cwd = process.cwd()
   const VALID: EvolveItemStatus[] = ['pending', 'rejected', 'applied']
   const pending = loadInlineCandidates(cwd)
-  const decided = currentEvolveDecisions(readEvolveLog(cwd)).map((entry): EvolveQueueItem => ({
-    id: entry.suggId,
-    patternId: entry.patternId,
-    kind: 'rule',
-    targetLayer: entry.targetLayer ?? 'rule',
-    status: entry.applied ? 'applied' : 'rejected',
-    draft: entry.draft ?? '(이전 기록에는 초안이 없습니다)',
-    dedupeKey: `${entry.patternId}:${entry.targetLayer ?? 'rule'}`,
-    createdAt: entry.ts,
-    appliedAt: entry.applied ? entry.ts : undefined,
-    rulesBackupPath: entry.rulesBackupPath,
-  }))
+  const decided = currentDecisionItems(cwd)
   let items: EvolveQueueItem[] = [...pending, ...decided]
   if (opts.status && VALID.includes(opts.status as EvolveItemStatus)) {
     items = items.filter(i => i.status === opts.status)
@@ -672,25 +856,20 @@ export async function evolveApply(idStr: string): Promise<void> {
     process.exitCode = 1
     return
   }
-  const decisions = readEvolveLog(cwd)
   const patterns = memLoaded.mem.patterns as PatternEntryV19[]
-  const item = generateInlineCandidates(
-    patterns,
-    currentEvolveDecisionKeys(decisions),
-    new Date().toISOString(),
-  ).find((candidate) => candidate.id === idStr?.trim())
+  const item = loadInlineCandidates(cwd).find((candidate) => candidate.id === idStr?.trim())
+  const decisionItems = currentDecisionItems(cwd)
   if (!item) {
-    const decided = currentEvolveDecisions(decisions).find((entry) =>
-      entry.suggId === idStr?.trim()
-      || `${entry.patternId}:${entry.targetLayer ?? 'rule'}` === idStr?.trim(),
+    const decided = decisionItems.find((entry) =>
+      entry.id === idStr?.trim() || evolveItemKey(entry) === idStr?.trim(),
     )
-    if (decided?.applied) log.warn(t('evolve.alreadyApplied'))
+    if (decided?.status === 'applied') log.warn(t('evolve.alreadyApplied'))
     else log.error(t('evolve.notFound', idStr ?? ''))
     process.exitCode = 1
     return
   }
-  const hasUndoableApply = currentEvolveDecisions(decisions).some(
-    (entry) => entry.applied && Boolean(entry.rulesBackupPath),
+  const hasUndoableApply = decisionItems.some(
+    (entry) => entry.status === 'applied' && Boolean(entry.rulesBackupPath),
   )
   if (hasUndoableApply) {
     log.error(t('evolve.pendingApplyExists'))
@@ -728,6 +907,15 @@ export async function evolveApply(idStr: string): Promise<void> {
 
   if (!confirmed) {
     console.log(chalk.dim('  취소됨.'))
+    return
+  }
+
+  try {
+    migrateLegacyQueueForMutation(cwd)
+  } catch (error) {
+    log.error('기존 진화 큐를 안전하게 보관하지 못해 규칙 반영을 중단했습니다.')
+    log.dim(`   ${error instanceof Error ? error.message : String(error)}`)
+    process.exitCode = 1
     return
   }
 
@@ -811,20 +999,14 @@ export async function evolveApply(idStr: string): Promise<void> {
 export async function evolveReject(idStr: string, reason?: string): Promise<void> {
   if (!ensureNotHardStopped('evolve reject')) return
   const cwd = process.cwd()
-  const decisions = readEvolveLog(cwd)
-  const item = generateInlineCandidates(
-    readMemory(cwd).patterns as PatternEntryV19[],
-    currentEvolveDecisionKeys(decisions),
-    new Date().toISOString(),
-  ).find((candidate) => candidate.id === idStr?.trim())
+  const item = loadInlineCandidates(cwd).find((candidate) => candidate.id === idStr?.trim())
 
   if (!item) {
-    const decided = currentEvolveDecisions(decisions).find((entry) =>
-      entry.suggId === idStr?.trim()
-      || `${entry.patternId}:${entry.targetLayer ?? 'rule'}` === idStr?.trim(),
+    const decided = currentDecisionItems(cwd).find((entry) =>
+      entry.id === idStr?.trim() || evolveItemKey(entry) === idStr?.trim(),
     )
     if (decided) {
-      log.dim(`  이미 판정한 후보입니다 — 변경 없음: ${decided.suggId}`)
+      log.dim(`  이미 판정한 후보입니다 — 변경 없음: ${decided.id}`)
       return
     }
     console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
@@ -834,6 +1016,7 @@ export async function evolveReject(idStr: string, reason?: string): Promise<void
 
   const trimmedReason = reason?.trim()
   try {
+    migrateLegacyQueueForMutation(cwd)
     appendEvolveLog(cwd, {
       ...buildEvolveLogEntry(item, false, new Date().toISOString(), trimmedReason || null),
       draft: item.draft,
@@ -860,28 +1043,16 @@ export async function evolveUndo(): Promise<void> {
   if (!ensureInteractive('undo는 TTY 확인이 필요합니다. 터미널에서 직접 실행하세요.')) return
 
   const cwd = process.cwd()
-  const applied = currentEvolveDecisions(readEvolveLog(cwd))
-    .filter((entry) => entry.applied && entry.rulesBackupPath)
-    .sort((a, b) => b.ts.localeCompare(a.ts))
+  const applied = currentDecisionItems(cwd)
+    .filter((entry) => entry.status === 'applied' && entry.rulesBackupPath)
+    .sort((a, b) => (b.appliedAt ?? b.createdAt).localeCompare(a.appliedAt ?? a.createdAt))
 
   if (applied.length === 0) {
     console.log(chalk.yellow('\n📭 ' + t('evolve.noAppliedToUndo')))
     return
   }
 
-  const lastEntry = applied[0]
-  const last: EvolveQueueItem = {
-    id: lastEntry.suggId,
-    patternId: lastEntry.patternId,
-    kind: 'rule',
-    targetLayer: lastEntry.targetLayer ?? 'rule',
-    status: 'applied',
-    draft: lastEntry.draft ?? '(이전 기록에는 초안이 없습니다)',
-    dedupeKey: `${lastEntry.patternId}:${lastEntry.targetLayer ?? 'rule'}`,
-    createdAt: lastEntry.ts,
-    appliedAt: lastEntry.ts,
-    rulesBackupPath: lastEntry.rulesBackupPath,
-  }
+  const last = applied[0]
 
   if (!last.rulesBackupPath || !existsSync(last.rulesBackupPath)) {
     console.log(chalk.red('\n❌ ' + t('evolve.noBackup')))
@@ -901,6 +1072,15 @@ export async function evolveUndo(): Promise<void> {
 
   if (!confirmed) {
     console.log(chalk.dim('  취소됨.'))
+    return
+  }
+
+  try {
+    migrateLegacyQueueForMutation(cwd)
+  } catch (error) {
+    log.error('기존 진화 큐를 안전하게 보관하지 못해 되돌리기를 중단했습니다.')
+    log.dim(`   ${error instanceof Error ? error.message : String(error)}`)
+    process.exitCode = 1
     return
   }
 
