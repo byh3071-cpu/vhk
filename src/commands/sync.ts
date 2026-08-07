@@ -242,9 +242,10 @@ const ANTIGRAVITY_TRUNCATE_MARKER =
  * 12k 안전 절삭 — UTF-8 바이트 예산 안에서, 마크다운 구조 경계(## 헤딩, 없으면 직전 \n)에서 자른다.
  * 마커 바이트 + 안전마진을 예산에서 빼므로 결과는 항상 byteLength ≤ limit (테스트로 보장).
  */
-export function truncateForAntigravity(
+function truncateForAntigravityAtLeast(
   content: string,
-  limit = ANTIGRAVITY_CHAR_LIMIT
+  limit: number,
+  minimumPrefixLength: number,
 ): string {
   if (Buffer.byteLength(content, 'utf8') <= limit) return content
 
@@ -268,12 +269,56 @@ export function truncateForAntigravity(
     cut = nl > 0 ? nl : charCut
   }
 
+  // 전 타깃 필수 섹션은 선택 섹션보다 앞에 배치된다. 구조 경계 탐색이 마지막 필수
+  // 헤딩까지 되감기면 필수 섹션 전체가 빠질 수 있으므로, 미리 검증한 최소 prefix 아래로는
+  // 자르지 않는다. 호출자가 이 prefix+절삭 마커가 limit 안에 듦을 보장한다.
+  cut = Math.max(cut, minimumPrefixLength)
+
   return content.slice(0, cut).trimEnd() + ANTIGRAVITY_TRUNCATE_MARKER
+}
+
+export function truncateForAntigravity(
+  content: string,
+  limit = ANTIGRAVITY_CHAR_LIMIT,
+): string {
+  return truncateForAntigravityAtLeast(content, limit, 0)
 }
 
 /** Antigravity — 워크스페이스 규칙. 공식 경로 .agents/rules/<name>.md (파일당 12,000자). */
 export function toAntigravityRules(sections: RulesSection[], projectName: string): string {
-  return truncateForAntigravity(buildCodingDoc('Antigravity Rules', sections, projectName, true))
+  const fullDocument = buildCodingDoc('Antigravity Rules', sections, projectName, true)
+  if (Buffer.byteLength(fullDocument, 'utf8') <= ANTIGRAVITY_CHAR_LIMIT) return fullDocument
+
+  const requiredSections = sections.filter((section) => section.requiredInAllTargets)
+  if (requiredSections.length === 0) return truncateForAntigravity(fullDocument)
+
+  const requiredPrefix = buildCodingDoc(
+    'Antigravity Rules',
+    requiredSections,
+    projectName,
+    true,
+  ).trimEnd()
+  const requiredWithMarker = requiredPrefix + ANTIGRAVITY_TRUNCATE_MARKER
+
+  if (Buffer.byteLength(requiredWithMarker, 'utf8') > ANTIGRAVITY_CHAR_LIMIT) {
+    const titles = requiredSections.map((section) => section.title).join(', ')
+    throw new Error(
+      `Antigravity 규칙을 만들 수 없습니다: 전 타깃 필수 섹션(${titles})이 `
+      + `${ANTIGRAVITY_CHAR_LIMIT.toLocaleString('ko-KR')}바이트 제한을 넘습니다. `
+      + 'RULES.md의 필수 섹션을 줄인 뒤 다시 실행하세요.',
+    )
+  }
+
+  const truncated = truncateForAntigravityAtLeast(
+    fullDocument,
+    ANTIGRAVITY_CHAR_LIMIT,
+    requiredPrefix.length,
+  )
+  if (!truncated.startsWith(requiredPrefix)) {
+    const titles = requiredSections.map((section) => section.title).join(', ')
+    throw new Error(`Antigravity 규칙의 전 타깃 필수 섹션(${titles}) 보존을 확인하지 못했습니다.`)
+  }
+  return truncated
 }
 
 /** CLAUDE.md 자동생성 규칙 섹션 경고 배너 — 출력과 멱등 dedup 이 공유하는 단일 출처. */

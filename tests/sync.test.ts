@@ -286,6 +286,49 @@ describe('vhk sync — Antigravity 변환 + 12k 절삭', () => {
     const lastLine = body.split('\n').filter(Boolean).pop() ?? ''
     expect(lastLine.startsWith('## ') || lastLine === 'x'.repeat(60)).toBe(true)
   })
+
+  it('전 타깃 필수 섹션 자체가 제한을 넘으면 잘린 성공 대신 오류를 낸다', () => {
+    const rules = [
+      '# P — Rules',
+      '',
+      '## 안전 규칙 <!-- vhk:sync=all -->',
+      `- REQUIRED_START_${'x'.repeat(20000)}_REQUIRED_END`,
+      '',
+    ].join('\n')
+
+    expect(() => toAntigravityRules(parseRulesMd(rules), 'P'))
+      .toThrow(/안전 규칙.*12,000/)
+  })
+
+  it('전 타깃 필수 섹션이 제한을 넘으면 syncCore가 어떤 산출물도 쓰지 않는다', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-sync-antigravity-required-'))
+    const antigravityPath = path.join(dir, '.agents', 'rules', 'vhk-rules.md')
+    const originalAntigravity = '# 사용자 기존 Antigravity 규칙\n- 보존해야 함\n'
+
+    try {
+      fs.mkdirSync(path.dirname(antigravityPath), { recursive: true })
+      fs.writeFileSync(antigravityPath, originalAntigravity, 'utf-8')
+      fs.writeFileSync(
+        path.join(dir, 'RULES.md'),
+        [
+          '# P — Rules',
+          '',
+          '## 안전 규칙 <!-- vhk:sync=all -->',
+          `- REQUIRED_START_${'x'.repeat(20000)}_REQUIRED_END`,
+          '',
+        ].join('\n'),
+        'utf-8',
+      )
+
+      await expect(syncCore(dir, {}, async () => true)).rejects.toThrow(/안전 규칙.*12,000/)
+
+      expect(fs.readFileSync(antigravityPath, 'utf-8')).toBe(originalAntigravity)
+      expect(fs.existsSync(path.join(dir, '.cursorrules'))).toBe(false)
+      expect(fs.existsSync(path.join(dir, '.vhk'))).toBe(false)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('vhk init → sync 연결 (VHK-002 / #61 회귀)', () => {
