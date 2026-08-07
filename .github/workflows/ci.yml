@@ -55,14 +55,18 @@ jobs:
       - name: 좀도둑 파일 가드
         run: node scripts/check-no-stray.mjs
 
-      # NOTE: check-goal-*.mjs(goal 완료 게이트)는 CI 미연결.
-      #   다수가 내부에서 pnpm test:run / pnpm build / dist spawn 을 수행하는 무거운 게이트라,
-      #   매 push 전수 실행 시 테스트 스위트가 N회 중복 실행됨(이 잡이 이미 typecheck+build+test 1회 수행).
-      #   goal 게이트는 릴리즈 전·수동(vhk goal check --id N)으로 운용한다.
+      # Goal 121: 작업 단위의 회귀 검사는 추적되는 tests/에 두고 이 잡에서 매 PR 실행한다.
+      # 비추적 goal 카드의 로컬 게이트를 전수 재실행하면 같은 test/build가 N회 중복되므로 CI SoT로 쓰지 않는다.
 
       # build 가 test 보다 먼저: cli-args e2e 테스트가 dist/index.js 를 spawn 한다.
       - name: 빌드
         run: pnpm build
+
+      - name: 규칙 파일 전파 확인
+        run: node dist/index.js sync --check
+
+      - name: 연결된 규칙 검사
+        run: node dist/index.js check
 
       - name: npm 공개 경계 검사
         run: pnpm boundary:check

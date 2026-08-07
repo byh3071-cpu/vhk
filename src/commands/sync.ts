@@ -22,6 +22,7 @@ import { isInteractive, promptOrDefault } from '../lib/interactive.js'
 import { runDocDriftChecks, type DriftFinding } from '../lib/drift-pairs.js'
 import { appendDriftLog } from '../lib/drift-log.js'
 import { getMcpToolCount } from '../mcp/server.js'
+import { log } from '../utils/logger.js'
 
 /**
  * RFC 0062 — 문서-실측 드리프트 warn 리포트(차단 0, exitCode 불변).
@@ -58,10 +59,13 @@ function reportDocDrift(cwd: string): void {
   }
 }
 
-interface RulesSection {
+export interface RulesSection {
   title: string
   content: string
+  requiredInAllTargets: boolean
 }
+
+const SYNC_ALL_MARKER = '<!-- vhk:sync=all -->'
 
 // 113-T6 / ADR-010 §3: 진입점 절('## 세션 시작 필독')은 도구를 가리지 않고 규칙 파일 8종
 // 전부에 실려야 한다 — 어떤 도구로 세션을 열든 자기 규칙 파일에서 원본 문서 경로를 읽게 하는 것이
@@ -87,18 +91,27 @@ const CLAUDE_MD_KEYS = ['기록', '로그', 'ADR', '트러블슈팅', 'TIL', '/d
 // 담도록 통합 키셋. toClaudeMd 출력과 마이그레이션(stripLegacyAutogen)의 옛 자동생성 판정이
 // 같은 집합을 써야 재생성 섹션이 사용자 섹션으로 오인돼 중복되지 않는다.
 const VHK_MANAGED_KEYS = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
+export const SYNC_STANDARD_SECTION_KEYS = [...new Set(VHK_MANAGED_KEYS)]
 
 /**
  * RULES.md 섹션 중 어느 sync 타깃 키(CURSORRULES_KEYS ∪ CLAUDE_MD_KEYS)에도
- * 매핑되지 않는 섹션 제목. 이 섹션들은 모든 산출물에서 빠지므로(예: `## 프로젝트 정체성`)
- * sync 가 **조용히 버리지 않고 경고**하도록 sync() 가 이걸로 사용자에게 알린다.
+ * 매핑되지 않는 섹션 제목. 이 섹션들은 AGENTS.md의 「기타 규칙」에만 남으므로
+ * sync 가 전용 규칙 파일의 누락을 **조용히 넘기지 않고 경고**하도록 사용자에게 알린다.
  */
 export function findUnmappedSections(sections: RulesSection[]): string[] {
   const allKeys = [...CURSORRULES_KEYS, ...CLAUDE_MD_KEYS]
   return sections
     // PREAMBLE_TITLE(서문)은 도구 산출물 대상이 아니라 RULES.md 보존용 → 미매칭 경고에서 제외(노이즈 0).
-    .filter((s) => s.title !== PREAMBLE_TITLE && !allKeys.some((k) => s.title.includes(k)))
+    .filter((s) => (
+      s.title !== PREAMBLE_TITLE
+      && !s.requiredInAllTargets
+      && !allKeys.some((k) => s.title.includes(k))
+    ))
     .map((s) => s.title)
+}
+
+export function getRequiredSectionTitles(sections: RulesSection[]): string[] {
+  return sections.filter((section) => section.requiredInAllTargets).map((section) => section.title)
 }
 
 /**
@@ -109,13 +122,20 @@ export function parseRulesMd(content: string): RulesSection[] {
   const lines = content.split('\n')
   let currentTitle = ''
   let currentContent: string[] = []
+  let currentRequired = false
 
   for (const line of lines) {
     if (line.startsWith('## ')) {
       if (currentTitle) {
-        sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
+        sections.push({
+          title: currentTitle,
+          content: currentContent.join('\n').trim(),
+          requiredInAllTargets: currentRequired,
+        })
       }
-      currentTitle = line.replace('## ', '').trim()
+      const rawTitle = line.replace('## ', '').trim()
+      currentRequired = rawTitle.includes(SYNC_ALL_MARKER)
+      currentTitle = rawTitle.replace(SYNC_ALL_MARKER, '').trim()
       currentContent = []
     } else {
       currentContent.push(line)
@@ -123,7 +143,11 @@ export function parseRulesMd(content: string): RulesSection[] {
   }
 
   if (currentTitle) {
-    sections.push({ title: currentTitle, content: currentContent.join('\n').trim() })
+    sections.push({
+      title: currentTitle,
+      content: currentContent.join('\n').trim(),
+      requiredInAllTargets: currentRequired,
+    })
   }
 
   return sections
@@ -135,10 +159,21 @@ export function parseRulesMd(content: string): RulesSection[] {
  * 자동생성 경고 주석은 상단 헤더에 둬 직접 편집 시 덮어쓰기 신호를 준다.
  * (기존 .cursorrules/.windsurfrules 출력과 100% 동일 — GA 안정성 유지.)
  */
-function buildCodingDoc(headerTitle: string, sections: RulesSection[], projectName: string): string {
-  const codingSections = sections.filter(s =>
-    CURSORRULES_KEYS.some(k => s.title.includes(k))
+function buildCodingDoc(
+  headerTitle: string,
+  sections: RulesSection[],
+  projectName: string,
+  requiredFirst = false,
+): string {
+  const includedSections = sections.filter(s =>
+    s.requiredInAllTargets || CURSORRULES_KEYS.some(k => s.title.includes(k))
   )
+  const codingSections = requiredFirst
+    ? [
+        ...includedSections.filter((section) => section.requiredInAllTargets),
+        ...includedSections.filter((section) => !section.requiredInAllTargets),
+      ]
+    : includedSections
 
   const lines = [
     `# ${projectName} — ${headerTitle}`,
@@ -207,9 +242,10 @@ const ANTIGRAVITY_TRUNCATE_MARKER =
  * 12k 안전 절삭 — UTF-8 바이트 예산 안에서, 마크다운 구조 경계(## 헤딩, 없으면 직전 \n)에서 자른다.
  * 마커 바이트 + 안전마진을 예산에서 빼므로 결과는 항상 byteLength ≤ limit (테스트로 보장).
  */
-export function truncateForAntigravity(
+function truncateForAntigravityAtLeast(
   content: string,
-  limit = ANTIGRAVITY_CHAR_LIMIT
+  limit: number,
+  minimumPrefixLength: number,
 ): string {
   if (Buffer.byteLength(content, 'utf8') <= limit) return content
 
@@ -233,12 +269,56 @@ export function truncateForAntigravity(
     cut = nl > 0 ? nl : charCut
   }
 
+  // 전 타깃 필수 섹션은 선택 섹션보다 앞에 배치된다. 구조 경계 탐색이 마지막 필수
+  // 헤딩까지 되감기면 필수 섹션 전체가 빠질 수 있으므로, 미리 검증한 최소 prefix 아래로는
+  // 자르지 않는다. 호출자가 이 prefix+절삭 마커가 limit 안에 듦을 보장한다.
+  cut = Math.max(cut, minimumPrefixLength)
+
   return content.slice(0, cut).trimEnd() + ANTIGRAVITY_TRUNCATE_MARKER
+}
+
+export function truncateForAntigravity(
+  content: string,
+  limit = ANTIGRAVITY_CHAR_LIMIT,
+): string {
+  return truncateForAntigravityAtLeast(content, limit, 0)
 }
 
 /** Antigravity — 워크스페이스 규칙. 공식 경로 .agents/rules/<name>.md (파일당 12,000자). */
 export function toAntigravityRules(sections: RulesSection[], projectName: string): string {
-  return truncateForAntigravity(buildCodingDoc('Antigravity Rules', sections, projectName))
+  const fullDocument = buildCodingDoc('Antigravity Rules', sections, projectName, true)
+  if (Buffer.byteLength(fullDocument, 'utf8') <= ANTIGRAVITY_CHAR_LIMIT) return fullDocument
+
+  const requiredSections = sections.filter((section) => section.requiredInAllTargets)
+  if (requiredSections.length === 0) return truncateForAntigravity(fullDocument)
+
+  const requiredPrefix = buildCodingDoc(
+    'Antigravity Rules',
+    requiredSections,
+    projectName,
+    true,
+  ).trimEnd()
+  const requiredWithMarker = requiredPrefix + ANTIGRAVITY_TRUNCATE_MARKER
+
+  if (Buffer.byteLength(requiredWithMarker, 'utf8') > ANTIGRAVITY_CHAR_LIMIT) {
+    const titles = requiredSections.map((section) => section.title).join(', ')
+    throw new Error(
+      `Antigravity 규칙을 만들 수 없습니다: 전 타깃 필수 섹션(${titles})이 `
+      + `${ANTIGRAVITY_CHAR_LIMIT.toLocaleString('ko-KR')}바이트 제한을 넘습니다. `
+      + 'RULES.md의 필수 섹션을 줄인 뒤 다시 실행하세요.',
+    )
+  }
+
+  const truncated = truncateForAntigravityAtLeast(
+    fullDocument,
+    ANTIGRAVITY_CHAR_LIMIT,
+    requiredPrefix.length,
+  )
+  if (!truncated.startsWith(requiredPrefix)) {
+    const titles = requiredSections.map((section) => section.title).join(', ')
+    throw new Error(`Antigravity 규칙의 전 타깃 필수 섹션(${titles}) 보존을 확인하지 못했습니다.`)
+  }
+  return truncated
 }
 
 /** CLAUDE.md 자동생성 규칙 섹션 경고 배너 — 출력과 멱등 dedup 이 공유하는 단일 출처. */
@@ -374,7 +454,9 @@ export function toClaudeMd(sections: RulesSection[], existing: string): string {
   // #133: CLAUDE.md 도 .cursorrules·AGENTS.md 수준으로 코딩 규칙/커밋/아키텍처까지 전파.
   // 코딩 섹션 먼저, 그 다음 기록/운영 섹션 (AGENTS.md 순서와 동일). 한 섹션이 양쪽 키에
   // 걸쳐도 1회만 — 중복 emit 방지(dedup).
-  const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
+  const codingSections = sections.filter(s => (
+    s.requiredInAllTargets || CURSORRULES_KEYS.some(k => s.title.includes(k))
+  ))
   const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
   const seen = new Set<string>()
   const managedSections = [...codingSections, ...recordSections].filter(s => {
@@ -440,7 +522,9 @@ export function toAgentsMd(
   compactRel: string | null | undefined = 'docs/context/agent-compact.md',
   rootDir?: string,
 ): string {
-  const codingSections = sections.filter(s => CURSORRULES_KEYS.some(k => s.title.includes(k)))
+  const codingSections = sections.filter(s => (
+    s.requiredInAllTargets || CURSORRULES_KEYS.some(k => s.title.includes(k))
+  ))
   const recordSections = sections.filter(s => CLAUDE_MD_KEYS.some(k => s.title.includes(k)))
   // #131: 한 섹션이 양쪽 키에 걸리면(예: '기술 스택 (변경 시 ADR 필수)' = '기술 스택'+'ADR')
   // 두 번 출력되던 버그 → 제목 기준 dedup(코딩 먼저).
@@ -454,6 +538,7 @@ export function toAgentsMd(
   // 전파 → 사용자 핵심 가드가 조용히 누락되지 않게.
   const extraSections = sections.filter(s =>
     s.title !== PREAMBLE_TITLE &&
+    !s.requiredInAllTargets &&
     !CURSORRULES_KEYS.some(k => s.title.includes(k)) &&
     !CLAUDE_MD_KEYS.some(k => s.title.includes(k))
   )
@@ -557,6 +642,8 @@ export type SyncBootstrapTarget = {
   expected: (rootDir: string) => string
   /** 파일이 vhk 템플릿인지 — false 면 사용자 소유로 보고 check 스킵(드리프트 미보고). */
   isVhkTemplate?: (content: string) => boolean
+  /** 개인·머신별 로컬 산출물이라 새 clone 에 없어도 되는가. 존재하면 내용은 계속 검사한다. */
+  optionalWhenMissing?: boolean
 }
 
 export const SYNC_BOOTSTRAP_TARGETS: SyncBootstrapTarget[] = [
@@ -573,6 +660,8 @@ export const SYNC_BOOTSTRAP_TARGETS: SyncBootstrapTarget[] = [
     path: CORE_RULES_REL,
     expected: () => generateCoreRulesFileContent(null),
     isVhkTemplate: (c) => c.includes('CORE-RULES:START') && c.includes('CORE-RULES:END'),
+    // 개인 규칙 원문이 들어갈 수 있어 .gitignore 대상이다. 깨끗한 CI clone 에서는 없는 것이 정상이다.
+    optionalWhenMissing: true,
   },
 ]
 
@@ -610,7 +699,57 @@ export interface SyncCheckResult {
   unmapped: string[]
   /** 디스크에 없는 타겟 (sync 가 만들 파일) */
   missing: string[]
+  /** RULES.md가 전 타겟 필수로 표시한 섹션 제목. */
+  requiredSections: string[]
+  /** 생성 설계 또는 디스크 파생본에서 빠진 필수 섹션. */
+  missingSections: SyncSectionOmission[]
   ok: boolean
+}
+
+export interface SyncSectionOmission {
+  target: string
+  section: string
+}
+
+function managedContentForTarget(content: string, target: string): string {
+  if (target !== 'CLAUDE.md') return content
+  const start = content.indexOf(VHK_BLOCK_START)
+  const end = content.indexOf(VHK_BLOCK_END, start + VHK_BLOCK_START.length)
+  if (start === -1 || end === -1) return ''
+  return content.slice(start + VHK_BLOCK_START.length, end)
+}
+
+function hasSection(content: string, target: string, title: string): boolean {
+  return parseRulesMd(managedContentForTarget(content, target))
+    .some((section) => section.title === title)
+}
+
+function findRequiredSectionOmissions(
+  rootDir: string,
+  plan: SyncPlanItem[],
+  requiredSections: string[],
+  missing: string[],
+): SyncSectionOmission[] {
+  const omissions: SyncSectionOmission[] = []
+  for (const item of plan) {
+    if (!item.exists) continue
+    let onDisk: string
+    try {
+      onDisk = fs.readFileSync(path.join(rootDir, item.path), 'utf-8')
+    } catch {
+      if (!missing.includes(item.path)) missing.push(item.path)
+      continue
+    }
+    for (const section of requiredSections) {
+      if (
+        !hasSection(item.newContent, item.path, section)
+        || !hasSection(onDisk, item.path, section)
+      ) {
+        omissions.push({ target: item.path, section })
+      }
+    }
+  }
+  return omissions
 }
 
 /**
@@ -624,12 +763,14 @@ export function syncCheck(rootDir: string): SyncCheckResult {
   const plan = buildSyncPlan(rootDir, sections, deriveProjectName(rulesContent))
   const drifted = plan.filter((p) => p.exists && p.drift).map((p) => p.path)
   const missing = plan.filter((p) => !p.exists).map((p) => p.path)
+  const requiredSections = getRequiredSectionTitles(sections)
+  const missingSections = findRequiredSectionOmissions(rootDir, plan, requiredSections, missing)
 
   // bootstrap 산출 — sync -y 가 injectBootstrapAll 로 만드는 파일. 8미러만 보면 커버리지 구멍.
   for (const t of SYNC_BOOTSTRAP_TARGETS) {
     const full = path.join(rootDir, t.path)
     if (!fs.existsSync(full)) {
-      missing.push(t.path)
+      if (!t.optionalWhenMissing) missing.push(t.path)
       continue
     }
     let onDisk: string
@@ -650,8 +791,10 @@ export function syncCheck(rootDir: string): SyncCheckResult {
   return {
     drifted,
     missing,
+    requiredSections,
+    missingSections,
     unmapped: findUnmappedSections(sections),
-    ok: drifted.length === 0 && missing.length === 0,
+    ok: drifted.length === 0 && missing.length === 0 && missingSections.length === 0,
   }
 }
 
@@ -665,6 +808,13 @@ export interface SyncPlanItem {
   drift: boolean
   /** CLAUDE.md 전용 — 마커 없는 기존 파일을 마이그레이션할 때 보존/제거 섹션 집계(조용한 드롭 방지 경고용). */
   migration?: ClaudeMdMigration
+}
+
+export type SyncItemState = 'created' | 'updated' | 'unchanged'
+
+export function syncItemState(item: SyncPlanItem): SyncItemState {
+  if (!item.exists) return 'created'
+  return item.drift ? 'updated' : 'unchanged'
 }
 
 export interface SyncResult {
@@ -835,21 +985,32 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
       return
     }
     const r = syncCheck(cwd)
-    if (r.ok) {
-      console.log(chalk.green(ko.sync.checkPass))
-    } else {
-      for (const p of r.drifted) console.log(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
-      for (const p of r.missing) console.log(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
-      console.log(chalk.red(ko.sync.checkFail(r.drifted.length + r.missing.length)))
+    for (const p of r.drifted) log.plain(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
+    for (const p of r.missing) log.plain(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
+    for (const omission of r.missingSections) {
+      log.plain(chalk.yellow(`  ${ko.sync.checkSectionMissing(omission.target, omission.section)}`))
+    }
+    log.plain((r.drifted.length === 0 ? chalk.green : chalk.red)(
+      ko.sync.checkDriftSummary(r.drifted.length)
+    ))
+    log.plain((r.missing.length === 0 ? chalk.green : chalk.red)(
+      ko.sync.checkFileMissingSummary(r.missing.length)
+    ))
+    log.plain((r.missingSections.length === 0 ? chalk.green : chalk.red)(
+      ko.sync.checkSectionMissingSummary(r.missingSections.length)
+    ))
+    if (!r.ok) {
+      const problemCount = r.drifted.length + r.missing.length + r.missingSections.length
+      log.plain(chalk.red(ko.sync.checkFail(problemCount)))
       process.exitCode = 1
     }
     // 113-T6 실측: 진입점 절이 코딩 규칙 파일 6종에서 조용히 빠졌는데 게이트는 통과했다.
     // 차단하지는 않되 **항상 보이게** 한다 — 0건도 표시해 "검사했다"는 사실을 남긴다.
-    console.log(
+    log.plain(
       chalk.dim(
         r.unmapped.length === 0
           ? `  ${ko.sync.checkUnmappedClean}`
-          : `  ${ko.sync.checkUnmapped(r.unmapped)}`,
+          : `  ${ko.sync.checkUnmapped(r.unmapped, SYNC_STANDARD_SECTION_KEYS)}`,
       ),
     )
     reportDocDrift(cwd)
@@ -926,7 +1087,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   if (result.dryRun) {
     console.log(chalk.cyan(`\n${ko.sync.dryRunHeader}`))
     for (const item of result.plan) {
-      console.log(ko.sync.dryRunWouldWrite(item.path, item.exists && item.drift))
+      log.plain(ko.sync.itemState(item.path, syncItemState(item)))
     }
     const wouldBackup = result.plan
       .filter((p) => p.exists && (p.drift || result.firstSync))
@@ -947,7 +1108,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   }
   for (const p of result.written) {
     const item = result.plan.find((i) => i.path === p)
-    if (item) console.log(chalk.green(`  ${item.doneMessage}`))
+    if (item) log.plain(chalk.green(ko.sync.itemState(item.path, syncItemState(item))))
   }
   for (const _ of result.truncated) {
     console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))

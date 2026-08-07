@@ -9,8 +9,15 @@ Cursor에게 한국어로 말해도 됩니다.
 |-------------|-----------|------|
 | 기술 스택을 바로 확정 | `vhk start --stack "Vite, React, TypeScript"` | 지정한 기술 스택을 확정값으로 기록 |
 | 기술 스택을 나중에 확정 | `vhk start` | 자동 감지·유형 프리셋을 후보로 기록하고 첫 세션에서 확인 |
+| GitHub PR 검사까지 생성 | `vhk init -y --ci` | 검증·규칙·공개 경계가 묶인 `.github/workflows/vhk-gate.yml` 생성 |
 
 > `--stack`의 값은 쉼표로 구분합니다. 비어 있거나 공백뿐이면 확정으로 기록하지 않고 후보 흐름으로 돌아갑니다.
+>
+> 기존 `.github/workflows/*.yml` 또는 `*.yaml`이 있으면 `--ci`는 아무 파일도 덮어쓰지 않고 병합을 안내합니다. 생성 후 GitHub **Settings → Rules**에서 상태 검사 `VHK Gate`를 필수로 지정해야 실패한 PR의 병합이 실제로 막힙니다.
+>
+> 기존 규칙을 가져올 때 같은 관리 구역은 하나로 정리합니다. 같은 이름의 내용이 다르거나 `BEGIN/END` 표시가 깨졌으면 원본을 바꾸지 않고 중단하며, 표시를 고친 뒤 `vhk init`을 다시 실행하도록 안내합니다.
+>
+> 설치 점검은 `규칙 파일 9/9`와 핵심 규칙의 출처를 구분합니다. 사용자 규칙 파일을 읽으면 그 버전을, VHK 내장 기본 규칙을 사용하면 경고와 `vhk config set-rules-file <HOME>/sample-rules.yaml` 복구 명령을 표시합니다.
 
 ## 도움말
 
@@ -34,6 +41,8 @@ Cursor에게 한국어로 말해도 됩니다.
 > 🤖 **헤드리스/AI 실행:** `vhk recap`(오늘 정리)은 비-TTY(파이프·AI 에이전트 셸)에서도 동작합니다 — `--summary` · `--next` · `--decisions` · `--blockers` 로 내용을 넘기거나 `--yes` 로 기본값을 씁니다. 미지정 항목은 "미입력"으로 기록되고, ADR/트러블슈팅 문서 **생성**은 대화형(터미널)에서만 진행돼요(비-TTY 에서는 후보만 보고). (#288)
 
 > `vhk sync` 대상(7): `.cursorrules` · `.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/vhk-rules.md` · `AGENTS.md` · `GEMINI.md`(Gemini CLI) · `.clinerules/vhk-rules.md`(Cline) + `CLAUDE.md`(하이브리드). 모두 RULES.md 단일소스에서 생성.
+>
+> `vhk sync --check`가 미연결 섹션을 찾으면 실제 섹션명, 인식하는 표준 제목, 두 해결 방법을 함께 보여줍니다. 제목에 맞는 표준 말을 넣거나 제목 뒤에 `<!-- vhk:sync=all -->`을 붙이세요. 미연결 경고만으로는 기존 종료 코드를 실패로 바꾸지 않습니다.
 
 ## Cursor bootstrap (#467)
 
@@ -57,6 +66,8 @@ Cursor에게 한국어로 말해도 됩니다.
 | 다음 goal 미리보기(읽기전용) | `vhk goal peek` | "목표 미리보기" |
 | 게이트 검증 | `vhk goal check --id 0` 또는 `vhk check --goal 0` | "목표 점검" |
 | 완료 처리 | `vhk goal done --id 0` | "목표 완료" |
+
+Goal frontmatter에 `depends_on: 1,2`를 선택적으로 쓰면 선행 Goal이 모두 `DONE`일 때만 `next/peek/done` 대상이 됩니다. 잘못된 ID·자기 참조·순환 참조는 설정 오류로 표시됩니다.
 
 ## 적대적 자기검증 (review)
 
@@ -140,12 +151,14 @@ Cursor에게 한국어로 말해도 됩니다.
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
-| 반복 패턴 감지 | `vhk pattern detect` | "패턴 찾아줘" |
-| 룰 후보 제안 | `vhk evolve suggest` | "규칙 제안해" |
+| 반복 패턴 감지 + 새 규칙 후보 즉시 표시 | `vhk pattern detect` | "패턴 찾아줘" |
+| 현재 7일 룰 후보 확인(저장 없음) | `vhk evolve suggest` | "규칙 제안해" |
 | 부정 예시 후보 수집 | `vhk evolve negatives` | "실패에서 하지 말 것 뽑아줘" |
 | cold-start 역채굴(PAT·failures·TS → patterns) | `vhk evolve seed` (미리보기) · `vhk evolve seed --write` (실반영) | "과거 기록으로 패턴 채워줘" |
-| 후보 목록 / 반영 / 기각 / 되돌리기 | `vhk evolve list` · `vhk evolve apply <id>` · `vhk evolve reject <id> [reason]` · `vhk evolve undo` | "규칙 반영해" |
-| 후보 묶음 초안(신뢰도별·읽기전용) | `vhk evolve digest` | "후보 묶어서 초안 보여줘" |
+| 현재 후보·결정 목록 / 사람 확인 반영 / 기각 / 되돌리기 | `vhk evolve list` · `vhk evolve apply <id>` · `vhk evolve reject <id> [reason]` · `vhk evolve undo` | "규칙 반영해" |
+| 현재 후보 묶음(신뢰도별·읽기전용) | `vhk evolve digest` | "후보 묶어서 초안 보여줘" |
+
+> 새 후보는 `queue.json`에 저장되지 않고 패턴 생성 후 7일 동안만 계산됩니다. `suggest --json`과 MCP 조회는 읽기 전용이며, RULES 반영은 TTY에서 `apply`를 확인한 경우에만 실행됩니다.
 
 ## SEO·수익 대시보드 (seo — Goals 21~26)
 
@@ -161,7 +174,7 @@ Cursor에게 한국어로 말해도 됩니다.
 
 | 하고 싶은 것 | 터미널 명령 | 설명 |
 |-------------|-----------|------|
-| 사용자 규칙 YAML 등록 | `vhk config set-rules-file <yaml경로>` | 유효성을 확인한 뒤 `~/.vhk/config.json`의 `rulesFile`에 저장 — 다음 명령부터 즉시 반영, 한글 별칭 `vhk 설정 규칙파일` |
+| 사용자 규칙 YAML 등록 | `vhk config set-rules-file <HOME>/sample-rules.yaml` | 유효성을 확인한 뒤 `~/.vhk/config.json`의 `rulesFile`에 저장 — 다음 명령부터 즉시 반영, 한글 별칭 `vhk 설정 규칙파일` |
 
 ## 환경 점검
 
@@ -180,19 +193,19 @@ vhk doctor
 | `vhk gate` | 아이디어 검증 |
 | `vhk start` | 새 프로젝트 시작 마법사 (`--stack "Vite, React, TypeScript"` = 기술 스택 확정, 미지정 = 후보) |
 | `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
-| `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선(세션일지 없는 코드 커밋 차단, `[skip-record]` 우회 — RFC 0061) |
+| `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선. `--ci`를 붙이면 GitHub PR 필수 검사 워크플로 생성(기존 워크플로 보존) |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
-| `vhk sync` | RULES.md → 규칙 파일 동기화 (`--check` = drift 검사만, Goal 63 + 문서-실측 드리프트 warn: 버전·MCP수·RFC헤더 모순·블로커 모순, RFC 0062) |
-| `vhk check` | RULES.md 규칙 점검 (`--json` = 기계 소비용 요약 출력, #374) |
+| `vhk sync` | RULES.md → 규칙 파일 동기화. `<!-- vhk:sync=all -->` 절은 8개 타겟 필수. `--check`는 재생성 결과 불일치와 필수 섹션 누락을 별도 집계하고, 문서-실측 drift는 경고로 표시 |
+| `vhk check` | RULES.md 규칙 점검. 규칙 줄의 `<!-- vhk:check=no-exec-sync -->`를 `scripts/check-rule-no-exec-sync.mjs`에 연결하며 검사 비율 출력 (`--json` = 선언·검사·미검사 수와 비율 포함) |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
 | `vhk ship` | 배포 체크리스트 + 회고 |
-| `vhk doctor` | 개발 환경 점검 (+ `--strict` 드리프트 게이트 — 규칙 파일이 **달라진 경우와 생성 파일이 없어진 경우 모두** 실패 처리) |
+| `vhk doctor` | 개발 환경 점검 + 최신 변경사항이 빠진 안내·아직 시작하지 않은 작업 알림 (`--strict` 설정 불일치 검사 포함) |
 | `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 |
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
 | `vhk status` | 프로젝트 상태 대시보드 |
-| `vhk stats` | 통계 대시보드 — 패스율/차단율/진화 적용율 (읽기 전용) |
+| `vhk stats` | 통계 대시보드 — 패스율/차단율/진화 결정 중 채택률 (읽기 전용) |
 | `vhk stats --trend` | receipt-log 시계열 추세(거짓완료 판정 추이) + evolve 채택률·RULES.md 위반수 추세 (#374, 읽기 전용) |
 | `vhk loop` | 자가진화 조율 1틱 — 닫힌 것/다음 한 수 (읽기 전용, 집행 0) |
 | `vhk diff` | Git 변경사항 한국어 요약 |
@@ -214,7 +227,7 @@ vhk doctor
 | `vhk update` | VHK CLI 셀프 업데이트 |
 | `vhk context` | 프로젝트 맥락 파일 생성 (.vhk/context.md) |
 | `vhk mode` | Safety Mode 조회/변경 (lite\|standard\|strict) |
-| `vhk verify` | 검증 게이트 실행 + 증거 기록 |
+| `vhk verify` | 검증 실행 + 확인이 필요한 항목의 경과 시간·숨긴 횟수 + 증거·행동 기록 (`--dismiss <id>`) |
 | `vhk cost` | 비용·예산 가드 — add/check/budget (자문형) |
 | `vhk preflight` | 출고 전 안전점검 (치명 실패 시 차단) |
 | `vhk testmap` | test-first 매핑 점검 (변경 기능 ↔ 테스트 누락 경고) |

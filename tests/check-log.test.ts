@@ -41,6 +41,25 @@ describe('buildCheckLogEntry', () => {
     const summary = { totalRules: 2, violations: [], errors: 0, warnings: 0 }
     expect(buildCheckLogEntry(summary, 't')).toEqual(buildCheckLogEntry(summary, 't'))
   })
+
+  it('새 검사 비율 필드는 값이 있을 때만 추가한다', () => {
+    const e = buildCheckLogEntry({
+      totalRules: 2,
+      violations: [],
+      errors: 0,
+      warnings: 0,
+      declaredRules: 4,
+      checkedRules: 3,
+      uncheckedRules: 1,
+      coveragePercent: 75,
+    }, 't')
+    expect(e).toMatchObject({
+      declaredRules: 4,
+      checkedRules: 3,
+      uncheckedRules: 1,
+      coveragePercent: 75,
+    })
+  })
 })
 
 describe('append/readCheckLog', () => {
@@ -66,6 +85,18 @@ describe('append/readCheckLog', () => {
     fs.writeFileSync(path.join(d, CHECK_LOG_REL), '{ bad json <<<\n' + JSON.stringify(good) + '\n', 'utf-8')
     expect(() => readCheckLog(d)).not.toThrow()
     expect(readCheckLog(d)).toHaveLength(1)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('이전 형식 기록도 그대로 읽는다', () => {
+    const d = tmp()
+    fs.mkdirSync(path.join(d, '.vhk', 'events'), { recursive: true })
+    fs.writeFileSync(path.join(d, CHECK_LOG_REL), JSON.stringify({
+      ts: 'legacy', totalRules: 1, total: 0, errors: 0, warnings: 0,
+    }) + '\n', 'utf-8')
+    expect(readCheckLog(d)).toEqual([{
+      ts: 'legacy', totalRules: 1, total: 0, errors: 0, warnings: 0,
+    }])
     fs.rmSync(d, { recursive: true, force: true })
   })
 

@@ -72,6 +72,37 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
     expect(rules).toContain('보존되어야 함 KEEP999') // 기존 RULES.md 보존
   })
 
+  it('#544: 두 입력의 같은 관리형 블록은 init을 두 번 실행해도 한 벌만 남는다', async () => {
+    const block = '<!-- SAMPLE:BEGIN -->\n## 공통 규칙\n- 하나\n<!-- SAMPLE:END -->\n'
+    fs.writeFileSync(path.join(dir, 'CLAUDE.md'), block, 'utf-8')
+    fs.writeFileSync(path.join(dir, 'AGENTS.md'), block, 'utf-8')
+    const { init } = await import('../src/commands/init.js')
+    const { listBackups } = await import('../src/lib/backup.js')
+    await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+    const backupsAfterFirstRun = listBackups(dir)
+    expect(backupsAfterFirstRun.some((backup) => backup.files.includes('AGENTS.md'))).toBe(true)
+    expect(backupsAfterFirstRun.some((backup) => backup.files.includes('CLAUDE.md'))).toBe(true)
+    await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+    expect(listBackups(dir)).toHaveLength(backupsAfterFirstRun.length)
+    const rules = fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')
+    expect(rules.match(/SAMPLE:BEGIN/g)).toHaveLength(1)
+    expect(rules.match(/SAMPLE:END/g)).toHaveLength(1)
+  })
+
+  it('#544: 불균형 마커면 RULES.md를 만들지 않고 실패한다', async () => {
+    const originalExitCode = process.exitCode
+    process.exitCode = 0
+    fs.writeFileSync(path.join(dir, 'AGENTS.md'), '<!-- SAMPLE:BEGIN -->\n## 공통 규칙\n- 닫히지 않음\n', 'utf-8')
+    try {
+      const { init } = await import('../src/commands/init.js')
+      await init({ yes: true, name: 'app', description: 'd', type: 'cli' })
+      expect(fs.existsSync(path.join(dir, 'RULES.md'))).toBe(false)
+      expect(process.exitCode).toBe(1)
+    } finally {
+      process.exitCode = originalExitCode
+    }
+  })
+
   it('방향 3-①: -y → .vhk/mission.json 스캐폴드 생성 (readMission 비null, 프롬프트 0)', async () => {
     const { init } = await import('../src/commands/init.js')
     const { readMission, MISSION_PATH_REL } = await import('../src/commands/mission.js')

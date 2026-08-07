@@ -10,6 +10,92 @@ import { readJsonFile } from '../lib/read-json.js'
 import { printNextStep, printContextResumeHint } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 import { projectMaturity } from '../lib/project-maturity.js'
+import { listGoals, normalizeLegacyStatus } from '../lib/goal-frontmatter.js'
+import { log } from '../utils/logger.js'
+
+export interface UnstartedGoalSummary {
+  count: number
+  oldestDays: number
+  oldestGoal?: {
+    id: number
+    title: string
+  }
+}
+
+type GoalAgeInput = {
+  frontmatter: {
+    id?: string | number
+    title?: string | number
+    status?: string | number
+    created?: string | number
+  }
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+function localDayNumber(value: string | number | Date): number | null {
+  if (typeof value === 'string') {
+    const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    if (dateOnly) {
+      const year = Number(dateOnly[1])
+      const month = Number(dateOnly[2]) - 1
+      const day = Number(dateOnly[3])
+      const local = new Date(year, month, day)
+      if (local.getFullYear() !== year || local.getMonth() !== month || local.getDate() !== day) return null
+      return Date.UTC(year, month, day)
+    }
+  }
+  const parsed = value instanceof Date ? value : new Date(value)
+  if (!Number.isFinite(parsed.getTime())) return null
+  return Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
+}
+
+// 아직 시작하지 않은 goal의 수와 등록 후 경과일. 날짜가 없는 카드도 개수에는 포함한다.
+export function summarizeUnstartedGoals(
+  goals: GoalAgeInput[],
+  now: Date = new Date(),
+): UnstartedGoalSummary {
+  const unstarted = goals.filter((goal) => {
+    const status = goal.frontmatter.status
+    return status === undefined || (typeof status === 'string' && normalizeLegacyStatus(status) === 'NOT_STARTED')
+  })
+  const nowDay = localDayNumber(now)
+  const datedGoals = unstarted.flatMap((goal) => {
+    const rawCreated = goal.frontmatter.created
+    if (rawCreated === undefined) return []
+    const createdDay = localDayNumber(rawCreated)
+    return createdDay !== null && nowDay !== null
+      ? [{ goal, days: Math.max(0, Math.floor((nowDay - createdDay) / DAY_MS)) }]
+      : []
+  })
+  const oldest = datedGoals.reduce<(typeof datedGoals)[number] | undefined>(
+    (current, candidate) => current === undefined || candidate.days > current.days ? candidate : current,
+    undefined,
+  )
+  const id = oldest?.goal.frontmatter.id
+  const title = oldest?.goal.frontmatter.title
+  const oldestGoal = typeof id === 'number' && typeof title === 'string' && title.trim().length > 0
+    ? { id, title: title.trim() }
+    : undefined
+  return {
+    count: unstarted.length,
+    oldestDays: oldest?.days ?? 0,
+    oldestGoal,
+  }
+}
+
+export function formatUnstartedGoalLines(summary: UnstartedGoalSummary): string[] {
+  const lines = [t('status.unstarted', summary.count)]
+  if (summary.oldestGoal !== undefined) {
+    lines.push(t(
+      'status.oldestUnstarted',
+      summary.oldestGoal.id,
+      summary.oldestGoal.title,
+      summary.oldestDays,
+    ))
+  }
+  return lines
+}
 
 export interface FileChangeCounts {
   staged: number
@@ -191,6 +277,15 @@ export async function status(): Promise<void> {
     console.log(chalk.cyan(`📦 ${t('status.package')}`) + chalk.white(` ${pkg.name} v${pkg.version}`))
   } else {
     console.log(chalk.dim(`📦 ${t('status.noPackage')}`))
+  }
+
+  const goalsDir = path.join(process.cwd(), 'goals')
+  if (fs.existsSync(goalsDir)) {
+    const unstarted = summarizeUnstartedGoals(listGoals(goalsDir))
+    const lines = formatUnstartedGoalLines(unstarted)
+    const color = unstarted.count > 0 ? chalk.yellow : chalk.green
+    log.plain(color(`🕰️ ${lines[0]}`))
+    for (const line of lines.slice(1)) log.plain(color(`   ${line}`))
   }
 
   const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0

@@ -16,7 +16,16 @@ import { isInteractive } from '../lib/interactive.js'
 import { safeExecFile } from '../lib/exec.js'
 import { commitPaths } from '../lib/git-session.js'
 import { getCommitInfo, type CommitInfo } from '../lib/git-repo.js'
-import { appendLedgerEntry, buildLedgerEntry, LEDGER_PATH_REL } from '../lib/evidence-ledger.js'
+import {
+  appendLedgerEntry,
+  buildLedgerEntry,
+  formatAdvisoryAge,
+  readLedger,
+  trackAdvisories,
+  LEDGER_PATH_REL,
+  type LedgerAdvisory,
+} from '../lib/evidence-ledger.js'
+import { appendActionEntry, readActionLedger } from '../lib/action-ledger.js'
 import { detectAgent } from '../lib/detect-agent.js'
 import { readGatesConfig, type GateId } from '../lib/gates-config.js'
 import { log } from '../utils/logger.js'
@@ -87,8 +96,18 @@ export interface VerifyReport {
   summary: { total: number; pass: number; fail: number; skip: number; warn: number }
   gates: GateResult[]
   nextActions: string[]
+  /** 권고별 안정 ID와 나이·무시 상태. 선택 필드라 v2 이하 리포트도 계속 읽힌다. */
+  advisories?: VerifyAdvisory[]
   /** Goal 44: 이 증거가 어느 코드(커밋)에서 나왔는지. git 레포 아님/커밋 0개 → null. v1 리포트엔 없음(undefined). */
   commit?: CommitInfo | null
+}
+
+export interface VerifyAdvisory extends LedgerAdvisory {
+  firstSeenAt?: string
+  ageMs?: number
+  dismissCount?: number
+  dismissed?: boolean
+  escalated?: boolean
 }
 
 const SHIM = new Set(['pnpm', 'npm', 'npx', 'yarn'])
@@ -310,6 +329,50 @@ export function buildNextActions(gates: GateResult[]): string[] {
   return actions
 }
 
+/** 게이트 결과를 반복 실행에도 흔들리지 않는 권고 ID로 바꾼다. */
+export function buildVerifyAdvisories(gates: GateResult[]): VerifyAdvisory[] {
+  const advisories: VerifyAdvisory[] = []
+  for (const gate of gates) {
+    if (gate.status === 'fail') {
+      advisories.push({
+        id: `${gate.id}-failure`,
+        message: gate.id === 'secure'
+          ? '시크릿이 발견되었습니다.\n확인: vhk secure scan'
+          : `${gate.label} 검사가 실패했습니다 (종료코드 ${gate.exitCode}).\n해결: 위 로그를 확인하고 오류 수정`,
+      })
+    } else if (gate.status === 'skip' && !isDeclaredOptionalSkip(gate)) {
+      const resolution = gate.id === 'typecheck'
+        ? 'tsconfig.json을 추가하거나 package.json에 typecheck 스크립트 추가'
+        : `package.json에 ${gate.id === 'test' ? 'test:run 또는 test' : gate.id} 스크립트 추가`
+      advisories.push({
+        id: `${gate.id}-gate`,
+        message: `${gate.label} 검사가 설정되어 있지 않습니다.\n해결: ${resolution}`,
+      })
+    } else if (gate.status === 'warn') {
+      advisories.push({
+        id: `${gate.id}-incomplete`,
+        message: `${gate.label} 검사가 끝까지 실행되지 않았습니다.\n이유: ${gate.detail ?? '검사 한도로 일부를 확인하지 못함'}\n해결: 검사 범위나 한도를 조정한 뒤 다시 실행`,
+      })
+    }
+  }
+  return advisories
+}
+
+export function formatVerifyAdvisory(advisory: VerifyAdvisory): string {
+  const age = formatAdvisoryAge(advisory.ageMs ?? 0)
+  const hidden = (advisory.dismissCount ?? 0) > 0
+    ? ` · 이전에 이 알림을 ${advisory.dismissCount}번 숨김`
+    : ''
+  const [problem = '', ...actions] = advisory.message.split('\n').filter(Boolean)
+  const lines = advisory.escalated
+    ? ['🚨 같은 문제가 다시 발생했습니다.', `   ${problem}`]
+    : [`⚠️ ${problem}`]
+  lines.push(`   ${age === '방금' ? '방금 확인됨' : `${age} 계속됨`}${hidden}`)
+  lines.push(...actions.map((action) => `   ${action}`))
+  lines.push(`   알림 ID: ${advisory.id}`)
+  return lines.join('\n')
+}
+
 /** 게이트 결과 → 리포트 객체(스키마). head(요약·기계용) + body(gates·사람용). */
 export function buildReport(
   gates: GateResult[],
@@ -335,6 +398,7 @@ export function buildReport(
     summary,
     gates,
     nextActions: buildNextActions(gates),
+    advisories: buildVerifyAdvisories(gates),
     commit, // Goal 44: 증거↔커밋 바인딩
   }
 }
@@ -381,6 +445,12 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
   // Goal 44: 증거를 지금 코드(커밋)에 묶는다. 기존 git-access 통로(getCommitInfo) 사용.
   const commit = getCommitInfo(cwd)
   const report = buildReport(gates, new Date().toISOString(), localDate(), commit)
+  report.advisories = trackAdvisories(
+    report.advisories ?? [],
+    readLedger(cwd),
+    readActionLedger(cwd),
+    report.generatedAt,
+  )
 
   const dir = join(cwd, REPORT_DIR_REL)
   mkdirSync(dir, { recursive: true })
@@ -393,6 +463,22 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
     /* gitignore 갱신 실패는 치명적 아님 — 리포트는 이미 기록됨 */
   }
 
+  // Goal 122: 검사 실행 자체와 결과도 행동 원장에 남겨 sync 한 종류뿐이던 기록을 실제 행동으로 만든다.
+  try {
+    appendActionEntry(cwd, {
+      ts: report.generatedAt,
+      action: 'verify',
+      channel: 'cli',
+      guard: 'allow',
+      ran: true,
+      reason: `result-${report.status.toLowerCase()}`,
+      result: report.status,
+      ...(report.commit?.sha ? { sha: report.commit.sha } : {}),
+    })
+  } catch {
+    /* 행동 기록 실패는 검증 결과를 바꾸지 않는다 */
+  }
+
   // Goal 45: 증거 원장 — 레포 추적되는 요약 한 줄(version/date/status/sha)을 .vhk/ledger.jsonl 에 append.
   // 비치명: 원장 실패해도 증거(latest.json)는 이미 기록됨.
   try {
@@ -403,6 +489,36 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
   }
 
   return { report, path: REPORT_PATH_REL }
+}
+
+/** 현재 latest.json의 권고를 명시적으로 무시하고 행동 원장에 누적한다. */
+export function dismissVerifyAdvisory(cwd: string, id: string): boolean {
+  if (!/^[a-z0-9-]+$/.test(id)) return false
+  const reportPath = join(cwd, REPORT_PATH_REL)
+  if (!existsSync(reportPath)) return false
+  let report: VerifyReport
+  try {
+    report = readJsonFile<VerifyReport>(reportPath)
+  } catch {
+    return false
+  }
+  const advisories = report.advisories ?? buildVerifyAdvisories(report.gates)
+  if (!advisories.some((advisory) => advisory.id === id)) return false
+  try {
+    appendActionEntry(cwd, {
+      ts: new Date().toISOString(),
+      action: 'advisory-dismiss',
+      channel: 'cli',
+      guard: 'allow',
+      ran: true,
+      reason: 'user-dismissed',
+      target: id,
+      ...(report.commit?.sha ? { sha: report.commit.sha } : {}),
+    })
+  } catch {
+    return false
+  }
+  return true
 }
 
 /** package.json version 안전 읽기(BOM-safe). 없음/손상 → '0.0.0'(원장은 죽지 않음). */
@@ -536,12 +652,33 @@ async function checkFreshCommand(cwd: string): Promise<void> {
 }
 
 export async function verify(
-  opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean } = {}
+  opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string } = {}
 ): Promise<void> {
   // HARD_STOP 활성 → 게이트 실행 거부 + exit 1 (PRD §9).
   if (!ensureNotHardStopped('verify')) return
 
   const cwd = process.cwd()
+
+  if (opts.dismiss !== undefined) {
+    if (dismissVerifyAdvisory(cwd, opts.dismiss)) {
+      try {
+        commitPaths(
+          'chore(vhk): evidence ledger [skip ci]',
+          [join('.vhk', 'events', 'ai-actions.jsonl')],
+          cwd,
+        )
+      } catch {
+        /* 알림 숨김 기록은 이미 저장됨. 커밋 실패는 기존 verify와 같이 비치명으로 둔다. */
+      }
+      log.plain(chalk.green(`  ✅ 이 알림을 숨겼습니다: ${opts.dismiss}`))
+      log.dim('  같은 문제가 해결됐다가 다시 발생하면 다시 표시합니다.')
+      process.exitCode = 0
+    } else {
+      log.error(`현재 확인할 항목에서 '${opts.dismiss}'를 찾을 수 없습니다.`)
+      process.exitCode = 1
+    }
+    return
+  }
 
   // --check-fresh: 기존 증거 ↔ 현재 HEAD 신선도 검사(증거 안 만듦). 다른 모드보다 우선.
   if (opts.checkFresh) {
@@ -599,6 +736,13 @@ export async function verify(
   for (const g of report.gates) {
     const tail = g.detail ? chalk.dim(` — ${g.detail}`) : ''
     log.plain(`   ${icon(g)} ${g.label}${tail}`)
+  }
+
+  const visibleAdvisories = (report.advisories ?? []).filter((advisory) => !advisory.dismissed)
+  if (visibleAdvisories.length > 0) {
+    log.bold('\n  확인이 필요한 항목')
+    for (const advisory of visibleAdvisories) log.plain(formatVerifyAdvisory(advisory))
+    log.dim('   숨기기: vhk verify --dismiss <알림-id>')
   }
 
   const declaredOptionalCount = report.gates.filter(isDeclaredOptionalSkip).length

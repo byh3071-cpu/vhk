@@ -25,6 +25,8 @@ import type { EvolveQueueItem, TargetLayer } from '../commands/evolve.js'
 export const EVOLVE_LOG_REL = join('.vhk', 'events', 'evolve-log.jsonl')
 
 export interface EvolveLogEntry {
+  /** 생략된 이전 기록은 decision으로 읽는다. */
+  event?: 'decision' | 'undo' | 'migration'
   /** 결정 시각 ISO. */
   ts: string
   /** 큐 항목 id('e1' 등) — 로컬전용 queue.json 조인키(위 캐비어트 참고). */
@@ -37,6 +39,67 @@ export interface EvolveLogEntry {
   applied: boolean
   /** reject 사유(선택 입력, 비대화형 위치인자). apply 이거나 사유 미입력 reject → null. */
   rejectReason: string | null
+  /** 신규 기록의 표시·되돌리기용 선택 필드. 이전 기록에는 없을 수 있다. */
+  draft?: string
+  rulesBackupPath?: string
+}
+
+function evolveDecisionKey(entry: EvolveLogEntry): string | null {
+  if (typeof entry.patternId !== 'string' || entry.patternId.length === 0) return null
+  return `${entry.patternId}:${entry.targetLayer ?? 'rule'}`
+}
+
+export function currentEvolveDecisions(entries: EvolveLogEntry[]): EvolveLogEntry[] {
+  const current = new Map<string, EvolveLogEntry>()
+  for (const entry of entries) {
+    const key = evolveDecisionKey(entry)
+    if (!key) continue
+    if (entry.event === 'undo') current.delete(key)
+    else current.set(key, entry)
+  }
+  return [...current.values()]
+}
+
+export function currentEvolveDecisionKeys(entries: EvolveLogEntry[]): Set<string> {
+  const keys = new Set<string>()
+  for (const entry of currentEvolveDecisions(entries)) {
+    const key = evolveDecisionKey(entry)
+    if (key) keys.add(key)
+  }
+  return keys
+}
+
+export function buildEvolveUndoLogEntry(
+  item: Pick<EvolveQueueItem, 'id' | 'patternId' | 'targetLayer'>,
+  ts: string,
+): EvolveLogEntry {
+  return {
+    event: 'undo',
+    ts,
+    suggId: item.id,
+    patternId: item.patternId,
+    targetLayer: item.targetLayer ?? 'rule',
+    applied: false,
+    rejectReason: null,
+  }
+}
+
+/** 폐지된 queue.json의 결정을 새 원장으로 옮길 때 쓰는 보존 이벤트. 새 사람 결정으로 집계하지 않는다. */
+export function buildEvolveMigrationLogEntry(
+  item: Pick<EvolveQueueItem, 'id' | 'patternId' | 'targetLayer' | 'status' | 'draft' | 'rulesBackupPath'>,
+  ts: string,
+): EvolveLogEntry {
+  return {
+    event: 'migration',
+    ts,
+    suggId: item.id,
+    patternId: item.patternId,
+    targetLayer: item.targetLayer ?? 'rule',
+    applied: item.status === 'applied',
+    rejectReason: null,
+    draft: item.draft,
+    ...(item.rulesBackupPath ? { rulesBackupPath: item.rulesBackupPath } : {}),
+  }
 }
 
 /**
@@ -85,9 +148,16 @@ export function readEvolveLog(cwd: string): EvolveLogEntry[] {
  * 측정 엔트리 1개 append(append-only). 원자적 쓰기(temp→rename — 쓰기 중 kill 에도 손상 방지).
  */
 export function appendEvolveLog(cwd: string, entry: EvolveLogEntry): void {
+  appendEvolveLogEntries(cwd, [entry])
+}
+
+/** 여러 이벤트를 한 번의 원자 치환으로 추가한다. 빈 배열은 파일을 만들지 않는다. */
+export function appendEvolveLogEntries(cwd: string, entries: EvolveLogEntry[]): void {
+  if (entries.length === 0) return
   const p = join(cwd, EVOLVE_LOG_REL)
   mkdirSync(join(cwd, '.vhk', 'events'), { recursive: true })
   const existing = existsSync(p) ? stripBom(readFileSync(p, 'utf-8')).replace(/\n*$/, '') : ''
-  const body = (existing ? existing + '\n' : '') + JSON.stringify(entry) + '\n'
+  const appended = entries.map((entry) => JSON.stringify(entry)).join('\n')
+  const body = (existing ? existing + '\n' : '') + appended + '\n'
   atomicWriteFile(p, body)
 }

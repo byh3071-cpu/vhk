@@ -22,6 +22,7 @@ import {
   ANTIGRAVITY_CHAR_LIMIT,
   SYNC_TARGETS,
   findUnmappedSections,
+  getRequiredSectionTitles,
   syncCore,
   syncCheck,
 } from '../src/commands/sync.js'
@@ -285,6 +286,49 @@ describe('vhk sync — Antigravity 변환 + 12k 절삭', () => {
     const lastLine = body.split('\n').filter(Boolean).pop() ?? ''
     expect(lastLine.startsWith('## ') || lastLine === 'x'.repeat(60)).toBe(true)
   })
+
+  it('전 타깃 필수 섹션 자체가 제한을 넘으면 잘린 성공 대신 오류를 낸다', () => {
+    const rules = [
+      '# P — Rules',
+      '',
+      '## 안전 규칙 <!-- vhk:sync=all -->',
+      `- REQUIRED_START_${'x'.repeat(20000)}_REQUIRED_END`,
+      '',
+    ].join('\n')
+
+    expect(() => toAntigravityRules(parseRulesMd(rules), 'P'))
+      .toThrow(/안전 규칙.*12,000/)
+  })
+
+  it('전 타깃 필수 섹션이 제한을 넘으면 syncCore가 어떤 산출물도 쓰지 않는다', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-sync-antigravity-required-'))
+    const antigravityPath = path.join(dir, '.agents', 'rules', 'vhk-rules.md')
+    const originalAntigravity = '# 사용자 기존 Antigravity 규칙\n- 보존해야 함\n'
+
+    try {
+      fs.mkdirSync(path.dirname(antigravityPath), { recursive: true })
+      fs.writeFileSync(antigravityPath, originalAntigravity, 'utf-8')
+      fs.writeFileSync(
+        path.join(dir, 'RULES.md'),
+        [
+          '# P — Rules',
+          '',
+          '## 안전 규칙 <!-- vhk:sync=all -->',
+          `- REQUIRED_START_${'x'.repeat(20000)}_REQUIRED_END`,
+          '',
+        ].join('\n'),
+        'utf-8',
+      )
+
+      await expect(syncCore(dir, {}, async () => true)).rejects.toThrow(/안전 규칙.*12,000/)
+
+      expect(fs.readFileSync(antigravityPath, 'utf-8')).toBe(originalAntigravity)
+      expect(fs.existsSync(path.join(dir, '.cursorrules'))).toBe(false)
+      expect(fs.existsSync(path.join(dir, '.vhk'))).toBe(false)
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('vhk init → sync 연결 (VHK-002 / #61 회귀)', () => {
@@ -449,5 +493,57 @@ describe('vhk sync — goal 90: 도메인 규칙 섹션이 .cursorrules + CLAUDE
       expect(toCursorrules(sections, 'P')).toContain('[여기에 작성:')
       expect(toAgentsMd(sections, 'P')).toContain('[여기에 작성:')
     })
+
+    it('검사 연결 표시가 8개 파생 규칙 파일에 그대로 남는다', () => {
+      const marker = '<!-- vhk:check=no-exec-sync -->'
+      const sections = parseRulesMd(`# P — Rules\n\n## 코딩 규칙\n- execSync 금지 ${marker}\n`)
+      const outputs = [
+        toCursorrules(sections, 'P'),
+        toWindsurfrules(sections, 'P'),
+        toCopilotInstructions(sections, 'P'),
+        toAntigravityRules(sections, 'P'),
+        toAgentsMd(sections, 'P'),
+        toGeminiMd(sections, 'P'),
+        toClineRules(sections, 'P'),
+        toClaudeMd(sections, '# 기록 규칙 (P)\n\n## 현재 상태\n- P1\n'),
+      ]
+
+      expect(outputs).toHaveLength(8)
+      outputs.forEach((output) => expect(output).toContain(marker))
+    })
+
+    it('기본 RULES 템플릿의 안전 규칙은 제목 하드코딩 없이 8개 타겟 필수로 파생된다', () => {
+      const sections = parseRulesMd(RULES_MD_TEMPLATE('P', 'desc', 'Next.js'))
+      expect(getRequiredSectionTitles(sections)).toEqual(['안전 규칙'])
+      const outputs = [
+        toCursorrules(sections, 'P'),
+        toWindsurfrules(sections, 'P'),
+        toCopilotInstructions(sections, 'P'),
+        toAntigravityRules(sections, 'P'),
+        toAgentsMd(sections, 'P'),
+        toGeminiMd(sections, 'P'),
+        toClineRules(sections, 'P'),
+        toClaudeMd(sections, '# 기록 규칙 (P)\n\n## 현재 상태\n- P1\n'),
+      ]
+      outputs.forEach((output) => expect(output).toContain('## 안전 규칙'))
+    })
+  })
+
+  it('긴 선택 섹션 뒤의 전 타겟 필수 섹션도 절삭 전에 보존한다', () => {
+    const rules = [
+      '# P — Rules',
+      '',
+      '## 코딩 규칙',
+      `- ${'x'.repeat(20000)}`,
+      '',
+      '## 안전 규칙 <!-- vhk:sync=all -->',
+      '- REQUIRED_SENTINEL',
+      '',
+    ].join('\n')
+
+    const out = toAntigravityRules(parseRulesMd(rules), 'P')
+    expect(out).toContain('## 안전 규칙')
+    expect(out).toContain('REQUIRED_SENTINEL')
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(ANTIGRAVITY_CHAR_LIMIT)
   })
 })

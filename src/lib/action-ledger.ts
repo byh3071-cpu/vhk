@@ -28,6 +28,14 @@ export interface AiActionEntry {
   target?: string
   /** 행동 시점 커밋 SHA — 있을 때만 */
   sha?: string
+  /** 검사·명령의 기계 결과(PASS/WARN/FAIL 등) — 있을 때만 */
+  result?: string
+  /** 커밋 훅이 확인한 실질 코드변경 수 — 있을 때만 */
+  changedFiles?: number
+  /** 세션 기록을 동반했는가 — 커밋 행동일 때만 */
+  sessionRecord?: boolean
+  /** [skip-record] 같은 명시적 우회를 썼는가 — 커밋 행동일 때만 */
+  bypassed?: boolean
   /**
    * RFC 0057 트랙②: 이 행동을 시킨 에이전트(env 신호 자동 감지 또는 GuardDeps.agent override).
    * 옵셔널 — 필드 추가 이전 과거 원장 라인(agent 프로퍼티 자체 없음)을 읽어도 타입이 깨지지

@@ -206,6 +206,7 @@ program
   .alias('만들기')
   .description('하네스 파일만 생성 (git/MCP/context는 제외) — 보통 vhk start 권장')
   .option('--skip-gate', 'gate 검증 스킵')
+  .option('--ci', 'GitHub PR 필수 검사 워크플로 생성 (기존 워크플로 보존)')
   .option('--from-notion <url>', 'Notion PRD 페이지에서 import')
   .option('--name <name>', '프로젝트 이름')
   .option('--description <desc>', '한 줄 설명')
@@ -526,8 +527,9 @@ program
   .option('--report', 'latest.json 을 사람용 정적 HTML(.vhk/reports/latest.html) 로 렌더 (외부 의존 0)')
   .option('--open', '리포트 생성 후 기본 브라우저로 열기 (비대화형/CI/MCP 자동 스킵)')
   .option('--check-fresh', '기존 증거(latest.json)가 현재 HEAD 와 일치하는지 검사 — 낡으면 exit 1 (증거 안 만듦)')
+  .option('--dismiss <id>', '현재 알림을 숨기고 숨긴 횟수를 기록 (예: lint-gate)')
   .description('검증 게이트(tsc/test/build/secure) 실제 실행 + 증거 기록 (.vhk/reports/latest.json)')
-  .action(async (opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean }) => { await verify(opts) })
+  .action(async (opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string }) => { await verify(opts) })
 
 program
   .command('preflight')
@@ -973,14 +975,14 @@ patternCmd
 const evolveCmd = program
   .command('evolve')
   .alias('진화')
-  .description('패턴 → 룰 후보 제안·반영·undo (Evolution Loop 도미노 4) — apply/undo는 TTY 필수')
+  .description('패턴 → 7일 룰 후보 표시·사람 승인·되돌리기 — apply/undo는 TTY 필수')
   .action(async () => { await evolveList() })
 
 evolveCmd
   .command('suggest')
   .alias('제안')
   .option('--json', 'JSON 출력 (CI/MCP용)')
-  .description('active avoid 패턴 → 룰 초안 후보 생성·큐 적재')
+  .description('활성 패턴 → 7일 룰 후보 계산·즉시 표시 (큐 저장 없음)')
   .action(async (opts: { json?: boolean }) => { await evolveSuggest(opts) })
 
 evolveCmd
@@ -1002,13 +1004,13 @@ evolveCmd
   .alias('목록')
   .option('--status <status>', 'pending|rejected|applied 필터')
   .option('--json', 'JSON 출력 (CI/MCP용)')
-  .description('진화 후보 목록')
+  .description('현재 룰 후보와 결정 기록 목록')
   .action(async (opts: { status?: string; json?: boolean }) => { await evolveList(opts) })
 
 evolveCmd
   .command('digest')
   .alias('묶음')
-  .description('진화 후보 묶음 초안 — 신뢰도별 정렬 (읽기 전용·자동 반영 0, PR 초안용)')
+  .description('현재 룰 후보 묶음 — 신뢰도별 정렬 (읽기 전용·자동 반영 0)')
   .action(async () => { await evolveDigest() })
 
 evolveCmd

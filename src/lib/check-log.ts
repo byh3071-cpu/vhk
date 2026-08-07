@@ -28,20 +28,42 @@ export interface CheckLogEntry {
   errors: number
   /** severity=warning 건수. */
   warnings: number
+  /** RULES.md에 선언된 최상위 규칙 수. 이전 기록에는 없을 수 있다. */
+  declaredRules?: number
+  /** 자동 해석 또는 연결 검사로 확인한 선언 수. */
+  checkedRules?: number
+  /** 아직 연결되지 않은 선언 수. */
+  uncheckedRules?: number
+  /** checkedRules / declaredRules 백분율. */
+  coveragePercent?: number
 }
 
 /** checkRules 의 위반 요약(computeCheckSummary 반환값의 부분집합) → 로그 엔트리(순수 함수). */
 export function buildCheckLogEntry(
-  summary: { totalRules: number; violations: unknown[]; errors: number; warnings: number },
+  summary: {
+    totalRules: number
+    violations: unknown[]
+    errors: number
+    warnings: number
+    declaredRules?: number
+    checkedRules?: number
+    uncheckedRules?: number
+    coveragePercent?: number
+  },
   ts: string
 ): CheckLogEntry {
-  return {
+  const entry: CheckLogEntry = {
     ts,
     totalRules: summary.totalRules,
     total: summary.violations.length,
     errors: summary.errors,
     warnings: summary.warnings,
   }
+  if (summary.declaredRules !== undefined) entry.declaredRules = summary.declaredRules
+  if (summary.checkedRules !== undefined) entry.checkedRules = summary.checkedRules
+  if (summary.uncheckedRules !== undefined) entry.uncheckedRules = summary.uncheckedRules
+  if (summary.coveragePercent !== undefined) entry.coveragePercent = summary.coveragePercent
+  return entry
 }
 
 /**

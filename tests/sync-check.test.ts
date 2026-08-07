@@ -1,14 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import {
+  getRequiredSectionTitles,
+  parseRulesMd,
   syncCheck,
   syncCore,
   SYNC_TARGETS,
   SYNC_BOOTSTRAP_TARGETS,
 } from '../src/commands/sync.js'
-import { ECOSYSTEM_MDC_REL, MCP_JSON_EXAMPLE_REL } from '../src/lib/inject-bootstrap.js'
+import {
+  CORE_RULES_REL,
+  ECOSYSTEM_MDC_REL,
+  MCP_JSON_EXAMPLE_REL,
+} from '../src/lib/inject-bootstrap.js'
 
 const RULES = [
   '# 데모 — 테스트',
@@ -20,6 +26,10 @@ const RULES = [
   '## 기록 규칙',
   '',
   '- 로그 남기기',
+  '',
+  '## 되돌림 방지 <!-- vhk:sync=all -->',
+  '',
+  '- 되돌릴 수 없는 작업은 사람이 승인',
   '',
 ].join('\n')
 
@@ -42,6 +52,47 @@ describe('syncCheck — sync 산출 전체 drift 검사 (Goal 63)', () => {
     expect(r.ok).toBe(true)
     expect(r.drifted).toEqual([])
     expect(r.missing).toEqual([])
+    expect(r.missingSections).toEqual([])
+  })
+
+  it('필수 섹션 목록은 RULES.md 표시에서 파생한다', () => {
+    const sections = parseRulesMd(RULES)
+    expect(getRequiredSectionTitles(sections)).toEqual(['되돌림 방지'])
+  })
+
+  it('파생본에서 필수 섹션만 지우면 불일치와 별도로 누락을 탐지한다', () => {
+    const target = '.cursorrules'
+    const p = path.join(dir, target)
+    const content = fs.readFileSync(p, 'utf-8')
+    fs.writeFileSync(
+      p,
+      content.replace('## 되돌림 방지\n- 되돌릴 수 없는 작업은 사람이 승인\n', ''),
+      'utf-8'
+    )
+
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(false)
+    expect(r.drifted).toContain(target)
+    expect(r.missingSections).toContainEqual({ target, section: '되돌림 방지' })
+  })
+
+  it('CLAUDE.md 사용자 영역의 같은 제목으로 관리 블록 누락을 숨길 수 없다', () => {
+    const target = 'CLAUDE.md'
+    const p = path.join(dir, target)
+    const content = fs.readFileSync(p, 'utf-8')
+      .replace('## 되돌림 방지\n- 되돌릴 수 없는 작업은 사람이 승인\n', '')
+    fs.writeFileSync(p, content + '\n## 되돌림 방지\n- 사용자 메모\n', 'utf-8')
+
+    const r = syncCheck(dir)
+    expect(r.missingSections).toContainEqual({ target, section: '되돌림 방지' })
+  })
+
+  it('표시된 필수 섹션은 제목과 무관하게 미러 8개 생성본에 포함된다', () => {
+    const r = syncCheck(dir)
+    expect(r.requiredSections).toEqual(['되돌림 방지'])
+    for (const target of [...SYNC_TARGETS.map((item) => item.path), 'CLAUDE.md']) {
+      expect(fs.readFileSync(path.join(dir, target), 'utf-8')).toContain('## 되돌림 방지')
+    }
   })
 
   it('타겟 직접 수정(.cursorrules) → drifted 감지', () => {
@@ -116,6 +167,41 @@ describe('syncCheck — sync 산출 전체 drift 검사 (Goal 63)', () => {
     const r = syncCheck(dir)
     expect(r.ok).toBe(false)
     expect(r.missing).toContain(ECOSYSTEM_MDC_REL)
+  })
+
+  it('검사 도중 타겟을 읽을 수 없어져도 죽지 않고 missing으로 처리한다', () => {
+    const target = path.resolve(dir, '.cursorrules')
+    const originalReadFileSync = fs.readFileSync
+    let targetReads = 0
+    const spy = vi.spyOn(fs, 'readFileSync').mockImplementation(((file, options) => {
+      if (path.resolve(String(file)) === target && ++targetReads === 2) {
+        throw new Error('simulated read failure')
+      }
+      return Reflect.apply(originalReadFileSync, fs, [file, options])
+    }) as typeof fs.readFileSync)
+
+    try {
+      const result = syncCheck(dir)
+      expect(result.ok).toBe(false)
+      expect(result.missing).toContain('.cursorrules')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('Git에서 제외하는 개인 CORE-RULES는 새 clone에 없어도 통과', () => {
+    fs.rmSync(path.join(dir, CORE_RULES_REL))
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(true)
+    expect(r.missing).not.toContain(CORE_RULES_REL)
+  })
+
+  it('개인 CORE-RULES가 있으면 기존처럼 VHK 템플릿 변조를 탐지', () => {
+    const p = path.join(dir, CORE_RULES_REL)
+    fs.writeFileSync(p, fs.readFileSync(p, 'utf-8') + '\n<!-- hand edit -->\n', 'utf-8')
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(false)
+    expect(r.drifted).toContain(CORE_RULES_REL)
   })
 
   it('ecosystem.mdc 만 있고 나머지 bootstrap 이 없어도 sync 가 채운다 (#516 회귀)', async () => {

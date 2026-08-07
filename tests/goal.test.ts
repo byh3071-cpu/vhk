@@ -19,11 +19,11 @@ function tmpProject(label: string): string {
   return dir
 }
 
-function makeGoalFile(dir: string, id: number, status: string): void {
+function makeGoalFile(dir: string, id: number, status: string, dependsOn?: string): void {
   mkdirSync(join(dir, 'goals'), { recursive: true })
   writeFileSync(
     join(dir, 'goals', `${id}-test.md`),
-    `---\nvhk_format: 1\ntype: goal\nid: ${id}\ntitle: Goal ${id}\nstatus: ${status}\npriority: P0\nversion: v0.${id}\n---\nbody\n`,
+    `---\nvhk_format: 1\ntype: goal\nid: ${id}\ntitle: Goal ${id}\nstatus: ${status}\npriority: P0\nversion: v0.${id}\n${dependsOn === undefined ? '' : `depends_on: ${dependsOn}\n`}---\nbody\n`,
     'utf-8'
   )
 }
@@ -92,6 +92,25 @@ describe('selectActiveId', () => {
     ]
     expect(selectActiveId(goals)).toBeNull()
   })
+
+  it('미완료 depends_on이 있는 낮은 ID를 건너뛰고 실행 가능한 Goal을 고른다', async () => {
+    const { selectActiveId } = await import('../src/commands/goal.js')
+    const goals = [
+      { filePath: 'a', frontmatter: { id: 1, status: 'NOT_STARTED' as const, depends_on: '3' }, body: '' },
+      { filePath: 'b', frontmatter: { id: 2, status: 'NOT_STARTED' as const }, body: '' },
+      { filePath: 'c', frontmatter: { id: 3, status: 'DEFERRED' as const }, body: '' },
+    ]
+    expect(selectActiveId(goals)).toBe(2)
+  })
+
+  it('선행 작업을 위반한 IN_PROGRESS가 있으면 다른 Goal을 선택하지 않는다', async () => {
+    const { selectActiveId } = await import('../src/commands/goal.js')
+    const goals = [
+      { filePath: 'a', frontmatter: { id: 1, status: 'NOT_STARTED' as const }, body: '' },
+      { filePath: 'b', frontmatter: { id: 2, status: 'IN_PROGRESS' as const, depends_on: '1' }, body: '' },
+    ]
+    expect(selectActiveId(goals)).toBeNull()
+  })
 })
 
 describe('goalList', () => {
@@ -120,6 +139,23 @@ describe('goalList', () => {
       expect(idxFor('Goal 0')).toBeGreaterThan(-1)
       expect(idxFor('Goal 0')).toBeLessThan(idxFor('Goal 1'))
       expect(idxFor('Goal 1')).toBeLessThan(idxFor('Goal 2'))
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('미완료 선행 작업을 쉬운 문구로 표시한다', async () => {
+    const dir = tmpProject('list-dependency-waiting')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    makeGoalFile(dir, 2, 'NOT_STARTED', '1')
+    process.chdir(dir)
+    try {
+      const { goalList } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalList()
+      const joined = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(joined).toContain('선행 작업 대기: 1')
     } finally {
       process.chdir(origCwd)
       rmSync(dir, { recursive: true, force: true })
@@ -281,6 +317,9 @@ describe('goalInit', () => {
       const { goalInit } = await import('../src/commands/goal.js')
       await goalInit()
       expect(existsSync(join(dir, 'goals/_meta.md'))).toBe(true)
+      const meta = readFileSync(join(dir, 'goals/_meta.md'), 'utf-8')
+      expect(meta).toContain('# 선택: depends_on: 1,2')
+      expect(meta).not.toMatch(/^depends_on:\s*1$/m)
       expect(existsSync(join(dir, 'docs/state/next-task.md'))).toBe(true)
       expect(existsSync(join(dir, 'docs/state/blockers.md'))).toBe(true)
       expect(existsSync(join(dir, 'docs/state/learnings.md'))).toBe(true)
@@ -355,6 +394,29 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
       const after = readFileSync(join(dir, 'goals/3-test.md'), 'utf-8')
       expect(after).toBe(before)
       expect(after).toContain('status: NOT_STARTED')
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('선행 Goal이 DONE이 아니면 게이트를 실행하지 않고 완료 처리를 거부한다', async () => {
+    const dir = tmpProject('done-dependency-waiting')
+    makeGoalFile(dir, 1, 'NOT_STARTED')
+    makeGoalFile(dir, 2, 'IN_PROGRESS', '1')
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts/check-goal-2.mjs'), 'process.exit(0)\n', 'utf-8')
+    const before = readFileSync(join(dir, 'goals/2-test.md'), 'utf-8')
+    process.chdir(dir)
+    try {
+      const { goalDone } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalDone({ id: '2' })
+      const after = readFileSync(join(dir, 'goals/2-test.md'), 'utf-8')
+      expect(after).toBe(before)
+      expect(mockSafeExecFile).not.toHaveBeenCalled()
+      expect(logSpy.mock.calls.map((c) => String(c[0])).join('\n')).toContain('먼저 끝내야 할 Goal: 1')
+      expect(process.exitCode).toBe(1)
     } finally {
       process.chdir(origCwd)
       rmSync(dir, { recursive: true, force: true })
@@ -710,6 +772,12 @@ describe('Windows 1급 게이트 (goal 9)', () => {
       process.chdir(origCwd)
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+
+  it('공통 검사 스크립트 탐색도 경로로 바뀔 수 있는 ID를 거부한다', async () => {
+    const { findCheckScript } = await import('../src/commands/goal.js')
+    expect(findCheckScript('goal', '../outside')).toBeNull()
+    expect(findCheckScript('rule', 'bad/id')).toBeNull()
   })
 
   it('goalCheck — .mjs 게이트는 node 로 실행 (bash 불필요)', async () => {

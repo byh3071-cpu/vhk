@@ -99,11 +99,21 @@ vhk start --stack "Vite, React, TypeScript"
 # 아직 모르면 후보로 시작하고 첫 세션에서 확정
 vhk start
 
-# 기존 프로젝트에 하네스만 얹기
-vhk init -y && vhk sync && vhk mcp-init
+# 기존 프로젝트에 하네스와 PR 검사 얹기
+vhk init -y --ci
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+vhk sync
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+vhk mcp-init
 ```
 
 Node.js 22 이상이 필요합니다. `vhk start --stack "..."`은 지정한 기술 스택을 확정값으로 기록합니다. `--stack`을 생략하면 자동 감지·유형 프리셋은 후보로만 기록되고 기존 `NEEDS_CUSTOMIZATION` 첫 세션 인터뷰에서 먼저 확인합니다. 아이디어부터 검증하려면 `vhk gate`로 시작하세요.
+
+`vhk init --ci`는 `.github/workflows/vhk-gate.yml`을 만들고 PR마다 검증·규칙·공개 경계 검사를 실행합니다. 기존 GitHub Actions 워크플로가 있으면 파일을 건드리지 않고 병합 방법을 안내합니다. GitHub에서 병합을 실제로 막으려면 저장소 **Settings → Rules**에서 상태 검사 `VHK Gate`를 필수로 지정하세요.
+
+기존 프로젝트에서 `vhk init`을 실행하면 여러 규칙 파일의 같은 관리 구역은 한 번만 가져옵니다. 같은 이름인데 내용이 다르거나 `BEGIN/END` 표시가 깨진 구역은 자동으로 고르지 않고, 원본을 그대로 둔 채 복구 방법과 함께 중단합니다.
+
+설치가 끝나면 규칙 파일 연결 수와 함께 핵심 규칙의 출처·버전을 따로 보여줍니다. `VHK 내장 기본 규칙`으로 대신한 경우에는 사용자 규칙 파일이 연결된 상태가 아님을 마지막 설치 점검에서 다시 경고합니다.
 
 ### 선택: 사용자 규칙 YAML 연결
 
@@ -135,12 +145,37 @@ VHK는 에이전트를 **대체하지 않습니다** — 에이전트가 못 하
 
 ```powershell
 vhk sync
-vhk sync --check   # 검사만 — 8개 타겟이 RULES.md 와 일치하는지 (drift 시 exit 1, 쓰기 0)
+vhk sync --check   # 검사만 — 재생성 결과 차이와 필수 섹션 누락을 따로 확인 (문제 시 exit 1, 쓰기 0)
+```
+
+모든 도구가 반드시 읽어야 하는 안전 절은 제목에 표시합니다. 목록은 코드에 따로 적지 않고
+`RULES.md`의 이 표시에서 가져옵니다. 파생 파일 하나에서 절이 빠지면 `sync --check`가 누락으로 잡습니다.
+
+```markdown
+## 안전 규칙 <!-- vhk:sync=all -->
+```
+
+`vhk sync --check`에서 미연결 섹션이 나오면 출력에 표시된 표준 말을 제목에 넣거나, 위처럼 제목 뒤에 `<!-- vhk:sync=all -->`을 붙이세요. 검사 결과가 실제 미연결 섹션명과 VHK가 인식하는 표준 제목을 함께 보여줍니다.
+
+규칙 줄에 짧은 검사 ID를 붙이면 `vhk check`가 대응하는 스크립트를 실행하고 검사 비율을 보여줍니다.
+ID는 영문 소문자·숫자·하이픈만 사용합니다. `.mjs`가 있으면 먼저 실행하고, 없을 때 `.sh`를 찾습니다.
+
+```markdown
+- execSync 신규 사용 금지 <!-- vhk:check=no-exec-sync -->
+```
+
+```text
+scripts/check-rule-no-exec-sync.mjs
+```
+
+```powershell
+vhk check
+vhk check --json   # declaredRules·checkedRules·uncheckedRules·coveragePercent 포함
 ```
 
 ### 2. Goal과 HARD_STOP
 
-Goal은 `goals/*.md`와 `scripts/check-goal-<id>.mjs`를 연결합니다. `vhk goal done`은 게이트를 다시 돌려 통과할 때만 DONE으로 전이합니다. 블로커가 반복되면(3건 누적) `.vhk/HARD_STOP`으로 진행을 멈춥니다.
+Goal은 `goals/*.md`와 `scripts/check-goal-<id>.mjs`를 연결합니다. `vhk goal done`은 게이트를 다시 돌려 통과할 때만 DONE으로 전이합니다. 선택 필드 `depends_on: 1,2`를 쓰면 두 Goal이 모두 DONE이 되기 전에는 다음 작업이나 완료 대상으로 선택되지 않습니다. 블로커가 반복되면(3건 누적) `.vhk/HARD_STOP`으로 진행을 멈춥니다.
 
 ```powershell
 vhk goal next
@@ -151,7 +186,8 @@ vhk blocker "테스트가 같은 원인으로 계속 실패"
 ### 3. 증거와 자기검증 — "실행했다"와 "완료됐다"를 분리
 
 ```powershell
-vhk verify     # tsc/lint/test/build/secure 게이트 실행 → .vhk/reports/latest.json
+vhk verify     # 게이트 실행 → 확인이 필요한 항목의 경과 시간·숨긴 횟수 표시 + .vhk/reports/latest.json
+vhk verify --dismiss lint-gate  # 현재 알림 숨기기(같은 문제가 다시 발생하면 다시 표시)
 vhk review     # 최신 증거와 goal 완료조건 교차검증
 vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale SHA·diff-cover)로 완료 보고 검증 (LLM 0)
 vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
@@ -186,10 +222,12 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 
 ```powershell
 vhk learn "비-TTY 명령은 프롬프트 없이 실패해야 한다"
-vhk pattern detect      # 반복되는 실패/성공 신호 탐지
-vhk evolve suggest      # 사람이 승인할 RULES.md 후보 생성 (자동 적용 아님 — diff·확인)
+vhk pattern detect      # 반복되는 실패/성공 신호와 새 규칙 후보를 바로 표시
+vhk evolve suggest      # 현재 7일 후보 계산(저장 안 함) — apply는 사람 확인 필수
 vhk stats               # 패스율/차단율/진화 적용율 집계 (읽기 전용)
 ```
+
+규칙 후보는 별도 큐에 쌓이지 않습니다. 패턴이 생긴 뒤 7일 동안만 표시되고, `apply`·`reject`·`undo`로 결정하거나 되돌린 결과만 로컬 로그에 남습니다. 조회·JSON·MCP 경로는 `RULES.md`를 자동으로 바꾸지 않습니다.
 
 ## 🤖 오토파일럿 스킬 `/vhk-auto` (1단계 MVP)
 
@@ -227,13 +265,13 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 
 | 영역 | 명령 | 용도 |
 | --- | --- | --- |
-| 시작 | `vhk`, `vhk gate`, `vhk start [--stack "목록"]`, `vhk init` | 메뉴, 아이디어 검증, 새 프로젝트 마법사(기술 스택 지정 시 확정·미지정 시 후보), 하네스 초기화(+기록 집행 커밋훅 배선 — 세션일지 없는 코드 커밋 차단, `[skip-record]` 우회) |
+| 시작 | `vhk`, `vhk gate`, `vhk start [--stack "목록"]`, `vhk init [--ci]` | 메뉴, 아이디어 검증, 새 프로젝트 마법사(기술 스택 지정 시 확정·미지정 시 후보), 하네스 초기화(+선택적 GitHub PR 필수 검사) |
 | 규칙/맥락 | `vhk sync`, `vhk context`, `vhk context-show`, `vhk brief`, `vhk loop-brief`, `vhk remind`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, 루프 1틱 의도 앵커, 치명 규칙 재주입, 세션 시작/인수인계 |
 | 풀사이클 뒷단 | `vhk content`, `vhk launch`, `vhk ops`, `vhk sell` | 콘텐츠/런칭/운영/판매 초안 프롬프트 생성 (초안만, 게시·발송·결제는 사람이) · RULES.md 치명 규칙 자동 상속 · 과거 교훈(`.vhk/memory`) ≤3 자동 회상 주입 — 다음 사이클로 복리 |
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 불일치(drift) 관리 |
 | Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 완료 보고 검증, 검증 리포트, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
 | 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan` | HARD_STOP, safety mode, 시크릿 스캔 |
-| Git | `vhk status`, `vhk diff`, `vhk save`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인, 커밋/푸시, 되돌리기, 세션 로그 |
+| Git | `vhk status`, `vhk diff`, `vhk save`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인(아직 시작하지 않은 작업 수·가장 오래된 작업 포함), 커밋/푸시, 되돌리기, 세션 로그 |
 | 환경/품질 | `vhk doctor`, `vhk check`, `vhk env`, `vhk env-check`, `vhk harness`, `vhk audit`, `vhk worktree check/add` | 개발환경, RULES 린트, env, 통합 품질, 보안 감사, worktree 가드 |
 | 배포/패키지 | `vhk ship`, `vhk deploy`, `vhk publish`, `vhk update`, `vhk migrate` | 배포 체크, 배포 실행, npm 릴리스 자동화, 셀프 업데이트, 패키지 매니저 전환 |
 | MCP/클라우드 | `vhk mcp`, `vhk mcp-init`, `vhk cloud push/pull` | MCP stdio 서버, 클라이언트 설정, `.vhk/` secret gist 백업/복원 |

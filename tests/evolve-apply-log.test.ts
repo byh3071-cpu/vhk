@@ -3,7 +3,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import inquirer from 'inquirer'
-import { QUEUE_PATH_REL, type EvolveQueueFile } from '../src/commands/evolve.js'
 import { readEvolveLog } from '../src/lib/evolve-log.js'
 
 vi.mock('inquirer')
@@ -14,23 +13,18 @@ vi.mock('inquirer')
 function tmpProject(): string {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-apply-'))
   fs.writeFileSync(path.join(d, 'RULES.md'), '## 코딩 규칙\n- 기존 룰 하나\n')
-  const queue: EvolveQueueFile = {
-    version: 2,
-    items: [
-      {
-        id: 'e1',
-        patternId: 'p1',
-        kind: 'rule',
-        targetLayer: 'rule',
-        status: 'pending',
-        draft: '- 신규 초안 룰',
-        dedupeKey: 'p1:rule',
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-    ],
-  }
-  fs.mkdirSync(path.join(d, '.vhk', 'evolve'), { recursive: true })
-  fs.writeFileSync(path.join(d, QUEUE_PATH_REL), JSON.stringify(queue, null, 2), 'utf-8')
+  fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+  fs.writeFileSync(path.join(d, '.vhk', 'memory.json'), JSON.stringify({
+    schemaVersion: 2,
+    decisions: [],
+    failures: [],
+    successes: [],
+    patterns: [{
+      id: 'p1', kind: 'avoid', axis: 'tag', signal: 'build', count: 3,
+      sources: [], summary: '반복 실패', createdAt: new Date().toISOString(),
+      status: 'active', tags: [], _sig: 'avoid:tag:build',
+    }],
+  }), 'utf-8')
   return d
 }
 
@@ -62,11 +56,11 @@ describe('evolveApply — applied 확정 시 evolve-log append (#374)', () => {
       .mockResolvedValueOnce({ confirmed: true })
 
     const { evolveApply } = await import('../src/commands/evolve.js')
-    await evolveApply('e1')
+    await evolveApply('p1:rule')
 
     const log = readEvolveLog(d)
     expect(log).toHaveLength(1)
-    expect(log[0].suggId).toBe('e1')
+    expect(log[0].suggId).toBe('p1:rule')
     expect(log[0].applied).toBe(true)
     expect(log[0].rejectReason).toBeNull()
     process.chdir(origCwd)
@@ -87,9 +81,38 @@ describe('evolveApply — applied 확정 시 evolve-log append (#374)', () => {
       .mockResolvedValueOnce({ confirmed: false })
 
     const { evolveApply } = await import('../src/commands/evolve.js')
-    await evolveApply('e1')
+    await evolveApply('p1:rule')
 
     expect(readEvolveLog(d)).toEqual([])
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('결정 기록 저장 실패 → RULES.md와 패턴 상태를 원상복구', async () => {
+    const d = tmpProject()
+    const originalRules = fs.readFileSync(path.join(d, 'RULES.md'), 'utf-8')
+    fs.writeFileSync(path.join(d, '.vhk', 'events'), '디렉터리 생성을 막는 파일', 'utf-8')
+    origCwd = process.cwd()
+    origForceInteractive = process.env.VHK_FORCE_INTERACTIVE
+    process.env.VHK_FORCE_INTERACTIVE = '1'
+    process.chdir(d)
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    vi.mocked(inquirer.prompt)
+      .mockResolvedValueOnce({ editedDraft: '- 신규 초안 룰' })
+      .mockResolvedValueOnce({ confirmed: true })
+
+    const { evolveApply } = await import('../src/commands/evolve.js')
+    await evolveApply('p1:rule')
+
+    const memory = JSON.parse(fs.readFileSync(path.join(d, '.vhk', 'memory.json'), 'utf-8')) as {
+      patterns: Array<{ id: string; status: string }>
+    }
+    expect(process.exitCode).toBe(1)
+    expect(fs.readFileSync(path.join(d, 'RULES.md'), 'utf-8')).toBe(originalRules)
+    expect(memory.patterns.find((pattern) => pattern.id === 'p1')?.status).toBe('active')
+    expect(fs.existsSync(path.join(d, '.vhk', 'evolve', 'queue.json'))).toBe(false)
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
   })

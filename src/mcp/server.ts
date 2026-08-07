@@ -851,7 +851,7 @@ export function createVhkMcpServer(): McpServer {
   server.registerTool(
     'evolve-suggest',
     {
-      description: 'active avoid 패턴 → 룰 초안 후보 생성·큐 적재 (Goal 20)',
+      description: '활성 패턴 → 7일 안에 판정할 룰 후보 계산(읽기 전용·큐 저장 없음)',
       inputSchema: {},
     },
     async () => runVhkCli(['evolve', 'suggest', '--json'], 'evolve suggest')
@@ -861,7 +861,7 @@ export function createVhkMcpServer(): McpServer {
   server.registerTool(
     'evolve-list',
     {
-      description: '진화 후보 목록 조회 (pending|rejected|applied — Goal 20)',
+      description: '현재 룰 후보와 결정 기록 조회(pending|rejected|applied)',
       inputSchema: {
         status: z.enum(['pending', 'rejected', 'applied']).optional().describe('상태 필터'),
       },

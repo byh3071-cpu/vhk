@@ -30,7 +30,12 @@
 - TypeScript strict (any 금지)
 - try-catch 필수, 빈 catch 금지
 - console.log 프로덕션 제거
-- `execSync` 신규 사용 금지 → `safeExecFile` 사용
+- 실행 위치가 바뀌어도 같아야 하는 로컬 전용 경로는 저장 전에 절대경로로 바꾼다. 공개 파일에는 로컬 절대경로를 기록하지 않는다.
+- 사람에게 보여주는 날짜는 로컬 날짜를, 기계가 읽는 정확한 시각은 UTC ISO 형식을 쓴다.
+- 질문이 필요한 명령은 시작할 때 TTY를 확인한다. 입력할 수 없거나 입력이 끝나면 실행 방법을 안내하고 실패로 끝낸다.
+- 셸 명령의 따옴표와 여러 줄 문법은 실제 실행 셸에 맞춘다. Bash와 PowerShell 문법을 섞지 않는다.
+- 외부 입력이나 시각으로 파일·폴더명을 만들 때는 공통 헬퍼로 운영체제 금지문자를 바꾸고, 빈 이름과 중복을 확인한다.
+- `execSync` 신규 사용 금지 → `safeExecFile` 사용 <!-- vhk:check=no-exec-sync -->
 - 모든 커맨드 파일에 `printNextStep()` 패턴 사용
 - 한국어 별칭 `.alias()` + `ko.ts` 메시지 필수
 - 신규 커맨드 시 `nlp-router.ts` 키워드 추가 필수
@@ -53,3 +58,20 @@
 ## 커밋 컨벤션
 - 형식: `feat:` / `fix:` / `refactor:` / `docs:` / `chore:`
 - 1 iteration = 작은 commit 하나 + 게이트 통과(or 정직한 블로커)
+
+## VHK 운영 — Forbidden (전역 금지)
+> 단일 Forbidden 목록(통합 SoT — 파생 산출물은 이 섹션을 포인터로 참조한다).
+> CLAUDE.md 헌법 영구구역의 Forbidden 은 불가침이라 그대로 둠 — 의례 수준 금지는 그쪽, 코드/운영 수준 금지는 여기.
+
+- `node_modules/` 직접 수정 금지
+- 공개 API breaking change는 major 버전에서만 허용
+- `execSync` 신규 사용 금지 → `safeExecFile`
+- MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
+- 토큰/시크릿 코드·커밋 평문 노출 금지 (`.env` + `.gitignore`)
+- 게이트 실패 상태에서 done 처리 금지 / `vhk resume` 자동 호출 금지
+- AGENTS.md·.cursorrules 등 sync 산출물 직접 편집 금지 → RULES.md + `vhk sync`
+- publish 는 main 에서만 + 사람 승인 (가드 #119)
+- 공개 추적 금지 (ADR-010 §1 개정): **개인 운영 기록**(세션 로그·개인 일정·가용시간·개인 사정), 로컬 절대경로, 개인 이메일, 실명, 개인 저장소명, 실제 외부 서비스 객체 ID
+- 공개 추적 허용 (ADR-010 §1): **제품 작업 항목**(로드맵·릴리스 계획·작업 단위와 그 완료 조건) — 위 금지 항목을 하나도 포함하지 않을 때만
+- 예제는 `sample-*`, `<HOME>`, 명백한 가짜 ID만 사용하고 `boundary:check` 우회 금지
+- Git 작성자 이메일은 GitHub noreply, npm 공개 연락처는 `opensource@yohanstudio.co` 사용

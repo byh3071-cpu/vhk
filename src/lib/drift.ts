@@ -210,6 +210,52 @@ export interface ContextDriftResult {
   currentSha?: string
 }
 
+export interface DerivedFreshnessResult {
+  checked: boolean
+  stale: boolean
+  derivedPath?: string
+  sourcePath?: string
+  ageMs?: number
+}
+
+// `vhk goal next`가 적어 둔 원본 goal의 mtime과 next-task 파생본을 비교한다.
+// 파일 안의 경로는 사용자가 수정할 수 있으므로 레포 밖을 가리키면 읽지 않는다.
+export function checkNextTaskFreshness(rootDir: string): DerivedFreshnessResult {
+  const derivedRelative = path.join('docs', 'state', 'next-task.md')
+  const derivedPath = path.join(rootDir, derivedRelative)
+  if (!fs.existsSync(derivedPath)) return { checked: false, stale: false }
+
+  let content: string
+  try {
+    content = fs.readFileSync(derivedPath, 'utf-8')
+  } catch {
+    return { checked: false, stale: false }
+  }
+  const match = content.match(/^\s*file:\s*(.+?)\s*$/m)
+  if (!match) return { checked: false, stale: false }
+
+  const root = path.resolve(rootDir)
+  const source = path.resolve(rootDir, match[1].trim())
+  const relative = path.relative(root, source)
+  if (relative.startsWith('..') || path.isAbsolute(relative) || !fs.existsSync(source)) {
+    return { checked: false, stale: false }
+  }
+
+  try {
+    const derivedMtime = fs.statSync(derivedPath).mtimeMs
+    const sourceMtime = fs.statSync(source).mtimeMs
+    return {
+      checked: true,
+      stale: sourceMtime > derivedMtime,
+      derivedPath: derivedRelative.replace(/\\/g, '/'),
+      sourcePath: relative.replace(/\\/g, '/'),
+      ageMs: Math.max(0, sourceMtime - derivedMtime),
+    }
+  } catch {
+    return { checked: false, stale: false }
+  }
+}
+
 /**
  * context.md 가 **내용으로** 반영하는 추적 경로 (context.ts 생성 로직 기준).
  * - package.json → 기술 스택 섹션 (deps/name/version)

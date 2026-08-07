@@ -8,6 +8,9 @@ import {
   aggregateStatus,
   buildReport,
   buildNextActions,
+  buildVerifyAdvisories,
+  dismissVerifyAdvisory,
+  formatVerifyAdvisory,
   detectPm,
   runSecureGate,
   verifyEvidence,
@@ -24,6 +27,7 @@ import {
   type GateId,
 } from '../src/lib/gates-config.js'
 import { collectReceipt } from '../src/commands/receipt.js'
+import { readActionLedger } from '../src/lib/action-ledger.js'
 
 function gate(id: GateResult['id'], status: GateResult['status'], exitCode: number | null = 0): GateResult {
   return { id, label: id, status, exitCode, skipped: status === 'skip' }
@@ -92,6 +96,85 @@ describe('verify — nextActions', () => {
   })
 })
 
+describe('verify — 알림 안정 ID와 숨김', () => {
+  it('같은 게이트 문제는 반복 실행에도 같은 알림 ID', () => {
+    expect(buildVerifyAdvisories([gate('lint', 'skip', null)])).toEqual([
+      expect.objectContaining({
+        id: 'lint-gate',
+        message: 'lint 검사가 설정되어 있지 않습니다.\n해결: package.json에 lint 스크립트 추가',
+      }),
+    ])
+  })
+
+  it('다시 발생한 문제는 경과 시간과 이전 숨김 횟수를 명확하게 출력', () => {
+    expect(formatVerifyAdvisory({
+      id: 'lint-gate',
+      message: 'lint 검사가 설정되어 있지 않습니다.\n해결: package.json에 lint 스크립트 추가',
+      ageMs: 2 * 24 * 60 * 60 * 1000,
+      dismissCount: 3,
+      escalated: true,
+    })).toBe([
+      '🚨 같은 문제가 다시 발생했습니다.',
+      '   lint 검사가 설정되어 있지 않습니다.',
+      '   2일째 계속됨 · 이전에 이 알림을 3번 숨김',
+      '   해결: package.json에 lint 스크립트 추가',
+      '   알림 ID: lint-gate',
+    ].join('\n'))
+  })
+
+  it('latest.json의 권고를 무시하면 action-ledger에 누적', () => {
+    const d = tmp()
+    try {
+      fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+      verifyEvidence(d)
+      expect(dismissVerifyAdvisory(d, 'lint-gate')).toBe(true)
+      expect(readActionLedger(d)).toEqual(expect.arrayContaining([
+        expect.objectContaining({ action: 'advisory-dismiss', target: 'lint-gate', ran: true }),
+      ]))
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  it('action-ledger를 쓸 수 없으면 숨김 성공으로 보고하지 않는다', () => {
+    const d = tmp()
+    try {
+      fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+      verifyEvidence(d)
+      fs.rmSync(path.join(d, '.vhk', 'events'), { recursive: true, force: true })
+      fs.writeFileSync(path.join(d, '.vhk', 'events'), 'not-a-directory', 'utf-8')
+
+      expect(dismissVerifyAdvisory(d, 'lint-gate')).toBe(false)
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  it('verify --dismiss 성공 기록을 현재 저장소에 커밋한다', async () => {
+    const d = tmp()
+    const originalCwd = process.cwd()
+    try {
+      execFileSync('git', ['init'], { cwd: d, stdio: 'pipe' })
+      execFileSync('git', ['config', 'user.name', 'VHK Test'], { cwd: d, stdio: 'pipe' })
+      execFileSync('git', ['config', 'user.email', 'vhk-test@users.noreply.github.com'], { cwd: d, stdio: 'pipe' })
+      fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+      verifyEvidence(d)
+      process.chdir(d)
+
+      await verify({ dismiss: 'lint-gate' })
+
+      const subject = execFileSync('git', ['log', '-1', '--pretty=%s'], { cwd: d, encoding: 'utf-8' }).trim()
+      const files = execFileSync('git', ['show', '--pretty=', '--name-only', 'HEAD'], { cwd: d, encoding: 'utf-8' })
+      expect(subject).toBe('chore(vhk): evidence ledger [skip ci]')
+      expect(files.replaceAll('\\', '/')).toContain('.vhk/events/ai-actions.jsonl')
+    } finally {
+      process.chdir(originalCwd)
+      process.exitCode = 0
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+})
+
 describe('verify — detectPm', () => {
   it('lockfile 로 pm 감지 (없으면 npm)', () => {
     const d = tmp()
@@ -152,6 +235,9 @@ describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
     expect(report.status).toBe('WARN')
     expect(report.gates.find((g) => g.id === 'typecheck')?.status).toBe('skip')
     expect(report.gates.find((g) => g.id === 'secure')?.status).toBe('pass')
+    expect(readActionLedger(d)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'verify', result: 'WARN', ran: true }),
+    ]))
     // reports/ 로컬 전용 등재
     expect(fs.readFileSync(path.join(d, '.vhk', '.gitignore'), 'utf-8')).toContain('reports/')
     fs.rmSync(d, { recursive: true, force: true })

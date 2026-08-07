@@ -2,30 +2,25 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { evolveReject, QUEUE_PATH_REL, type EvolveQueueFile } from '../src/commands/evolve.js'
+import { evolveReject } from '../src/commands/evolve.js'
 import { readEvolveLog } from '../src/lib/evolve-log.js'
 
 // #374 (evolve효과): evolveReject 에 optional reason 인자 → 로그(applied:false,rejectReason) 기록.
 
 function tmpProject(): string {
   const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-reject-'))
-  const queue: EvolveQueueFile = {
-    version: 2,
-    items: [
-      {
-        id: 'e1',
-        patternId: 'p1',
-        kind: 'rule',
-        targetLayer: 'rule',
-        status: 'pending',
-        draft: '- 초안',
-        dedupeKey: 'p1:rule',
-        createdAt: '2026-01-01T00:00:00Z',
-      },
-    ],
-  }
-  fs.mkdirSync(path.join(d, '.vhk', 'evolve'), { recursive: true })
-  fs.writeFileSync(path.join(d, QUEUE_PATH_REL), JSON.stringify(queue, null, 2), 'utf-8')
+  fs.mkdirSync(path.join(d, '.vhk'), { recursive: true })
+  fs.writeFileSync(path.join(d, '.vhk', 'memory.json'), JSON.stringify({
+    schemaVersion: 2,
+    decisions: [],
+    failures: [],
+    successes: [],
+    patterns: [{
+      id: 'p1', kind: 'avoid', axis: 'tag', signal: 'build', count: 3,
+      sources: [], summary: '반복 실패', createdAt: new Date().toISOString(),
+      status: 'active', tags: [], _sig: 'avoid:tag:build',
+    }],
+  }), 'utf-8')
   return d
 }
 
@@ -45,11 +40,11 @@ describe('evolveReject — reason 인자 (#374)', () => {
     process.chdir(d)
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-    await evolveReject('e1')
+    await evolveReject('p1:rule')
 
     const log = readEvolveLog(d)
     expect(log).toHaveLength(1)
-    expect(log[0].suggId).toBe('e1')
+    expect(log[0].suggId).toBe('p1:rule')
     expect(log[0].applied).toBe(false)
     expect(log[0].rejectReason).toBeNull()
     process.chdir(origCwd)
@@ -62,7 +57,7 @@ describe('evolveReject — reason 인자 (#374)', () => {
     process.chdir(d)
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-    await evolveReject('e1', '중복 룰')
+    await evolveReject('p1:rule', '중복 룰')
 
     const log = readEvolveLog(d)
     expect(log).toHaveLength(1)
@@ -90,8 +85,8 @@ describe('evolveReject — reason 인자 (#374)', () => {
     process.chdir(d)
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
-    await evolveReject('e1', '첫 사유')
-    await evolveReject('e1', '두번째 호출')
+    await evolveReject('p1:rule', '첫 사유')
+    await evolveReject('p1:rule', '두번째 호출')
 
     const log = readEvolveLog(d)
     expect(log).toHaveLength(1)

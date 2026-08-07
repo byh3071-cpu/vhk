@@ -53,16 +53,21 @@ describe('calcApplyRate', () => {
 })
 
 describe('stats 커맨드 (읽기 전용)', () => {
-  let logSpy: ReturnType<typeof vi.spyOn>
-  let origCwd: string
+  const originalCwd = process.cwd()
+  let logSpy: ReturnType<typeof vi.spyOn> | undefined
+  let tempDir: string | undefined
+
   afterEach(() => {
     if (logSpy) logSpy.mockRestore()
-    if (origCwd) process.chdir(origCwd)
+    process.chdir(originalCwd)
+    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true })
+    logSpy = undefined
+    tempDir = undefined
   })
 
   it('빈 cwd 에서도 throw 없이 동작 + 파일 쓰기 0건', async () => {
     const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stats-'))
-    origCwd = process.cwd()
+    tempDir = d
     process.chdir(d)
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -70,7 +75,17 @@ describe('stats 커맨드 (읽기 전용)', () => {
 
     // 읽기 전용 — .vhk 디렉터리(쓰기 흔적) 생성 안 함
     expect(fs.existsSync(path.join(d, '.vhk'))).toBe(false)
-    process.chdir(origCwd)
-    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('진화 기록을 읽지 못해도 경고하고 빈 통계로 계속한다', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stats-log-'))
+    tempDir = d
+    fs.mkdirSync(path.join(d, '.vhk', 'events', 'evolve-log.jsonl'), { recursive: true })
+    process.chdir(d)
+    const output: string[] = []
+    logSpy = vi.spyOn(console, 'log').mockImplementation((message?: unknown) => { output.push(String(message)) })
+
+    await expect(stats()).resolves.toBeUndefined()
+    expect(output.join('\n')).toContain('진화 결정 기록을 읽지 못해')
   })
 })

@@ -5,7 +5,7 @@ export const ko = {
     title: '통계 대시보드',
     ledger: '증거 원장:',
     blockRate: 'AI 행동 차단율:',
-    applyRate: '진화 적용율:',
+    applyRate: '진화 결정 채택률:',
     noActions: '데이터 없음 (action-ledger 미연동 — Goal 55 머지 후 집계)',
     nextMessage: '집계 확인 완료! 증거를 더 쌓으려면 검증을 실행하세요.',
     nextCursor: '검증 실행해줘',
@@ -38,6 +38,9 @@ export const ko = {
     behind: (n: number) => `↓${n} behind`,
     package: 'package.json:',
     noPackage: 'package.json 없음',
+    unstarted: (count: number) => `아직 시작하지 않은 작업 ${count}개`,
+    oldestUnstarted: (id: number, title: string, days: number) =>
+      `가장 오래된 작업: #${id} ${title} · ${days}일 전 등록`,
     detached: '(detached HEAD)',
     unknownBranch: '(알 수 없음)',
     nextWithChangesMessage: '변경사항이 있어요. 먼저 무엇이 바뀌었는지 확인하세요.',
@@ -220,6 +223,19 @@ export const ko = {
     startDev: '이제 개발해 보세요! 🚀',
     commandsMdDone: '📋 COMMANDS.md 생성',
     scriptsDone: '📦 package.json scripts 추가',
+    ciCreated: (workflowPath: string) => `${workflowPath} 생성 — PR 검사 준비 완료`,
+    ciExisting: (workflows: string[]) =>
+      `기존 GitHub Actions 워크플로 보존: ${workflows.join(', ')} — VHK Gate 단계를 기존 파일에 병합하세요.`,
+    ciMergeHeader: '기존 job에 아래 명령을 실패 허용 없이 순서대로 추가하세요:',
+    ciMergeCommands: (version: string) => [
+      `npx --yes @byh3071/vhk@${version} verify`,
+      `npx --yes @byh3071/vhk@${version} sync --check`,
+      `npx --yes @byh3071/vhk@${version} check`,
+      `npx --yes @byh3071/vhk@${version} secure scan`,
+      'npm run boundary:check --if-present',
+    ],
+    ciRequiredCheckHint: 'GitHub 저장소 Settings → Rules에서 상태 검사 “VHK Gate”를 필수로 지정하세요.',
+    ciInstallFailed: (message: string) => `PR 검사 파일을 만들지 못했습니다: ${message}`,
     gitignoreCreated: '🔒 .gitignore 생성 (.env·node_modules·dist 제외)',
     gitignoreUpdated: '🔒 .gitignore 보강 (누락 항목 추가)',
     customizationMarkerDone: '🎯 .vhk/NEEDS_CUSTOMIZATION 생성 — 첫 세션에서 도메인 인터뷰 자동 트리거',
@@ -233,19 +249,21 @@ export const ko = {
     recordHookHooksPath: '⚠️  core.hooksPath 설정 감지(husky 등) — .git/hooks 는 git 이 무시하므로 기록 집행 훅 미배선. 해당 훅 디렉터리의 commit-msg 에 node .vhk/hooks/record-check.mjs 호출을 수동 추가하세요.',
     recordHookFailed: '⚠️  기록 집행 훅 배선 실패(선택 기능 — init 은 계속):',
     coreRulesBundledWarn: (version: string) => {
-      const v = version === 'unknown' ? '버전 미상' : `v${version}`
+      const v = version === 'unknown' ? '버전 확인 안 됨' : `v${version}`
       return (
         `사용자 규칙 파일이 없어 core-rules가 번들 스냅샷(${v})으로 사용되고 있어요. ` +
         `별도 규칙을 사용하려면 VHK_RULES_FILE을 설정하거나 ` +
         `vhk inject-bootstrap --force 를 실행하세요. 이 명령은 ecosystem.mdc 등 다른 tier-S 파일도 최신 템플릿으로 되돌릴 수 있어요 — ` +
         `직접 손으로 고친 적 있으면 먼저 git status로 확인하세요. ` +
-        `재시작 없이 적용하려면 vhk config set-rules-file <yaml경로>를 실행하세요.`
+        `재시작 없이 적용하려면 vhk config set-rules-file <HOME>/sample-rules.yaml을 실행하세요.`
       )
     },
     adoptPrompt: (n: number, list: string) =>
       `📥 기존 규칙 파일 ${n}개 발견 (${list}). RULES.md로 가져올까요?`,
     adoptPreview: (n: number) =>
       `기존 규칙 ${n}개를 RULES.md 표준 섹션으로 병합했어요 (출처 주석 포함).`,
+    adoptIntegrityFailed: (detail: string) =>
+      `기존 규칙을 가져오지 않았습니다 — ${detail}`,
     adoptDone: '📥 RULES.md — 기존 규칙 adopt 완료',
     missionScaffold: '🎯 .vhk/mission.json 생성 (작업 계약 뼈대 — vhk mission set 으로 목표·범위 채우기)',
     missionScaffoldFailed: '⚠️  .vhk/mission.json 생성 실패 (권한 확인) — 작업 계약 없이 계속합니다:',
@@ -290,6 +308,16 @@ export const ko = {
     nextHint: 'goal/receipt/review/learn 루프를 vhk-gate skill 로 실행하세요.',
   },
   check: {
+    rulesReadFailed: (message: string) => `RULES.md를 읽거나 해석하지 못했습니다: ${message}`,
+    coverage: (checked: number, declared: number, percent: number) =>
+      `검사 비율: ${checked}/${declared} (${percent.toFixed(1)}%)`,
+    unchecked: (n: number) => `선언만(미검사): ${n}개`,
+    bindingPassed: (id: string) => `연결 검사 통과: ${id}`,
+    bindingInvalidId: (id: string) => `잘못된 검사 ID: ${id || '(비어 있음)'}`,
+    bindingMultiple: '검사 연결 표시는 규칙 하나에 하나만 쓸 수 있습니다.',
+    bindingMissing: (id: string) =>
+      `검사 파일이 없습니다: scripts/check-rule-${id}.mjs 또는 .sh`,
+    bindingFailed: (scriptPath: string) => `연결 검사 실패: ${scriptPath}`,
     title: '🔍 프로젝트 규칙 점검',
     noRules: '⚠️ RULES.md 파일이 없어요.',
     noAutoRules: '⚠️ 자동으로 검사할 규칙이 없어요.',
@@ -318,14 +346,14 @@ export const ko = {
     updateAvailable: (latest: string) =>
       `🆕 v${latest} 사용 가능 — npm i -g @byh3071/vhk`,
     updateCurrent: '최신 버전을 쓰고 있어요',
-    driftTitle: '🔀 설정 불일치(drift) 점검 (규칙·맥락 어긋남):',
+    driftTitle: '🔀 규칙·작업 안내 최신 상태 확인:',
     driftNoRules: '⬚ RULES.md 없음 — 규칙 불일치(drift) 점검 생략',
     driftRuleClean: '✅ 규칙 파일이 RULES.md와 일치',
     driftRuleWarn: (files: string) =>
-      `⚠️ 없거나 RULES.md와 어긋난 규칙 파일: ${files}`,
+      `⚠️ RULES.md와 맞지 않는 규칙 파일: ${files}`,
     driftExpected: (location: string, content: string) => `기대 (${location}): ${content}`,
     driftActual: (location: string, content: string) => `실제 (${location}): ${content}`,
-    driftAction: '조치: vhk sync 로 다시 맞추세요 (전체 차이: vhk doctor --diff)',
+    driftAction: '맞추기: vhk sync (전체 차이: vhk doctor --diff)',
     driftMissingLine: '(줄 없음)',
     driftEmptyLine: '(빈 줄)',
     driftSensitiveHidden: '[민감정보로 숨김]',
@@ -334,7 +362,10 @@ export const ko = {
     driftDiffLimited: (files: string) =>
       `전체 차이 생략 (크기 제한, 첫 상이 지점만 표시): ${files}`,
     diffOption: '규칙 파일의 전체 차이 출력 (기본은 첫 상이 지점만)',
-    driftContextWarn: '⚠️ .vhk/context.md 가 현재 코드보다 낡았어요 — vhk context 로 갱신하세요',
+    driftContextWarn: '⚠️ 작업 맥락에 최신 변경사항이 반영되지 않았습니다.',
+    driftContextAction: '갱신: vhk context',
+    driftNextTaskWarn: '⚠️ 다음 작업 안내에 최신 변경사항이 반영되지 않았습니다.',
+    driftNextTaskAction: '갱신: vhk goal next',
     goalSchemaTitle: 'Goal frontmatter',
     goalSchemaOk: (n: number) => `✅ goals/ ${n}개 goal 파싱 정상`,
     goalSchemaSkipped: (n: number) => `⚠️ 스키마 불일치로 무시된 goal 파일 ${n}개`,
@@ -395,6 +426,7 @@ export const ko = {
     matched: '이게 맞나요?',
     notMatched: '무슨 뜻인지 모르겠어요. vhk를 입력하면 메뉴에서 선택할 수 있습니다.',
     menuHint: 'vhk를 입력하면 메뉴에서 선택할 수 있습니다.',
+    evolveExplanation: '현재 진화 후보 확인 (vhk evolve list) — 반영·되돌리기는 직접 실행',
   },
   secure: {
     title: '🔒 비밀번호·키 유출 검사',
@@ -413,15 +445,23 @@ export const ko = {
     noRules: '⚠️ RULES.md 파일이 없어요.',
     // Goal 63 — sync --check (검사 전용)
     checkNoRules: '⚠️ RULES.md 없음 — 검사 비적용 통과',
-    checkPass: '✅ 규칙 동기화 상태 — sync 산출 전부(RULES 미러 + bootstrap) 일치',
     checkDrift: (p: string) => `↯ ${p} — 생성본과 다름 (직접 수정 또는 sync 미실행)`,
     checkMissing: (p: string) => `∅ ${p} — 파일 없음 (sync 가 생성할 타겟)`,
-    checkFail: (n: number) => `❌ drift ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
-    // 미매핑 섹션은 차단 대상이 아니지만 조용하면 안 된다 — 코딩 규칙 파일 6종에서 빠진다.
-    checkUnmappedClean: '🧩 미매핑 섹션 0건 — RULES.md 전 섹션이 코딩 규칙 파일까지 전파됨',
-    checkUnmapped: (titles: string[]) =>
-      `🧩 미매핑 섹션 ${titles.length}건 — 코딩 규칙 파일 6종(.cursorrules·.windsurfrules·copilot·antigravity·GEMINI·cline)에는 안 실립니다: ${titles.join(', ')}` +
-      `\n     (AGENTS.md 「기타 규칙」·CLAUDE.md 에는 전파됨. 6종에도 넣으려면 표준 제목을 쓰세요.)`,
+    checkSectionMissing: (target: string, section: string) =>
+      `∅ ${target} — 필수 섹션 「${section}」 누락`,
+    checkDriftSummary: (n: number) =>
+      n === 0 ? '✅ 재생성 결과 불일치 0건' : `❌ 재생성 결과 불일치 ${n}건`,
+    checkFileMissingSummary: (n: number) =>
+      n === 0 ? '✅ 타겟 파일 누락 0건' : `❌ 타겟 파일 누락 ${n}건`,
+    checkSectionMissingSummary: (n: number) =>
+      n === 0 ? '✅ 필수 섹션 누락 0건' : `❌ 필수 섹션 누락 ${n}건`,
+    checkFail: (n: number) => `❌ 동기화 문제 ${n}건 — \`vhk sync\` 로 재전파하세요 (직접 편집 금지)`,
+    // 미연결 섹션은 차단 대상이 아니지만 조용하면 안 된다 — AGENTS.md의 기타 규칙 외에는 빠진다.
+    checkUnmappedClean: '🧩 미연결 섹션 0건 — 모든 RULES.md 섹션에 자동 연결 기준이 있음',
+    checkUnmapped: (titles: string[], standardTitles: string[]) =>
+      `🧩 미연결 섹션 ${titles.length}건 — RULES.md와 AGENTS.md 「기타 규칙」에는 남지만 전용 규칙 파일에는 자동 연결되지 않습니다: ${titles.join(', ')}` +
+      `\n     인식하는 표준 제목(제목에 아래 말 중 하나 포함): ${standardTitles.join(' · ')}` +
+      `\n     해결: 제목에 맞는 표준 말을 넣거나, 모든 규칙 파일에 보내려면 제목 뒤에 <!-- vhk:sync=all -->을 붙이세요.`,
     driftDocsTitle: (n: number) => `📡 문서-실측 불일치(drift) ${n}건 (warn — RFC 0062)`,
     driftDocsClean: '📡 문서-실측 불일치(drift) 없음 (RFC 0062 warn 검사)',
     driftDocsWarnNote: 'warn 모드 — 차단하지 않습니다. 문서를 실측에 맞게 고치거나, 오탐이면 그대로 두세요(오탐률 계측 중).',
@@ -446,8 +486,10 @@ export const ko = {
       `위 ${n}개 파일의 기존 내용을 덮어쓸까요? (백업은 이미 저장됨)`,
     skipped: (p: string) => `⏭️  건너뜀: ${p} (덮어쓰기 거부 — 백업만 보관)`,
     dryRunHeader: '🔎 미리보기 (--dry-run) — 실제 파일 변경 없음',
-    dryRunWouldWrite: (p: string, drift: boolean) =>
-      `  ${drift ? '✏️  변경됨' : '·  동일'} : ${p}`,
+    itemState: (p: string, state: 'created' | 'updated' | 'unchanged') => {
+      const label = state === 'created' ? '✚  생성됨' : state === 'updated' ? '✏️  변경됨' : '·  동일'
+      return `  ${label} : ${p}`
+    },
     nonTtyAuto: (n: number, id: string) =>
       `🤖 비대화형(CI/에이전트) — ${n}개 백업 후 진행. 복원: vhk restore ${id}`,
     // 배치1 — CLAUDE.md 를 vhk 마커(<!-- vhk:rules:start/end -->) 형식으로 1회 정리할 때의 안내.
@@ -654,6 +696,19 @@ export const ko = {
     notFound: (id: number) => `goal id ${id} 없음 — vhk goal list 로 확인하세요.`,
     invalidId: (raw: string) =>
       `유효하지 않은 goal 번호: '${raw}' — 양의 정수만 됩니다 (예: --id 3). vhk goal list 로 확인하세요.`,
+    dependencyWaiting: (ids: string) => `선행 작업 대기: ${ids}`,
+    dependencyIssueHeader: (n: number) => `Goal 선행 조건 설정 오류 ${n}건`,
+    dependencyInvalid: (id: number, tokens: string) =>
+      `Goal ${id}의 depends_on 값이 숫자 목록이 아닙니다: ${tokens}`,
+    dependencyMissing: (id: number, dependencyId: number) =>
+      `Goal ${id}가 존재하지 않는 Goal ${dependencyId}를 기다립니다.`,
+    dependencySelf: (id: number) => `Goal ${id}가 자기 자신을 선행 작업으로 가리킵니다.`,
+    dependencyCycle: (cycle: string) => `Goal 선행 조건이 순환합니다: ${cycle}`,
+    dependencyFixHint: 'goals/*.md의 depends_on을 고친 뒤 vhk goal list로 다시 확인하세요.',
+    dependencyInvalidInProgress: (id: number, waiting: string) =>
+      `Goal ${id}가 시작됐지만 선행 작업 ${waiting}이 완료되지 않았습니다. 상태와 로드맵을 먼저 맞추세요.`,
+    dependencyDoneBlocked: (id: number, waiting: string) =>
+      `Goal ${id} 완료 처리 거부 — 먼저 끝내야 할 Goal: ${waiting}`,
     // 여기의 "불일치(drift)"는 설정이 아니라 goal 상태 ↔ 코드 현실의 어긋남이다 (ADR-011 대응표 적용 시 의미 보존).
     driftTitle: '🔍 Goal 상태↔코드 불일치(drift) 점검',
     driftClean: 'goal 상태 불일치(drift) 없음 (구현 흔적 있는데 NOT_STARTED 인 goal 0건)',
@@ -695,7 +750,7 @@ export const ko = {
     undoTitle: '최근 반영 되돌리기',
     noRules: 'RULES.md 가 없습니다. vhk init으로 생성 후 다시 시도하세요.',
     noPatterns: 'patterns[]가 비어있거나 active avoid 패턴이 없습니다. vhk pattern detect 로 먼저 감지하세요.',
-    noQueue: '후보가 없습니다. vhk evolve suggest 로 먼저 생성하세요.',
+    noQueue: '판정할 후보나 결정 기록이 없습니다.',
     notFound: (id: string) => `후보 '${id}' 를 찾을 수 없습니다. vhk evolve list 로 확인하세요.`,
     alreadyApplied: '이미 반영된 후보입니다.',
     dismissed: '소스 패턴이 dismiss됨 — apply 거부 (dismiss된 패턴 기반 룰은 반영 안 됨)',
@@ -704,11 +759,11 @@ export const ko = {
     pendingApplyExists: '미해소 apply가 있습니다. vhk evolve undo 후 재시도하거나 그대로 유지하세요.',
     noAppliedToUndo: 'undo할 반영 항목이 없습니다.',
     noBackup: '.bak 파일이 없어 undo 불가합니다. RULES.md를 수동 복원하세요.',
-    allSuggested: '모든 패턴이 이미 제안됐거나 reject됐습니다.',
-    newCandidates: (n: number) => `신규 후보: ${n}개 추가됨`,
-    suggestHint: 'vhk evolve suggest 로 생성하세요.',
-    digestTitle: 'evolve digest — 룰 후보 묶음 초안 (읽기 전용·자동 반영 0)',
-    digestEmpty: 'pending 후보가 없습니다. vhk evolve suggest 로 먼저 생성하세요.',
+    allSuggested: (days: number) => `판정할 후보가 없습니다. 기존 후보는 이미 결정됐거나 ${days}일이 지났습니다.`,
+    newCandidates: (n: number) => `현재 후보: ${n}개`,
+    suggestHint: 'vhk evolve suggest 로 현재 후보를 확인하세요.',
+    digestTitle: 'evolve digest — 현재 룰 후보 묶음 (읽기 전용·자동 반영 0)',
+    digestEmpty: '현재 판정할 후보가 없습니다.',
     digestNext: (n: number) => `후보 ${n}개 — 신뢰도 높은 것부터 사람이 검토·반영(자동 반영 없음).`,
   },
   seo: {

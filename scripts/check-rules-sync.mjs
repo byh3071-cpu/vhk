@@ -14,6 +14,7 @@ import { isMainModule, ensureNoHardStop } from './_lib.mjs'
 
 const VHK_BLOCK_START = '<!-- vhk:rules:start -->'
 const VHK_BLOCK_END = '<!-- vhk:rules:end -->'
+const SYNC_ALL_MARKER = '<!-- vhk:sync=all -->'
 
 /** `## ` 기준 섹션 분리(src/commands/sync.ts parseRulesMd 와 동형 — .mjs 라 TS import 불가, _lib.mjs 선례). */
 export function parseSections(md) {
@@ -23,7 +24,7 @@ export function parseSections(md) {
   for (const line of md.split(/\r?\n/)) {
     if (line.startsWith('## ')) {
       if (title) sections.push({ title, content: buf.join('\n').trim() })
-      title = line.slice(3).trim()
+      title = line.slice(3).replace(SYNC_ALL_MARKER, '').trim()
       buf = []
     } else if (title) {
       buf.push(line)

@@ -2,7 +2,10 @@ import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
+import { generateInlineCandidates } from '../lib/evolve-candidates.js'
+import { currentEvolveDecisionKeys, readEvolveLog } from '../lib/evolve-log.js'
 import { loadForMutation, readMemory, writeMemory, type MemoryFileV2, type MemEntry, type FailEntry, type PatternEntry } from './memory.js'
+import { log } from '../utils/logger.js'
 
 /**
  * Goal 19: pattern detection v0 — active failures/successes 에서 반복 패턴 감지.
@@ -218,6 +221,11 @@ export async function patternDetect(opts: { min?: string; json?: boolean } = {})
   // dismiss 존중·신규/갱신 판정은 순수 reconcilePatterns 가 담당(테스트 가능).
   const now = new Date().toISOString()
   const { added, updated } = reconcilePatterns(mem.patterns as PatternEntryV19[], candidates, now)
+  const newRuleCandidates = generateInlineCandidates(
+    mem.patterns as PatternEntryV19[],
+    currentEvolveDecisionKeys(readEvolveLog(cwd)),
+    now,
+  ).filter((candidate) => candidate.createdAt === now)
 
   // Fix #6: 변경이 없으면 writeMemory 스킵 — .bak 슬롯 불필요 소비 방지
   if (added > 0 || updated > 0) {
@@ -250,6 +258,15 @@ export async function patternDetect(opts: { min?: string; json?: boolean } = {})
     const preview = p.sources.slice(0, 5).join(', ') + (p.sources.length > 5 ? ` 외 ${p.sources.length - 5}건` : '')
     console.log(chalk.dim(`      근거: ${preview}`))
     console.log(chalk.dim(`      ${p.summary}`))
+  }
+
+  if (newRuleCandidates.length > 0) {
+    log.plain(chalk.cyan(`\n바로 선택할 규칙 후보 ${newRuleCandidates.length}개:`))
+    for (const candidate of newRuleCandidates) {
+      log.plain(`  [${candidate.id}] ${candidate.draft}`)
+      log.dim(`      승인: vhk evolve apply ${candidate.id}`)
+      log.dim(`      기각: vhk evolve reject ${candidate.id} "이유"`)
+    }
   }
 
   printNextStep({

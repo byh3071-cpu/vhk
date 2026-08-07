@@ -5,6 +5,7 @@ import path from 'node:path'
 import {
   findLegacyTerms,
   FORBIDDEN_TERMS,
+  OUTPUT_LANGUAGE_TERMS,
   TERMINOLOGY_TARGETS,
 } from '../scripts/check-terminology.mjs'
 
@@ -40,13 +41,27 @@ describe('check-terminology — ADR-011 용어 회귀 게이트', () => {
     expect(sources.some((s) => s.includes('감사층'))).toBe(true)
     expect(sources.some((s) => s.includes('트립와이어'))).toBe(true)
     expect(sources.some((s) => s.includes('드리프트'))).toBe(true)
+    expect(sources.some((s) => s.includes('미착수'))).toBe(true)
+    expect(sources.some((s) => s.includes('최고령'))).toBe(true)
+    expect(sources.some((s) => s.includes('반복 무시'))).toBe(true)
   })
 
   it('검사 대상은 외부 표면만 — ADR·RFC 는 제외 (append-only 규율)', () => {
     expect(TERMINOLOGY_TARGETS).toContain('README.md')
     expect(TERMINOLOGY_TARGETS).toContain('src/i18n/ko.ts')
+    expect(TERMINOLOGY_TARGETS).toContain('src/commands/verify.ts')
+    expect(TERMINOLOGY_TARGETS).toContain('COMMANDS.md')
     expect(TERMINOLOGY_TARGETS.some((f: string) => f.startsWith('docs/adr/'))).toBe(false)
     expect(TERMINOLOGY_TARGETS.some((f: string) => f.startsWith('docs/rfc/'))).toBe(false)
+  })
+
+  it('COMMANDS.md를 직접 검사해도 사용자 출력용 표현만 적용한다', () => {
+    expect(findLegacyTerms('감사층과 미착수', OUTPUT_LANGUAGE_TERMS).map((hit) => hit.term)).toEqual(['미착수'])
+    execFileSync('node', [SCRIPT, 'COMMANDS.md'], {
+      cwd: process.cwd(),
+      encoding: 'utf-8',
+      stdio: 'pipe',
+    })
   })
 
   it('종전 용어가 섞인 파일을 넘기면 exit 1', () => {

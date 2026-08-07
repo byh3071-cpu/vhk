@@ -72,7 +72,7 @@ describe('doctor 규칙 불일치 설명', () => {
     },
   ]
 
-  it('기본 출력은 첫 상이 지점의 기대/실제/조치 3줄뿐이다', () => {
+  it('기본 출력은 첫 상이 지점의 기대/실제/맞추기 3줄뿐이다', () => {
     const lines = formatRuleDriftDetails(drifted)
     expect(lines).toHaveLength(3)
     expect(lines[0]).toContain('기대')
@@ -80,7 +80,7 @@ describe('doctor 규칙 불일치 설명', () => {
     expect(lines[0]).toContain('기대 첫째')
     expect(lines[1]).toContain('실제')
     expect(lines[1]).toContain('실제 첫째')
-    expect(lines[2]).toContain('조치')
+    expect(lines[2]).toContain('맞추기')
     expect(lines.join('\n')).not.toContain('둘째')
     expect(lines.join('\n')).not.toContain('GEMINI.md')
   })
@@ -91,7 +91,7 @@ describe('doctor 규칙 불일치 설명', () => {
     expect(lines.join('\n')).toContain('실제 둘째')
     expect(lines.join('\n')).toContain('GEMINI.md:2')
     expect(lines.join('\n')).toContain(ko.doctor.driftMissingLine)
-    expect(lines.at(-1)).toContain('조치')
+    expect(lines.at(-1)).toContain('맞추기')
   })
 
   it('--diff 안전 상한 초과는 전체 차이 생략을 명시한다', () => {
@@ -102,12 +102,22 @@ describe('doctor 규칙 불일치 설명', () => {
     expect(lines).toContain(ko.doctor.driftDiffLimited('AGENTS.md'))
   })
 
-  it('규칙 파일 누락도 거짓 정상 대신 기대/실제/조치 3줄로 설명한다', () => {
+  it('규칙 파일 누락도 거짓 정상 대신 기대/실제/맞추기 3줄로 설명한다', () => {
     const lines = formatRuleDriftDetails([{ path: 'AGENTS.md', status: 'missing' }])
     expect(lines).toHaveLength(3)
     expect(lines[0]).toContain(ko.doctor.driftGeneratedFile)
     expect(lines[1]).toContain(ko.doctor.driftMissingFile)
-    expect(lines[2]).toContain('조치')
+    expect(lines[2]).toContain('맞추기')
+  })
+
+  it('규칙 파일 문제는 대상과 맞추는 명령을 명확하게 말한다', () => {
+    expect(ko.doctor.driftRuleWarn('AGENTS.md')).toBe('⚠️ RULES.md와 맞지 않는 규칙 파일: AGENTS.md')
+    expect(ko.doctor.driftAction).toBe('맞추기: vhk sync (전체 차이: vhk doctor --diff)')
+  })
+
+  it('낡은 다음 작업 안내는 상태와 갱신 명령을 나눠서 말한다', () => {
+    expect(ko.doctor.driftNextTaskWarn).toBe('⚠️ 다음 작업 안내에 최신 변경사항이 반영되지 않았습니다.')
+    expect(ko.doctor.driftNextTaskAction).toBe('갱신: vhk goal next')
   })
 
   it('규칙 줄의 제어 문자를 이스케이프하고 초장문 출력을 제한한다', () => {
@@ -141,7 +151,7 @@ describe('doctor 규칙 불일치 설명', () => {
       expect(lines[1]).toBe(ko.doctor.driftActual('AGENTS.md:7', ko.doctor.driftSensitiveHidden))
       expect(lines.join('\n')).not.toContain(fakeToken)
       expect(lines.join('\n')).not.toContain('TOKEN=changed')
-      expect(lines.at(-1)).toContain('조치')
+      expect(lines.at(-1)).toContain('맞추기')
     })
 
     it('실제 줄에만 시크릿이 있어도 쌍(기대 줄 포함)으로 숨긴다', () => {

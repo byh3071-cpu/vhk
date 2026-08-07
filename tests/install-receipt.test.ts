@@ -93,4 +93,59 @@ describe('install-receipt (RFC 0060 T3)', () => {
       fs.rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('이전 호출 형식은 coreRules 없이 그대로 읽힌다', () => {
+    const dir = mkTmp()
+    try {
+      const receipt = collectInstallReceipt(dir)
+      expect(receipt.coreRules).toBeUndefined()
+      expect(formatInstallReceipt(receipt)).not.toContain('핵심 규칙')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('live 규칙은 사용자 규칙 파일과 버전을 별도 표시한다', () => {
+    const dir = mkTmp()
+    try {
+      const receipt = collectInstallReceipt(dir, { source: 'live', version: '3.0.0' })
+      expect(receipt.coreRules).toEqual({ source: 'live', version: '3.0.0' })
+      const out = formatInstallReceipt(receipt)
+      expect(out).toContain('핵심 규칙')
+      expect(out).toContain('사용자 규칙 파일')
+      expect(out).toContain('v3.0.0')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('bundled 규칙은 9/9 연결과 별개로 기본값 사용을 경고한다', () => {
+    const dir = mkTmp()
+    try {
+      const out = formatInstallReceipt(
+        collectInstallReceipt(dir, { source: 'bundled', version: '0.1.0' }),
+      )
+      expect(out).toContain('VHK 내장 기본 규칙')
+      expect(out).toContain('사용자 규칙 파일이 연결된 상태가 아닙니다')
+      expect(out).toContain('vhk config set-rules-file')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('버전이 없거나 unknown이면 쉬운 문구로 표시한다', () => {
+    const dir = mkTmp()
+    try {
+      const missing = formatInstallReceipt(collectInstallReceipt(dir, { source: 'bundled' }))
+      const unknown = formatInstallReceipt(
+        collectInstallReceipt(dir, { source: 'bundled', version: 'unknown' }),
+      )
+      expect(missing).toContain('버전 확인 안 됨')
+      expect(unknown).toContain('버전 확인 안 됨')
+      expect(missing).not.toContain('unknown')
+      expect(unknown).not.toContain('unknown')
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

@@ -7,7 +7,7 @@ import { ko } from '../i18n/ko.js'
 import { projectMaturity } from '../lib/project-maturity.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { safeExecFile } from '../lib/exec.js'
-import { checkRuleDrift, checkContextDrift, type RuleDriftResult } from '../lib/drift.js'
+import { checkRuleDrift, checkContextDrift, checkNextTaskFreshness, type RuleDriftResult } from '../lib/drift.js'
 import { findSecretsInLine, MAX_LINE_CHARS } from '../lib/scan-secrets.js'
 import os from 'node:os'
 import type { Runner } from '../lib/preflight.js'
@@ -22,14 +22,29 @@ import { buildVhkDiag } from '../doctor/diagnostics/vhk.js'
 import { buildMcpDiag, mcpToolCount } from '../doctor/diagnostics/mcp.js'
 import { buildAuditDiag } from '../doctor/diagnostics/audit.js'
 import { findSkippedGoalFiles, listGoals } from '../lib/goal-frontmatter.js'
+import { analyzeGoalDependencies, type GoalDependencyIssue } from '../lib/goal-dependencies.js'
 import { ECOSYSTEM_MDC_REL } from '../lib/inject-bootstrap.js'
 import { agentsMdReferencesEcosystemMd } from './sync.js'
 import { readSelectedPM } from '../doctor/pm.js'
+import { formatUnstartedGoalLines, summarizeUnstartedGoals } from './status.js'
 import type { DiagDeps, DoctorOptions, DiagFn } from '../doctor/types.js'
 // 업데이트 체크 함수는 version-check.ts 단일 소스로 이동(메뉴와 공용). 여기선 import + re-export
 // (doctor.test.ts 의 `from doctor.js` import 경로 보존) + 내부 사용.
 import { fetchLatestNpmVersion, compareSemver, recordLatest } from '../lib/version-check.js'
 export { fetchLatestNpmVersion, compareSemver }
+
+function goalDependencyIssueText(issue: GoalDependencyIssue): string {
+  switch (issue.kind) {
+    case 'invalid':
+      return ko.goal.dependencyInvalid(issue.goalId, issue.invalidTokens.map((token) => token || '(빈 값)').join(', '))
+    case 'missing':
+      return ko.goal.dependencyMissing(issue.goalId, issue.dependencyId)
+    case 'self':
+      return ko.goal.dependencySelf(issue.goalId)
+    case 'cycle':
+      return ko.goal.dependencyCycle(issue.cycle.join(' → '))
+  }
+}
 
 /**
  * Goal 84: doctor 통과 시 next-step — 신규/기존 레포 맥락 분기(D9).
@@ -423,10 +438,17 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
   const ctxDrift = checkContextDrift(cwd)
   if (ctxDrift.checked && ctxDrift.stale) {
     console.log(chalk.yellow(`    ${ko.doctor.driftContextWarn}`))
+    console.log(chalk.dim(`       ${ko.doctor.driftContextAction}`))
+  }
+  const nextTaskFreshness = checkNextTaskFreshness(cwd)
+  if (nextTaskFreshness.checked && nextTaskFreshness.stale) {
+    console.log(chalk.yellow(`    ${ko.doctor.driftNextTaskWarn}`))
+    console.log(chalk.dim(`       ${ko.doctor.driftNextTaskAction}`))
   }
 
   // Goal frontmatter — silent skip 감지 (#465)
   let goalSchemaWarn = false
+  let goalDependencyWarn = false
   let ecosystemMdcWarn = false
   const goalsDir = path.join(cwd, 'goals')
   if (fs.existsSync(goalsDir)) {
@@ -434,6 +456,7 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
     console.log(chalk.bold(`  ${ko.doctor.goalSchemaTitle}`))
     const parsed = listGoals(goalsDir)
     const skipped = findSkippedGoalFiles(goalsDir)
+    const dependencyAnalysis = analyzeGoalDependencies(parsed)
     let mdCount = 0
     try {
       mdCount = fs.readdirSync(goalsDir).filter((n) => n.endsWith('.md') && n !== '_meta.md').length
@@ -455,6 +478,44 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
     } else {
       console.log(chalk.green(`    ${ko.doctor.goalSchemaOk(parsed.length)}`))
     }
+    if (dependencyAnalysis.issues.length > 0) {
+      goalDependencyWarn = true
+      console.log(chalk.yellow(`    ${ko.goal.dependencyIssueHeader(dependencyAnalysis.issues.length)}`))
+      for (const issue of dependencyAnalysis.issues.slice(0, 5)) {
+        console.log(chalk.yellow(`      - ${goalDependencyIssueText(issue)}`))
+      }
+      if (dependencyAnalysis.issues.length > 5) {
+        console.log(chalk.dim(`      … 외 ${dependencyAnalysis.issues.length - 5}건`))
+      }
+      console.log(chalk.dim(`    → ${ko.goal.dependencyFixHint}`))
+    }
+    if (dependencyAnalysis.invalidInProgress.length > 0) {
+      goalDependencyWarn = true
+      for (const item of dependencyAnalysis.invalidInProgress.slice(0, 10)) {
+        console.log(chalk.yellow(`    ${ko.goal.dependencyInvalidInProgress(item.goalId, item.waitingFor.join(', '))}`))
+      }
+      if (dependencyAnalysis.invalidInProgress.length > 10) {
+        console.log(chalk.dim(`      … 외 ${dependencyAnalysis.invalidInProgress.length - 10}건`))
+      }
+    }
+    const waitingGoals = parsed.filter((goal) => {
+      const id = goal.frontmatter.id
+      return typeof id === 'number' && (dependencyAnalysis.waiting.get(id)?.length ?? 0) > 0
+    })
+    for (const goal of waitingGoals.slice(0, 10)) {
+      const id = goal.frontmatter.id
+      if (typeof id !== 'number') continue
+      const waitingFor = dependencyAnalysis.waiting.get(id) ?? []
+      console.log(chalk.dim(`    Goal ${id} — ${ko.goal.dependencyWaiting(waitingFor.join(', '))}`))
+    }
+    if (waitingGoals.length > 10) {
+      console.log(chalk.dim(`      … 외 ${waitingGoals.length - 10}건`))
+    }
+    const unstarted = summarizeUnstartedGoals(parsed)
+    const unstartedLines = formatUnstartedGoalLines(unstarted)
+    const unstartedColor = unstarted.count > 0 ? chalk.yellow : chalk.green
+    console.log(unstartedColor(`    🕰️ ${unstartedLines[0]}`))
+    for (const line of unstartedLines.slice(1)) console.log(unstartedColor(`       ${line}`))
   }
 
   const agentsPath = path.join(cwd, 'AGENTS.md')
@@ -503,6 +564,12 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
   if (opts.strict && goalSchemaWarn) {
     console.log('')
     console.log(chalk.red.bold('  ❌ --strict: goal frontmatter 스키마 경고 → 실패 처리 (vhk goal migrate)'))
+    process.exitCode = 1
+  }
+  if (opts.strict && goalDependencyWarn) {
+    console.log('')
+    console.log(chalk.red.bold('  ❌ --strict: goal 선행 작업 설정 오류 → 실패 처리'))
+    console.log(chalk.dim(`     ${ko.goal.dependencyFixHint}`))
     process.exitCode = 1
   }
   if (opts.strict && ecosystemMdcWarn) {
