@@ -11,6 +11,7 @@ import { printNextStep, printContextResumeHint } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 import { projectMaturity } from '../lib/project-maturity.js'
 import { listGoals, normalizeLegacyStatus } from '../lib/goal-frontmatter.js'
+import { log } from '../utils/logger.js'
 
 export interface UnstartedGoalSummary {
   count: number
@@ -283,8 +284,8 @@ export async function status(): Promise<void> {
     const unstarted = summarizeUnstartedGoals(listGoals(goalsDir))
     const lines = formatUnstartedGoalLines(unstarted)
     const color = unstarted.count > 0 ? chalk.yellow : chalk.green
-    console.log(color(`🕰️ ${lines[0]}`))
-    for (const line of lines.slice(1)) console.log(color(`   ${line}`))
+    log.plain(color(`🕰️ ${lines[0]}`))
+    for (const line of lines.slice(1)) log.plain(color(`   ${line}`))
   }
 
   const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0

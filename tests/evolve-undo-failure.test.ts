@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -10,17 +10,27 @@ vi.mock('inquirer')
 describe('evolve undo — sync 실패 처리', () => {
   const originalCwd = process.cwd()
   const originalInteractive = process.env.VHK_FORCE_INTERACTIVE
+  let originalExitCode: typeof process.exitCode
+  let tempDir: string | undefined
+
+  beforeEach(() => {
+    originalExitCode = process.exitCode
+    process.exitCode = undefined
+  })
 
   afterEach(() => {
     process.chdir(originalCwd)
     if (originalInteractive === undefined) delete process.env.VHK_FORCE_INTERACTIVE
     else process.env.VHK_FORCE_INTERACTIVE = originalInteractive
-    process.exitCode = 0
+    process.exitCode = originalExitCode
     vi.restoreAllMocks()
+    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true })
+    tempDir = undefined
   })
 
   it('RULES.md 복원 뒤 sync가 실패하면 undo 기록·패턴 재활성화·성공 출력을 하지 않는다', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-evolve-undo-'))
+    tempDir = dir
     const backup = path.join(dir, 'RULES.md.bak')
     fs.writeFileSync(path.join(dir, 'RULES.md'), '# current\n', 'utf-8')
     fs.writeFileSync(backup, '# restored\n\n## 코딩 규칙\n- safe\n', 'utf-8')
@@ -64,8 +74,5 @@ describe('evolve undo — sync 실패 처리', () => {
     }
     expect(memory.patterns[0].status).toBe('archived')
     expect(output.join('\n')).not.toContain('되돌리기 완료')
-
-    process.chdir(originalCwd)
-    fs.rmSync(dir, { recursive: true, force: true })
   })
 })

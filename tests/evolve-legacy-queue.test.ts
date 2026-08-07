@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -69,13 +69,19 @@ function writeLegacyQueue(dir: string): EvolveQueueFile {
 describe('인라인 후보 전환 — 기존 queue.json 하위호환', () => {
   const originalCwd = process.cwd()
   const originalInteractive = process.env.VHK_FORCE_INTERACTIVE
+  let originalExitCode: typeof process.exitCode
   let dir: string | undefined
+
+  beforeEach(() => {
+    originalExitCode = process.exitCode
+    process.exitCode = undefined
+  })
 
   afterEach(() => {
     process.chdir(originalCwd)
     if (originalInteractive === undefined) delete process.env.VHK_FORCE_INTERACTIVE
     else process.env.VHK_FORCE_INTERACTIVE = originalInteractive
-    process.exitCode = 0
+    process.exitCode = originalExitCode
     vi.useRealTimers()
     vi.restoreAllMocks()
     if (dir) fs.rmSync(dir, { recursive: true, force: true })

@@ -103,14 +103,18 @@ describe('loop 명령 등록 (NL 라우터 가드)', () => {
 
 describe('loop tick — 손상된 진화 기록', () => {
   const originalCwd = process.cwd()
+  let tempDir: string | undefined
 
   afterEach(() => {
     process.chdir(originalCwd)
     vi.restoreAllMocks()
+    if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true })
+    tempDir = undefined
   })
 
   it('진화 기록을 읽지 못해도 경고하고 빈 기록으로 계속한다', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-loop-log-'))
+    tempDir = dir
     fs.mkdirSync(path.join(dir, '.vhk', 'events', 'evolve-log.jsonl'), { recursive: true })
     process.chdir(dir)
     const output: string[] = []
@@ -118,8 +122,5 @@ describe('loop tick — 손상된 진화 기록', () => {
 
     await expect(loopTick()).resolves.toBeUndefined()
     expect(output.join('\n')).toContain('진화 결정 기록을 읽지 못해')
-
-    process.chdir(originalCwd)
-    fs.rmSync(dir, { recursive: true, force: true })
   })
 })
