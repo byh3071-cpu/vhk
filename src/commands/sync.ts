@@ -585,6 +585,8 @@ export type SyncBootstrapTarget = {
   expected: (rootDir: string) => string
   /** 파일이 vhk 템플릿인지 — false 면 사용자 소유로 보고 check 스킵(드리프트 미보고). */
   isVhkTemplate?: (content: string) => boolean
+  /** 개인·머신별 로컬 산출물이라 새 clone 에 없어도 되는가. 존재하면 내용은 계속 검사한다. */
+  optionalWhenMissing?: boolean
 }
 
 export const SYNC_BOOTSTRAP_TARGETS: SyncBootstrapTarget[] = [
@@ -601,6 +603,8 @@ export const SYNC_BOOTSTRAP_TARGETS: SyncBootstrapTarget[] = [
     path: CORE_RULES_REL,
     expected: () => generateCoreRulesFileContent(null),
     isVhkTemplate: (c) => c.includes('CORE-RULES:START') && c.includes('CORE-RULES:END'),
+    // 개인 규칙 원문이 들어갈 수 있어 .gitignore 대상이다. 깨끗한 CI clone 에서는 없는 것이 정상이다.
+    optionalWhenMissing: true,
   },
 ]
 
@@ -702,7 +706,7 @@ export function syncCheck(rootDir: string): SyncCheckResult {
   for (const t of SYNC_BOOTSTRAP_TARGETS) {
     const full = path.join(rootDir, t.path)
     if (!fs.existsSync(full)) {
-      missing.push(t.path)
+      if (!t.optionalWhenMissing) missing.push(t.path)
       continue
     }
     let onDisk: string

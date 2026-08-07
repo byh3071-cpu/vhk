@@ -10,7 +10,11 @@ import {
   SYNC_TARGETS,
   SYNC_BOOTSTRAP_TARGETS,
 } from '../src/commands/sync.js'
-import { ECOSYSTEM_MDC_REL, MCP_JSON_EXAMPLE_REL } from '../src/lib/inject-bootstrap.js'
+import {
+  CORE_RULES_REL,
+  ECOSYSTEM_MDC_REL,
+  MCP_JSON_EXAMPLE_REL,
+} from '../src/lib/inject-bootstrap.js'
 
 const RULES = [
   '# 데모 — 테스트',
@@ -163,6 +167,21 @@ describe('syncCheck — sync 산출 전체 drift 검사 (Goal 63)', () => {
     const r = syncCheck(dir)
     expect(r.ok).toBe(false)
     expect(r.missing).toContain(ECOSYSTEM_MDC_REL)
+  })
+
+  it('Git에서 제외하는 개인 CORE-RULES는 새 clone에 없어도 통과', () => {
+    fs.rmSync(path.join(dir, CORE_RULES_REL))
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(true)
+    expect(r.missing).not.toContain(CORE_RULES_REL)
+  })
+
+  it('개인 CORE-RULES가 있으면 기존처럼 VHK 템플릿 변조를 탐지', () => {
+    const p = path.join(dir, CORE_RULES_REL)
+    fs.writeFileSync(p, fs.readFileSync(p, 'utf-8') + '\n<!-- hand edit -->\n', 'utf-8')
+    const r = syncCheck(dir)
+    expect(r.ok).toBe(false)
+    expect(r.drifted).toContain(CORE_RULES_REL)
   })
 
   it('ecosystem.mdc 만 있고 나머지 bootstrap 이 없어도 sync 가 채운다 (#516 회귀)', async () => {
