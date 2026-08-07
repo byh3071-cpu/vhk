@@ -58,6 +58,7 @@ describe('init --ci 워크플로 설치', () => {
     originalCwd = process.cwd()
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-init-ci-'))
     process.chdir(dir)
+    process.exitCode = 0
     logLines = []
     restoreSink = setSink((line) => logLines.push(line))
     vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -67,6 +68,7 @@ describe('init --ci 워크플로 설치', () => {
   afterEach(() => {
     restoreSink?.()
     process.chdir(originalCwd)
+    process.exitCode = 0
     fs.rmSync(dir, { recursive: true, force: true })
     vi.restoreAllMocks()
   })
@@ -127,6 +129,22 @@ describe('init --ci 워크플로 설치', () => {
     expect(logLines.join('\n')).toContain('npx --yes @byh3071/vhk@')
     expect(logLines.join('\n')).toContain('verify')
     expect(logLines.join('\n')).toContain('Settings → Rules')
+  })
+
+  it('워크플로 경로를 만들 수 없으면 오류를 알리고 실패로 끝낸다', async () => {
+    fs.mkdirSync(path.join(dir, '.github'), { recursive: true })
+    fs.writeFileSync(path.join(dir, '.github', 'workflows'), 'not-a-directory', 'utf8')
+
+    await init({
+      yes: true,
+      ci: true,
+      name: 'sample-app',
+      description: '샘플 앱',
+      type: 'cli',
+    })
+
+    expect(process.exitCode).toBe(1)
+    expect(logLines.join('\n')).toContain('PR 검사 파일을 만들지 못했습니다')
   })
 
   it('최상위 init 명령에 새 명령이 아닌 --ci 플래그가 등록돼 있다', () => {

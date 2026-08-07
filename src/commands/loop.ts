@@ -12,7 +12,7 @@ import {
 import type { PatternEntryV19 } from './pattern.js'
 import { loadForMutation } from './memory.js'
 import { generateInlineCandidates } from '../lib/evolve-candidates.js'
-import { currentEvolveDecisionKeys, readEvolveLog } from '../lib/evolve-log.js'
+import { currentEvolveDecisionKeys, readEvolveLog, type EvolveLogEntry } from '../lib/evolve-log.js'
 import { readReceiptLog } from '../lib/receipt-log.js'
 import { computeReceiptTrend } from './stats.js'
 import { selectActiveId } from './goal.js'
@@ -97,9 +97,16 @@ function collectState(cwd: string): LoopTickState {
   // loadForMutation 은 in-memory 정규화만(비영속) — 손상/미래스키마면 ok=false → 빈 패턴(적대리뷰 med 반영).
   const loaded = loadForMutation(cwd)
   const patterns = (loaded.ok ? loaded.mem.patterns : []) as PatternEntryV19[]
+  let evolveDecisions: EvolveLogEntry[] = []
+  try {
+    evolveDecisions = readEvolveLog(cwd)
+  } catch (error) {
+    log.warn('진화 결정 기록을 읽지 못해 이번 상태에서는 빈 기록으로 계산합니다.')
+    log.dim(`  ${error instanceof Error ? error.message : String(error)}`)
+  }
   const evolvePending = generateInlineCandidates(
     patterns,
-    currentEvolveDecisionKeys(readEvolveLog(cwd)),
+    currentEvolveDecisionKeys(evolveDecisions),
     new Date().toISOString(),
   ).length
   const unqueuedPatterns = 0

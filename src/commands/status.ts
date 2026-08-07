@@ -10,7 +10,7 @@ import { readJsonFile } from '../lib/read-json.js'
 import { printNextStep, printContextResumeHint } from '../lib/next-step.js'
 import { t } from '../i18n/ko.js'
 import { projectMaturity } from '../lib/project-maturity.js'
-import { listGoals } from '../lib/goal-frontmatter.js'
+import { listGoals, normalizeLegacyStatus } from '../lib/goal-frontmatter.js'
 
 export interface UnstartedGoalSummary {
   count: number
@@ -56,7 +56,7 @@ export function summarizeUnstartedGoals(
 ): UnstartedGoalSummary {
   const unstarted = goals.filter((goal) => {
     const status = goal.frontmatter.status
-    return status === undefined || status === 'NOT_STARTED'
+    return status === undefined || (typeof status === 'string' && normalizeLegacyStatus(status) === 'NOT_STARTED')
   })
   const nowDay = localDayNumber(now)
   const datedGoals = unstarted.flatMap((goal) => {
@@ -282,8 +282,9 @@ export async function status(): Promise<void> {
   if (fs.existsSync(goalsDir)) {
     const unstarted = summarizeUnstartedGoals(listGoals(goalsDir))
     const lines = formatUnstartedGoalLines(unstarted)
-    console.log(chalk.yellow(`🕰️ ${lines[0]}`))
-    for (const line of lines.slice(1)) console.log(chalk.yellow(`   ${line}`))
+    const color = unstarted.count > 0 ? chalk.yellow : chalk.green
+    console.log(color(`🕰️ ${lines[0]}`))
+    for (const line of lines.slice(1)) console.log(color(`   ${line}`))
   }
 
   const hasChanges = counts.staged + counts.unstaged + counts.untracked > 0

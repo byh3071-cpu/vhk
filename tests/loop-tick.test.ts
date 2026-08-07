@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { computeLoopTick, type LoopTickState } from '../src/commands/loop.js'
+import { afterEach, describe, it, expect, vi } from 'vitest'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { computeLoopTick, loopTick, type LoopTickState } from '../src/commands/loop.js'
 import { KNOWN_COMMAND_TOKENS } from '../src/lib/cli-args.js'
 
 // N1(ⓐ): computeLoopTick 순수함수 — 결정적 우선순위 사다리 검증.
@@ -95,5 +98,28 @@ describe('loop 명령 등록 (NL 라우터 가드)', () => {
   it('영문·한글 별칭이 KNOWN_COMMAND_TOKENS 에 등록됨 — 없으면 NL 라우터가 가로챔', () => {
     expect(KNOWN_COMMAND_TOKENS.has('loop')).toBe(true)
     expect(KNOWN_COMMAND_TOKENS.has('틱')).toBe(true)
+  })
+})
+
+describe('loop tick — 손상된 진화 기록', () => {
+  const originalCwd = process.cwd()
+
+  afterEach(() => {
+    process.chdir(originalCwd)
+    vi.restoreAllMocks()
+  })
+
+  it('진화 기록을 읽지 못해도 경고하고 빈 기록으로 계속한다', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-loop-log-'))
+    fs.mkdirSync(path.join(dir, '.vhk', 'events', 'evolve-log.jsonl'), { recursive: true })
+    process.chdir(dir)
+    const output: string[] = []
+    vi.spyOn(console, 'log').mockImplementation((message?: unknown) => { output.push(String(message)) })
+
+    await expect(loopTick()).resolves.toBeUndefined()
+    expect(output.join('\n')).toContain('진화 결정 기록을 읽지 못해')
+
+    process.chdir(originalCwd)
+    fs.rmSync(dir, { recursive: true, force: true })
   })
 })

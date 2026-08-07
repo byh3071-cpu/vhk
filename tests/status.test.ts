@@ -83,6 +83,13 @@ describe('status — 안전한 다음 액션 (배치3 §2: diff 우선)', () => 
 })
 
 describe('status — 아직 시작하지 않은 작업 요약', () => {
+  it('이전 형식 pending도 아직 시작하지 않은 작업으로 센다', () => {
+    const goals = [
+      { filePath: 'a', frontmatter: { id: 1, title: '이전 카드', status: 'pending', created: '2026-08-01' }, body: '' },
+    ]
+    expect(summarizeUnstartedGoals(goals, new Date('2026-08-05T12:00:00Z')).count).toBe(1)
+  })
+
   it('NOT_STARTED만 세고 가장 오래된 작업을 함께 찾음', () => {
     const goals = [
       { filePath: 'a', frontmatter: { id: 1, title: '첫 작업', status: 'NOT_STARTED', created: '2026-08-01' }, body: '' },

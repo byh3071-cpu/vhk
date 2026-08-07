@@ -5,6 +5,7 @@ import path from 'node:path'
 import {
   findLegacyTerms,
   FORBIDDEN_TERMS,
+  OUTPUT_LANGUAGE_TERMS,
   TERMINOLOGY_TARGETS,
 } from '../scripts/check-terminology.mjs'
 
@@ -55,6 +56,7 @@ describe('check-terminology — ADR-011 용어 회귀 게이트', () => {
   })
 
   it('COMMANDS.md를 직접 검사해도 사용자 출력용 표현만 적용한다', () => {
+    expect(findLegacyTerms('감사층과 미착수', OUTPUT_LANGUAGE_TERMS).map((hit) => hit.term)).toEqual(['미착수'])
     execFileSync('node', [SCRIPT, 'COMMANDS.md'], {
       cwd: process.cwd(),
       encoding: 'utf-8',

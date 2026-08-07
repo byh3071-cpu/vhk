@@ -363,7 +363,14 @@ export async function init(options: InitOptions = {}) {
 
   if (options.ci) {
     const ciVersion = getVhkVersion()
-    const ciResult = installCiWorkflow(cwd, ciVersion)
+    let ciResult: CiWorkflowInstallResult
+    try {
+      ciResult = installCiWorkflow(cwd, ciVersion)
+    } catch (error) {
+      log.error(ko.init.ciInstallFailed(error instanceof Error ? error.message : String(error)))
+      process.exitCode = 1
+      return
+    }
     if (ciResult.status === 'created') {
       log.success(ko.init.ciCreated(ciResult.workflowPath))
     } else {

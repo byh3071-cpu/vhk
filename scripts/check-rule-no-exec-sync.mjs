@@ -2,8 +2,42 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
 
 const sourceRoot = join(process.cwd(), 'src')
-const sourceExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'])
+const sourceExtensions = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'])
 const violations = []
+
+const CHILD_PROCESS_MODULE = String.raw`(?:node:)?child_process`
+
+function usesExecSync(content) {
+  const namedImport = new RegExp(
+    String.raw`import\s*\{[^}]*\bexecSync\b[^}]*\}\s*from\s*['"]${CHILD_PROCESS_MODULE}['"]`,
+    's',
+  )
+  const destructuredRequire = new RegExp(
+    String.raw`\b(?:const|let|var)\s*\{[^}]*\bexecSync\b[^}]*\}\s*=\s*require\(\s*['"]${CHILD_PROCESS_MODULE}['"]\s*\)`,
+    's',
+  )
+  const directRequire = new RegExp(
+    String.raw`require\(\s*['"]${CHILD_PROCESS_MODULE}['"]\s*\)\.execSync\s*\(`,
+  )
+  if (namedImport.test(content) || destructuredRequire.test(content) || directRequire.test(content)) {
+    return true
+  }
+
+  const namespaceNames = [
+    ...content.matchAll(new RegExp(
+      String.raw`import\s*\*\s*as\s*([A-Za-z_$][\w$]*)\s*from\s*['"]${CHILD_PROCESS_MODULE}['"]`,
+      'g',
+    )),
+    ...content.matchAll(new RegExp(
+      String.raw`\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*require\(\s*['"]${CHILD_PROCESS_MODULE}['"]\s*\)`,
+      'g',
+    )),
+  ].map((match) => match[1])
+
+  return namespaceNames.some((name) => (
+    new RegExp(String.raw`\b${name}\.execSync\b`).test(content)
+  ))
+}
 
 function walk(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -15,14 +49,7 @@ function walk(directory) {
     if (!sourceExtensions.has(extname(entry.name))) continue
 
     const content = readFileSync(fullPath, 'utf-8')
-    const importsExecSync = /import\s*\{[^}]*\bexecSync\b[^}]*\}\s*from\s*['"]node:child_process['"]/s.test(content)
-    const namespaceImports = [
-      ...content.matchAll(/import\s*\*\s*as\s*([A-Za-z_$][\w$]*)\s*from\s*['"]node:child_process['"]/g),
-    ]
-    const usesNamespaceExecSync = namespaceImports.some((match) => (
-      new RegExp(`\\b${match[1]}\\.execSync\\s*\\(`).test(content)
-    ))
-    if (importsExecSync || usesNamespaceExecSync) {
+    if (usesExecSync(content)) {
       violations.push(relative(process.cwd(), fullPath))
     }
   }

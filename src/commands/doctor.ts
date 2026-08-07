@@ -448,6 +448,7 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
 
   // Goal frontmatter — silent skip 감지 (#465)
   let goalSchemaWarn = false
+  let goalDependencyWarn = false
   let ecosystemMdcWarn = false
   const goalsDir = path.join(cwd, 'goals')
   if (fs.existsSync(goalsDir)) {
@@ -478,7 +479,7 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
       console.log(chalk.green(`    ${ko.doctor.goalSchemaOk(parsed.length)}`))
     }
     if (dependencyAnalysis.issues.length > 0) {
-      goalSchemaWarn = true
+      goalDependencyWarn = true
       console.log(chalk.yellow(`    ${ko.goal.dependencyIssueHeader(dependencyAnalysis.issues.length)}`))
       for (const issue of dependencyAnalysis.issues.slice(0, 5)) {
         console.log(chalk.yellow(`      - ${goalDependencyIssueText(issue)}`))
@@ -489,23 +490,32 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
       console.log(chalk.dim(`    → ${ko.goal.dependencyFixHint}`))
     }
     if (dependencyAnalysis.invalidInProgress.length > 0) {
-      goalSchemaWarn = true
-      for (const item of dependencyAnalysis.invalidInProgress) {
+      goalDependencyWarn = true
+      for (const item of dependencyAnalysis.invalidInProgress.slice(0, 10)) {
         console.log(chalk.yellow(`    ${ko.goal.dependencyInvalidInProgress(item.goalId, item.waitingFor.join(', '))}`))
       }
+      if (dependencyAnalysis.invalidInProgress.length > 10) {
+        console.log(chalk.dim(`      … 외 ${dependencyAnalysis.invalidInProgress.length - 10}건`))
+      }
     }
-    for (const goal of parsed) {
+    const waitingGoals = parsed.filter((goal) => {
+      const id = goal.frontmatter.id
+      return typeof id === 'number' && (dependencyAnalysis.waiting.get(id)?.length ?? 0) > 0
+    })
+    for (const goal of waitingGoals.slice(0, 10)) {
       const id = goal.frontmatter.id
       if (typeof id !== 'number') continue
       const waitingFor = dependencyAnalysis.waiting.get(id) ?? []
-      if (waitingFor.length > 0) {
-        console.log(chalk.dim(`    Goal ${id} — ${ko.goal.dependencyWaiting(waitingFor.join(', '))}`))
-      }
+      console.log(chalk.dim(`    Goal ${id} — ${ko.goal.dependencyWaiting(waitingFor.join(', '))}`))
+    }
+    if (waitingGoals.length > 10) {
+      console.log(chalk.dim(`      … 외 ${waitingGoals.length - 10}건`))
     }
     const unstarted = summarizeUnstartedGoals(parsed)
     const unstartedLines = formatUnstartedGoalLines(unstarted)
-    console.log(chalk.yellow(`    🕰️ ${unstartedLines[0]}`))
-    for (const line of unstartedLines.slice(1)) console.log(chalk.yellow(`       ${line}`))
+    const unstartedColor = unstarted.count > 0 ? chalk.yellow : chalk.green
+    console.log(unstartedColor(`    🕰️ ${unstartedLines[0]}`))
+    for (const line of unstartedLines.slice(1)) console.log(unstartedColor(`       ${line}`))
   }
 
   const agentsPath = path.join(cwd, 'AGENTS.md')
@@ -554,6 +564,12 @@ export async function doctor(opts: DoctorOptions & { diff?: boolean } = {}) {
   if (opts.strict && goalSchemaWarn) {
     console.log('')
     console.log(chalk.red.bold('  ❌ --strict: goal frontmatter 스키마 경고 → 실패 처리 (vhk goal migrate)'))
+    process.exitCode = 1
+  }
+  if (opts.strict && goalDependencyWarn) {
+    console.log('')
+    console.log(chalk.red.bold('  ❌ --strict: goal 선행 작업 설정 오류 → 실패 처리'))
+    console.log(chalk.dim(`     ${ko.goal.dependencyFixHint}`))
     process.exitCode = 1
   }
   if (opts.strict && ecosystemMdcWarn) {

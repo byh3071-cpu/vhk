@@ -91,11 +91,17 @@ export function analyzeGoalDependencies(goals: ParsedGoal[]): GoalDependencyAnal
     .filter((goal) => typeof goal.frontmatter.id === 'number')
     .sort((a, b) => (a.frontmatter.id as number) - (b.frontmatter.id as number))
   const byId = new Map<number, ParsedGoal>()
-  for (const goal of sorted) byId.set(goal.frontmatter.id as number, goal)
+  const unique: ParsedGoal[] = []
+  for (const goal of sorted) {
+    const id = goal.frontmatter.id as number
+    if (byId.has(id)) continue
+    byId.set(id, goal)
+    unique.push(goal)
+  }
 
   const dependencies = new Map<number, number[]>()
   const issues: GoalDependencyIssue[] = []
-  for (const goal of sorted) {
+  for (const goal of unique) {
     const goalId = goal.frontmatter.id as number
     const parsed = parseGoalDependencyIds(goal.frontmatter.depends_on)
     dependencies.set(goalId, parsed.ids)
@@ -111,7 +117,7 @@ export function analyzeGoalDependencies(goals: ParsedGoal[]): GoalDependencyAnal
 
   const waiting = new Map<number, number[]>()
   const invalidInProgress: Array<{ goalId: number; waitingFor: number[] }> = []
-  for (const goal of sorted) {
+  for (const goal of unique) {
     const goalId = goal.frontmatter.id as number
     const waitingFor = (dependencies.get(goalId) ?? [])
       .filter((dependencyId) => statusOf(byId.get(dependencyId)) !== 'DONE')

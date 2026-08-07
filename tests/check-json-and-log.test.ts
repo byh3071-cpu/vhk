@@ -66,6 +66,22 @@ describe('vhk check --json', () => {
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  it('RULES.md를 읽을 수 없으면 명시적인 JSON 오류와 exit 1', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-check-json-'))
+    fs.mkdirSync(path.join(d, 'RULES.md'))
+    origCwd = process.cwd()
+    process.chdir(d)
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await check({ json: true })
+
+    const out = logSpy.mock.calls.map((call) => String(call[0])).join('\n')
+    expect(JSON.parse(out)).toMatchObject({ error: 'rules-read-failed' })
+    expect(process.exitCode).toBe(1)
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })
 
 describe('vhk check → check-log.jsonl 스냅샷', () => {

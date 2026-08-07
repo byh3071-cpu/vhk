@@ -393,9 +393,14 @@ export function findCheckScript(
   id: number | string,
   cwd = process.cwd()
 ): string | null {
-  const mjs = join(SCRIPTS_DIR, `check-${kind}-${id}.mjs`)
+  const safeId = String(id)
+  const valid = kind === 'goal'
+    ? /^\d+$/.test(safeId)
+    : /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(safeId)
+  if (!valid) return null
+  const mjs = join(SCRIPTS_DIR, `check-${kind}-${safeId}.mjs`)
   if (existsSync(join(cwd, mjs))) return mjs
-  const sh = join(SCRIPTS_DIR, `check-${kind}-${id}.sh`)
+  const sh = join(SCRIPTS_DIR, `check-${kind}-${safeId}.sh`)
   if (existsSync(join(cwd, sh))) return sh
   return null
 }

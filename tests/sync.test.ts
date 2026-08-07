@@ -485,4 +485,22 @@ describe('vhk sync — goal 90: 도메인 규칙 섹션이 .cursorrules + CLAUDE
       outputs.forEach((output) => expect(output).toContain('## 안전 규칙'))
     })
   })
+
+  it('긴 선택 섹션 뒤의 전 타겟 필수 섹션도 절삭 전에 보존한다', () => {
+    const rules = [
+      '# P — Rules',
+      '',
+      '## 코딩 규칙',
+      `- ${'x'.repeat(20000)}`,
+      '',
+      '## 안전 규칙 <!-- vhk:sync=all -->',
+      '- REQUIRED_SENTINEL',
+      '',
+    ].join('\n')
+
+    const out = toAntigravityRules(parseRulesMd(rules), 'P')
+    expect(out).toContain('## 안전 규칙')
+    expect(out).toContain('REQUIRED_SENTINEL')
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(ANTIGRAVITY_CHAR_LIMIT)
+  })
 })

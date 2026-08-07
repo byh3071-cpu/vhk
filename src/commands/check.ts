@@ -65,7 +65,6 @@ export function computeCheckSummary(rules: Rule[], cwd: string): CoreCheckSummar
   return { totalRules: rules.length, passCount, violations: allViolations, errors, warnings }
 }
 
-/** 연결 검사 파일을 찾아 실행한다. 잘못된 표시와 누락 파일도 명시적인 오류로 바꾼다. */
 export function executeRuleBindings(declarations: RuleDeclaration[], cwd: string): RuleBindingResult[] {
   return declarations
     .filter((declaration) => declaration.checkId !== undefined || declaration.bindingError !== undefined)
@@ -114,7 +113,6 @@ export function executeRuleBindings(declarations: RuleDeclaration[], cwd: string
     })
 }
 
-/** 선언 줄 기준으로 자동 해석 검사와 연결 검사를 합쳐 중복 없이 비율을 계산한다. */
 export function computeRuleCoverage(
   declarations: RuleDeclaration[],
   rules: Rule[],
@@ -191,8 +189,21 @@ async function checkRules(opts: CheckOptions = {}) {
     return
   }
 
-  const declarations = parseRuleDeclarations(rulesPath)
-  const rules = parseRules(rulesPath)
+  let declarations: RuleDeclaration[]
+  let rules: Rule[]
+  try {
+    declarations = parseRuleDeclarations(rulesPath)
+    rules = parseRules(rulesPath)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (opts.json) {
+      console.log(JSON.stringify({ error: 'rules-read-failed', message }, null, 2))
+    } else {
+      log.error(ko.check.rulesReadFailed(message))
+    }
+    process.exitCode = 1
+    return
+  }
 
   if (rules.length === 0 && declarations.length === 0) {
     if (opts.json) {
@@ -247,17 +258,17 @@ async function checkRules(opts: CheckOptions = {}) {
     return
   }
 
-  console.log(chalk.bold(`\n${ko.check.title}\n`))
-  console.log(chalk.dim(`  📏 자동 검사 ${summary.totalRules}개 실행`))
-  console.log(chalk.cyan(`  ${ko.check.coverage(
+  log.plain(chalk.bold(`\n${ko.check.title}\n`))
+  log.plain(chalk.dim(`  📏 자동 검사 ${summary.totalRules}개 실행`))
+  log.plain(chalk.cyan(`  ${ko.check.coverage(
     summary.checkedRules,
     summary.declaredRules,
     summary.coveragePercent
   )}`))
   if (summary.uncheckedRules > 0) {
-    console.log(chalk.yellow(`  ${ko.check.unchecked(summary.uncheckedRules)}`))
+    log.plain(chalk.yellow(`  ${ko.check.unchecked(summary.uncheckedRules)}`))
   }
-  console.log('')
+  log.plain('')
 
   const violationsByRule = new Map<string, RuleViolation[]>()
   for (const v of summary.violations) {
@@ -271,15 +282,15 @@ async function checkRules(opts: CheckOptions = {}) {
     if (violations.length === 0) {
       // VHK-013: content(금지/필수) 규칙은 description 60자 컷에 가려진 '실제 검사 패턴'을 함께 표기.
       const patternHint = rule.type === 'content' && rule.pattern ? chalk.dim(` [검사: ${rule.pattern.source}]`) : ''
-      console.log(chalk.green(`  ✅ ${rule.id}`) + chalk.dim(` — ${rule.description.slice(0, 60)}`) + patternHint)
+      log.plain(chalk.green(`  ✅ ${rule.id}`) + chalk.dim(` — ${rule.description.slice(0, 60)}`) + patternHint)
     } else {
-      console.log(chalk.red(`  ❌ ${rule.id}`) + chalk.dim(` — ${violations.length}건 위반`))
+      log.plain(chalk.red(`  ❌ ${rule.id}`) + chalk.dim(` — ${violations.length}건 위반`))
       violations.forEach(v => {
         const loc = v.file ? chalk.dim(` (${v.file}${v.line ? ':' + v.line : ''})`) : ''
         const icon = v.severity === 'error' ? chalk.red('✖')
           : v.severity === 'warning' ? chalk.yellow('⚠')
           : chalk.blue('ℹ')
-        console.log(`    ${icon} ${v.message}${loc}`)
+        log.plain(`    ${icon} ${v.message}${loc}`)
       })
     }
   }
@@ -287,31 +298,31 @@ async function checkRules(opts: CheckOptions = {}) {
   for (const binding of bindings) {
     const id = binding.declaration.checkId ?? `RULES.md:${binding.declaration.line}`
     if (binding.violations.length === 0) {
-      console.log(chalk.green(`  ✅ check-${id}`) + chalk.dim(` — ${ko.check.bindingPassed(id)}`))
+      log.plain(chalk.green(`  ✅ check-${id}`) + chalk.dim(` — ${ko.check.bindingPassed(id)}`))
       continue
     }
-    console.log(chalk.red(`  ❌ check-${id}`) + chalk.dim(` — ${binding.violations.length}건 위반`))
+    log.plain(chalk.red(`  ❌ check-${id}`) + chalk.dim(` — ${binding.violations.length}건 위반`))
     for (const violation of binding.violations) {
-      console.log(`    ${chalk.red('●')} ${violation.message}`)
+      log.plain(`    ${chalk.red('●')} ${violation.message}`)
     }
   }
 
-  console.log('')
+  log.plain('')
 
   // RFC 0060 T1b: 아직 못 채운 기획·설계 슬롯을 노출(진행 측정 + 다음 행동 유도).
   if (fillSlots.total > 0) {
-    console.log(
+    log.plain(
       chalk.yellow(`  📝 미완성 슬롯 ${fillSlots.total}개`) +
       chalk.dim(` — docs/PRD.md ${fillSlots.prd} · docs/ARCHITECTURE.md ${fillSlots.architecture} ([여기에 작성:] 대화로 채우기)`)
     )
-    console.log('')
+    log.plain('')
   }
 
   if (summary.violations.length === 0) {
     // VHK-011: "모든 규칙 통과" 거짓안심 금지 — 자동 검증된 부분만 통과라고 명시.
-    console.log(chalk.green.bold(`✅ 실행한 자동 검사 ${summary.passCount}개 통과`))
+    log.plain(chalk.green.bold(`✅ 실행한 자동 검사 ${summary.passCount}개 통과`))
     if (summary.uncheckedRules > 0) {
-      console.log(chalk.dim(`   (${ko.check.unchecked(summary.uncheckedRules)} — 직접/도구로 확인하세요.)`))
+      log.plain(chalk.dim(`   (${ko.check.unchecked(summary.uncheckedRules)} — 직접/도구로 확인하세요.)`))
     }
     printNextStep({
       message: '모든 규칙 통과! 보안 스캔도 해볼까요?',
@@ -319,10 +330,10 @@ async function checkRules(opts: CheckOptions = {}) {
       cursorHint: '보안 스캔 돌려줘',
     })
   } else {
-    console.log(chalk.bold(ko.check.summary))
-    console.log(`  검사: ${chalk.cyan(String(summary.totalRules))}개 | 통과: ${chalk.green(String(summary.passCount))}개 | 위반: ${chalk.red(String(summary.violations.length))}건`)
-    if (summary.errors > 0) console.log(`  ${chalk.red(`✖ ${summary.errors}개 에러`)}`)
-    if (summary.warnings > 0) console.log(`  ${chalk.yellow(`⚠ ${summary.warnings}개 경고`)}`)
+    log.plain(chalk.bold(ko.check.summary))
+    log.plain(`  검사: ${chalk.cyan(String(summary.totalRules))}개 | 통과: ${chalk.green(String(summary.passCount))}개 | 위반: ${chalk.red(String(summary.violations.length))}건`)
+    if (summary.errors > 0) log.plain(`  ${chalk.red(`✖ ${summary.errors}개 에러`)}`)
+    if (summary.warnings > 0) log.plain(`  ${chalk.yellow(`⚠ ${summary.warnings}개 경고`)}`)
     printNextStep({
       message: '위반 항목을 수정한 후 다시 점검하세요.',
       command: 'vhk 점검',

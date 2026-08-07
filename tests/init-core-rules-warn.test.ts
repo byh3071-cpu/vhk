@@ -17,9 +17,11 @@ describe('vhk init — 범용 규칙 소스 가시화', () => {
   let home: IsolatedHome
   let dir: string
   let logs: string[]
+  let originalRulesFile: string | undefined
 
   beforeEach(() => {
     originalCwd = process.cwd()
+    originalRulesFile = process.env.VHK_RULES_FILE
     // init 은 loadCoreRuleset() 을 인자 없이 부르므로 홈 설정이 있는 머신에서는
     // 번들 폴백 대신 live 규칙이 실린다. 홈을 격리해 판정을 머신 독립으로 만든다 (작업 단위 79).
     home = useIsolatedHome('vhk-init-core-warn-home-')
@@ -34,6 +36,8 @@ describe('vhk init — 범용 규칙 소스 가시화', () => {
     process.chdir(originalCwd)
     fs.rmSync(dir, { recursive: true, force: true })
     home.restore()
+    if (originalRulesFile === undefined) delete process.env.VHK_RULES_FILE
+    else process.env.VHK_RULES_FILE = originalRulesFile
     vi.restoreAllMocks()
   })
 

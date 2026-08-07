@@ -235,6 +235,7 @@ export const ko = {
       'npm run boundary:check --if-present',
     ],
     ciRequiredCheckHint: 'GitHub 저장소 Settings → Rules에서 상태 검사 “VHK Gate”를 필수로 지정하세요.',
+    ciInstallFailed: (message: string) => `PR 검사 파일을 만들지 못했습니다: ${message}`,
     gitignoreCreated: '🔒 .gitignore 생성 (.env·node_modules·dist 제외)',
     gitignoreUpdated: '🔒 .gitignore 보강 (누락 항목 추가)',
     customizationMarkerDone: '🎯 .vhk/NEEDS_CUSTOMIZATION 생성 — 첫 세션에서 도메인 인터뷰 자동 트리거',
@@ -254,7 +255,7 @@ export const ko = {
         `별도 규칙을 사용하려면 VHK_RULES_FILE을 설정하거나 ` +
         `vhk inject-bootstrap --force 를 실행하세요. 이 명령은 ecosystem.mdc 등 다른 tier-S 파일도 최신 템플릿으로 되돌릴 수 있어요 — ` +
         `직접 손으로 고친 적 있으면 먼저 git status로 확인하세요. ` +
-        `재시작 없이 적용하려면 vhk config set-rules-file <yaml경로>를 실행하세요.`
+        `재시작 없이 적용하려면 vhk config set-rules-file <HOME>/sample-rules.yaml을 실행하세요.`
       )
     },
     adoptPrompt: (n: number, list: string) =>
@@ -307,6 +308,7 @@ export const ko = {
     nextHint: 'goal/receipt/review/learn 루프를 vhk-gate skill 로 실행하세요.',
   },
   check: {
+    rulesReadFailed: (message: string) => `RULES.md를 읽거나 해석하지 못했습니다: ${message}`,
     coverage: (checked: number, declared: number, percent: number) =>
       `검사 비율: ${checked}/${declared} (${percent.toFixed(1)}%)`,
     unchecked: (n: number) => `선언만(미검사): ${n}개`,
@@ -424,6 +426,7 @@ export const ko = {
     matched: '이게 맞나요?',
     notMatched: '무슨 뜻인지 모르겠어요. vhk를 입력하면 메뉴에서 선택할 수 있습니다.',
     menuHint: 'vhk를 입력하면 메뉴에서 선택할 수 있습니다.',
+    evolveExplanation: '현재 진화 후보 확인 (vhk evolve list) — 반영·되돌리기는 직접 실행',
   },
   secure: {
     title: '🔒 비밀번호·키 유출 검사',
@@ -756,7 +759,7 @@ export const ko = {
     pendingApplyExists: '미해소 apply가 있습니다. vhk evolve undo 후 재시도하거나 그대로 유지하세요.',
     noAppliedToUndo: 'undo할 반영 항목이 없습니다.',
     noBackup: '.bak 파일이 없어 undo 불가합니다. RULES.md를 수동 복원하세요.',
-    allSuggested: '판정할 후보가 없습니다. 기존 후보는 이미 결정됐거나 7일이 지났습니다.',
+    allSuggested: (days: number) => `판정할 후보가 없습니다. 기존 후보는 이미 결정됐거나 ${days}일이 지났습니다.`,
     newCandidates: (n: number) => `현재 후보: ${n}개`,
     suggestHint: 'vhk evolve suggest 로 현재 후보를 확인하세요.',
     digestTitle: 'evolve digest — 현재 룰 후보 묶음 (읽기 전용·자동 반영 0)',

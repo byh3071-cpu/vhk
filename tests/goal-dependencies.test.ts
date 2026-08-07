@@ -69,4 +69,16 @@ describe('Goal 의존성 분석', () => {
     ])
     expect(analysis.invalidInProgress).toEqual([{ goalId: 2, waitingFor: [1] }])
   })
+
+  it('중복 Goal ID는 다른 goal 명령과 같이 첫 카드를 기준으로 분석한다', () => {
+    const analysis = analyzeGoalDependencies([
+      goal(1, 'DONE'),
+      { ...goal(1, 'NOT_STARTED', '99'), filePath: 'goals/1-duplicate.md' },
+      goal(2, 'NOT_STARTED', '1'),
+    ])
+
+    expect(analysis.dependencies.get(1)).toEqual([])
+    expect(analysis.waiting.get(2)).toEqual([])
+    expect(analysis.issues).toEqual([])
+  })
 })

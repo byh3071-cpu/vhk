@@ -135,6 +135,44 @@ describe('verify — 알림 안정 ID와 숨김', () => {
       fs.rmSync(d, { recursive: true, force: true })
     }
   })
+
+  it('action-ledger를 쓸 수 없으면 숨김 성공으로 보고하지 않는다', () => {
+    const d = tmp()
+    try {
+      fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+      verifyEvidence(d)
+      fs.rmSync(path.join(d, '.vhk', 'events'), { recursive: true, force: true })
+      fs.writeFileSync(path.join(d, '.vhk', 'events'), 'not-a-directory', 'utf-8')
+
+      expect(dismissVerifyAdvisory(d, 'lint-gate')).toBe(false)
+    } finally {
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
+
+  it('verify --dismiss 성공 기록을 현재 저장소에 커밋한다', async () => {
+    const d = tmp()
+    const originalCwd = process.cwd()
+    try {
+      execFileSync('git', ['init'], { cwd: d, stdio: 'pipe' })
+      execFileSync('git', ['config', 'user.name', 'VHK Test'], { cwd: d, stdio: 'pipe' })
+      execFileSync('git', ['config', 'user.email', 'vhk-test@users.noreply.github.com'], { cwd: d, stdio: 'pipe' })
+      fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
+      verifyEvidence(d)
+      process.chdir(d)
+
+      await verify({ dismiss: 'lint-gate' })
+
+      const subject = execFileSync('git', ['log', '-1', '--pretty=%s'], { cwd: d, encoding: 'utf-8' }).trim()
+      const files = execFileSync('git', ['show', '--pretty=', '--name-only', 'HEAD'], { cwd: d, encoding: 'utf-8' })
+      expect(subject).toBe('chore(vhk): evidence ledger [skip ci]')
+      expect(files.replaceAll('\\', '/')).toContain('.vhk/events/ai-actions.jsonl')
+    } finally {
+      process.chdir(originalCwd)
+      process.exitCode = 0
+      fs.rmSync(d, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('verify — detectPm', () => {

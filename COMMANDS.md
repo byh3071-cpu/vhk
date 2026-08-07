@@ -17,7 +17,7 @@ Cursor에게 한국어로 말해도 됩니다.
 >
 > 기존 규칙을 가져올 때 같은 관리 구역은 하나로 정리합니다. 같은 이름의 내용이 다르거나 `BEGIN/END` 표시가 깨졌으면 원본을 바꾸지 않고 중단하며, 표시를 고친 뒤 `vhk init`을 다시 실행하도록 안내합니다.
 >
-> 설치 점검은 `규칙 파일 9/9`와 핵심 규칙의 출처를 구분합니다. 사용자 규칙 파일을 읽으면 그 버전을, VHK 내장 기본 규칙을 사용하면 경고와 `vhk config set-rules-file <yaml경로>` 복구 명령을 표시합니다.
+> 설치 점검은 `규칙 파일 9/9`와 핵심 규칙의 출처를 구분합니다. 사용자 규칙 파일을 읽으면 그 버전을, VHK 내장 기본 규칙을 사용하면 경고와 `vhk config set-rules-file <HOME>/sample-rules.yaml` 복구 명령을 표시합니다.
 
 ## 도움말
 
@@ -174,7 +174,7 @@ Goal frontmatter에 `depends_on: 1,2`를 선택적으로 쓰면 선행 Goal이 �
 
 | 하고 싶은 것 | 터미널 명령 | 설명 |
 |-------------|-----------|------|
-| 사용자 규칙 YAML 등록 | `vhk config set-rules-file <yaml경로>` | 유효성을 확인한 뒤 `~/.vhk/config.json`의 `rulesFile`에 저장 — 다음 명령부터 즉시 반영, 한글 별칭 `vhk 설정 규칙파일` |
+| 사용자 규칙 YAML 등록 | `vhk config set-rules-file <HOME>/sample-rules.yaml` | 유효성을 확인한 뒤 `~/.vhk/config.json`의 `rulesFile`에 저장 — 다음 명령부터 즉시 반영, 한글 별칭 `vhk 설정 규칙파일` |
 
 ## 환경 점검
 

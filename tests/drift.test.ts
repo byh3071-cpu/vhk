@@ -350,13 +350,17 @@ describe('checkNextTaskFreshness', () => {
 
   it('레포 밖 경로는 원본으로 읽지 않는다', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-next-boundary-'))
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-next-outside-'))
     try {
       const derived = path.join(dir, 'docs', 'state', 'next-task.md')
+      const outsideGoal = path.join(outsideDir, 'goal.md')
       fs.mkdirSync(path.dirname(derived), { recursive: true })
-      fs.writeFileSync(derived, '# Next Task\n  file: C:\\outside\\goal.md\n', 'utf-8')
+      fs.writeFileSync(outsideGoal, '# outside\n', 'utf-8')
+      fs.writeFileSync(derived, `# Next Task\n  file: ${outsideGoal}\n`, 'utf-8')
       expect(checkNextTaskFreshness(dir).checked).toBe(false)
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
+      fs.rmSync(outsideDir, { recursive: true, force: true })
     }
   })
 })

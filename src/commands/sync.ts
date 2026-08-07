@@ -22,6 +22,7 @@ import { isInteractive, promptOrDefault } from '../lib/interactive.js'
 import { runDocDriftChecks, type DriftFinding } from '../lib/drift-pairs.js'
 import { appendDriftLog } from '../lib/drift-log.js'
 import { getMcpToolCount } from '../mcp/server.js'
+import { log } from '../utils/logger.js'
 
 /**
  * RFC 0062 — 문서-실측 드리프트 warn 리포트(차단 0, exitCode 불변).
@@ -158,10 +159,21 @@ export function parseRulesMd(content: string): RulesSection[] {
  * 자동생성 경고 주석은 상단 헤더에 둬 직접 편집 시 덮어쓰기 신호를 준다.
  * (기존 .cursorrules/.windsurfrules 출력과 100% 동일 — GA 안정성 유지.)
  */
-function buildCodingDoc(headerTitle: string, sections: RulesSection[], projectName: string): string {
-  const codingSections = sections.filter(s =>
+function buildCodingDoc(
+  headerTitle: string,
+  sections: RulesSection[],
+  projectName: string,
+  requiredFirst = false,
+): string {
+  const includedSections = sections.filter(s =>
     s.requiredInAllTargets || CURSORRULES_KEYS.some(k => s.title.includes(k))
   )
+  const codingSections = requiredFirst
+    ? [
+        ...includedSections.filter((section) => section.requiredInAllTargets),
+        ...includedSections.filter((section) => !section.requiredInAllTargets),
+      ]
+    : includedSections
 
   const lines = [
     `# ${projectName} — ${headerTitle}`,
@@ -261,7 +273,7 @@ export function truncateForAntigravity(
 
 /** Antigravity — 워크스페이스 규칙. 공식 경로 .agents/rules/<name>.md (파일당 12,000자). */
 export function toAntigravityRules(sections: RulesSection[], projectName: string): string {
-  return truncateForAntigravity(buildCodingDoc('Antigravity Rules', sections, projectName))
+  return truncateForAntigravity(buildCodingDoc('Antigravity Rules', sections, projectName, true))
 }
 
 /** CLAUDE.md 자동생성 규칙 섹션 경고 배너 — 출력과 멱등 dedup 이 공유하는 단일 출처. */
@@ -670,12 +682,19 @@ function hasSection(content: string, target: string, title: string): boolean {
 function findRequiredSectionOmissions(
   rootDir: string,
   plan: SyncPlanItem[],
-  requiredSections: string[]
+  requiredSections: string[],
+  missing: string[],
 ): SyncSectionOmission[] {
   const omissions: SyncSectionOmission[] = []
   for (const item of plan) {
     if (!item.exists) continue
-    const onDisk = fs.readFileSync(path.join(rootDir, item.path), 'utf-8')
+    let onDisk: string
+    try {
+      onDisk = fs.readFileSync(path.join(rootDir, item.path), 'utf-8')
+    } catch {
+      if (!missing.includes(item.path)) missing.push(item.path)
+      continue
+    }
     for (const section of requiredSections) {
       if (
         !hasSection(item.newContent, item.path, section)
@@ -700,7 +719,7 @@ export function syncCheck(rootDir: string): SyncCheckResult {
   const drifted = plan.filter((p) => p.exists && p.drift).map((p) => p.path)
   const missing = plan.filter((p) => !p.exists).map((p) => p.path)
   const requiredSections = getRequiredSectionTitles(sections)
-  const missingSections = findRequiredSectionOmissions(rootDir, plan, requiredSections)
+  const missingSections = findRequiredSectionOmissions(rootDir, plan, requiredSections, missing)
 
   // bootstrap 산출 — sync -y 가 injectBootstrapAll 로 만드는 파일. 8미러만 보면 커버리지 구멍.
   for (const t of SYNC_BOOTSTRAP_TARGETS) {
@@ -921,28 +940,28 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
       return
     }
     const r = syncCheck(cwd)
-    for (const p of r.drifted) console.log(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
-    for (const p of r.missing) console.log(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
+    for (const p of r.drifted) log.plain(chalk.yellow(`  ${ko.sync.checkDrift(p)}`))
+    for (const p of r.missing) log.plain(chalk.yellow(`  ${ko.sync.checkMissing(p)}`))
     for (const omission of r.missingSections) {
-      console.log(chalk.yellow(`  ${ko.sync.checkSectionMissing(omission.target, omission.section)}`))
+      log.plain(chalk.yellow(`  ${ko.sync.checkSectionMissing(omission.target, omission.section)}`))
     }
-    console.log((r.drifted.length === 0 ? chalk.green : chalk.red)(
+    log.plain((r.drifted.length === 0 ? chalk.green : chalk.red)(
       ko.sync.checkDriftSummary(r.drifted.length)
     ))
-    console.log((r.missing.length === 0 ? chalk.green : chalk.red)(
+    log.plain((r.missing.length === 0 ? chalk.green : chalk.red)(
       ko.sync.checkFileMissingSummary(r.missing.length)
     ))
-    console.log((r.missingSections.length === 0 ? chalk.green : chalk.red)(
+    log.plain((r.missingSections.length === 0 ? chalk.green : chalk.red)(
       ko.sync.checkSectionMissingSummary(r.missingSections.length)
     ))
     if (!r.ok) {
       const problemCount = r.drifted.length + r.missing.length + r.missingSections.length
-      console.log(chalk.red(ko.sync.checkFail(problemCount)))
+      log.plain(chalk.red(ko.sync.checkFail(problemCount)))
       process.exitCode = 1
     }
     // 113-T6 실측: 진입점 절이 코딩 규칙 파일 6종에서 조용히 빠졌는데 게이트는 통과했다.
     // 차단하지는 않되 **항상 보이게** 한다 — 0건도 표시해 "검사했다"는 사실을 남긴다.
-    console.log(
+    log.plain(
       chalk.dim(
         r.unmapped.length === 0
           ? `  ${ko.sync.checkUnmappedClean}`
@@ -1023,7 +1042,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   if (result.dryRun) {
     console.log(chalk.cyan(`\n${ko.sync.dryRunHeader}`))
     for (const item of result.plan) {
-      console.log(ko.sync.itemState(item.path, syncItemState(item)))
+      log.plain(ko.sync.itemState(item.path, syncItemState(item)))
     }
     const wouldBackup = result.plan
       .filter((p) => p.exists && (p.drift || result.firstSync))
@@ -1044,7 +1063,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   }
   for (const p of result.written) {
     const item = result.plan.find((i) => i.path === p)
-    if (item) console.log(chalk.green(ko.sync.itemState(item.path, syncItemState(item))))
+    if (item) log.plain(chalk.green(ko.sync.itemState(item.path, syncItemState(item))))
   }
   for (const _ of result.truncated) {
     console.log(chalk.yellow(`    ⚠️  ${ko.sync.antigravityTruncated}`))

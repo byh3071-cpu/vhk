@@ -1,3 +1,5 @@
+import { ko } from '../i18n/ko.js'
+
 export type NlpCommand =
   | 'gate'
   | 'start'
@@ -469,7 +471,7 @@ const RULES: NlpRule[] = [
   },
   {
     command: 'evolve',
-    explanation: '현재 진화 후보 확인 (vhk evolve list) — 반영·되돌리기는 직접 실행',
+    explanation: ko.nlp.evolveExplanation,
     confidence: 'high',
     test: t => matchesKeywords(t, 'evolve') || /^evolve$/.test(t),
   },

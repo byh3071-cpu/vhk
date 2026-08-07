@@ -504,16 +504,20 @@ export function dismissVerifyAdvisory(cwd: string, id: string): boolean {
   }
   const advisories = report.advisories ?? buildVerifyAdvisories(report.gates)
   if (!advisories.some((advisory) => advisory.id === id)) return false
-  appendActionEntry(cwd, {
-    ts: new Date().toISOString(),
-    action: 'advisory-dismiss',
-    channel: 'cli',
-    guard: 'allow',
-    ran: true,
-    reason: 'user-dismissed',
-    target: id,
-    ...(report.commit?.sha ? { sha: report.commit.sha } : {}),
-  })
+  try {
+    appendActionEntry(cwd, {
+      ts: new Date().toISOString(),
+      action: 'advisory-dismiss',
+      channel: 'cli',
+      guard: 'allow',
+      ran: true,
+      reason: 'user-dismissed',
+      target: id,
+      ...(report.commit?.sha ? { sha: report.commit.sha } : {}),
+    })
+  } catch {
+    return false
+  }
   return true
 }
 
@@ -657,11 +661,20 @@ export async function verify(
 
   if (opts.dismiss !== undefined) {
     if (dismissVerifyAdvisory(cwd, opts.dismiss)) {
-      console.log(chalk.green(`  ✅ 이 알림을 숨겼습니다: ${opts.dismiss}`))
-      console.log(chalk.dim('  같은 문제가 해결됐다가 다시 발생하면 다시 표시합니다.'))
+      try {
+        commitPaths(
+          'chore(vhk): evidence ledger [skip ci]',
+          [join('.vhk', 'events', 'ai-actions.jsonl')],
+          cwd,
+        )
+      } catch {
+        /* 알림 숨김 기록은 이미 저장됨. 커밋 실패는 기존 verify와 같이 비치명으로 둔다. */
+      }
+      log.plain(chalk.green(`  ✅ 이 알림을 숨겼습니다: ${opts.dismiss}`))
+      log.dim('  같은 문제가 해결됐다가 다시 발생하면 다시 표시합니다.')
       process.exitCode = 0
     } else {
-      console.error(chalk.red(`  ❌ 현재 확인할 항목에서 '${opts.dismiss}'를 찾을 수 없습니다.`))
+      log.error(`현재 확인할 항목에서 '${opts.dismiss}'를 찾을 수 없습니다.`)
       process.exitCode = 1
     }
     return
@@ -727,9 +740,9 @@ export async function verify(
 
   const visibleAdvisories = (report.advisories ?? []).filter((advisory) => !advisory.dismissed)
   if (visibleAdvisories.length > 0) {
-    console.log(chalk.bold('\n  확인이 필요한 항목'))
+    log.bold('\n  확인이 필요한 항목')
     for (const advisory of visibleAdvisories) log.plain(formatVerifyAdvisory(advisory))
-    console.log(chalk.dim('   숨기기: vhk verify --dismiss <알림-id>'))
+    log.dim('   숨기기: vhk verify --dismiss <알림-id>')
   }
 
   const declaredOptionalCount = report.gates.filter(isDeclaredOptionalSkip).length

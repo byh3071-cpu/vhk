@@ -276,7 +276,7 @@ export async function stats(opts: { trend?: boolean } = {}): Promise<void> {
   // 모든 소스는 읽기 전용이다. 진화 통계는 폐지된 큐가 아니라 결정 로그를 사용한다.
   const ledger = readLedger(cwd)
   const actions = readAiActions(cwd)
-  const evolveLog = readEvolveLog(cwd)
+  const evolveLog = readEvolveLogForStats(cwd)
 
   const ls = countLedgerStatus(ledger)
   const block = calcBlockRate(actions)
@@ -390,7 +390,7 @@ function renderTrend(cwd: string): void {
 
 /** #374: 진화 제안 채택률(결정 기준) + RULES.md 위반수 추세 — 표본 부족은 정직 표기(0 위장 금지). */
 function renderEvolveEffect(cwd: string): void {
-  const adoption = calcAdoptionStats(readEvolveLog(cwd))
+  const adoption = calcAdoptionStats(readEvolveLogForStats(cwd))
   const checkTrend = computeCheckTrend(readCheckLog(cwd))
 
   log.plain(chalk.cyan('\n🔄 진화 채택률(결정 기준)'))
@@ -421,5 +421,15 @@ function renderEvolveEffect(cwd: string): void {
       chalk.white(`  ${earlierAvg.toFixed(1)}건 → ${recentAvg.toFixed(1)}건`) +
         chalk.dim(` (${arrow}, 앞 ${earlierN}개 vs 뒤 ${recentN}개)`),
     )
+  }
+}
+
+function readEvolveLogForStats(cwd: string): EvolveLogEntry[] {
+  try {
+    return readEvolveLog(cwd)
+  } catch (error) {
+    log.warn('진화 결정 기록을 읽지 못해 진화 통계를 빈 기록으로 표시합니다.')
+    log.dim(`  ${error instanceof Error ? error.message : String(error)}`)
+    return []
   }
 }

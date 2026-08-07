@@ -774,6 +774,12 @@ describe('Windows 1급 게이트 (goal 9)', () => {
     }
   })
 
+  it('공통 검사 스크립트 탐색도 경로로 바뀔 수 있는 ID를 거부한다', async () => {
+    const { findCheckScript } = await import('../src/commands/goal.js')
+    expect(findCheckScript('goal', '../outside')).toBeNull()
+    expect(findCheckScript('rule', 'bad/id')).toBeNull()
+  })
+
   it('goalCheck — .mjs 게이트는 node 로 실행 (bash 불필요)', async () => {
     const dir = tmpProject('win-node')
     makeGoalFile(dir, 1, 'NOT_STARTED')

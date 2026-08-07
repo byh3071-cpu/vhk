@@ -100,7 +100,11 @@ vhk start --stack "Vite, React, TypeScript"
 vhk start
 
 # 기존 프로젝트에 하네스와 PR 검사 얹기
-vhk init -y --ci && vhk sync && vhk mcp-init
+vhk init -y --ci
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+vhk sync
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+vhk mcp-init
 ```
 
 Node.js 22 이상이 필요합니다. `vhk start --stack "..."`은 지정한 기술 스택을 확정값으로 기록합니다. `--stack`을 생략하면 자동 감지·유형 프리셋은 후보로만 기록되고 기존 `NEEDS_CUSTOMIZATION` 첫 세션 인터뷰에서 먼저 확인합니다. 아이디어부터 검증하려면 `vhk gate`로 시작하세요.
@@ -223,7 +227,7 @@ vhk evolve suggest      # 현재 7일 후보 계산(저장 안 함) — apply는
 vhk stats               # 패스율/차단율/진화 적용율 집계 (읽기 전용)
 ```
 
-규칙 후보는 별도 큐에 쌓이지 않습니다. 패턴이 생긴 뒤 7일 동안만 표시되고, `apply` 또는 `reject`로 결정한 결과만 로컬 로그에 남습니다. 조회·JSON·MCP 경로는 `RULES.md`를 자동으로 바꾸지 않습니다.
+규칙 후보는 별도 큐에 쌓이지 않습니다. 패턴이 생긴 뒤 7일 동안만 표시되고, `apply`·`reject`·`undo`로 결정하거나 되돌린 결과만 로컬 로그에 남습니다. 조회·JSON·MCP 경로는 `RULES.md`를 자동으로 바꾸지 않습니다.
 
 ## 🤖 오토파일럿 스킬 `/vhk-auto` (1단계 MVP)
 

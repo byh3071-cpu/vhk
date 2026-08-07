@@ -73,4 +73,19 @@ describe('stats 커맨드 (읽기 전용)', () => {
     process.chdir(origCwd)
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  it('진화 기록을 읽지 못해도 경고하고 빈 통계로 계속한다', async () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-stats-log-'))
+    fs.mkdirSync(path.join(d, '.vhk', 'events', 'evolve-log.jsonl'), { recursive: true })
+    origCwd = process.cwd()
+    process.chdir(d)
+    const output: string[] = []
+    logSpy = vi.spyOn(console, 'log').mockImplementation((message?: unknown) => { output.push(String(message)) })
+
+    await expect(stats()).resolves.toBeUndefined()
+    expect(output.join('\n')).toContain('진화 결정 기록을 읽지 못해')
+
+    process.chdir(origCwd)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })

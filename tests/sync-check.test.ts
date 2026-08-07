@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -167,6 +167,26 @@ describe('syncCheck — sync 산출 전체 drift 검사 (Goal 63)', () => {
     const r = syncCheck(dir)
     expect(r.ok).toBe(false)
     expect(r.missing).toContain(ECOSYSTEM_MDC_REL)
+  })
+
+  it('검사 도중 타겟을 읽을 수 없어져도 죽지 않고 missing으로 처리한다', () => {
+    const target = path.resolve(dir, '.cursorrules')
+    const originalReadFileSync = fs.readFileSync
+    let targetReads = 0
+    const spy = vi.spyOn(fs, 'readFileSync').mockImplementation(((file, options) => {
+      if (path.resolve(String(file)) === target && ++targetReads === 2) {
+        throw new Error('simulated read failure')
+      }
+      return Reflect.apply(originalReadFileSync, fs, [file, options])
+    }) as typeof fs.readFileSync)
+
+    try {
+      const result = syncCheck(dir)
+      expect(result.ok).toBe(false)
+      expect(result.missing).toContain('.cursorrules')
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('Git에서 제외하는 개인 CORE-RULES는 새 clone에 없어도 통과', () => {

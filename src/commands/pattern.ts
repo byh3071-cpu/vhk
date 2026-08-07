@@ -5,6 +5,7 @@ import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { generateInlineCandidates } from '../lib/evolve-candidates.js'
 import { currentEvolveDecisionKeys, readEvolveLog } from '../lib/evolve-log.js'
 import { loadForMutation, readMemory, writeMemory, type MemoryFileV2, type MemEntry, type FailEntry, type PatternEntry } from './memory.js'
+import { log } from '../utils/logger.js'
 
 /**
  * Goal 19: pattern detection v0 — active failures/successes 에서 반복 패턴 감지.
@@ -260,11 +261,11 @@ export async function patternDetect(opts: { min?: string; json?: boolean } = {})
   }
 
   if (newRuleCandidates.length > 0) {
-    console.log(chalk.cyan(`\n바로 선택할 규칙 후보 ${newRuleCandidates.length}개:`))
+    log.plain(chalk.cyan(`\n바로 선택할 규칙 후보 ${newRuleCandidates.length}개:`))
     for (const candidate of newRuleCandidates) {
-      console.log(`  [${candidate.id}] ${candidate.draft}`)
-      console.log(chalk.dim(`      승인: vhk evolve apply ${candidate.id}`))
-      console.log(chalk.dim(`      기각: vhk evolve reject ${candidate.id} "이유"`))
+      log.plain(`  [${candidate.id}] ${candidate.draft}`)
+      log.dim(`      승인: vhk evolve apply ${candidate.id}`)
+      log.dim(`      기각: vhk evolve reject ${candidate.id} "이유"`)
     }
   }
 

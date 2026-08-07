@@ -6,6 +6,23 @@
 ## 필수 참조
 - docs/PRD.md · docs/ARCHITECTURE.md · CLAUDE.md · RULES.md
 
+## VHK 운영 — Forbidden (전역 금지)
+> 단일 Forbidden 목록(통합 SoT — 파생 산출물은 이 섹션을 포인터로 참조한다).
+> CLAUDE.md 헌법 영구구역의 Forbidden 은 불가침이라 그대로 둠 — 의례 수준 금지는 그쪽, 코드/운영 수준 금지는 여기.
+
+- `node_modules/` 직접 수정 금지
+- 공개 API breaking change는 major 버전에서만 허용
+- `execSync` 신규 사용 금지 → `safeExecFile`
+- MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
+- 토큰/시크릿 코드·커밋 평문 노출 금지 (`.env` + `.gitignore`)
+- 게이트 실패 상태에서 done 처리 금지 / `vhk resume` 자동 호출 금지
+- AGENTS.md·.cursorrules 등 sync 산출물 직접 편집 금지 → RULES.md + `vhk sync`
+- publish 는 main 에서만 + 사람 승인 (가드 #119)
+- 공개 추적 금지 (ADR-010 §1 개정): **개인 운영 기록**(세션 로그·개인 일정·가용시간·개인 사정), 로컬 절대경로, 개인 이메일, 실명, 개인 저장소명, 실제 외부 서비스 객체 ID
+- 공개 추적 허용 (ADR-010 §1): **제품 작업 항목**(로드맵·릴리스 계획·작업 단위와 그 완료 조건) — 위 금지 항목을 하나도 포함하지 않을 때만
+- 예제는 `sample-*`, `<HOME>`, 명백한 가짜 ID만 사용하고 `boundary:check` 우회 금지
+- Git 작성자 이메일은 GitHub noreply, npm 공개 연락처는 `opensource@yohanstudio.co` 사용
+
 ## 세션 시작 필독
 > 이 절은 진입점이다. 어떤 도구로 세션을 열든 여기부터 읽는다 (ADR-010 §3).
 
@@ -58,20 +75,3 @@
 ## 커밋 컨벤션
 - 형식: `feat:` / `fix:` / `refactor:` / `docs:` / `chore:`
 - 1 iteration = 작은 commit 하나 + 게이트 통과(or 정직한 블로커)
-
-## VHK 운영 — Forbidden (전역 금지)
-> 단일 Forbidden 목록(통합 SoT — 파생 산출물은 이 섹션을 포인터로 참조한다).
-> CLAUDE.md 헌법 영구구역의 Forbidden 은 불가침이라 그대로 둠 — 의례 수준 금지는 그쪽, 코드/운영 수준 금지는 여기.
-
-- `node_modules/` 직접 수정 금지
-- 공개 API breaking change는 major 버전에서만 허용
-- `execSync` 신규 사용 금지 → `safeExecFile`
-- MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
-- 토큰/시크릿 코드·커밋 평문 노출 금지 (`.env` + `.gitignore`)
-- 게이트 실패 상태에서 done 처리 금지 / `vhk resume` 자동 호출 금지
-- AGENTS.md·.cursorrules 등 sync 산출물 직접 편집 금지 → RULES.md + `vhk sync`
-- publish 는 main 에서만 + 사람 승인 (가드 #119)
-- 공개 추적 금지 (ADR-010 §1 개정): **개인 운영 기록**(세션 로그·개인 일정·가용시간·개인 사정), 로컬 절대경로, 개인 이메일, 실명, 개인 저장소명, 실제 외부 서비스 객체 ID
-- 공개 추적 허용 (ADR-010 §1): **제품 작업 항목**(로드맵·릴리스 계획·작업 단위와 그 완료 조건) — 위 금지 항목을 하나도 포함하지 않을 때만
-- 예제는 `sample-*`, `<HOME>`, 명백한 가짜 ID만 사용하고 `boundary:check` 우회 금지
-- Git 작성자 이메일은 GitHub noreply, npm 공개 연락처는 `opensource@yohanstudio.co` 사용

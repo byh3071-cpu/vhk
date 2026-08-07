@@ -95,7 +95,7 @@ export function formatInstallReceipt(r: InstallReceipt): string {
       lines.push(`  핵심 규칙    사용자 규칙 파일 · ${version} ✅`)
     } else {
       lines.push(`  핵심 규칙    VHK 내장 기본 규칙 · ${version} ⚠️`)
-      lines.push('  ⚠️ 사용자 규칙 파일이 연결된 상태가 아닙니다 → vhk config set-rules-file <yaml경로>')
+      lines.push('  ⚠️ 사용자 규칙 파일이 연결된 상태가 아닙니다 → vhk config set-rules-file <HOME>/sample-rules.yaml')
     }
   }
   lines.push(`  기록 폴더    ${r.recordDirsPresent}/${r.recordDirsTotal}종 만들어짐 ${dirsOk ? '✅' : '⚠️'}`)

@@ -20,10 +20,12 @@ import {
 } from '../lib/evolve-log.js'
 import {
   buildCandidateDraft,
+  EVOLVE_CANDIDATE_TTL_DAYS,
   generateInlineCandidates,
   type InlineEvolveCandidate,
 } from '../lib/evolve-candidates.js'
 import { parsePatMarkdown, failureToSeed, tsToSeed, renderSeedPreview, type SeedCandidate } from '../lib/seed-mine.js'
+import { log } from '../utils/logger.js'
 
 /**
  * Goal 20: vhk evolve — 패턴 → RULES.md 반영 큐 & 순수 함수.
@@ -485,11 +487,11 @@ function loadInlineCandidates(cwd: string, nowIso = new Date().toISOString()): I
 
 function printInlineCandidate(item: InlineEvolveCandidate): void {
   const expires = new Date(item.expiresAt).toLocaleDateString('ko-KR')
-  console.log(chalk.cyan(`\n  [${item.id}] 규칙 후보`))
-  console.log(`      ${item.draft}`)
-  console.log(chalk.dim(`      ${expires}까지 선택하지 않으면 사라집니다.`))
-  console.log(chalk.dim(`      승인: vhk evolve apply ${item.id}`))
-  console.log(chalk.dim(`      기각: vhk evolve reject ${item.id} "이유"`))
+  log.plain(chalk.cyan(`\n  [${item.id}] 규칙 후보`))
+  log.plain(`      ${item.draft}`)
+  log.dim(`      ${expires}까지 선택하지 않으면 사라집니다.`)
+  log.dim(`      승인: vhk evolve apply ${item.id}`)
+  log.dim(`      기각: vhk evolve reject ${item.id} "이유"`)
 }
 
 export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void> {
@@ -517,13 +519,13 @@ export async function evolveSuggest(opts: { json?: boolean } = {}): Promise<void
       console.log(chalk.yellow('\n📭 ' + t('evolve.noPatterns')))
       return
     }
-    console.log(chalk.dim('\n  판정할 후보가 없습니다. 기존 후보는 이미 결정됐거나 7일이 지났습니다.'))
+    log.dim(`\n  ${t('evolve.allSuggested', EVOLVE_CANDIDATE_TTL_DAYS)}`)
     return
   }
 
   console.log(chalk.bold('\n🔄 ' + t('evolve.suggestTitle')))
   console.log(chalk.gray('─'.repeat(40)))
-  console.log(chalk.dim(`  후보 ${candidates.length}개를 저장하지 않고 바로 보여줍니다.`))
+  log.dim(`  후보 ${candidates.length}개를 저장하지 않고 바로 보여줍니다.`)
   for (const candidate of candidates) printInlineCandidate(candidate)
 
   printNextStep({
@@ -633,7 +635,7 @@ export async function evolveList(opts: { status?: string; json?: boolean } = {})
   console.log(chalk.gray('─'.repeat(40)))
 
   if (items.length === 0) {
-    console.log(chalk.yellow('\n📭 판정할 후보나 결정 기록이 없습니다.'))
+    log.warn('판정할 후보나 결정 기록이 없습니다.')
     console.log(chalk.gray('   ' + t('evolve.suggestHint')))
     return
   }
@@ -682,8 +684,8 @@ export async function evolveApply(idStr: string): Promise<void> {
       entry.suggId === idStr?.trim()
       || `${entry.patternId}:${entry.targetLayer ?? 'rule'}` === idStr?.trim(),
     )
-    if (decided?.applied) console.log(chalk.yellow('\n⚠️  ' + t('evolve.alreadyApplied')))
-    else console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
+    if (decided?.applied) log.warn(t('evolve.alreadyApplied'))
+    else log.error(t('evolve.notFound', idStr ?? ''))
     process.exitCode = 1
     return
   }
@@ -691,7 +693,7 @@ export async function evolveApply(idStr: string): Promise<void> {
     (entry) => entry.applied && Boolean(entry.rulesBackupPath),
   )
   if (hasUndoableApply) {
-    console.log(chalk.red('\n❌ ' + t('evolve.pendingApplyExists')))
+    log.error(t('evolve.pendingApplyExists'))
     process.exitCode = 1
     return
   }
@@ -769,14 +771,14 @@ export async function evolveApply(idStr: string): Promise<void> {
       copyFileSync(backupPath, rulesPath)
       await sync({ yes: true })
     } catch (rollbackError) {
-      console.error(chalk.red('\n❌ 결정 기록 저장과 규칙 원상복구가 모두 실패했습니다.'))
-      console.error(chalk.dim(`   기록 오류: ${error instanceof Error ? error.message : String(error)}`))
-      console.error(chalk.dim(`   복구 오류: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`))
+      log.error('결정 기록 저장과 규칙 원상복구가 모두 실패했습니다.')
+      log.dim(`   기록 오류: ${error instanceof Error ? error.message : String(error)}`)
+      log.dim(`   복구 오류: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`)
       process.exitCode = 1
       return
     }
-    console.error(chalk.red('\n❌ 결정 기록을 저장하지 못해 규칙 반영을 취소했습니다.'))
-    console.error(chalk.dim(`   ${error instanceof Error ? error.message : String(error)}`))
+    log.error('결정 기록을 저장하지 못해 규칙 반영을 취소했습니다.')
+    log.dim(`   ${error instanceof Error ? error.message : String(error)}`)
     process.exitCode = 1
     return
   }
@@ -793,7 +795,7 @@ export async function evolveApply(idStr: string): Promise<void> {
     }
   }
 
-  console.log(chalk.green(`\n✅ 룰 반영 완료! [${appliedItem.id}]`))
+  log.success(`룰 반영 완료! [${appliedItem.id}]`)
   console.log(chalk.dim('   RULES.md에 추가 + vhk sync 재생성됨'))
   printNextStep({
     message: '룰 반영 완료!',
@@ -822,7 +824,7 @@ export async function evolveReject(idStr: string, reason?: string): Promise<void
       || `${entry.patternId}:${entry.targetLayer ?? 'rule'}` === idStr?.trim(),
     )
     if (decided) {
-      console.log(chalk.dim(`  이미 판정한 후보입니다 — 변경 없음: ${decided.suggId}`))
+      log.dim(`  이미 판정한 후보입니다 — 변경 없음: ${decided.suggId}`)
       return
     }
     console.log(chalk.red('\n❌ ' + t('evolve.notFound', idStr ?? '')))
@@ -837,8 +839,8 @@ export async function evolveReject(idStr: string, reason?: string): Promise<void
       draft: item.draft,
     })
   } catch (error) {
-    console.error(chalk.red('\n❌ 기각 기록을 저장하지 못했습니다. 후보 상태는 바뀌지 않았습니다.'))
-    console.error(chalk.dim(`   ${error instanceof Error ? error.message : String(error)}`))
+    log.error('기각 기록을 저장하지 못했습니다. 후보 상태는 바뀌지 않았습니다.')
+    log.dim(`   ${error instanceof Error ? error.message : String(error)}`)
     process.exitCode = 1
     return
   }
@@ -907,16 +909,18 @@ export async function evolveUndo(): Promise<void> {
   try {
     await sync({ yes: true })
   } catch (err) {
-    console.error(chalk.red('\n❌ sync 재실행 중 오류. RULES.md는 복원됐으나 .cursorrules 등 재생성 실패.'))
-    console.error(chalk.dim(`   ${err instanceof Error ? err.message : String(err)}`))
-    console.error(chalk.dim('   수동으로 `vhk sync` 실행하세요.'))
+    log.error('sync 재실행 중 오류. RULES.md는 복원됐으나 .cursorrules 등 재생성 실패.')
+    log.dim(`   ${err instanceof Error ? err.message : String(err)}`)
+    log.dim('   수동으로 `vhk sync` 실행하세요.')
+    process.exitCode = 1
+    return
   }
 
   try {
     appendEvolveLog(cwd, buildEvolveUndoLogEntry(last, new Date().toISOString()))
   } catch (error) {
-    console.error(chalk.red('\n❌ 되돌리기 기록 저장 실패 — RULES.md는 복원됐지만 후보 기록을 확인해야 합니다.'))
-    console.error(chalk.dim(`   ${error instanceof Error ? error.message : String(error)}`))
+    log.error('되돌리기 기록 저장 실패 — RULES.md는 복원됐지만 후보 기록을 확인해야 합니다.')
+    log.dim(`   ${error instanceof Error ? error.message : String(error)}`)
     process.exitCode = 1
     return
   }
