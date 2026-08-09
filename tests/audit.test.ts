@@ -28,6 +28,24 @@ vi.mock('ora', () => ({
 }))
 
 describe('audit', () => {
+  describe('detectCurrentPM', () => {
+    it('pnpm과 yarn 잠금 파일이 모두 있으면 pnpm을 선택한다', async () => {
+      mockExistsSync.mockImplementation(
+        (file: unknown) => file === 'pnpm-lock.yaml' || file === 'yarn.lock'
+      )
+      const { detectCurrentPM } = await import('../src/commands/audit.js')
+
+      expect(detectCurrentPM()).toBe('pnpm')
+    })
+
+    it('yarn 잠금 파일만 있으면 yarn을 선택한다', async () => {
+      mockExistsSync.mockImplementation((file: unknown) => file === 'yarn.lock')
+      const { detectCurrentPM } = await import('../src/commands/audit.js')
+
+      expect(detectCurrentPM()).toBe('yarn')
+    })
+  })
+
   beforeEach(() => {
     vi.resetAllMocks()
     vi.spyOn(console, 'log').mockImplementation(() => {})
