@@ -505,6 +505,24 @@ describe('Goal projection 공개 경계', () => {
     },
   )
 
+  it.each(['private-user@dev', 'private-user@latest', 'private-user@v1.2.3'])(
+    'email-shaped local part %s is rejected without preserving the candidate',
+    (value) => {
+      const result = project('# Goal', { goalTitle: value })
+
+      expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+      expect(JSON.stringify(result)).not.toContain(value)
+    },
+  )
+
+  it('Markdown closing bracket is not consumed by an email candidate', () => {
+    const value = '[private-user@gmail.com]'
+    const result = project('# Goal\n\n' + value)
+
+    expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+    expect(JSON.stringify(result)).not.toContain(value)
+  })
+
   it('명백한 fake JWT placeholder는 허용한다', () => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', {
       goalTitle: 'eyJxxxx.eyJxxxx.xxxx',
