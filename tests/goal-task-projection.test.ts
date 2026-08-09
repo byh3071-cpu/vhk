@@ -303,6 +303,18 @@ describe('Goal Phase Task 투영', () => {
       markdown: '### Phase 1\n- [ ] **1** Task label 없는 작업',
       code: 'INVALID_TASK_SYNTAX',
     },
+    {
+      markdown: '- [ ] *Task 1* 작업',
+      code: 'INVALID_TASK_SYNTAX',
+    },
+    {
+      markdown: '- [ ] ***Task 1*** 작업',
+      code: 'INVALID_TASK_SYNTAX',
+    },
+    {
+      markdown: '- [ ] `Task 1` 작업',
+      code: 'INVALID_TASK_SYNTAX',
+    },
   ])('Phase/Task 유사 문법을 legacy가 아닌 $code 구조 오류로 처리한다', ({ markdown, code }) => {
     const result = project(markdown)
 
@@ -436,6 +448,23 @@ describe('Goal projection 공개 경계', () => {
     expect(result.errors).toEqual([])
   })
 
+  it('명백한 fake JWT placeholder는 허용한다', () => {
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', {
+      goalTitle: 'eyJxxxx.eyJxxxx.xxxx',
+    })
+
+    expect(result.valid).toBe(true)
+    expect(result.errors).toEqual([])
+  })
+
+  it('실제 JWT payload 뒤 fake suffix는 허용하지 않는다', () => {
+    const token = `eyJ${'a'.repeat(12)}.eyJ${'b'.repeat(12)}.${'c'.repeat(12)}-fake`
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: token })
+
+    expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+    expect(JSON.stringify(result)).not.toContain(token)
+  })
+
   it.each(['sample', 'fake', 'redacted', 'xxxx'])(
     'GitHub token payload의 %s 부분 문자열을 placeholder로 면제하지 않는다',
     (placeholder) => {
@@ -473,6 +502,7 @@ describe('Goal projection 공개 경계', () => {
     ['', 'Users', 'private user', 'project'].join('/'),
     String.raw`\\server\Users\private-user\repo`,
     String.raw`\\server\C$\Users\private-user\repo`,
+    String.raw`\\?\UNC\server\C$\Users\private-user\repo`,
   ])('공백이 있는 home 경로를 원문 없이 차단한다', (homePath) => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: homePath })
 

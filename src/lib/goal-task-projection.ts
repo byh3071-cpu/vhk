@@ -86,14 +86,15 @@ interface ParsedPhase {
 const PHASE_LINE = /^### Phase (\S+)$/u
 const PHASE_SHAPE = /^\s*#{1,6}\s*(?:[*_`]+)?phase\b/iu
 const TASK_LINE = /^- \[([ xX])\] \*\*Task (\S+)\*\*(?: (.*))?$/u
-const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*\*\*(?:task\b|[+-]?(?:\d|0x))/iu
+const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:[*_`]+)?(?:task\b|[+-]?(?:\d|0x))/iu
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
 const EMAIL_PATTERN = /\b[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+\b/giu
 const UUID_PATTERN = /(?<![0-9a-f])[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}(?![0-9a-f])/giu
 const ZERO_UUID = /^0{32}$/u
-const HOME_PATH_PATTERN = /(?:\\\\[^\\/\r\n]+(?:[\\/][^\\/\r\n]+)?[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
+const HOME_PATH_PATTERN = /(?:\\\\\?\\UNC[\\/][^\\/\r\n]+(?:[\\/][^\\/\r\n]+)?[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\\\\[^\\/\r\n]+(?:[\\/][^\\/\r\n]+)?[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
 const SECRET_PLACEHOLDER_PAYLOAD = /^(?:sample|example|placeholder|fake|dummy|redacted|changeme|x{4,})+$/iu
 const SECRET_TOKEN_PREFIX = /^(?:AKIA|ghp_|github_pat_|gh[ousr]_|npm_|xox[baprs]-|AIza|[sr]k_live_|ntn_|sk-(?:proj-|ant-api03-|live-)|secret_)(.+)$/iu
+const JWT_PLACEHOLDER = /^eyJx{4,}\.eyJx{4,}\.x{4,}$/iu
 const CANONICAL_POSITIVE_INTEGER = /^[1-9][0-9]*$/u
 const NOT_APPLICABLE_MARKER = '`(na)`'
 const EVIDENCE_SEPARATORS = [' / 증거:', ' / evidence:'] as const
@@ -131,6 +132,8 @@ function isAllowedEmail(email: string): boolean {
 }
 
 function isExplicitSecretPlaceholder(value: string): boolean {
+  if (JWT_PLACEHOLDER.test(value)) return true
+
   const bearer = value.match(/^Authorization\s*:\s*Bearer\s+(.+)$/iu)
   if (bearer) return SECRET_PLACEHOLDER_PAYLOAD.test(bearer[1].trim())
 
