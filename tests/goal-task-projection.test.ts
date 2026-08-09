@@ -256,6 +256,41 @@ describe('Goal Phase Task 투영', () => {
     expect(JSON.stringify(result)).not.toContain(markdown)
   })
 
+  it.each(['1e2', '0x10', '+1', '01'])(
+    'Phase ID %s를 ASCII canonical decimal positive integer로 보지 않는다',
+    (phaseId) => {
+      expect(errorCodes(`### Phase ${phaseId}\n- [ ] **Task 1** 작업`)).toContain(
+        'INVALID_PHASE_ID',
+      )
+    },
+  )
+
+  it.each(['1e2', '0x10', '+1', '01'])(
+    'Task ID %s를 ASCII canonical decimal positive integer로 보지 않는다',
+    (taskId) => {
+      expect(errorCodes(`### Phase 1\n- [ ] **Task ${taskId}** 작업`)).toContain(
+        'INVALID_TASK_ID',
+      )
+    },
+  )
+
+  it.each([
+    {
+      markdown: '### **Phase 1**\n- [ ] **Task 1** 작업',
+      code: 'INVALID_PHASE_SYNTAX',
+    },
+    {
+      markdown: '### Phase 1\n- [ ] **1** Task label 없는 작업',
+      code: 'INVALID_TASK_SYNTAX',
+    },
+  ])('Phase/Task 유사 문법을 legacy가 아닌 $code 구조 오류로 처리한다', ({ markdown, code }) => {
+    const result = project(markdown)
+
+    expect(result.valid).toBe(false)
+    expect(result.errors.map((error) => error.code)).toContain(code)
+    expect(JSON.stringify(result)).not.toContain(markdown)
+  })
+
   it('Task 라벨 직후의 정확한 backticked `(na)`만 notApplicable로 읽는다', () => {
     const result = project([
       '### Phase 1',
@@ -357,11 +392,44 @@ describe('Goal projection 공개 경계', () => {
     expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
   })
 
+  it.each(['sample', 'fake', 'redacted', 'xxxx'])(
+    'GitHub token payload의 %s 부분 문자열을 placeholder로 면제하지 않는다',
+    (placeholder) => {
+      const token = ['ghp_', 'a'.repeat(18), placeholder, 'b'.repeat(18)].join('')
+      const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: token })
+
+      expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+      expect(JSON.stringify(result)).not.toContain(token)
+    },
+  )
+
+  it.each([
+    ['C:', 'Users', 'private user', 'project'].join('\\'),
+    ['', 'home', 'private user', 'project'].join('/'),
+    ['', 'Users', 'private user', 'project'].join('/'),
+  ])('공백이 있는 home 경로를 원문 없이 차단한다', (homePath) => {
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: homePath })
+
+    expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+    expect(JSON.stringify(result)).not.toContain(homePath)
+  })
+
+  it.each(['prefix_', '_suffix'])('underscore에 붙은 non-zero UUID %s를 차단한다', (affix) => {
+    const uuid = ['12345678', '1234', '1234', '1234', '123456789abc'].join('-')
+    const value = affix.startsWith('_') ? `${uuid}${affix}` : `${affix}${uuid}`
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: value })
+
+    expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+    expect(JSON.stringify(result)).not.toContain(value)
+  })
+
   it.each([
     'C:/absolute/sample-goal.md',
     '../sample-goal.md',
     '.vhk/sample-goal.md',
     'goals/sample-goal.md',
+    'docs/state/next-task.md',
+    'docs/state/archive/sample-goal.md',
     'nested\\sample-goal.md',
   ])('안전한 POSIX 상대 참조가 아닌 sourceRef %s를 차단한다', (sourceRef) => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', { sourceRef })

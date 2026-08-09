@@ -84,15 +84,15 @@ interface ParsedPhase {
 }
 
 const PHASE_LINE = /^### Phase (\S+)$/u
-const PHASE_SHAPE = /^\s*#{1,6}\s*phase\b/iu
+const PHASE_SHAPE = /^\s*#{1,6}\s*(?:\*{1,2})?phase\b/iu
 const TASK_LINE = /^- \[([ xX])\] \*\*Task (\S+)\*\*(?: (.*))?$/u
-const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*\*\*task\b/iu
+const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*\*\*(?:task\b|[+-]?(?:\d|0x))/iu
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
 const EMAIL_PATTERN = /\b[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+\b/giu
-const UUID_PATTERN = /\b[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b/giu
+const UUID_PATTERN = /(?<![0-9a-f])[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}(?![0-9a-f])/giu
 const ZERO_UUID = /^0{32}$/u
-const HOME_PATH_PATTERN = /(?:[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\s]+(?:[\\/]|$)|\/(?:home|users)\/[^/\s]+(?:\/|$)|\/root(?:\/|$))/iu
-const SAFE_SECRET_PLACEHOLDER = /(?:sample|example|placeholder|fake|dummy|redacted|changeme|x{4,}|<[^>]+>)/iu
+const HOME_PATH_PATTERN = /(?:[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
+const CANONICAL_POSITIVE_INTEGER = /^[1-9][0-9]*$/u
 const NOT_APPLICABLE_MARKER = '`(na)`'
 const EVIDENCE_SEPARATORS = [' / 증거:', ' / evidence:'] as const
 
@@ -110,7 +110,9 @@ function isSafeSourceRef(sourceRef: string): boolean {
   if (!sourceRef || sourceRef.includes('\\') || /[:\u0000-\u001f]/u.test(sourceRef)) return false
   if (sourceRef.startsWith('/') || /^[a-z]:/iu.test(sourceRef)) return false
   const segments = sourceRef.split('/')
-  if (segments[0]?.toLowerCase() === 'goals') return false
+  const normalizedSegments = segments.map((segment) => segment.toLowerCase())
+  if (normalizedSegments[0] === 'goals') return false
+  if (normalizedSegments[0] === 'docs' && normalizedSegments[1] === 'state') return false
   return segments.every(
     (segment) => segment !== '' && segment !== '.' && segment !== '..' && segment !== '.vhk',
   )
@@ -143,9 +145,7 @@ function hasUnsafeText(text: string): boolean {
       ? pattern.pattern.flags
       : `${pattern.pattern.flags}g`
     const regex = new RegExp(pattern.pattern.source, flags)
-    for (const match of text.matchAll(regex)) {
-      if (!SAFE_SECRET_PLACEHOLDER.test(match[0])) return true
-    }
+    if (regex.test(text)) return true
   }
   return false
 }
@@ -280,8 +280,10 @@ export function parseGoalPhaseTasks(input: GoalTaskProjectionInput): WorkContext
     const phaseMatch = line.match(PHASE_LINE)
     if (phaseMatch) {
       closeEmptyPhase()
-      const phaseNumber = Number(phaseMatch[1])
-      const validPhaseNumber = Number.isSafeInteger(phaseNumber) && phaseNumber > 0
+      const phaseId = phaseMatch[1]
+      const phaseNumber = Number(phaseId)
+      const validPhaseNumber =
+        CANONICAL_POSITIVE_INTEGER.test(phaseId) && Number.isSafeInteger(phaseNumber)
       if (!validPhaseNumber) {
         addError('INVALID_PHASE_ID', sourceLine)
       } else if (phaseNumbers.has(phaseNumber)) {
@@ -312,8 +314,10 @@ export function parseGoalPhaseTasks(input: GoalTaskProjectionInput): WorkContext
       continue
     }
 
-    const taskNumber = Number(taskMatch[2])
-    const validTaskNumber = Number.isSafeInteger(taskNumber) && taskNumber > 0
+    const taskId = taskMatch[2]
+    const taskNumber = Number(taskId)
+    const validTaskNumber =
+      CANONICAL_POSITIVE_INTEGER.test(taskId) && Number.isSafeInteger(taskNumber)
     if (!validTaskNumber) {
       addError('INVALID_TASK_ID', sourceLine)
     } else if (taskNumbers.has(taskNumber)) {
