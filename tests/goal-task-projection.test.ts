@@ -411,6 +411,18 @@ describe('Goal Phase Task 투영', () => {
     expect(result.errors).toEqual([])
   })
 
+  it('한국어가 바로 이어지는 legacy Phase 제목도 canonical Phase 투영을 막지 않는다', () => {
+    const result = project('## Phase별 정리\n\n### Phase 1\n- [ ] **Task 1** 첫 작업')
+
+    expect(result.valid).toBe(true)
+    expect(result.activeGoal?.phases).toEqual([{ id: 'goal:134/phase:1' }])
+    expect(result.errors).toEqual([])
+  })
+
+  it('숫자로 시작하는 Phase ID는 공백 수와 무관하게 legacy 제목으로 우회하지 않는다', () => {
+    expect(errorCodes('## Phase  1\n- [ ] **Task 1** 작업')).toContain('INVALID_PHASE_SYNTAX')
+  })
+
   it('Phase 없는 legacy Goal의 일반 숫자 checklist는 구조 오류가 아니다', () => {
     const result = project('# 기존 Goal\n\n- [ ] 2026년 목표')
 
@@ -422,13 +434,23 @@ describe('Goal Phase Task 투영', () => {
   })
 
   it('Phase 없는 legacy Goal의 서식 숫자 checklist는 Task 구조 오류가 아니다', () => {
-    const result = project('# 기존 Goal\n\n- [ ] `005` 경로 확인\n- [ ] **1. 첫 단계** 확인')
+    const result = project([
+      '# 기존 Goal',
+      '',
+      '- [ ] `005` 경로 확인',
+      '- [ ] **1. 첫 단계** 확인',
+      '- [ ] **2** update task runner',
+    ].join('\n'))
 
     expect(result.valid).toBe(true)
     expect(result.activeGoal?.phases).toEqual([])
     expect(result.activeGoal?.tasks).toEqual([])
     expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
     expect(result.errors).toEqual([])
+  })
+
+  it('공백이 빠진 Task 라벨은 legacy checklist로 우회하지 않는다', () => {
+    expect(errorCodes('- [ ] **Task1** 작업')).toContain('INVALID_TASK_SYNTAX')
   })
 })
 

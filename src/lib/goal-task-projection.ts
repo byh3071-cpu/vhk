@@ -85,9 +85,9 @@ interface ParsedPhase {
 
 const PHASE_LINE = /^### Phase (\S+)$/u
 const PHASE_SHAPE = /^\s*#{1,6}\s*(?:[*_`]+)?phase\b/iu
-const LEGACY_PHASE_SECTION = /^## Phase(?:\s+(?![+-]?(?:\d|0x))[^\r\n]+)?$/u
+const LEGACY_PHASE_SECTION = /^## Phase(?:(?:[^\x00-\x7F][^\r\n]*)|(?:\s+(?![+-]?(?:\d|0x))[^\s\r\n][^\r\n]*))?$/u
 const TASK_LINE = /^- \[([ xX])\] \*\*Task (\S+)\*\*(?: (.*))?$/u
-const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:(?:[*_`]+)?task\b|[*_`]+[+-]?(?:\d|0x)[^\r\n]*\btask\b)/iu
+const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:(?:[*_`]+)?task|[*_`]+[+-]?(?:\d|0x)[^*_`\r\n]*[*_`]+\s+task\b)/iu
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
 const EMAIL_CANDIDATE_PATTERN = /([A-Z0-9.!#$%&'*+/=?^_`{|}~\p{L}\p{N}-]+)@(\[[^\]\s<>()"'`,;!?]+\]|[^\s<>()"'`,;!?\[\]]+)/giu
 const EMAIL_DOMAIN_LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u
