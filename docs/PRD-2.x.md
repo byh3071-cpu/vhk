@@ -160,7 +160,7 @@
 
 | # | 수용 기준 |
 |---|---|
-| 134 | UTF-8 BOM·LF·CRLF Goal body에서 코드 펜스 밖의 정확한 `### Phase N`·`- [ ] **Task N**` 문법만 읽힌다 · Phase와 Goal 전체 Task 번호는 각각 양수·고유·오름차순이며 결번을 허용하고 빈 Phase·Phase 밖 Task·중복·역순을 차단한다 · checkbox와 Task 라벨 직후 정확한 `` `(na)` ``에서 `pending`·`completed`·`notApplicable`을 계산하고 checked+`(na)`를 차단한다 · `completed`·`notApplicable`은 terminal, 첫 Phase pending은 ready, 이후 Phase pending은 직전 Phase Task 전부 terminal일 때만 ready이고 아니면 waiting이다 · 첫·같은 Phase `dependsOn`은 빈 배열이고 다음 Phase의 각 Task는 직전 Phase 모든 string Task ID에 의존한다 · `/ 증거:`·`/ evidence:` 값은 optional hint일 뿐 완료 증거가 아니다 · 4 Phase·11 Task 도그푸딩 fixture를 소비자 복사본 수정 없이 읽는다 |
+| 134 | UTF-8 BOM·LF·CRLF Goal body에서 코드 펜스 밖의 정확한 `### Phase N`과 `- [ ]`·`- [x]`·`- [X]` 뒤 `**Task N**` 문법만 읽힌다 · Phase와 Goal 전체 Task 번호는 각각 양수·고유·오름차순이며 결번을 허용하고 빈 Phase·Phase 밖 Task·중복·역순을 차단한다 · `[ ]`은 `pending`, `[x]`·`[X]`는 `completed`, Task 라벨 직후의 정확한 `` `(na)` ``는 `notApplicable`로 계산하고 `[x]`·`[X]`+`(na)`를 차단한다 · `completed`·`notApplicable`은 terminal, 첫 Phase pending은 ready, 이후 Phase pending은 직전 Phase Task 전부 terminal일 때만 ready이고 아니면 waiting이다 · 첫·같은 Phase `dependsOn`은 빈 배열이고 다음 Phase의 각 Task는 직전 Phase 모든 string Task ID에 의존한다 · `/ 증거:`·`/ evidence:` 값은 optional hint일 뿐 완료 증거가 아니다 · 4 Phase·11 Task 도그푸딩 fixture를 소비자 복사본 수정 없이 읽는다 |
 | 135 | `vhk context --json`이 `schemaVersion`·`valid`·`activeGoal`·`warnings`·`errors`를 가진 `WorkContextV1` JSON 하나만 stdout에 출력하고 어떤 파일도 쓰지 않는다 · `activeGoal` 아래 `phases`와 평탄한 `tasks` 배열이 있고 각 Task는 `goal:N/task:N` string `id`, `goal:N/phase:N` string `phaseId`, `sourceStatus`·`readiness`·string[] `dependsOn`·`evidenceHint`·Goal source root 기준 상대 `sourceRef`·1-based `sourceLine`을 가진다 · Phase 없는 Goal은 빈 phases/tasks와 warning·exit 0으로 호환한다 · 구조 오류와 `--compact --json` 충돌은 `valid: false`인 원문 없는 JSON과 exit 1로 끝난다 · 시크릿·홈 절대경로·개인 식별자·실제 외부 객체 ID는 직렬화 전에 차단하고 입력 원문·절대경로·stack을 출력하지 않는다 · 기존 사람용 context·Goal 명령·선택 순서·MCP API는 불변이다 |
 | 110 | 완주 집계가 자기 보고가 아니라 **검증 통과 + 검증 리포트 유효 + 사람 개입 0** 세 조건 전부일 때만 이뤄진다 · 작업 유형이 구분 기록된다 · 최근 10회 중 3회 실패 시 권한이 축소되고 그 전이가 기록된다 · 인프라 오류는 실패 집계에서 빠진다 |
 | 111 | 사람 대기시간·내용 확인 없이 승인한 비율·상태 파악에 쓴 시간이 기록된다 · 폐기된 실행의 토큰 비용이 기록된다 · `vhk stats`에 병목 섹션이 생기고 표본 0이면 0이라고 정직하게 표시한다 |
@@ -168,7 +168,7 @@
 **순서:** 134 → 135 → 110 → 111 직렬. Phase/Task projection과 안전한 JSON 표면을 먼저 고정한 뒤
 그 실행 단위를 대상으로 완주와 병목을 계측한다.
 
-**공통:** 신규 필드는 전부 optional. 기존 기록 파일과 하위호환.
+**공통:** 110·111의 기존 기록 스키마에 추가되는 필드만 optional로 두어 기존 기록 파일과 하위호환한다. `WorkContextV1`과 Task 공개 필드는 135 수용 기준의 필수 계약이다.
 
 ### 6-4. 관찰 게이트
 
