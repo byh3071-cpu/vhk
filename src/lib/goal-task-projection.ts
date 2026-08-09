@@ -90,8 +90,6 @@ const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:(?:[*_`]+)?task\b|[*_`]+[+-]?(?:\d|0
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
 const EMAIL_CANDIDATE_PATTERN = /([A-Z0-9.!#$%&'*+/=?^_`{|}~\p{L}\p{N}-]+)@(\[[^\]\s<>()"'`,;!?]+\]|[^\s<>()"'`,;!?\[\]]+)/giu
 const EMAIL_DOMAIN_LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u
-const PACKAGE_LOCAL_PART = /^[a-z][a-z0-9]*$/u
-const PACKAGE_VERSION_OR_TAG = /^(?:latest|next|beta|alpha|canary|dev|nightly|stable|preview|rc|v?\d+(?:\.\d+){0,2}(?:[-+][0-9a-z.-]+)?)$/iu
 const UUID_PATTERN = /(?<![0-9a-f])[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}(?![0-9a-f])/giu
 const ZERO_UUID = /^0{32}$/u
 const HOME_PATH_PATTERN = /(?:\\\\\?\\UNC[\\/][^\\/\r\n]+(?:[\\/][^\\/\r\n]+)*[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\\\\[^\\/\r\n]+(?:[\\/][^\\/\r\n]+)*[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
@@ -143,14 +141,10 @@ function isEmailDomain(domain: string): boolean {
   return domain.split('.').every((label) => EMAIL_DOMAIN_LABEL.test(label))
 }
 
-function isPackageReference(localPart: string, domain: string): boolean {
-  return PACKAGE_LOCAL_PART.test(localPart) && PACKAGE_VERSION_OR_TAG.test(domain)
-}
-
 function isUnsafeEmailCandidate(localPart: string, rawDomain: string): boolean {
   const domain = normalizeEmailDomain(rawDomain)
   const candidate = `${localPart}@${domain}`
-  if (isAllowedEmail(candidate) || isPackageReference(localPart, domain)) return false
+  if (isAllowedEmail(candidate)) return false
   return isEmailDomain(domain)
 }
 

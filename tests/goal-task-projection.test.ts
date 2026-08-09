@@ -495,18 +495,27 @@ describe('Goal projection 공개 경계', () => {
   })
 
   it.each(['react@19', 'package@latest', 'library@1.2.3'])(
-    'package version/tag %s is not treated as a private email',
+    'ambiguous bare package notation %s is blocked without preserving the candidate',
     (value) => {
       const result = project('# Goal', { goalTitle: value })
 
-      expect(result.valid).toBe(true)
-      expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
-      expect(result.errors).toEqual([])
+      expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+      expect(JSON.stringify(result)).not.toContain(value)
     },
   )
 
   it.each(['private-user@dev', 'private-user@latest', 'private-user@v1.2.3'])(
     'email-shaped local part %s is rejected without preserving the candidate',
+    (value) => {
+      const result = project('# Goal', { goalTitle: value })
+
+      expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+      expect(JSON.stringify(result)).not.toContain(value)
+    },
+  )
+
+  it.each(['alice@dev', 'user@latest', 'person@v1.2.3'])(
+    'bare package-like candidate %s is blocked without preserving the candidate',
     (value) => {
       const result = project('# Goal', { goalTitle: value })
 
