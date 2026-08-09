@@ -59,7 +59,7 @@ describe('record-reminder e2e — 항상 exit 0 (자문 전용)', () => {
     const fp = path.join(repo, 'src/commands/foo.ts')
     fs.mkdirSync(path.dirname(fp), { recursive: true })
     fs.writeFileSync(fp, 'x')
-    const logDir = path.join(repo, 'docs/log')
+    const logDir = path.join(repo, 'docs/devlog')
     fs.mkdirSync(logDir, { recursive: true })
     fs.writeFileSync(path.join(logDir, `${localToday()}-work.md`), 'log')
     const r = run(repo)

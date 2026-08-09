@@ -1,0 +1,114 @@
+import { spawn, spawnSync } from 'node:child_process'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
+import { rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { localToday } from './check-records.mjs'
+
+function readHook(event) {
+  const config = JSON.parse(readFileSync('.codex/hooks.json', 'utf8'))
+  const hook = config.hooks?.[event]?.[0]?.hooks?.[0]
+  if (!hook) throw new Error(`${event} hook 없음`)
+  return hook
+}
+
+function spawnCollected(file, args, cwd, input) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(file, args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.setEncoding('utf8')
+    child.stderr.setEncoding('utf8')
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk
+    })
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.on('error', reject)
+    child.on('close', (status) => resolve({ status, stdout, stderr }))
+    child.stdin.end(input)
+  })
+}
+
+function runHook(hook, cwd, input = '') {
+  if (process.platform !== 'win32') {
+    return spawnCollected('sh', ['-c', hook.command], cwd, input)
+  }
+
+  const command = hook.commandWindows
+  const prefix = 'powershell.exe -NoProfile -Command "'
+  if (!command?.startsWith(prefix) || !command.endsWith('"')) {
+    throw new Error('지원하지 않는 Windows hook command 형식')
+  }
+  return spawnCollected(
+    'powershell.exe',
+    ['-NoProfile', '-Command', command.slice(prefix.length, -1)],
+    cwd,
+    input,
+  )
+}
+
+function makeTempRepo() {
+  const candidates = process.platform === 'win32' && process.env.PUBLIC
+    ? [join(process.env.PUBLIC, 'Documents'), tmpdir()]
+    : [tmpdir()]
+  let lastError
+  for (const candidate of candidates) {
+    try {
+      mkdirSync(candidate, { recursive: true })
+      return mkdtempSync(join(candidate, 'vhk-codex-hook-'))
+    } catch (error) {
+      lastError = error
+    }
+  }
+  throw lastError
+}
+
+const repo = makeTempRepo()
+try {
+  mkdirSync(join(repo, 'scripts'), { recursive: true })
+  mkdirSync(join(repo, 'src'), { recursive: true })
+  mkdirSync(join(repo, '.vhk'), { recursive: true })
+  for (const file of ['_lib.mjs', 'check-records.mjs', 'record-reminder.mjs']) {
+    copyFileSync(join(process.cwd(), 'scripts', file), join(repo, 'scripts', file))
+  }
+
+  const init = spawnSync('git', ['init', '-q'], { cwd: repo, encoding: 'utf8' })
+  if (init.status !== 0) throw new Error(init.stderr)
+
+  writeFileSync(join(repo, '.vhk', 'HARD_STOP'), 'test')
+  const payload = JSON.stringify({ tool_input: { command: 'git commit -m test' } })
+  const blocked = await runHook(readHook('PreToolUse'), join(repo, 'src'), payload)
+  const hardStopBlocked = blocked.status === 2 && blocked.stderr.includes('HARD_STOP')
+
+  unlinkSync(join(repo, '.vhk', 'HARD_STOP'))
+  writeFileSync(join(repo, 'src', 'probe.ts'), 'export const probe = true\n')
+  const reminded = await runHook(readHook('Stop'), join(repo, 'src'))
+  const reminderShown = reminded.status === 0 && reminded.stdout.includes('systemMessage')
+
+  const devlogDir = join(repo, 'docs', 'devlog')
+  mkdirSync(devlogDir, { recursive: true })
+  writeFileSync(join(devlogDir, `${localToday()}-hook-check.md`), '# hook check\n')
+  const quiet = await runHook(readHook('Stop'), join(repo, 'src'))
+  const devlogSuppressed = quiet.status === 0 && quiet.stdout.trim() === ''
+
+  if (!hardStopBlocked || !reminderShown || !devlogSuppressed) {
+    throw new Error(
+      JSON.stringify({
+        hardStopBlocked,
+        reminderShown,
+        blockedStatus: blocked.status,
+        blockedStderr: blocked.stderr,
+        reminderStatus: reminded.status,
+        reminderStdout: reminded.stdout,
+        devlogSuppressed,
+        quietStatus: quiet.status,
+        quietStdout: quiet.stdout,
+      }),
+    )
+  }
+  process.stdout.write(JSON.stringify({ hardStopBlocked, reminderShown, devlogSuppressed }))
+} finally {
+  await rm(repo, { recursive: true, force: true })
+}
