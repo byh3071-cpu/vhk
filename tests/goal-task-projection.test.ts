@@ -420,6 +420,26 @@ describe('Goal projection 공개 경계', () => {
   )
 
   it.each([
+    {
+      name: 'OpenAI project token',
+      token: `sk-proj-${'a'.repeat(20)}-fake`,
+    },
+    {
+      name: 'GitHub fine-grained token',
+      token: `github_pat_${'A'.repeat(36)}_xxxx`,
+    },
+    {
+      name: 'Slack bot token',
+      token: `xoxb-${'A'.repeat(12)}-fake`,
+    },
+  ])('$name의 실제 payload 뒤 placeholder suffix를 허용하지 않는다', ({ token }) => {
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: token })
+
+    expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+    expect(JSON.stringify(result)).not.toContain(token)
+  })
+
+  it.each([
     ['C:', 'Users', 'private user', 'project'].join('\\'),
     ['', 'home', 'private user', 'project'].join('/'),
     ['', 'Users', 'private user', 'project'].join('/'),

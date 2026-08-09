@@ -93,6 +93,7 @@ const UUID_PATTERN = /(?<![0-9a-f])[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-
 const ZERO_UUID = /^0{32}$/u
 const HOME_PATH_PATTERN = /(?:\\\\[^\\/\r\n]+[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
 const SECRET_PLACEHOLDER_PAYLOAD = /^(?:sample|example|placeholder|fake|dummy|redacted|changeme|x{4,})+$/iu
+const SECRET_TOKEN_PREFIX = /^(?:AKIA|ghp_|github_pat_|gh[ousr]_|npm_|xox[baprs]-|AIza|[sr]k_live_|ntn_|sk-(?:proj-|ant-api03-|live-)|secret_)(.+)$/iu
 const CANONICAL_POSITIVE_INTEGER = /^[1-9][0-9]*$/u
 const NOT_APPLICABLE_MARKER = '`(na)`'
 const EVIDENCE_SEPARATORS = [' / 증거:', ' / evidence:'] as const
@@ -131,8 +132,10 @@ function isAllowedEmail(email: string): boolean {
 
 function isExplicitSecretPlaceholder(value: string): boolean {
   const assignment = value.match(/(?:=|:)\s*['"]?([^'"]+)['"]?$/u)
-  const payload = assignment?.[1].trim() ?? value.replace(/^.*(?:[_-])/u, '')
-  return SECRET_PLACEHOLDER_PAYLOAD.test(payload)
+  if (assignment) return SECRET_PLACEHOLDER_PAYLOAD.test(assignment[1].trim())
+
+  const token = value.match(SECRET_TOKEN_PREFIX)
+  return token !== null && SECRET_PLACEHOLDER_PAYLOAD.test(token[1])
 }
 
 function hasUnsafeText(text: string): boolean {
