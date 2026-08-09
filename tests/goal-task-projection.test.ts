@@ -372,6 +372,16 @@ describe('Goal Phase Task 투영', () => {
   })
 })
 
+  it('Phase 없는 legacy Goal의 일반 숫자 checklist는 구조 오류가 아니다', () => {
+    const result = project('# 기존 Goal\n\n- [ ] 2026년 목표')
+
+    expect(result.valid).toBe(true)
+    expect(result.activeGoal?.phases).toEqual([])
+    expect(result.activeGoal?.tasks).toEqual([])
+    expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
+    expect(result.errors).toEqual([])
+  })
+
 describe('Goal projection 공개 경계', () => {
   it('명백한 sample 값은 시크릿·홈 placeholder·이메일·영 UUID로 오인하지 않는다', () => {
     const zeroUuid = ['00000000', '0000', '0000', '0000', '000000000000'].join('-')
@@ -448,9 +458,41 @@ describe('Goal projection 공개 경계', () => {
     expect(result.errors).toEqual([])
   })
 
+  it.each([
+    {
+      name: 'title without a dot in the domain',
+      goalTitle: 'private-user@company',
+      markdown: '# Goal',
+    },
+    {
+      name: 'evidence with a bracketed IPv4 address',
+      goalTitle: 'safe title',
+      markdown: '### Phase 1\n- [ ] **Task 1** 작업 / evidence: private-user@[192.0.2.1]',
+    },
+    {
+      name: 'Unicode title email',
+      goalTitle: '사용자@예시.한국',
+      markdown: '# Goal',
+    },
+  ])('$name is rejected without preserving the email', ({ goalTitle, markdown }) => {
+    const result = project(markdown, { goalTitle })
+
+    expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+    expect(JSON.stringify(result)).not.toContain(goalTitle === 'safe title' ? 'private-user@[192.0.2.1]' : goalTitle)
+  })
+
   it('명백한 fake JWT placeholder는 허용한다', () => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', {
       goalTitle: 'eyJxxxx.eyJxxxx.xxxx',
+    })
+
+    expect(result.valid).toBe(true)
+    expect(result.errors).toEqual([])
+  })
+
+  it('sample/example/fake JWT placeholder는 허용한다', () => {
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', {
+      goalTitle: 'eyJsample.eyJexample.fake',
     })
 
     expect(result.valid).toBe(true)
@@ -503,6 +545,7 @@ describe('Goal projection 공개 경계', () => {
     String.raw`\\server\Users\private-user\repo`,
     String.raw`\\server\C$\Users\private-user\repo`,
     String.raw`\\?\UNC\server\C$\Users\private-user\repo`,
+    String.raw`\\?\UNC\server\share\profiles\Users\private-user\repo`,
   ])('공백이 있는 home 경로를 원문 없이 차단한다', (homePath) => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: homePath })
 
