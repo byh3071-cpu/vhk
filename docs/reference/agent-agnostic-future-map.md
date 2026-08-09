@@ -2,7 +2,7 @@
 
 > 상태: **참고 지도. 현재 기능·승인된 계약·구현 로드맵이 아니다.**
 >
-> 목적: 대화에서 나온 장기 의도를 잃지 않되, RFC 0064의 작은 읽기 전용 범위와 섞지 않는다.
+> 목적: 대화에서 나온 장기 의도를 잃지 않되, RFC 0065의 작은 읽기 전용 범위와 섞지 않는다.
 
 ## 1. 한눈에 보기
 
@@ -260,5 +260,5 @@ Observe → Evaluate → Extract → Propose
 ## 관련
 
 - [ADR-012](../adr/ADR-012-agent-agnostic-core-and-method-absorption.md)
-- [RFC 0064](../rfc/0064-agent-agnostic-task-spine.md)
+- [RFC 0065](../rfc/0065-goal-phase-task-projection.md)
 - [Definition Packet 템플릿](definition-packet-template.md)

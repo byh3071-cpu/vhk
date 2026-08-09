@@ -173,16 +173,17 @@ verify 결과 + receipt 판정
 | 외부 상태 | 배포·publish·main/master 머지는 사람 승인 |
 | 공개 저장소 | 개인 운영 정보·절대경로·실제 외부 객체 ID 기록 금지 |
 
-## 8. 후속 구현 대기 확장
+## 8. 읽기 전용 Goal 작업 투영
 
-[ADR-012](adr/ADR-012-agent-agnostic-core-and-method-absorption.md)는 Accepted다.
-[RFC 0064](rfc/0064-agent-agnostic-task-spine.md)는 기존 Goal을 읽기 전용으로 투영하고, 같은 입력에서
-에이전트 공통 작업 문맥을 만드는 **Proposed** 설계다.
+[ADR-012](adr/ADR-012-agent-agnostic-core-and-method-absorption.md)와
+[ADR-017](adr/ADR-017-goal-phase-task-read-only-projection.md)은 Accepted다.
+[RFC 0065](rfc/0065-goal-phase-task-projection.md)는 Goal 본문의 Phase/Task를 읽고 같은 입력에서 같은
+상태·직전 Phase 의존성·준비 여부를 만드는 계약이다. RFC 0064의 더 넓은 제안은 이 계약으로 대체됐다.
 
-- 현재 구현으로 광고하지 않는다.
-- 2.13 작업 115~118과 공통 게이트는 #552로 완료됐다. PR B는 별도 사람 Plan 승인 뒤에만 시작한다.
-- 첫 구현은 읽기 전용이어야 하며 roadmap·PRD·Goal·context를 수정하지 않는다.
-- Task-native 쓰기, 승인, 의존성 그래프, 관제 화면은 별도 결정과 검증 뒤에만 연다.
+- 2.14.0의 작업 순서는 Goal Phase/Task 파서(134) → 안전한 context JSON(135) → 계측(110→111)이다.
+- 첫 구현은 읽기 전용이며 Goal과 로컬 상태 파일을 수정하지 않는다.
+- Phase가 없는 Goal은 빈 배열과 warning으로 호환하고 구조 오류는 원문 없는 JSON과 exit 1로 끝낸다.
+- Task 상태 쓰기, 명시적 Task 간 의존성, 신규 MCP와 관제 화면은 별도 결정과 검증 뒤에만 연다.
 - 장기 구상은 [미래 설계 지도](reference/agent-agnostic-future-map.md)에 격리한다.
 
 ## 9. 빌드와 배포

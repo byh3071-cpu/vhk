@@ -1,9 +1,10 @@
 ---
 rfc: 0064
 title: Agent-agnostic read-only work projection
-status: Proposed
+status: Superseded
 created: 2026-07-31
-updated: 2026-08-02
+updated: 2026-08-09
+supersededBy: RFC-0065
 relates: ADR-012, ADR-010, RFC-0057
 ---
 
@@ -11,9 +12,8 @@ relates: ADR-012, ADR-010, RFC-0057
 
 > 내부명: Task Spine. 사람에게는 **작업 실행 계약**이라고 설명한다.
 >
-> 상태: **Proposed — ADR-012는 Accepted, 115~118 구현·공통 게이트와 열린 질문 2건의 결정은 완료했다.**
-> **#552의 main 머지와 후속 CI는 완료됐다. PR B 구현 승인은 별도 사람 게이트로 남는다.**
-> 이 문서는 현재 Goal을 바꾸지 않고 읽는 첫 단계만 제안한다.
+> 상태: **Superseded — Goal 내부 Phase/Task를 직접 투영하는 [RFC 0065](0065-goal-phase-task-projection.md)가 대체한다.**
+> 이 문서는 이전 제안의 판단 근거를 보존한다.
 
 ## 0. 가장 짧은 설명
 
