@@ -99,13 +99,13 @@
 
 ## 4. 범위 IN — 릴리스별 요구
 
-작업 단위 24개. 상세 티켓은 [로드맵](roadmap/2.x-roadmap.md) §5.
+작업 단위 26개. 상세 티켓은 [로드맵](roadmap/2.x-roadmap.md) §5.
 
 | 릴리스 | 요구 | 작업 단위 |
 |---|---|---|
 | (완료 선행, 2.13에 포함) | 작업 관리 체계 복구 · 릴리스 위생 · 용어 정비 | 112 · 113 · 114 |
 | **2.13.0** | 미발행 작업 통합 · Goal 순서 집행 · 첫 실행 정직성 · 규칙 검사·CI·권고 영속화 | 115 ~ 123 · 130 · 131 · 132 · 133 |
-| **2.14.0** | 완주 판정과 병목을 잰다 | 110 · 111 |
+| **2.14.0** | Goal Phase/Task를 읽기 전용으로 투영한 뒤 완주 판정과 병목을 잰다 | 134 → 135 → 110 → 111 |
 | **관찰 게이트** | 4주 AND 유효 실행 10회 뒤 사람이 계속 또는 중단 판정 | 구현 없음 |
 | **2.15.0** | 권한 단계·위험도·허용목록·명령별 한도 (기본 off) | 124 · 125 |
 | **2.16.0** | `vhk auto` 제한 실행 — 상한 push + PR, 실행 후 의도 대조 (기본 off) | 126 · 127 |
@@ -156,14 +156,19 @@
 | 132 | 설치 결과가 규칙 파일 연결 수와 별도로 live/bundled 출처와 가능한 경우 버전을 표시한다 · bundled를 사용자 규칙 적용 성공처럼 말하지 않는다 · 버전이 없으면 확인 불가라고 표시한다 |
 | 133 | `sync --check`가 미연결 섹션명·인식하는 표준 섹션명·`sync=all` 해결법을 함께 표시한다 · 기존 동기화 대상과 종료 코드는 바뀌지 않는다 |
 
-### 6-3. 2.14.0 — 잰다
+### 6-3. 2.14.0 — 작업을 읽고 잰다
 
 | # | 수용 기준 |
 |---|---|
+| 134 | UTF-8 BOM·LF·CRLF Goal body에서 코드 펜스 밖의 정확한 `### Phase N`과 `- [ ]`·`- [x]`·`- [X]` 뒤 `**Task N**` 문법만 읽힌다 · Phase와 Goal 전체 Task 번호는 각각 양수·고유·오름차순이며 결번을 허용하고 빈 Phase·Phase 밖 Task·중복·역순을 차단한다 · `[ ]`은 `pending`, `[x]`·`[X]`는 `completed`, Task 라벨 직후의 정확한 `` `(na)` ``는 `notApplicable`로 계산하고 `[x]`·`[X]`+`(na)`를 차단한다 · `completed`·`notApplicable`은 terminal, 첫 Phase pending은 ready, 이후 Phase pending은 직전 Phase Task 전부 terminal일 때만 ready이고 아니면 waiting이다 · 첫·같은 Phase `dependsOn`은 빈 배열이고 다음 Phase의 각 Task는 직전 Phase 모든 string Task ID에 의존한다 · `/ 증거:`·`/ evidence:` 값은 optional hint일 뿐 완료 증거가 아니다 · 4 Phase·11 Task 도그푸딩 fixture를 소비자 복사본 수정 없이 읽는다 |
+| 135 | `vhk context --json`이 `schemaVersion`·`valid`·`activeGoal`·`warnings`·`errors`를 가진 `WorkContextV1` JSON 하나만 stdout에 출력하고 어떤 파일도 쓰지 않는다 · `activeGoal` 아래 `phases`와 평탄한 `tasks` 배열이 있고 각 Task는 `goal:N/task:N` string `id`, `goal:N/phase:N` string `phaseId`, `sourceStatus`·`readiness`·string[] `dependsOn`·`evidenceHint`·Goal source root 기준 상대 `sourceRef`·1-based `sourceLine`을 가진다 · Phase 없는 Goal은 빈 phases/tasks와 warning·exit 0으로 호환한다 · 구조 오류와 `--compact --json` 충돌은 `valid: false`인 원문 없는 JSON과 exit 1로 끝난다 · 시크릿·홈 절대경로·개인 식별자·실제 외부 객체 ID는 직렬화 전에 차단하고 입력 원문·절대경로·stack을 출력하지 않는다 · 기존 사람용 context·Goal 명령·선택 순서·MCP API는 불변이다 |
 | 110 | 완주 집계가 자기 보고가 아니라 **검증 통과 + 검증 리포트 유효 + 사람 개입 0** 세 조건 전부일 때만 이뤄진다 · 작업 유형이 구분 기록된다 · 최근 10회 중 3회 실패 시 권한이 축소되고 그 전이가 기록된다 · 인프라 오류는 실패 집계에서 빠진다 |
 | 111 | 사람 대기시간·내용 확인 없이 승인한 비율·상태 파악에 쓴 시간이 기록된다 · 폐기된 실행의 토큰 비용이 기록된다 · `vhk stats`에 병목 섹션이 생기고 표본 0이면 0이라고 정직하게 표시한다 |
 
-**공통:** 신규 필드는 전부 optional. 기존 기록 파일과 하위호환.
+**순서:** 134 → 135 → 110 → 111 직렬. Phase/Task projection과 안전한 JSON 표면을 먼저 고정한 뒤
+그 실행 단위를 대상으로 완주와 병목을 계측한다.
+
+**공통:** 110·111의 기존 기록 스키마에 추가되는 필드만 optional로 두어 기존 기록 파일과 하위호환한다. `WorkContextV1`과 Task 공개 필드는 135 수용 기준의 필수 계약이다.
 
 ### 6-4. 관찰 게이트
 
@@ -188,11 +193,11 @@
 
 | 항목 | 요구 |
 |---|---|
-| 호환성 | 명령어 이름·CLI 인자·`.vhk` 포맷·MCP 도구 시그니처 breaking 금지. 신규 필드 optional |
+| 호환성 | 명령어 이름·기존 CLI 인자·`.vhk` 포맷·MCP 도구 시그니처 breaking 금지. `context --json`만 additive, 신규 필드는 optional |
 | 플랫폼 | Windows/PowerShell 1급. 경로 구분자·줄바꿈(CRLF) 처리 필수 |
 | 코드 규약 | TypeScript strict(any 금지) · 빈 catch 금지 · `execSync` 신규 사용 금지 |
 | MCP | 핸들러 내 프로세스 종료 금지 · 대화형 프롬프트 호출 금지(TTY 없음) |
-| 공개 경계 | 로컬 절대경로·개인 이메일·실명·개인 저장소명·외부 서비스 실 ID 금지. `pnpm boundary:check` 통과가 커밋 조건 |
+| 공개 경계 | 로컬 절대경로·개인 이메일·실명·개인 저장소명·외부 서비스 실 ID 금지. `WorkContextV1`은 위반 원문과 Goal·로컬 상태 경로를 출력하지 않음. `pnpm boundary:check` 통과가 커밋 조건 |
 | 검사 | `pnpm typecheck && pnpm lint && pnpm test:run && pnpm boundary:check` 전부 통과해야 push |
 | 기본값 | 2.15 ~ 2.17의 실행 기능은 **활성화 플래그 없이는 아무 부작용도 없어야 한다** |
 
@@ -209,6 +214,8 @@
 | 7 | 실행 기능이 기본 off 상태에서 부작용 0이다 | 실측 |
 | 8 | Goal 선행 조건을 위반한 작업이 다음 작업이나 완료로 선택되지 않는다 | Goal 선택·완료 회귀 테스트 |
 | 9 | 설치·동기화 결과가 bundled 사용과 미연결 섹션을 정상처럼 숨기지 않는다 | 기존 프로젝트 2회 적용 실측 |
+| 10 | 결번을 포함한 Goal Phase/Task source status·직전 Phase string Task ID 의존성·readiness가 BOM·LF·CRLF에서 같은 JSON으로 나온다 | 4 Phase·11 Task + 결번·`(na)` golden fixture |
+| 11 | JSON 조회가 상대 sourceRef·sourceLine을 내고 원본·상태 파일을 쓰지 않으며 구조·flag·공개 경계 오류에서 `valid: false` JSON과 exit 1을 반환한다 | 내용·mtime snapshot + stdout·exit code 회귀 테스트 |
 
 **계열 종료 후 3채널 게시(블로그·긱뉴스·Show HN)** — 위 1~7이 게시 문구의 근거가 된다.
 
@@ -228,6 +235,8 @@
 - [로드맵 2.x](roadmap/2.x-roadmap.md) — 작업 단위·티켓·순서 (원본)
 - [ADR-010](adr/ADR-010-goal-sot-and-public-boundary.md) — 작업 항목 원본 위치와 공개 경계 해석
 - [ADR-011](adr/ADR-011-terminology.md) — 용어 대응표
+- [ADR-017](adr/ADR-017-goal-phase-task-read-only-projection.md) — Goal Phase/Task 읽기 전용 결정
+- [RFC 0065](rfc/0065-goal-phase-task-projection.md) — `WorkContextV1`·오류·검증 계약
 - [ADR-009](adr/ADR-009-vhk-auto-extension-not-new-module.md) — 실행 레인은 기존 계약 확장
 - [ADR-006](adr/ADR-006-vhk-identity-evidence-receipt.md) — 정체성 (명칭은 ADR-011을 따름)
 - [PRD](PRD.md) — 제품 전체 정의

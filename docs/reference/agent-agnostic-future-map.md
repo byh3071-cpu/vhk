@@ -2,7 +2,7 @@
 
 > 상태: **참고 지도. 현재 기능·승인된 계약·구현 로드맵이 아니다.**
 >
-> 목적: 대화에서 나온 장기 의도를 잃지 않되, RFC 0064의 작은 읽기 전용 범위와 섞지 않는다.
+> 목적: 대화에서 나온 장기 의도를 잃지 않되, RFC 0065의 작은 읽기 전용 범위와 섞지 않는다.
 
 ## 1. 한눈에 보기
 
@@ -236,7 +236,7 @@ Observe → Evaluate → Extract → Propose
 ## 8. 권장 도입 순서
 
 1. **1단계 문서 PR:** 원본 경계, Accepted ADR·Proposed RFC, 미래 지도와 대화 템플릿
-2. **ADR 승인 + 2.13 안정화 뒤 PR B:** ProjectedTask·WorkContext 읽기 전용 출력
+2. **ADR 승인 + 2.13 안정화 뒤 PR B:** Goal Phase/Task → `WorkContextV1` 읽기 전용 출력
 3. **도그푸딩:** Claude Code와 Codex에서 같은 입력·선택·경고 확인
 4. **별도 ADR:** Task 원본·쓰기·증거 연결
 5. **개인 통합 읽기:** Control Tower와 Yohan MCP에서 조회만
@@ -260,5 +260,5 @@ Observe → Evaluate → Extract → Propose
 ## 관련
 
 - [ADR-012](../adr/ADR-012-agent-agnostic-core-and-method-absorption.md)
-- [RFC 0064](../rfc/0064-agent-agnostic-task-spine.md)
+- [RFC 0065](../rfc/0065-goal-phase-task-projection.md)
 - [Definition Packet 템플릿](definition-packet-template.md)
