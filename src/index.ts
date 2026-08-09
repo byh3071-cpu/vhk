@@ -36,7 +36,7 @@ import { harness } from './commands/harness.js'
 import { audit } from './commands/audit.js'
 import { migrate } from './commands/migrate.js'
 import { update } from './commands/update.js'
-import { context, contextShow } from './commands/context.js'
+import { context, contextJson, contextShow } from './commands/context.js'
 import { memoryAdd, memoryList, memoryRemove, memoryArchive, memoryResolve, memoryUnarchive, memoryMigrate, memoryRecall } from './commands/memory.js'
 import { memoryEval } from './commands/memory-eval.js'
 import { brief } from './commands/brief.js'
@@ -485,8 +485,14 @@ program
   .command('context')
   .alias('맥락')
   .option('--compact', '토큰 절감형 — 전체 명령 목록/깊은 트리 생략, 참조 링크 중심')
+  .option('--json', ko.context.jsonOption)
   .description('프로젝트 맥락 파일 생성 (.vhk/context.md)')
-  .action(async (opts: { compact?: boolean }) => { await context({ compact: opts.compact }) })
+  .action(async (opts: { compact?: boolean; json?: boolean }) => {
+    if (opts.json) {
+      const result = await contextJson({ compact: opts.compact })
+      process.exitCode = result.valid ? 0 : 1
+    } else await context({ compact: opts.compact })
+  })
 
 program
   .command('mode [target]')
