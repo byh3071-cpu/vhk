@@ -86,12 +86,14 @@ interface ParsedPhase {
 const PHASE_LINE = /^### Phase (\S+)$/u
 const PHASE_SHAPE = /^\s*#{1,6}\s*(?:[*_`]+)?phase\b/iu
 const TASK_LINE = /^- \[([ xX])\] \*\*Task (\S+)\*\*(?: (.*))?$/u
-const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*[*_`]+(?:task\b|[+-]?(?:\d|0x))/iu
+const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:(?:[*_`]+)?task\b|[*_`]+[+-]?(?:\d|0x))/iu
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
-const EMAIL_PATTERN = /[A-Z0-9.!#$%&'*+/=?^_`{|}~\p{L}\p{N}-]+@(?:[A-Z0-9\p{L}\p{N}-]+(?:\.[A-Z0-9\p{L}\p{N}-]+)*|\[[0-9A-F:.]+\])/giu
+const EMAIL_CANDIDATE_PATTERN = /([A-Z0-9.!#$%&'*+/=?^_`{|}~\p{L}\p{N}-]+)@([^\s<>()"'`,;!?]+)/giu
+const EMAIL_DOMAIN_LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u
+const PACKAGE_VERSION_OR_TAG = /^(?:latest|next|beta|alpha|canary|dev|nightly|stable|preview|rc|v?\d+(?:\.\d+){0,2}(?:[-+][0-9a-z.-]+)?)$/iu
 const UUID_PATTERN = /(?<![0-9a-f])[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}(?![0-9a-f])/giu
 const ZERO_UUID = /^0{32}$/u
-const HOME_PATH_PATTERN = /(?:\\\\\?\\UNC[\\/][^\\/\r\n]+(?:[\\/][^\\/\r\n]+)*[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\\\\[^\\/\r\n]+(?:[\\/][^\\/\r\n]+)?[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
+const HOME_PATH_PATTERN = /(?:\\\\\?\\UNC[\\/][^\\/\r\n]+(?:[\\/][^\\/\r\n]+)*[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\\\\[^\\/\r\n]+(?:[\\/][^\\/\r\n]+)*[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
 const SECRET_PLACEHOLDER_PAYLOAD = /^(?:sample|example|placeholder|fake|dummy|redacted|changeme|x{4,})+$/iu
 const SECRET_TOKEN_PREFIX = /^(?:AKIA|ghp_|github_pat_|gh[ousr]_|npm_|xox[baprs]-|AIza|[sr]k_live_|ntn_|sk-(?:proj-|ant-api03-|live-)|secret_)(.+)$/iu
 const JWT_SHAPE = /^eyJ([A-Z0-9_-]+)\.eyJ([A-Z0-9_-]+)\.([A-Z0-9_-]+)$/iu
@@ -131,6 +133,22 @@ function isAllowedEmail(email: string): boolean {
   )
 }
 
+function normalizeEmailDomain(domain: string): string {
+  return domain.startsWith('[') ? domain : domain.replace(/[.,;:!?]+$/u, '')
+}
+
+function isEmailDomain(domain: string): boolean {
+  if (/^\[[^\]]+\]$/u.test(domain)) return true
+  return domain.split('.').every((label) => EMAIL_DOMAIN_LABEL.test(label))
+}
+
+function isUnsafeEmailCandidate(localPart: string, rawDomain: string): boolean {
+  const domain = normalizeEmailDomain(rawDomain)
+  const candidate = `${localPart}@${domain}`
+  if (isAllowedEmail(candidate) || PACKAGE_VERSION_OR_TAG.test(domain)) return false
+  return isEmailDomain(domain)
+}
+
 function isExplicitSecretPlaceholder(value: string): boolean {
   const jwt = value.match(JWT_SHAPE)
   if (jwt) return jwt.slice(1).every((segment) => SECRET_PLACEHOLDER_PAYLOAD.test(segment))
@@ -148,8 +166,8 @@ function isExplicitSecretPlaceholder(value: string): boolean {
 function hasUnsafeText(text: string): boolean {
   if (HOME_PATH_PATTERN.test(text)) return true
 
-  for (const match of text.matchAll(EMAIL_PATTERN)) {
-    if (!isAllowedEmail(match[0])) return true
+  for (const match of text.matchAll(EMAIL_CANDIDATE_PATTERN)) {
+    if (isUnsafeEmailCandidate(match[1], match[2])) return true
   }
 
   for (const match of text.matchAll(UUID_PATTERN)) {

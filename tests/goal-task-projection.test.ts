@@ -315,6 +315,10 @@ describe('Goal Phase Task 투영', () => {
       markdown: '- [ ] `Task 1` 작업',
       code: 'INVALID_TASK_SYNTAX',
     },
+    {
+      markdown: '- [ ] Task 1 작업',
+      code: 'INVALID_TASK_SYNTAX',
+    },
   ])('Phase/Task 유사 문법을 legacy가 아닌 $code 구조 오류로 처리한다', ({ markdown, code }) => {
     const result = project(markdown)
 
@@ -463,23 +467,43 @@ describe('Goal projection 공개 경계', () => {
       name: 'title without a dot in the domain',
       goalTitle: 'private-user@company',
       markdown: '# Goal',
+      unsafeValue: 'private-user@company',
     },
     {
       name: 'evidence with a bracketed IPv4 address',
       goalTitle: 'safe title',
       markdown: '### Phase 1\n- [ ] **Task 1** 작업 / evidence: private-user@[192.0.2.1]',
+      unsafeValue: 'private-user@[192.0.2.1]',
+    },
+    {
+      name: 'evidence with a bracketed IPv6 address',
+      goalTitle: 'safe title',
+      markdown: '### Phase 1\n- [ ] **Task 1** 작업 / evidence: private-user@[IPv6:2001:db8::1]',
+      unsafeValue: 'private-user@[IPv6:2001:db8::1]',
     },
     {
       name: 'Unicode title email',
       goalTitle: '사용자@예시.한국',
       markdown: '# Goal',
+      unsafeValue: '사용자@예시.한국',
     },
-  ])('$name is rejected without preserving the email', ({ goalTitle, markdown }) => {
+  ])('$name is rejected without preserving the email', ({ goalTitle, markdown, unsafeValue }) => {
     const result = project(markdown, { goalTitle })
 
     expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
-    expect(JSON.stringify(result)).not.toContain(goalTitle === 'safe title' ? 'private-user@[192.0.2.1]' : goalTitle)
+    expect(JSON.stringify(result)).not.toContain(unsafeValue)
   })
+
+  it.each(['react@19', 'package@latest', 'library@1.2.3'])(
+    'package version/tag %s is not treated as a private email',
+    (value) => {
+      const result = project('# Goal', { goalTitle: value })
+
+      expect(result.valid).toBe(true)
+      expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
+      expect(result.errors).toEqual([])
+    },
+  )
 
   it('명백한 fake JWT placeholder는 허용한다', () => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', {
@@ -544,6 +568,7 @@ describe('Goal projection 공개 경계', () => {
     ['', 'Users', 'private user', 'project'].join('/'),
     String.raw`\\server\Users\private-user\repo`,
     String.raw`\\server\C$\Users\private-user\repo`,
+    String.raw`\\server\share\profiles\Users\private-user\repo`,
     String.raw`\\?\UNC\server\C$\Users\private-user\repo`,
     String.raw`\\?\UNC\server\share\profiles\Users\private-user\repo`,
   ])('공백이 있는 home 경로를 원문 없이 차단한다', (homePath) => {
