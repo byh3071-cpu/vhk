@@ -104,6 +104,37 @@ vhk work handoff
 
 **2. Goals & HARD_STOP** — Goals link `goals/*.md` to `scripts/check-goal-<id>.mjs`. `vhk goal done` only transitions to DONE when the gate re-passes. Repeated blockers halt progress.
 
+If a Goal is split into Phases and Tasks, `vhk context --json` projects the exact syntax below as a read-only
+task graph. Phase IDs and Goal-wide Task IDs must each be positive, unique, and strictly ascending; gaps are valid.
+The Phase/Task projection is optional: a legacy Goal with no Phase remains valid.
+
+```markdown
+### Phase 10
+- [x] **Task 100** implementation / evidence: sample-evidence
+- [ ] **Task 105** `(na)` excluded from this scope
+
+### Phase 30
+- [ ] **Task 220** verification / 증거: sample-report
+```
+
+Only the exact backticked `(na)` token immediately after the Task label means `notApplicable`; combining it with
+`[x]` or `[X]` is a structural error. `/ evidence:` and `/ 증거:` are equivalent optional hints, never proof of
+completion. `completed` and `notApplicable` are `terminal`; pending Tasks in the first Phase are `ready`, while a
+later pending Task is `ready` only when every Task in the immediately preceding Phase is terminal, otherwise it is
+`waiting`. First-Phase `dependsOn` arrays are empty; every later Task receives all preceding-Phase
+`goal:N/task:N` string IDs. Tasks in one Phase do not depend on each other and may all be ready, but automatic
+parallel execution is not guaranteed.
+Malformed Phase headers and Tasks outside a valid Phase are structural errors. A legacy Goal with no Phase is
+projected with `valid: true`, empty `activeGoal.phases` and `activeGoal.tasks`, a `NO_PHASES` warning, and exit 0.
+
+The JSON path writes no files on success or failure. Structural, flag, and public-boundary failures return exit 1
+with `valid: false`, `activeGoal: null`, and stable `errors`, without raw input, absolute paths, or stacks.
+`vhk context --compact --json` follows the same safe-error contract.
+Public-boundary checks reject secrets/tokens/keys, home-directory absolute paths, personal email addresses/real names/
+personal repository names, and real external-service object IDs. Rejected raw input is never echoed; examples use only
+`sample-*`, `<HOME>`, and clearly fake IDs. The incompatible `--compact --json` combination is a flag error with
+`valid: false` and exit 1.
+
 **3. Trust / evidence gates**
 - `vhk verify` — runs 5 gates, shows advisory age/dismiss count, and writes `.vhk/reports/latest.json`
 - `vhk review` — cross-checks the latest evidence against the goal's done-conditions

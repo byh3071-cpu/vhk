@@ -64,10 +64,43 @@ Cursor에게 한국어로 말해도 됩니다.
 | goal 목록 | `vhk goal list` | "목표 목록" |
 | 다음 goal | `vhk goal next` | "다음 목표" |
 | 다음 goal 미리보기(읽기전용) | `vhk goal peek` | "목표 미리보기" |
+| Goal Phase/Task JSON(읽기전용) | `vhk context --json` | — |
 | 게이트 검증 | `vhk goal check --id 0` 또는 `vhk check --goal 0` | "목표 점검" |
 | 완료 처리 | `vhk goal done --id 0` | "목표 완료" |
 
 Goal frontmatter에 `depends_on: 1,2`를 선택적으로 쓰면 선행 Goal이 모두 `DONE`일 때만 `next/peek/done` 대상이 됩니다. 잘못된 ID·자기 참조·순환 참조는 설정 오류로 표시됩니다.
+
+### Goal 본문 Phase/Task JSON
+
+코드 펜스 밖의 정확한 `### Phase N`과 `- [ ] **Task N** 설명`만 읽습니다. Phase 번호와 Goal
+전체의 Task 번호는 각각 양수·고유·오름차순이어야 하며 결번은 허용합니다.
+Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니다.
+
+```markdown
+### Phase 10
+- [x] **Task 100** 구현 / 증거: sample-evidence
+- [ ] **Task 105** `(na)` 제외 이유
+
+### Phase 30
+- [ ] **Task 220** 검증 / evidence: sample-report
+```
+
+- `[ ]`은 `pending`, `[x]`/`[X]`는 `completed`입니다. Task 라벨 직후의 정확한 backticked `(na)`를
+  쓴 `[ ]` Task만 `notApplicable`이며 checked+`(na)`는 구조 오류입니다.
+- malformed Phase와 Phase 밖 Task는 구조 오류입니다. Phase가 없는 legacy Goal은 `valid: true`,
+  `activeGoal.phases: []`, `activeGoal.tasks: []`, `NO_PHASES` warning, exit 0을 반환합니다.
+- `/ 증거:`와 `/ evidence:`는 같은 선택적 `evidenceHint`이며 완료 증거가 아닙니다.
+- `completed`·`notApplicable`은 `terminal`입니다. 첫 Phase pending은 `ready`, 이후 Phase pending은
+  직전 Phase의 모든 Task가 terminal일 때만 `ready`, 아니면 `waiting`입니다.
+- 첫 Phase의 `dependsOn`은 `[]`입니다. 이후 Phase의 각 Task는 직전 Phase의 모든
+  `goal:N/task:N` string ID를 문서 순서대로 가집니다. 같은 Phase Task끼리는 서로 의존하지 않지만
+  자동 병렬 실행을 보장하지 않습니다.
+- `vhk context --json`은 성공·실패 모두 파일을 쓰지 않습니다. 구조·flag·공개 경계 오류는
+  원문·절대경로·stack 없이 `valid: false`, `activeGoal: null`, 안정적인 `errors` JSON과 exit 1로
+  끝납니다. `--compact --json` 조합도 같은 안전한 오류입니다.
+- 공개 경계는 시크릿·토큰·키, 홈 절대경로, 개인 이메일·실명·저장소명, 실제 외부 객체 ID를 차단하고
+  차단된 입력 원문을 노출하지 않습니다. 예시는 `sample-*`, `<HOME>`, 명백히 가짜 ID만 사용합니다.
+- `--compact --json` 충돌은 `valid: false`와 exit 1인 flag 구조 오류입니다.
 
 ## 적대적 자기검증 (review)
 
@@ -225,7 +258,7 @@ vhk doctor
 | `vhk audit` | 보안 취약점 감사 (npm audit) |
 | `vhk migrate` | 패키지 매니저 전환 (npm/yarn/pnpm) |
 | `vhk update` | VHK CLI 셀프 업데이트 |
-| `vhk context` | 프로젝트 맥락 파일 생성 (.vhk/context.md) |
+| `vhk context` | 프로젝트 맥락 파일 생성 (.vhk/context.md) · `--json`은 Goal Phase/Task 읽기 전용 투영 |
 | `vhk mode` | Safety Mode 조회/변경 (lite\|standard\|strict) |
 | `vhk verify` | 검증 실행 + 확인이 필요한 항목의 경과 시간·숨긴 횟수 + 증거·행동 기록 (`--dismiss <id>`) |
 | `vhk cost` | 비용·예산 가드 — add/check/budget (자문형) |
