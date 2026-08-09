@@ -85,6 +85,7 @@ interface ParsedPhase {
 
 const PHASE_LINE = /^### Phase (\S+)$/u
 const PHASE_SHAPE = /^\s*#{1,6}\s*(?:[*_`]+)?phase\b/iu
+const LEGACY_PHASE_SECTION = /^## Phase(?:\s+\([^\r\n]*\))?$/u
 const TASK_LINE = /^- \[([ xX])\] \*\*Task (\S+)\*\*(?: (.*))?$/u
 const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:(?:[*_`]+)?task\b|[*_`]+[+-]?(?:\d|0x))/iu
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
@@ -335,6 +336,7 @@ export function parseGoalPhaseTasks(input: GoalTaskProjectionInput): WorkContext
       phases.push(currentPhase)
       continue
     }
+    if (LEGACY_PHASE_SECTION.test(line)) continue
     if (PHASE_SHAPE.test(line)) {
       addError('INVALID_PHASE_SYNTAX', sourceLine)
       continue

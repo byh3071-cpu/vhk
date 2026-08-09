@@ -374,6 +374,33 @@ describe('Goal Phase Task 투영', () => {
       errors: [],
     })
   })
+
+  it('legacy Phase 섹션 제목은 canonical Phase 투영을 막지 않는다', () => {
+    const result = project([
+      '## Phase (착수 전 전부 na)',
+      '',
+      '| Phase | 목표 | 상태 |',
+      '|---|---|---|',
+      '| Phase 1 | 첫 단계 | todo |',
+      '',
+      '### Phase 1',
+      '- [ ] **Task 1** 첫 작업',
+    ].join('\n'))
+
+    expect(result.valid).toBe(true)
+    expect(result.activeGoal?.phases).toEqual([{ id: 'goal:134/phase:1' }])
+    expect(result.activeGoal?.tasks).toHaveLength(1)
+    expect(result.errors).toEqual([])
+  })
+
+  it('legacy Phase 섹션 제목만 있는 Goal은 NO_PHASES로 호환한다', () => {
+    const result = project('## Phase\n\n| Phase | 목표 | 상태 |')
+
+    expect(result.valid).toBe(true)
+    expect(result.activeGoal?.phases).toEqual([])
+    expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
+    expect(result.errors).toEqual([])
+  })
 })
 
   it('Phase 없는 legacy Goal의 일반 숫자 checklist는 구조 오류가 아니다', () => {
