@@ -1,6 +1,12 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  EXTERNAL_OBJECT_ID_PATTERNS,
+  PRIVATE_TEXT_PATTERNS,
+  UUID_PATTERN,
+  ZERO_UUID,
+} from '../src/lib/public-boundary-patterns.js'
 
 const ROOT = resolve(import.meta.dirname, '..')
 const ALLOWED_PACKAGE_FILES = new Set(['package.json', 'README.md', 'README.en.md', 'LICENSE', 'SECURITY.md'])
@@ -39,28 +45,6 @@ const PRIVATE_CURRENT_EXEMPT = ['.claude/skills/overnight-vhk-auto/']
 // 번들 스냅샷(개인정보 없음)이라 이력 재작성 대상이 아니다. PRIVATE_TRACKED_PATHS 에 넣으면
 // 과거 이력 검사까지 걸려 릴리스 워크플로가 영구 실패하므로 별도 목록으로 둔다.
 const PRIVATE_CURRENT_PATHS = ['.agents/CORE-RULES.md']
-
-const literal = (...parts) => parts.join('')
-const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
-const exactPattern = (name, ...parts) => ({ name, pattern: new RegExp(escapeRegex(literal(...parts)), 'iu') })
-
-const PRIVATE_TEXT_PATTERNS = [
-  exactPattern('개인 규칙 저장소명', 'yohan', '-', 'brain'),
-  exactPattern('개인 스킬 저장소명', 'yohan', '-', 'cc', '-', 'skills'),
-  exactPattern('개인 에이전트 묶음명', 'yohan', '-', 'core'),
-  exactPattern('개인 런타임명', 'yohan', '-', 'os'),
-  exactPattern('개인 MCP명', 'yohan', '-', 'mcp'),
-  exactPattern('개인 작업공간명', 'yohan', '-', 'ecosystem'),
-  exactPattern('개인명 기반 환경변수', 'YOHAN', '_', 'BRAIN', '_', 'ROOT'),
-  exactPattern('폐기된 홈 설정 키', 'brain', 'Root'),
-  exactPattern('폐기된 CLI 명령', 'set', '-', 'brain', '-', 'root'),
-  exactPattern('실명', '백', '요', '한'),
-  exactPattern('개인 에이전트명', '노', '뚝이'),
-  exactPattern('개인 Gmail', 'byh3071', '@', 'gmail.com'),
-  exactPattern('개인 npm 메일', 'byh3071', '@', 'naver.com'),
-  { name: 'Windows 사용자 절대경로', pattern: /[a-z]:\\users\\(?:public|user|[^\\\s"']+)[\\/]/iu },
-  { name: '외부 워크플로 식별자', pattern: /\bwf_[a-z0-9-]{6,}\b/iu },
-]
 
 /**
  * 알려진 이력 예외 — **커밋 메타데이터 검사에서만** 제외하는 이미 공개된 커밋.
@@ -115,8 +99,6 @@ export function stripKnownExceptions(raw, exceptions = KNOWN_HISTORY_EXCEPTIONS)
   return kept.join('\n')
 }
 
-const UUID_PATTERN = /\b[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b/giu
-const ZERO_UUID = /^0{32}$/u
 const NON_ZERO_UUID_HISTORY_PATTERN = String.raw`\b(?!0{8}-?0{4}-?0{4}-?0{4}-?0{12}\b)[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}\b`
 
 function git(args, options = {}) {
@@ -136,6 +118,7 @@ function normalizePath(file) {
 export function buildHistorySearchPattern() {
   return [
     ...PRIVATE_TEXT_PATTERNS.map((forbidden) => `(?:${forbidden.pattern.source})`),
+    ...EXTERNAL_OBJECT_ID_PATTERNS.map((forbidden) => `(?:${forbidden.pattern.source})`),
     `(?:${NON_ZERO_UUID_HISTORY_PATTERN})`,
   ].join('|')
 }
@@ -175,6 +158,9 @@ export function scanPublicText(label, content) {
   if (content.includes('\0')) return []
   const problems = []
   for (const forbidden of PRIVATE_TEXT_PATTERNS) {
+    if (forbidden.pattern.test(content)) problems.push(`${label}: ${forbidden.name} 노출`)
+  }
+  for (const forbidden of EXTERNAL_OBJECT_ID_PATTERNS) {
     if (forbidden.pattern.test(content)) problems.push(`${label}: ${forbidden.name} 노출`)
   }
   for (const match of content.matchAll(UUID_PATTERN)) {
