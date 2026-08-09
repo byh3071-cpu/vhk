@@ -1,4 +1,10 @@
 import type { GoalStatus } from './goal-frontmatter.js'
+import {
+  EXTERNAL_OBJECT_ID_PATTERNS,
+  PRIVATE_TEXT_PATTERNS,
+  UUID_PATTERN,
+  ZERO_UUID,
+} from './public-boundary-patterns.js'
 import { SECRET_PATTERNS } from './secret-patterns.js'
 
 export type GoalTaskSourceStatus = 'pending' | 'completed' | 'notApplicable'
@@ -85,14 +91,12 @@ interface ParsedPhase {
 
 const PHASE_LINE = /^### Phase (\S+)$/u
 const PHASE_SHAPE = /^\s*#{1,6}\s*(?:[*_`]+)?phase\b/iu
-const LEGACY_PHASE_SECTION = /^## Phase(?:(?:[^\x00-\x7F][^\r\n]*)|(?:\s+(?![+-]?(?:\d|0x))[^\s\r\n][^\r\n]*))?$/u
+const LEGACY_PHASE_SECTION = /^## Phase(?:(?:[^\x00-\x7F][^\r\n]*)|(?:\s+(?:\([^\r\n]*\)|[^\x00-\x7F][^\r\n]*)))?$/u
 const TASK_LINE = /^- \[([ xX])\] \*\*Task (\S+)\*\*(?: (.*))?$/u
-const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:(?:[*_`]+)?task|[*_`]+[+-]?(?:\d|0x)[^*_`\r\n]*[*_`]+\s+task\b)/iu
+const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*(?:(?:[*_`~]+)?task(?=$|\s|[+-]?(?:\d|0x))|[*_`~]+[+-]?(?:\d|0x)[^*_`~\r\n]*[*_`~]+\s+task\b)/iu
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
-const EMAIL_CANDIDATE_PATTERN = /([A-Z0-9.!#$%&'*+/=?^_`{|}~\p{L}\p{N}-]+)@(\[[^\]\s<>()"'`,;!?]+\]|[^\s<>()"'`,;!?\[\]]+)/giu
+const EMAIL_CANDIDATE_PATTERN = /([A-Z0-9.!#$%&'+/=?^_`{|}~\p{L}\p{N}-]+)@(\[[^\]\s<>()"'`,;!?]+\]|[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?(?:\.[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?)*)/giu
 const EMAIL_DOMAIN_LABEL = /^[\p{L}\p{N}](?:[\p{L}\p{N}-]*[\p{L}\p{N}])?$/u
-const UUID_PATTERN = /(?<![0-9a-f])[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}(?![0-9a-f])/giu
-const ZERO_UUID = /^0{32}$/u
 const HOME_PATH_PATTERN = /(?:\\\\\?\\UNC[\\/][^\\/\r\n]+(?:[\\/][^\\/\r\n]+)*[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\\\\[^\\/\r\n]+(?:[\\/][^\\/\r\n]+)*[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
 const SECRET_PLACEHOLDER_PAYLOAD = /^(?:sample|example|placeholder|fake|dummy|redacted|changeme|x{4,})+$/iu
 const SECRET_TOKEN_PREFIX = /^(?:AKIA|ghp_|github_pat_|gh[ousr]_|npm_|xox[baprs]-|AIza|[sr]k_live_|ntn_|sk-(?:proj-|ant-api03-|live-)|secret_)(.+)$/iu
@@ -165,6 +169,9 @@ function isExplicitSecretPlaceholder(value: string): boolean {
 
 function hasUnsafeText(text: string): boolean {
   if (HOME_PATH_PATTERN.test(text)) return true
+
+  if (PRIVATE_TEXT_PATTERNS.some(({ pattern }) => pattern.test(text))) return true
+  if (EXTERNAL_OBJECT_ID_PATTERNS.some(({ pattern }) => pattern.test(text))) return true
 
   for (const match of text.matchAll(EMAIL_CANDIDATE_PATTERN)) {
     if (isUnsafeEmailCandidate(match[1], match[2])) return true
