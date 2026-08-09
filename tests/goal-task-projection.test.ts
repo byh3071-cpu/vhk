@@ -401,7 +401,15 @@ describe('Goal Phase Task 투영', () => {
     expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
     expect(result.errors).toEqual([])
   })
-})
+
+  it('legacy Phase 설명 제목은 canonical Phase 투영을 막지 않는다', () => {
+    const result = project('## Phase 진행 상황\n\n### Phase 1\n- [ ] **Task 1** 첫 작업')
+
+    expect(result.valid).toBe(true)
+    expect(result.activeGoal?.phases).toEqual([{ id: 'goal:134/phase:1' }])
+    expect(result.activeGoal?.tasks).toHaveLength(1)
+    expect(result.errors).toEqual([])
+  })
 
   it('Phase 없는 legacy Goal의 일반 숫자 checklist는 구조 오류가 아니다', () => {
     const result = project('# 기존 Goal\n\n- [ ] 2026년 목표')
@@ -412,6 +420,17 @@ describe('Goal Phase Task 투영', () => {
     expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
     expect(result.errors).toEqual([])
   })
+
+  it('Phase 없는 legacy Goal의 서식 숫자 checklist는 Task 구조 오류가 아니다', () => {
+    const result = project('# 기존 Goal\n\n- [ ] `005` 경로 확인\n- [ ] **1. 첫 단계** 확인')
+
+    expect(result.valid).toBe(true)
+    expect(result.activeGoal?.phases).toEqual([])
+    expect(result.activeGoal?.tasks).toEqual([])
+    expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
+    expect(result.errors).toEqual([])
+  })
+})
 
 describe('Goal projection 공개 경계', () => {
   it('명백한 sample 값은 시크릿·홈 placeholder·이메일·영 UUID로 오인하지 않는다', () => {
