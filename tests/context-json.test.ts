@@ -297,6 +297,39 @@ describe('context --json', () => {
     })
   })
 
+  it.each([
+    {
+      name: '개인 저장소명 title',
+      value: ['yohan', '-', 'brain'].join(''),
+      title: ['yohan', '-', 'brain'].join(''),
+      body: ['### Phase 1', '- [ ] **Task 1** Safe task'],
+    },
+    {
+      name: '외부 객체 ID evidence',
+      value: ['wf_', 'abcdef'].join(''),
+      title: 'Safe Goal',
+      body: [
+        '### Phase 1',
+        `- [ ] **Task 1** Safe task / evidence: ${['wf_', 'abcdef'].join('')}`,
+      ],
+    },
+  ])('$name을 CLI stdout에 남기지 않고 exit 1로 차단한다', async ({ value, title, body }) => {
+    createGoal(cwd, 20, title, 'IN_PROGRESS', body)
+
+    const result = await runCli(['context', '--json'], cwd)
+
+    expect(result.status).toBe(1)
+    expect(result.stderr).toBe('')
+    expect(result.stdout).not.toContain(value)
+    expect(JSON.parse(result.stdout)).toEqual({
+      schemaVersion: 1,
+      valid: false,
+      activeGoal: null,
+      warnings: [],
+      errors: [{ code: 'PUBLIC_BOUNDARY_VIOLATION' }],
+    })
+  })
+
   it('registers --json on the existing context command without changing human execution', async () => {
     const { program } = await import('../src/index.js')
     const contextCommand = program.commands.find((command) => command.name() === 'context')
