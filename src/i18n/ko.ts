@@ -653,6 +653,7 @@ export const ko = {
     nextFailCursor: 'vhk doctor 실행해줘',
   },
   context: {
+    jsonOption: '읽기 전용 WorkContextV1 JSON 출력 (--compact과 함께 사용할 수 없음)',
     title: '프로젝트 컨텍스트 생성',
     showTitle: '컨텍스트 파일',
     resumeMissing: '🧭 AI 세션 복원 컨텍스트 없음 → 생성: vhk context',

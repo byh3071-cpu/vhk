@@ -5,15 +5,27 @@ import {
   readdirSync,
   statSync,
 } from 'node:fs'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import chalk from 'chalk'
 import { t } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { readJsonFile } from '../lib/read-json.js'
 import { atomicWriteFile } from '../lib/atomic-write.js'
 import { readMemory, activeMemoryLines } from './memory.js'
-import { listGoals } from '../lib/goal-frontmatter.js'
+import {
+  findDuplicateIds,
+  findSkippedGoalFiles,
+  listGoals,
+  normalizeLegacyStatus,
+  parseGoalFile,
+} from '../lib/goal-frontmatter.js'
+import { analyzeGoalDependencies } from '../lib/goal-dependencies.js'
 import { selectActiveId } from './goal.js'
+import {
+  parseGoalPhaseTasks,
+  type WorkContextDiagnostic,
+  type WorkContextV1,
+} from '../lib/goal-task-projection.js'
 import { getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
 import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
@@ -27,6 +39,115 @@ import {
 } from '../lib/stack-state.js'
 
 const CONTEXT_PATH = '.vhk/context.md'
+
+function jsonError(code: WorkContextDiagnostic['code']): WorkContextV1 {
+  return {
+    schemaVersion: 1,
+    valid: false,
+    activeGoal: null,
+    warnings: [],
+    errors: [{ code }],
+  }
+}
+
+function emitJsonContext(result: WorkContextV1): WorkContextV1 {
+  console.log(JSON.stringify(result))
+  return result
+}
+
+function projectGoalTaskContext(
+  goal: ReturnType<typeof listGoals>[number],
+  goalsDir: string,
+): WorkContextV1 {
+  const goalId = goal.frontmatter.id
+  if (typeof goalId !== 'number') return jsonError('GOAL_READ_FAILED')
+
+  const rawStatus = goal.frontmatter.status
+  const goalStatus = rawStatus == null ? null : normalizeLegacyStatus(String(rawStatus))
+  const sourceRef = relative(goalsDir, goal.filePath).replaceAll('\\', '/')
+  const markdown = readFileSync(goal.filePath, 'utf-8')
+
+  return parseGoalPhaseTasks({
+    goalId,
+    goalTitle: goal.frontmatter.title ?? null,
+    goalStatus,
+    sourceRef,
+    markdown,
+  })
+}
+
+export function validateGoalMarkdownFiles(
+  goalsDir: string,
+  entries: readonly string[],
+  parseGoal: (filePath: string) => unknown,
+  getStat: (filePath: string) => { isFile(): boolean },
+): boolean {
+  for (const name of entries) {
+    if (!name.endsWith('.md') || name === '_meta.md') continue
+    const filePath = join(goalsDir, name)
+    try {
+      if (!getStat(filePath).isFile()) continue
+      const parsed = parseGoal(filePath)
+      if (parsed === null || parsed === undefined) return false
+    } catch {
+      return false
+    }
+  }
+  return true
+}
+
+function readGoalsForJson(goalsDir: string): ReturnType<typeof listGoals> {
+  if (!existsSync(goalsDir)) return []
+  if (!statSync(goalsDir).isDirectory()) throw new Error('goals path is not a directory')
+  const entries = readdirSync(goalsDir)
+  if (!validateGoalMarkdownFiles(goalsDir, entries, parseGoalFile, statSync)) {
+    throw new Error('goal markdown file could not be read')
+  }
+
+  if (findSkippedGoalFiles(goalsDir).length > 0) {
+    throw new Error('goal candidate was skipped')
+  }
+
+  const goals = listGoals(goalsDir)
+  if (findDuplicateIds(goals).length > 0) {
+    throw new Error('goal ids are duplicated')
+  }
+
+  const dependencyAnalysis = analyzeGoalDependencies(goals)
+  if (dependencyAnalysis.issues.length > 0 || dependencyAnalysis.invalidInProgress.length > 0) {
+    throw new Error('goal dependencies are invalid')
+  }
+  return goals
+}
+
+export async function contextJson(opts: { compact?: boolean; rootDir?: string } = {}): Promise<WorkContextV1> {
+  if (opts.compact === true) {
+    return emitJsonContext(jsonError('INCOMPATIBLE_FLAGS'))
+  }
+
+  try {
+    const goalsDir = join(opts.rootDir ?? process.cwd(), 'goals')
+    const goals = readGoalsForJson(goalsDir)
+    const activeId = selectActiveId(goals)
+    if (activeId === null) {
+      return emitJsonContext({
+        schemaVersion: 1,
+        valid: true,
+        activeGoal: null,
+        warnings: [{ code: 'NO_ACTIVE_GOAL' }],
+        errors: [],
+      })
+    }
+
+    const active = goals.find((goal) => goal.frontmatter.id === activeId)
+    if (!active) {
+      return emitJsonContext(jsonError('GOAL_READ_FAILED'))
+    }
+    return emitJsonContext(projectGoalTaskContext(active, goalsDir))
+  } catch {
+    return emitJsonContext(jsonError('GOAL_READ_FAILED'))
+  }
+}
 
 const IGNORE_DIRS = new Set([
   'node_modules',
