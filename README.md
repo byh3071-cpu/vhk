@@ -183,6 +183,38 @@ vhk goal done --id 42
 vhk blocker "테스트가 같은 원인으로 계속 실패"
 ```
 
+#### Goal Phase/Task를 읽기 전용으로 보기
+
+Goal 본문을 아래 정확한 문법으로 나누면 `vhk context --json`이 상태와 Phase 장벽을 JSON으로
+투영합니다. Phase와 Goal 전체의 Task 번호는 각각 양수·고유·오름차순이면 되고 결번을 허용합니다.
+Phase/Task는 선택 사항이라 Phase가 없는 legacy Goal도 계속 읽습니다.
+
+```markdown
+### Phase 10
+- [x] **Task 100** 구현 / 증거: sample-evidence
+- [ ] **Task 105** `(na)` 제외 이유
+
+### Phase 30
+- [ ] **Task 220** 검증 / evidence: sample-report
+```
+
+`(na)`는 Task 라벨 직후의 정확한 backticked 토큰만 인정하며 `[x]`/`[X]`와 함께 쓰면 구조
+오류입니다. `/ 증거:`와 `/ evidence:`는 같은 선택적 hint일 뿐 완료 증명이 아닙니다.
+malformed Phase와 유효한 Phase 밖의 Task는 구조 오류입니다.
+Phase가 없는 legacy Goal은 `valid: true`, `activeGoal.phases: []`, `activeGoal.tasks: []`로
+투영하고 `NO_PHASES` warning을 담아 exit 0으로 끝납니다.
+`completed`와 `notApplicable`은 `terminal`, 첫 Phase의 pending Task는 `ready`입니다. 이후 Phase의
+pending Task는 직전 Phase의 모든 Task가 terminal이면 `ready`, 아니면 `waiting`입니다. 첫 Phase의
+`dependsOn`은 비어 있고 이후 각 Task는 직전 Phase의 모든 `goal:N/task:N` string ID를 가집니다.
+같은 Phase의 Task는 서로 의존하지 않아 함께 ready일 수 있지만 자동 병렬 실행을 보장하지 않습니다.
+
+이 명령은 성공·실패 모두 파일을 쓰지 않습니다. 구조·flag·공개 경계 오류는 원문·절대경로·stack을
+노출하지 않고 `valid: false`, `activeGoal: null`, 안정적인 `errors` JSON과 exit 1로 끝납니다.
+`vhk context --compact --json`도 같은 안전한 오류 계약을 따릅니다.
+공개 경계가 차단하는 입력은 시크릿·토큰·키, 홈 절대경로, 개인 이메일·실명·저장소명, 실제 외부
+객체 ID입니다. 차단된 입력 원문은 오류에 다시 노출하지 않으며, 예시는 `sample-*`, `<HOME>`,
+명백히 가짜 ID만 사용합니다. `--compact --json` 충돌은 `valid: false`와 exit 1인 flag 구조 오류입니다.
+
 ### 3. 증거와 자기검증 — "실행했다"와 "완료됐다"를 분리
 
 ```powershell
@@ -266,7 +298,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | 영역 | 명령 | 용도 |
 | --- | --- | --- |
 | 시작 | `vhk`, `vhk gate`, `vhk start [--stack "목록"]`, `vhk init [--ci]` | 메뉴, 아이디어 검증, 새 프로젝트 마법사(기술 스택 지정 시 확정·미지정 시 후보), 하네스 초기화(+선택적 GitHub PR 필수 검사) |
-| 규칙/맥락 | `vhk sync`, `vhk context`, `vhk context-show`, `vhk brief`, `vhk loop-brief`, `vhk remind`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, 루프 1틱 의도 앵커, 치명 규칙 재주입, 세션 시작/인수인계 |
+| 규칙/맥락 | `vhk sync`, `vhk context [--json]`, `vhk context-show`, `vhk brief`, `vhk loop-brief`, `vhk remind`, `vhk work`, `vhk work handoff` | 규칙 동기화, 프로젝트 맥락 생성, Goal Phase/Task 읽기 전용 JSON, 루프 1틱 의도 앵커, 치명 규칙 재주입, 세션 시작/인수인계 |
 | 풀사이클 뒷단 | `vhk content`, `vhk launch`, `vhk ops`, `vhk sell` | 콘텐츠/런칭/운영/판매 초안 프롬프트 생성 (초안만, 게시·발송·결제는 사람이) · RULES.md 치명 규칙 자동 상속 · 과거 교훈(`.vhk/memory`) ≤3 자동 회상 주입 — 다음 사이클로 복리 |
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 불일치(drift) 관리 |
 | Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 완료 보고 검증, 검증 리포트, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
