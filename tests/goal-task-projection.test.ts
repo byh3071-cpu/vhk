@@ -288,6 +288,18 @@ describe('Goal Phase Task 투영', () => {
       code: 'INVALID_PHASE_SYNTAX',
     },
     {
+      markdown: '### ***Phase 1***\n- [ ] **Task 1** 작업',
+      code: 'INVALID_PHASE_SYNTAX',
+    },
+    {
+      markdown: '### ___Phase 1___\n- [ ] **Task 1** 작업',
+      code: 'INVALID_PHASE_SYNTAX',
+    },
+    {
+      markdown: '### ```Phase 1```\n- [ ] **Task 1** 작업',
+      code: 'INVALID_PHASE_SYNTAX',
+    },
+    {
       markdown: '### Phase 1\n- [ ] **1** Task label 없는 작업',
       code: 'INVALID_TASK_SYNTAX',
     },
@@ -408,6 +420,22 @@ describe('Goal projection 공개 경계', () => {
     expect(result.errors).toEqual([])
   })
 
+  it.each([
+    {
+      name: 'AWS access key',
+      value: `AKIA${'X'.repeat(16)}`,
+    },
+    {
+      name: 'Authorization bearer token',
+      value: `Authorization: Bearer ${'x'.repeat(12)}`,
+    },
+  ])('$name의 전체 placeholder 값은 허용한다', ({ value }) => {
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: value })
+
+    expect(result.valid).toBe(true)
+    expect(result.errors).toEqual([])
+  })
+
   it.each(['sample', 'fake', 'redacted', 'xxxx'])(
     'GitHub token payload의 %s 부분 문자열을 placeholder로 면제하지 않는다',
     (placeholder) => {
@@ -444,6 +472,7 @@ describe('Goal projection 공개 경계', () => {
     ['', 'home', 'private user', 'project'].join('/'),
     ['', 'Users', 'private user', 'project'].join('/'),
     String.raw`\\server\Users\private-user\repo`,
+    String.raw`\\server\C$\Users\private-user\repo`,
   ])('공백이 있는 home 경로를 원문 없이 차단한다', (homePath) => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: homePath })
 
