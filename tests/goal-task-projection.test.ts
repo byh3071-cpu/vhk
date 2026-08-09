@@ -327,6 +327,23 @@ describe('Goal Phase Task 투영', () => {
     expect(JSON.stringify(result)).not.toContain(markdown)
   })
 
+  it('strikethrough Task를 누락해 다음 Phase를 조기 해제하지 않는다', () => {
+    const markdown = [
+      '### Phase 1',
+      '- [x] **Task 1** 완료',
+      '- [ ] ~~Task 2~~ 대기',
+      '',
+      '### Phase 2',
+      '- [ ] **Task 3** 다음 작업',
+    ].join('\n')
+
+    const result = project(markdown)
+
+    expect(result.valid).toBe(false)
+    expect(result.activeGoal).toBeNull()
+    expect(result.errors.map((error) => error.code)).toContain('INVALID_TASK_SYNTAX')
+  })
+
   it('Task 라벨 직후의 정확한 backticked `(na)`만 notApplicable로 읽는다', () => {
     const result = project([
       '### Phase 1',
@@ -419,6 +436,15 @@ describe('Goal Phase Task 투영', () => {
     expect(result.errors).toEqual([])
   })
 
+  it.each(['## Phase one', '## Phase planning'])(
+    '승인되지 않은 영문 legacy Phase 예외 %s를 구조 오류로 차단한다',
+    (heading) => {
+      expect(errorCodes(`${heading}\n\n- [ ] 일반 checklist`)).toContain(
+        'INVALID_PHASE_SYNTAX',
+      )
+    },
+  )
+
   it('숫자로 시작하는 Phase ID는 공백 수와 무관하게 legacy 제목으로 우회하지 않는다', () => {
     expect(errorCodes('## Phase  1\n- [ ] **Task 1** 작업')).toContain('INVALID_PHASE_SYNTAX')
   })
@@ -448,6 +474,19 @@ describe('Goal Phase Task 투영', () => {
     expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
     expect(result.errors).toEqual([])
   })
+
+  it.each(['Taskforce planning', 'tasklist cleanup'])(
+    'Phase가 없는 legacy checklist %s를 Task 구조로 오탐하지 않는다',
+    (label) => {
+      const result = project(`# 기존 Goal\n\n- [ ] ${label}`)
+
+      expect(result.valid).toBe(true)
+      expect(result.activeGoal?.phases).toEqual([])
+      expect(result.activeGoal?.tasks).toEqual([])
+      expect(result.warnings).toEqual([{ code: 'NO_PHASES' }])
+      expect(result.errors).toEqual([])
+    },
+  )
 
   it('공백이 빠진 Task 라벨은 legacy checklist로 우회하지 않는다', () => {
     expect(errorCodes('- [ ] **Task1** 작업')).toContain('INVALID_TASK_SYNTAX')
@@ -598,6 +637,44 @@ describe('Goal projection 공개 경계', () => {
 
     expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
     expect(JSON.stringify(result)).not.toContain(value)
+  })
+
+  it.each([
+    ['Markdown emphasis', '**private-user@gmail.com**'],
+    ['path suffix', 'private-user@gmail.com/path'],
+  ])('%s와 맞물린 개인 이메일을 원문 없이 차단한다', (_name, value) => {
+    const result = project(`### Phase 1\n- [ ] **Task 1** 작업 / evidence: ${value}`)
+
+    expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+    expect(JSON.stringify(result)).not.toContain(value)
+  })
+
+  it.each([
+    ['개인 저장소명', ['yohan', '-', 'brain'].join('')],
+    ['외부 workflow ID', ['wf_', 'abcdef'].join('')],
+    ['외부 customer ID', ['cus_', 'NffrFeUfNV2Hib'].join('')],
+    ['외부 channel ID', ['C', '0123456789'].join('')],
+  ])('%s을 title과 evidence에서 원문 없이 차단한다', (_name, value) => {
+    const titleResult = project('# Goal', { goalTitle: value })
+    const evidenceResult = project(
+      `### Phase 1\n- [ ] **Task 1** 작업 / evidence: ${value}`,
+    )
+
+    for (const result of [titleResult, evidenceResult]) {
+      expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+      expect(JSON.stringify(result)).not.toContain(value)
+    }
+  })
+
+  it.each([
+    ['wf_', 'sample-123'].join(''),
+    ['cus_', 'sample'].join(''),
+    ['C', '0000000000'].join(''),
+  ])('명백한 가짜 외부 객체 ID %s는 허용한다', (value) => {
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: value })
+
+    expect(result.valid).toBe(true)
+    expect(result.errors).toEqual([])
   })
 
   it('명백한 fake JWT placeholder는 허용한다', () => {
