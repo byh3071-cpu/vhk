@@ -104,7 +104,7 @@ try {
   const created = calls.some(
     (call) => call.tool === 'gh' && call.args[0] === 'pr' && call.args[1] === 'create',
   )
-  if (!pushed || !created || !result.stdout.includes('https://example.invalid/pull/1')) {
+  if (!pushed || !created || result.stdout.trim() !== 'https://example.invalid/pull/1') {
     throw new Error(JSON.stringify({ pushed, created, stdout: result.stdout, calls }))
   }
   process.stdout.write(JSON.stringify({ supported: true, created, pushed }))
