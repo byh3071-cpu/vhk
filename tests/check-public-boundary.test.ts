@@ -62,6 +62,26 @@ describe('공개 경계 검사', () => {
     expect(scanPublicText('테스트', zeroId)).toEqual([])
   })
 
+  it('실제처럼 보이는 외부 객체 ID는 차단하고 명백한 fixture는 허용한다', () => {
+    const objectIds = [
+      ['wf_', 'abcdef'].join(''),
+      ['cus_', 'NffrFeUfNV2Hib'].join(''),
+      ['C', '0123456789'].join(''),
+    ]
+    const placeholders = [
+      ['wf_', 'sample-123'].join(''),
+      ['cus_', 'sample'].join(''),
+      ['C', '0000000000'].join(''),
+    ]
+
+    for (const objectId of objectIds) {
+      expect(scanPublicText('문서', objectId)).not.toEqual([])
+    }
+    for (const placeholder of placeholders) {
+      expect(scanPublicText('테스트', placeholder)).toEqual([])
+    }
+  })
+
   it('전체 이력 검사 패턴은 영 UUID fixture를 제외한다', () => {
     const pattern = new RegExp(buildHistorySearchPattern(), 'iu')
     const privateRepository = ['yohan', 'brain'].join('-')
@@ -70,6 +90,15 @@ describe('공개 경계 검사', () => {
     expect(pattern.test(privateRepository)).toBe(true)
     expect(pattern.test(objectId)).toBe(true)
     expect(pattern.test(zeroId)).toBe(false)
+  })
+
+  it('전체 이력 검사 패턴은 실제 외부 객체 ID만 포함한다', () => {
+    const pattern = new RegExp(buildHistorySearchPattern(), 'iu')
+    expect(pattern.test(['wf_', 'abcdef'].join(''))).toBe(true)
+    expect(pattern.test(['cus_', 'NffrFeUfNV2Hib'].join(''))).toBe(true)
+    expect(pattern.test(['C', '0123456789'].join(''))).toBe(true)
+    expect(pattern.test(['wf_', 'sample-123'].join(''))).toBe(false)
+    expect(pattern.test(['C', '0000000000'].join(''))).toBe(false)
   })
 })
 
