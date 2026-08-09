@@ -280,6 +280,14 @@ describe('Goal Phase Task 투영', () => {
       code: 'INVALID_PHASE_SYNTAX',
     },
     {
+      markdown: '### _Phase 1_\n- [ ] **Task 1** 작업',
+      code: 'INVALID_PHASE_SYNTAX',
+    },
+    {
+      markdown: '### `Phase 1`\n- [ ] **Task 1** 작업',
+      code: 'INVALID_PHASE_SYNTAX',
+    },
+    {
       markdown: '### Phase 1\n- [ ] **1** Task label 없는 작업',
       code: 'INVALID_TASK_SYNTAX',
     },
@@ -392,6 +400,14 @@ describe('Goal projection 공개 경계', () => {
     expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
   })
 
+  it('전체가 명백한 placeholder인 GitHub token은 허용한다', () => {
+    const placeholder = ['ghp_', 'x'.repeat(36)].join('')
+    const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: placeholder })
+
+    expect(result.valid).toBe(true)
+    expect(result.errors).toEqual([])
+  })
+
   it.each(['sample', 'fake', 'redacted', 'xxxx'])(
     'GitHub token payload의 %s 부분 문자열을 placeholder로 면제하지 않는다',
     (placeholder) => {
@@ -407,6 +423,7 @@ describe('Goal projection 공개 경계', () => {
     ['C:', 'Users', 'private user', 'project'].join('\\'),
     ['', 'home', 'private user', 'project'].join('/'),
     ['', 'Users', 'private user', 'project'].join('/'),
+    String.raw`\\server\Users\private-user\repo`,
   ])('공백이 있는 home 경로를 원문 없이 차단한다', (homePath) => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', { goalTitle: homePath })
 
@@ -427,9 +444,12 @@ describe('Goal projection 공개 경계', () => {
     'C:/absolute/sample-goal.md',
     '../sample-goal.md',
     '.vhk/sample-goal.md',
+    '.VHK/sample-goal.md',
     'goals/sample-goal.md',
+    'Goals/sample-goal.md',
     'docs/state/next-task.md',
     'docs/state/archive/sample-goal.md',
+    'DOCS/STATE/next-task.md',
     'nested\\sample-goal.md',
   ])('안전한 POSIX 상대 참조가 아닌 sourceRef %s를 차단한다', (sourceRef) => {
     const result = project('### Phase 1\n- [ ] **Task 1** 작업', { sourceRef })

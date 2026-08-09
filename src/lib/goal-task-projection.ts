@@ -84,14 +84,15 @@ interface ParsedPhase {
 }
 
 const PHASE_LINE = /^### Phase (\S+)$/u
-const PHASE_SHAPE = /^\s*#{1,6}\s*(?:\*{1,2})?phase\b/iu
+const PHASE_SHAPE = /^\s*#{1,6}\s*(?:[*_`]{1,2})?phase\b/iu
 const TASK_LINE = /^- \[([ xX])\] \*\*Task (\S+)\*\*(?: (.*))?$/u
 const TASK_SHAPE = /^\s*-\s*\[[^\]]*\]\s*\*\*(?:task\b|[+-]?(?:\d|0x))/iu
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})(.*)$/u
 const EMAIL_PATTERN = /\b[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+\b/giu
 const UUID_PATTERN = /(?<![0-9a-f])[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}(?![0-9a-f])/giu
 const ZERO_UUID = /^0{32}$/u
-const HOME_PATH_PATTERN = /(?:[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
+const HOME_PATH_PATTERN = /(?:\\\\[^\\/\r\n]+[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|[a-z]:[\\/](?:users|documents and settings)[\\/][^\\/\r\n]+(?:[\\/]|$)|\/(?:home|users)\/[^/\r\n]+(?:\/|$)|\/root(?:\/|$))/iu
+const SECRET_PLACEHOLDER_PAYLOAD = /^(?:sample|example|placeholder|fake|dummy|redacted|changeme|x{4,})+$/iu
 const CANONICAL_POSITIVE_INTEGER = /^[1-9][0-9]*$/u
 const NOT_APPLICABLE_MARKER = '`(na)`'
 const EVIDENCE_SEPARATORS = [' / 증거:', ' / evidence:'] as const
@@ -113,7 +114,7 @@ function isSafeSourceRef(sourceRef: string): boolean {
   const normalizedSegments = segments.map((segment) => segment.toLowerCase())
   if (normalizedSegments[0] === 'goals') return false
   if (normalizedSegments[0] === 'docs' && normalizedSegments[1] === 'state') return false
-  return segments.every(
+  return normalizedSegments.every(
     (segment) => segment !== '' && segment !== '.' && segment !== '..' && segment !== '.vhk',
   )
 }
@@ -126,6 +127,12 @@ function isAllowedEmail(email: string): boolean {
     normalized.endsWith('@users.noreply.github.com') ||
     /@example\.(?:com|net|org)$/u.test(normalized)
   )
+}
+
+function isExplicitSecretPlaceholder(value: string): boolean {
+  const assignment = value.match(/(?:=|:)\s*['"]?([^'"]+)['"]?$/u)
+  const payload = assignment?.[1].trim() ?? value.replace(/^.*(?:[_-])/u, '')
+  return SECRET_PLACEHOLDER_PAYLOAD.test(payload)
 }
 
 function hasUnsafeText(text: string): boolean {
@@ -145,7 +152,9 @@ function hasUnsafeText(text: string): boolean {
       ? pattern.pattern.flags
       : `${pattern.pattern.flags}g`
     const regex = new RegExp(pattern.pattern.source, flags)
-    if (regex.test(text)) return true
+    for (const match of text.matchAll(regex)) {
+      if (!isExplicitSecretPlaceholder(match[0])) return true
+    }
   }
   return false
 }
