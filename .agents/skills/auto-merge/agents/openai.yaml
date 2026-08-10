@@ -1,0 +1,7 @@
+interface:
+  display_name: "VHK Auto Merge"
+  short_description: "Gate and squash approved VHK pull requests"
+  default_prompt: "Use $auto-merge to evaluate labeled VHK pull requests for a single merge sweep."
+
+policy:
+  allow_implicit_invocation: false

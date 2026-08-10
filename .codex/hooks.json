@@ -1,0 +1,27 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "repo_root=$(git rev-parse --show-toplevel) && cd \"$repo_root\" && node \"scripts/check-records.mjs\" --hook",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$repoRoot = git rev-parse --show-toplevel; if ($LASTEXITCODE -ne 0) { exit 1 }; Set-Location -LiteralPath $repoRoot; node 'scripts/check-records.mjs' --hook; exit $LASTEXITCODE\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "repo_root=$(git rev-parse --show-toplevel) && cd \"$repo_root\" && node \"scripts/record-reminder.mjs\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$repoRoot = git rev-parse --show-toplevel; if ($LASTEXITCODE -ne 0) { exit 1 }; Set-Location -LiteralPath $repoRoot; node 'scripts/record-reminder.mjs'; exit $LASTEXITCODE\""
+          }
+        ]
+      }
+    ]
+  }
+}

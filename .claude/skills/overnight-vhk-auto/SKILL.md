@@ -1,6 +1,6 @@
 ---
 name: overnight-vhk-auto
-description: VHK 야간 지휘 — 작업 단위 카드 1장을 골라 vhk-auto 계약대로 돌리고, push + PR 까지만 한다(머지 0). 트리거 - "밤새 vhk-auto", "overnight vhk", "자율 overnight", "큐부터 한 장".
+description: Use when one VHK goal should run unattended overnight and stop after opening a pull request without merging.
 ---
 
 # Overnight vhk-auto conductor
@@ -11,21 +11,22 @@ description: VHK 야간 지휘 — 작업 단위 카드 1장을 골라 vhk-auto 
 > 그쪽이 복제본이며, 어긋나면 **이 파일이 이긴다.**
 > 안쪽 구현 루프의 SoT 는 `.claude/skills/vhk-auto/SKILL.md`.
 
-## 환경 (설치 시 1회)
+## 저장소 래퍼
 
-이 스킬은 저장소 밖 스크립트 하나에 의존한다. 경로는 사람마다 다르므로 **환경변수로 주입**한다.
+구현 커밋 뒤에는 저장소에 추적되는 `scripts/auto_pr_goal.ps1`만 사용한다. 호출 규약은 다음과 같다.
 
-| 변수 | 용도 | 없으면 |
-|---|---|---|
-| `VHK_AUTO_PR_SCRIPT` | push + PR 래퍼(PowerShell) 절대경로 | INV-B 를 건너뛰고 commit 까지만. 사람에게 "PR 은 수동" 이라고 보고 |
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auto_pr_goal.ps1 `
+  -RepositoryRoot <repo-root> -BaseBranch main -Title <title> -BodyFile <body-file>
+```
 
-절대경로를 이 파일에 적지 마라 — 공개 저장소이고 `pnpm boundary:check` 가 막는다.
+`AGENTS.md` 형식과 아침 확인 3문항을 담은 임시 PR 본문 파일을 만들되 커밋하지 않는다.
 
 ## 불변조건
 
 - **INV-A** 구현 루프는 `.claude/skills/vhk-auto/SKILL.md` 의 INV-1..INV-9 를 따른다.
   commit 은 그 루프 안에서만. (vhk-auto INV-7)
-- **INV-B** verify green + commit 이후에만 `VHK_AUTO_PR_SCRIPT` 를 호출해 push + PR 할 수 있다.
+- **INV-B** verify green + commit 이후에만 `scripts/auto_pr_goal.ps1`을 호출해 push + PR 할 수 있다.
   **머지 = 0.** 래퍼는 *깨끗한 작업트리 + 미푸시 커밋* 상태를 지원한다(vhk-auto 가 이미 커밋한
   뒤의 push-only 경로) — dirty porcelain 을 기대하지 마라.
 - **INV-C** autonomy-log 의 시작 또는 종결 이벤트가 없으면 `.vhk/HARD_STOP` 을 쓰고 멈춘다.
@@ -40,10 +41,8 @@ description: VHK 야간 지휘 — 작업 단위 카드 1장을 골라 vhk-auto 
    §8(이번 계열에서 안 하는 것). 카드 번호를 이 파일에 하드코딩하지 마라 — 계열이 바뀌면 낡는다.
    고른 카드의 frontmatter 를 `IN_PROGRESS` 로 바꾼다.
 2. 그 카드에 대해 **vhk-auto** 루프를 돈다(autonomy-log 포함 — vhk-auto INV-9).
-3. 성공 시(커밋 완료, 작업트리는 깨끗할 수 있음):
-   `VHK_AUTO_PR_SCRIPT` 가 설정돼 있으면 저장소 루트를 대상으로 호출해 push + PR.
-   기준 브랜치는 `main`. PR 본문에 아침 확인 3문항을 넣는다.
-   설정돼 있지 않으면 이 단계를 건너뛰고 "PR 은 사람이" 로 보고한다.
+3. 성공 시(커밋 완료, 깨끗한 작업트리) 저장소 루트·기준 브랜치 `main`·PR 제목·임시 본문 파일을 인자로
+   `scripts/auto_pr_goal.ps1`을 호출한다. PR 본문에는 아침 확인 3문항을 넣는다.
 4. (선택) 아침 보고 생성 — `node scripts/gen-autonomy-morning-report.mjs --date YYYY-MM-DD`.
 5. PR URL(또는 HARD_STOP 사유)을 보고한다. **머지하지 않는다.**
 
