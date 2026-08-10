@@ -34,13 +34,16 @@ $root = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $body = (Resolve-Path -LiteralPath $BodyFile).Path
 Set-Location -LiteralPath $root
 
-if (Test-Path -LiteralPath (Join-Path $root '.vhk/HARD_STOP')) {
-  throw 'Push and PR creation are disabled while .vhk/HARD_STOP exists.'
-}
-
 $gitRoot = (@(Invoke-Captured -FilePath 'git' -ArgumentList @('rev-parse', '--show-toplevel'))[0]).Trim()
 if (-not $gitRoot) {
   throw 'Unable to resolve the Git repository root.'
+}
+$gitRoot = (Resolve-Path -LiteralPath $gitRoot).Path
+if (-not [string]::Equals($gitRoot, $root, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw 'RepositoryRoot must be the Git repository root.'
+}
+if (Test-Path -LiteralPath (Join-Path $gitRoot '.vhk/HARD_STOP')) {
+  throw 'Push and PR creation are disabled while .vhk/HARD_STOP exists.'
 }
 
 $status = @(Invoke-Captured -FilePath 'git' -ArgumentList @('status', '--porcelain'))
@@ -72,7 +75,7 @@ Invoke-Captured -FilePath 'git' -ArgumentList @(
 ) | Out-Null
 
 $existingOutput = @(Invoke-Captured -FilePath 'gh' -ArgumentList @(
-  'pr', 'list', '--head', $branch, '--state', 'open', '--json', 'url'
+  'pr', 'list', '--head', $branch, '--base', $BaseBranch, '--state', 'open', '--json', 'url'
 ))
 $existingJson = ($existingOutput -join [Environment]::NewLine).Trim()
 $existingPrs = @()

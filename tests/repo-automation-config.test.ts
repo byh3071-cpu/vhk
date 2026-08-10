@@ -39,6 +39,15 @@ function readHooks(): HookCommand[] {
   return Object.values(config.hooks).flatMap((groups) => groups.flatMap((group) => group.hooks))
 }
 
+function expectInOrder(content: string, fragments: string[]): void {
+  let previous = -1
+  for (const fragment of fragments) {
+    const current = content.indexOf(fragment, previous + 1)
+    expect(current, `다음 계약이 앞 단계 뒤에 있어야 함: ${fragment}`).toBeGreaterThan(previous)
+    previous = current
+  }
+}
+
 describe('공용 에이전트 자동화 설정', () => {
   it('PC 종속 절대경로를 포함하지 않는다', () => {
     const hostPath = /(?:[A-Za-z]:[\\/]|\\\\[^\\/\s]+[\\/]|\/Users\/|\/home\/)/
@@ -74,6 +83,16 @@ describe('공용 에이전트 자동화 설정', () => {
     expect(content).toContain('codex.cmd review --uncommitted')
     expect(content).toContain('POSIX에서는 `codex review --uncommitted`')
     expect(content).not.toContain('docs/log/<오늘날짜>-autopilot.md')
+    expect(content.match(/vhk autonomy-log --event blocked/g)).toHaveLength(2)
+    expect(content).toContain('같은 호출에서 실패 원인을 수정하고 `vhk verify`를 한 번 다시 실행')
+    expectInOrder(content, [
+      '**런 시작 기록**',
+      'vhk autonomy-log --event start',
+      '같은 호출에서 실패 원인을 수정하고 `vhk verify`를 한 번 다시 실행',
+      'vhk autonomy-log --event hardstop',
+      '**재검증 전 중단·review 실패·그 밖의 start 이후 오류**',
+      'vhk autonomy-log --event blocked',
+    ])
   })
 
   it('overnight 실행기는 저장소에 추적되는 push+PR 전용 래퍼를 사용한다', () => {
@@ -101,9 +120,29 @@ describe('공용 에이전트 자동화 설정', () => {
       encoding: 'utf8',
     })
     expect(result.status, result.stderr || result.stdout).toBe(0)
-    const report = JSON.parse(result.stdout) as { supported: boolean; created?: boolean; pushed?: boolean }
+    const report = JSON.parse(result.stdout) as {
+      supported: boolean
+      created?: boolean
+      pushed?: boolean
+      hardStopBlocked?: boolean
+      nestedRootBlocked?: boolean
+      mainBlocked?: boolean
+      dirtyBlocked?: boolean
+      existingReused?: boolean
+      baseScoped?: boolean
+    }
     if (process.platform === 'win32') {
-      expect(report).toEqual({ supported: true, created: true, pushed: true })
+      expect(report).toEqual({
+        supported: true,
+        created: true,
+        pushed: true,
+        hardStopBlocked: true,
+        nestedRootBlocked: true,
+        mainBlocked: true,
+        dirtyBlocked: true,
+        existingReused: true,
+        baseScoped: true,
+      })
     } else {
       expect(report).toEqual({ supported: false })
     }
@@ -121,6 +160,19 @@ describe('공용 에이전트 자동화 설정', () => {
     expect(content).toContain('git fetch origin main')
     expect(content).toContain('git worktree add --detach')
     expect(content).toContain('git worktree remove')
+    expect(content).toContain('--limit 1000')
+    expect(content).toContain('--base main')
+    expect(content).toContain('headRefOid')
+    expect(content).toContain('baseRefName')
+    expect(content).toContain('--match-head-commit <headRefOid>')
+    expect(content).toContain('gh pr view <n> --json state,labels,headRefOid,baseRefName')
+    expectInOrder(content, [
+      'git rev-parse refs/vhk-auto-merge/pr-<n>',
+      '`git rev-parse` 결과가 수집 시 저장한 `<headRefOid>`와 같은 경우에만',
+      'git worktree add --detach',
+      'gh pr view <n> --json state,labels,headRefOid,baseRefName',
+      'gh pr merge <n> --squash --match-head-commit <headRefOid>',
+    ])
     expect(content).not.toContain('worktree 생성 불필요')
     expect(content).not.toMatch(/repository\(owner:"|\/loop|\/code-review|\bGlob\b|\bBash\b|\bAgent\b/)
 

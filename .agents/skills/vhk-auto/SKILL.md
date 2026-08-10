@@ -39,9 +39,12 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
 3. **개발**: 그 카드의 미션을 구현한다. test-first(실패 테스트 먼저 → 통과 구현) + 기존 코딩 규칙 준수.
 4. **결정론 게이트**: `vhk verify` 실행 → `.vhk/reports/latest.json` 을 읽는다.
    green(typecheck/test/build/secure 통과) = 진행 허가 / red = 게이트 실패 카운트 +1. (INV-1·INV-4)
+   첫 red이면 적대 검증이나 commit으로 진행하지 않는다. 같은 호출에서 실패 원인을 수정하고 `vhk verify`를 한 번 다시 실행한다.
+   두 번째 red이면 hardstop 분기로 이동한다. 안전하게 수정할 수 없거나 재검증 전에 호출을 끝내야 하면 blocked 종결 분기로 이동한다.
 5. **적대 검증**: Windows에서는 `codex.cmd review --uncommitted`, POSIX에서는 `codex review --uncommitted` 1패스. 추가로 `vhk review`·`vhk mission check` 실행 —
    exit code 는 결정론 중단신호, stdout 텍스트는 적대판단 신호로만(파싱 X, INV-4).
    판단 규칙: "치명(critical) 결함이 1개라도 있나? 불확실하면 치명으로 간주" → 있으면 중단. (보수적)
+   review 실행·인증 실패 또는 결과 불명확이면 성공으로 간주하지 않고 6번의 blocked 종결 분기로 이동한다.
 6. **종결 분기**:
    - **합격**(verify green AND 적대 치명 0):
      1) `docs/devlog/<오늘날짜>-autopilot.md` 에 "무엇을 했고 검증 결과" 1줄 append. (INV-5)
@@ -53,6 +56,11 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
      2) `vhk autonomy-log --event hardstop --run-id <runId> [...] [--review-rejected]`
         (적대리뷰 critical 이 원인이면 `--review-rejected` 포함). (INV-9)
      3) 핵심 보고 → 종료(사람이 `vhk resume --confirm` 하기 전엔 재진입 금지).
+   - **재검증 전 중단·review 실패·그 밖의 start 이후 오류**:
+     1) `vhk autonomy-log --event blocked --run-id <runId> [...]`. (INV-9)
+     2) 첫 verify red를 안전하게 수정할 수 없는 경우, review 실행·인증·결과 실패, devlog append·commit 등 열거되지 않은 명령 실패도 모두 이 분기로 닫는다.
+     3) 중단 원인과 재실행 조건을 핵심 보고하고 종료. 이 분기에서는 HARD_STOP을 만들지 않는다.
+     4) terminal 이벤트 기록 자체가 실패하면 `.vhk/HARD_STOP`을 만들고 기록 무결성 실패를 보고한다.
    - **3사이클 진전 없음**:
      1) `vhk blocker "<증상>"` (독푸딩 중이면 `[dogfood]` 태그로 HARD_STOP 임계 우회 가능).
      2) `vhk autonomy-log --event blocked --run-id <runId> [...]`. (INV-9)

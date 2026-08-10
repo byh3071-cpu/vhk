@@ -17,11 +17,12 @@ description: Use when an explicitly authorized VHK maintenance session must eval
 ## 1. 대상 수집
 
 ```sh
-gh pr list --state open --label auto-merge --json number,title,headRefName,additions,deletions
+gh pr list --state open --base main --label auto-merge --limit 1000 --json number,title,headRefName,headRefOid,baseRefName,additions,deletions
 gh repo view --json nameWithOwner
 ```
 
 - **`auto-merge` 라벨 없는 PR은 절대 건드리지 않는다** (조회도 라벨 필터로만).
+- 전체 대상 목록을 수집한 다음 주기당 최대 3개 제한을 적용한다. 각 PR의 `headRefOid`는 이번 주기의 검토·머지 기준으로 유지한다.
 - 0건이면 "대상 없음" 한 줄 보고 후 주기 종료.
 
 ## 2. PR별 게이트 (순서대로, 하나라도 탈락 시 스킵)
@@ -55,13 +56,21 @@ query($owner:String!, $name:String!, $number:Int!, $endCursor:String) {
 원래 checkout에서 base와 PR head를 갱신한 뒤, PR head를 detached 임시 worktree로 분리해 독립 리뷰를 실행한다. `<temporary-path>`는 이번 실행만을 위한 새 경로여야 한다.
 
 ```sh
+git update-ref -d refs/vhk-auto-merge/pr-<n>
 git fetch origin main "pull/<n>/head:refs/vhk-auto-merge/pr-<n>"
+git rev-parse refs/vhk-auto-merge/pr-<n>
+```
+
+`git rev-parse` 결과가 수집 시 저장한 `<headRefOid>`와 같은 경우에만 아래 단계로 진행한다.
+
+```sh
 git worktree add --detach <temporary-path> refs/vhk-auto-merge/pr-<n>
 cd <temporary-path>
 ```
 
 Windows PowerShell에서는 실행 정책에 걸리는 `codex.ps1` 대신 `codex.cmd review --base origin/main "머지하면 안 되는 이유를 우선 찾아 Critical, Important, Minor로 분류"`를 사용한다. POSIX에서는 `codex review`에 같은 인자를 전달한다.
 
+- `git rev-parse` 결과가 수집 시 저장한 `<headRefOid>`와 다르면 worktree를 만들거나 머지하지 않는다. `git update-ref -d refs/vhk-auto-merge/pr-<n>`로 임시 ref를 지운 뒤 다음 주기로 미룬다.
 - Critical 또는 Important가 하나라도 있으면 머지하지 않는다.
 - 리뷰 실행 실패·인증 실패·결과 불명확도 통과가 아니라 스킵이다.
 - 리뷰가 끝나면 원래 checkout에서 `git worktree remove <temporary-path>`와 `git update-ref -d refs/vhk-auto-merge/pr-<n>` 순서로 정리한다.
@@ -70,8 +79,9 @@ Windows PowerShell에서는 실행 정책에 걸리는 `codex.ps1` 대신 `codex
 ## 4. 머지
 
 - 주기당 **최대 3개** (초과분은 다음 주기 — AI 독주 방지).
-- 실행: `gh pr merge <n> --squash`
-- 실패(권한·보호규칙) 시 재시도 1회, 그래도 실패면 보고 후 다음 PR.
+- 머지 직전에 저장소 루트의 `.vhk/HARD_STOP` 부재를 다시 확인하고 `gh pr view <n> --json state,labels,headRefOid,baseRefName`를 실행한다. 상태가 OPEN, base가 main, `auto-merge` 라벨이 유지되고 head가 수집한 `<headRefOid>`와 같을 때만 다음 명령으로 진행한다. 조회 실패나 하나라도 불일치하면 스킵한다.
+- 실행: `gh pr merge <n> --squash --match-head-commit <headRefOid>`
+- head 불일치는 재시도하지 않고 다음 주기에 전체 게이트를 다시 실행한다. 권한·보호규칙 실패만 재시도 1회, 그래도 실패면 보고 후 다음 PR.
 
 ## 5. 주기 보고 (매 주기 마지막, 한 줄씩)
 
