@@ -139,8 +139,17 @@ try {
   const listCall = success.calls.find((call) => call.tool === 'gh' && call.args[0] === 'pr' && call.args[1] === 'list')
   const baseIndex = listCall?.args.indexOf('--base') ?? -1
   const baseScoped = baseIndex >= 0 && listCall.args[baseIndex + 1] === 'main'
-  if (!pushed || !created || !baseScoped || success.result.stdout.trim() !== createdUrl) {
-    throw new Error(JSON.stringify({ pushed, created, baseScoped, result: success.result, calls: success.calls }))
+  const headIndex = listCall?.args.indexOf('--head') ?? -1
+  const headScoped = headIndex >= 0 && listCall.args[headIndex + 1] === 'feat/portable-test'
+  if (!pushed || !created || !baseScoped || !headScoped || success.result.stdout.trim() !== createdUrl) {
+    throw new Error(JSON.stringify({
+      pushed,
+      created,
+      baseScoped,
+      headScoped,
+      result: success.result,
+      calls: success.calls,
+    }))
   }
 
   const hardStop = join(repo, '.vhk', 'HARD_STOP')
@@ -171,6 +180,7 @@ try {
     dirtyBlocked,
     existingReused,
     baseScoped,
+    headScoped,
   }))
 } finally {
   await rm(root, { recursive: true, force: true })

@@ -130,6 +130,7 @@ describe('공용 에이전트 자동화 설정', () => {
       dirtyBlocked?: boolean
       existingReused?: boolean
       baseScoped?: boolean
+      headScoped?: boolean
     }
     if (process.platform === 'win32') {
       expect(report).toEqual({
@@ -142,6 +143,7 @@ describe('공용 에이전트 자동화 설정', () => {
         dirtyBlocked: true,
         existingReused: true,
         baseScoped: true,
+        headScoped: true,
       })
     } else {
       expect(report).toEqual({ supported: false })
