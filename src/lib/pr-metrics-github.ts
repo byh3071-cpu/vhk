@@ -68,10 +68,12 @@ const MAX_PAGES = 20
 const TIMELINE_ITEM_TYPES =
   'READY_FOR_REVIEW_EVENT,CONVERT_TO_DRAFT_EVENT,PULL_REQUEST_REVIEW,ISSUE_COMMENT,MERGED_EVENT,CLOSED_EVENT'
 
-const PR_PAGE_QUERY = `
-query($owner:String!,$name:String!,$after:String,$states:[PullRequestState!]!){
+// states 는 GraphQL enum 배열이라 gh -f(문자열 변수)로 넘길 수 없다("MERGED,CLOSED" 실측 실패).
+// 내부 고정 2종만 쓰므로 쿼리 텍스트에 인라인한다 — 외부 입력이 아니라 주입 위험 없음.
+const prPageQuery = (statesInline: string): string => `
+query($owner:String!,$name:String!,$after:String){
   repository(owner:$owner,name:$name){
-    pullRequests(first:${PAGE_SIZE},after:$after,states:$states,orderBy:{field:CREATED_AT,direction:DESC}){
+    pullRequests(first:${PAGE_SIZE},after:$after,states:[${statesInline}],orderBy:{field:CREATED_AT,direction:DESC}){
       pageInfo{hasNextPage endCursor}
       nodes{
         number createdAt mergedAt closedAt isDraft headRefOid
@@ -257,9 +259,9 @@ export function fetchPrWindow(
   const collect = (states: string, stopBeforeSince: boolean): void => {
     let after: string | null = null
     for (let page = 0; page < MAX_PAGES; page++) {
-      const vars: Record<string, string | number> = { owner: id.owner, name: id.name, states }
+      const vars: Record<string, string | number> = { owner: id.owner, name: id.name }
       if (after) vars.after = after
-      const res = runGraphql(runner, PR_PAGE_QUERY, vars)
+      const res = runGraphql(runner, prPageQuery(states), vars)
       if (!res.ok) {
         errors.push(`PR 목록 조회 실패 (states=${states}): ${res.err}`)
         listComplete = false

@@ -44,8 +44,9 @@ function scriptedRunner(script: Array<{ match: (args: string[]) => boolean; ok: 
 }
 
 const isRepoView = (a: string[]) => a[0] === 'repo'
+// states 는 gh 변수로 못 넘겨(GraphQL enum 배열) 쿼리 텍스트에 인라인된다 — 텍스트로 매칭.
 const isPrPage = (states: string) => (a: string[]) =>
-  a[0] === 'api' && a.includes(`states=${states}`)
+  a[0] === 'api' && a.some((arg) => arg.includes(`states:[${states}]`))
 const hasCursor = (cursor: string) => (a: string[]) => a.includes(`after=${cursor}`)
 
 describe('parseTimelineNode', () => {

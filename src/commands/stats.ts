@@ -8,8 +8,28 @@ import type { EvolveQueueItem } from './evolve.js'
 import { readReceiptLog, type ReceiptLogEntry } from '../lib/receipt-log.js'
 import { readEvolveLog, type EvolveLogEntry } from '../lib/evolve-log.js'
 import { readCheckLog, type CheckLogEntry } from '../lib/check-log.js'
-import { readAutonomyLog, type AutonomyRunEntry } from '../lib/autonomy-log.js'
+import {
+  readAutonomyLog,
+  readMorningObservations,
+  selectDailyObservations,
+  type AutonomyRunEntry,
+  type MorningObservation,
+} from '../lib/autonomy-log.js'
 import { normalizeTaskKind, type TaskKind } from '../lib/task-kind.js'
+import {
+  buildHeadOidCounts,
+  classifyCohort,
+  computeWait,
+  countHighCarryoverMornings,
+  generateMornings,
+  judgeBottleneck,
+  median,
+  MIN_OBSERVED_SAMPLES,
+  MIN_WINDOW_DAYS,
+  type BottleneckJudgment,
+  type PrCohort,
+} from '../lib/pr-metrics.js'
+import { fetchPrWindow, ghAvailability, type PrRecord } from '../lib/pr-metrics-github.js'
 
 /**
  * Goal 61: vhk stats — 읽기전용 통계·대시보드 집계.
@@ -498,6 +518,9 @@ export async function stats(opts: { trend?: boolean } = {}): Promise<void> {
   // 4) 자율 완주율 (#373 / Goal 104) — 표본 0 정직 표기
   renderAutonomyStats(cwd)
 
+  // 5) 병목 계측 (Goal 111) — gh 부재·부분 실패는 측정 불가 표기
+  renderBottleneckStats(cwd)
+
   printNextStep({
     message: t('stats.nextMessage'),
     command: 'vhk verify',
@@ -574,6 +597,189 @@ function renderAutonomyStats(cwd: string): void {
   if (kinds.length > 0) {
     log.plain(chalk.dim(`  작업 유형: ${kinds.map(([k, n]) => `${k} ${n}`).join(' · ')}`))
   }
+}
+
+// ─── Goal 111-T6: 병목 계측 섹션 ────────────────────────────────────────────
+
+/** 순수 조립 결과 — 렌더와 분리해 fixture 테스트 대상. */
+export interface BottleneckView {
+  judgment: BottleneckJudgment
+  windowDays: number
+  /** cohort 별 PR 수. */
+  cohortCounts: Record<PrCohort, number>
+  /** autonomous 관측 완료 표본 수. */
+  observedCount: number
+  /** autonomous censored — 아직 사람 조치 없는 PR. */
+  censoredCount: number
+  censoredMaxAgeHours: number | null
+  /** interactive 관측 중앙값(참고 지표 — 세션 중 Claude 가 같은 계정으로 조치해 사람 반응과 혼합). */
+  interactiveMedianHours: number | null
+  carryoverHighMornings: number
+  /** 자기신고 응답률 — 값이 있는 관측일 / 리포트가 실행된 관측일. 관측일 0 이면 null. */
+  selfReportResponseRate: number | null
+  selfReportDays: number
+}
+
+/**
+ * 병목 뷰 조립(순수) — 네트워크·시계 의존은 인자로 받는다.
+ * windowDays 는 달력이 아니라 **측정 기점**(sha 있는 첫 종결 이벤트) 기준이다 — GitHub 과거는
+ * 재구성 가능하지만 autonomous cohort 는 v2 원장 배포 이후에만 존재하므로, 4주 시계는
+ * 그 시점부터 세는 것이 정직하다.
+ */
+export function buildBottleneckView(
+  prs: PrRecord[],
+  runs: AutonomyRunEntry[],
+  morningObs: MorningObservation[],
+  nowIso: string,
+  apiComplete: boolean,
+): BottleneckView {
+  const terminal = runs.filter((e) => e.event !== 'start' && typeof e.sha === 'string' && e.sha !== null)
+  const terminalShas = new Set(terminal.map((e) => e.sha as string))
+  const epoch = terminal.length > 0 ? [...terminal.map((e) => e.ts)].sort()[0] : null
+  const windowDays = epoch
+    ? Math.min(MIN_WINDOW_DAYS, Math.floor((Date.parse(nowIso) - Date.parse(epoch)) / 86_400_000))
+    : 0
+
+  const nonBot = prs.filter((p) => !p.authorIsBot)
+  const counts = buildHeadOidCounts(nonBot)
+  const cohortCounts: Record<PrCohort, number> = { autonomous: 0, interactive: 0, unknown: 0 }
+  const autonomousWaits: number[] = []
+  const interactiveWaits: number[] = []
+  let censoredCount = 0
+  let censoredMaxAgeHours: number | null = null
+
+  for (const pr of nonBot) {
+    const cohort = classifyCohort(pr, terminalShas, counts)
+    cohortCounts[cohort]++
+    if (cohort === 'unknown') continue // 불혼입 — 어느 지표에도 안 넣는다
+    const w = computeWait(pr, nowIso)
+    if (w.excluded) continue
+    if (w.censored) {
+      if (cohort === 'autonomous') {
+        censoredCount++
+        if (w.censoredAgeHours !== null && (censoredMaxAgeHours === null || w.censoredAgeHours > censoredMaxAgeHours)) {
+          censoredMaxAgeHours = w.censoredAgeHours
+        }
+      }
+      continue
+    }
+    if (w.waitHours !== null) {
+      if (cohort === 'autonomous') autonomousWaits.push(w.waitHours)
+      else interactiveWaits.push(w.waitHours)
+    }
+  }
+
+  const windowStartIso = new Date(Date.parse(nowIso) - MIN_WINDOW_DAYS * 86_400_000).toISOString()
+  const mornings = generateMornings(windowStartIso, nowIso, 9)
+  const carryoverHighMornings = countHighCarryoverMornings(nonBot, mornings)
+
+  const daily = selectDailyObservations(morningObs)
+  const withValues = [...daily.values()].filter(
+    (o) => o.trackingMin !== undefined || (o.uncheckedApprovals !== undefined && o.approvalDecisionsTotal !== undefined),
+  ).length
+
+  return {
+    judgment: judgeBottleneck({
+      apiComplete,
+      windowDays,
+      observedAutonomousWaitHours: autonomousWaits,
+      carryoverHighMornings,
+    }),
+    windowDays,
+    cohortCounts,
+    observedCount: autonomousWaits.length,
+    censoredCount,
+    censoredMaxAgeHours,
+    interactiveMedianHours: median(interactiveWaits),
+    carryoverHighMornings,
+    selfReportResponseRate: daily.size === 0 ? null : withValues / daily.size,
+    selfReportDays: daily.size,
+  }
+}
+
+const VERDICT_KO: Record<BottleneckJudgment['verdict'], string> = {
+  confirmed: '병목 확정',
+  mixed: '혼합 신호 — 사람 검토',
+  'not-proven': '병목 미입증',
+  'insufficient-data': '데이터 부족',
+  unmeasurable: '측정 불가',
+}
+
+/** 자기신고 참고 지표 표시 — gh 유무와 무관한 로컬 데이터. */
+function renderSelfReport(view: Pick<BottleneckView, 'selfReportResponseRate' | 'selfReportDays'>): void {
+  if (view.selfReportDays === 0) {
+    log.plain(chalk.dim('  자기신고(참고): 관측일 0 — 아침 리포트 실행 기록 없음'))
+    return
+  }
+  log.plain(
+    chalk.dim(
+      `  자기신고(참고): 응답률 ${pct(view.selfReportResponseRate ?? 0)} (${view.selfReportDays}개 관측일 기준)`,
+    ),
+  )
+}
+
+/** Goal 111: 병목 계측 섹션. gh 부재·부분 실패는 측정 불가로 표기 — 0 으로 위장하지 않는다. */
+function renderBottleneckStats(cwd: string): void {
+  log.plain(chalk.cyan(`\n⏱  ${t('stats.bottleneckTitle')}`))
+  const morningObs = readMorningObservations(cwd)
+  const avail = ghAvailability()
+  if (!avail.ok) {
+    log.plain(chalk.yellow(`  측정 불가 — ${avail.reason}. PR 대기·이월 지표를 계산할 수 없습니다.`))
+    renderSelfReport({
+      selfReportDays: selectDailyObservations(morningObs).size,
+      selfReportResponseRate: null,
+    })
+    return
+  }
+
+  const nowIso = new Date().toISOString()
+  const windowStartIso = new Date(Date.now() - MIN_WINDOW_DAYS * 86_400_000).toISOString()
+  const fetched = fetchPrWindow(windowStartIso)
+  const nonBot = fetched.prs.filter((p) => !p.authorIsBot)
+  const apiComplete =
+    fetched.listComplete && fetched.errors.length === 0 && nonBot.every((p) => p.timelineComplete)
+
+  const view = buildBottleneckView(fetched.prs, readAutonomyLog(cwd), morningObs, nowIso, apiComplete)
+  const j = view.judgment
+
+  log.plain(chalk.white(`  판정: ${VERDICT_KO[j.verdict]}`))
+  if (j.verdict === 'unmeasurable') {
+    for (const e of fetched.errors.slice(0, 3)) log.plain(chalk.yellow(`  ⚠ ${e}`))
+    if (!nonBot.every((p) => p.timelineComplete)) {
+      log.plain(chalk.yellow('  ⚠ 일부 PR 타임라인 미완 수집 — 판정 자료 불완전'))
+    }
+  }
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  log.plain(
+    chalk.dim(
+      `  관측 창: ${view.windowDays}/${MIN_WINDOW_DAYS}일 (측정 기점 = SHA 있는 첫 종결 이벤트) · 아침 관측 09:00 ${tz}`,
+    ),
+  )
+  log.plain(
+    chalk.dim(
+      `  autonomous 대기 중앙값: ${j.medianWaitHours === null ? '표본 없음' : `${j.medianWaitHours.toFixed(1)}h`}` +
+        ` (관측 완료 ${view.observedCount}/${MIN_OBSERVED_SAMPLES}개` +
+        (view.censoredCount > 0
+          ? ` · 미조치 ${view.censoredCount}건${view.censoredMaxAgeHours === null ? '' : ` 최장 ${view.censoredMaxAgeHours.toFixed(0)}h`}`
+          : '') +
+        ')',
+    ),
+  )
+  log.plain(
+    chalk.dim(
+      `  이월 많은 아침: ${view.carryoverHighMornings}회 · cohort: autonomous ${view.cohortCounts.autonomous}` +
+        ` / interactive ${view.cohortCounts.interactive}` +
+        (view.cohortCounts.unknown > 0 ? ` / unknown ${view.cohortCounts.unknown} (불혼입)` : ''),
+    ),
+  )
+  if (view.interactiveMedianHours !== null) {
+    log.plain(
+      chalk.dim(
+        `  interactive 중앙값(참고): ${view.interactiveMedianHours.toFixed(1)}h — 세션 중 조치가 섞여 판정에 안 씀`,
+      ),
+    )
+  }
+  renderSelfReport(view)
 }
 
 // N6(ⓔ): receipt-log 추세 렌더링(읽기 전용). 표본 부족·미측정은 정직 표기(0 위장 금지).
