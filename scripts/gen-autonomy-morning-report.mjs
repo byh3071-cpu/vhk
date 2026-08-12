@@ -2,7 +2,7 @@
 // scripts/gen-autonomy-morning-report.mjs — Goal 103 helper (ASCII CLI).
 // Writes docs/audits/autonomy-overnight-<date>.md from autonomy-run.jsonl + optional --pr.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -11,13 +11,23 @@ function stripBom(s) {
   return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s
 }
 
+// Goal 111-T3: 자기신고 옵션 — 전부 선택. 미입력이어도 리포트 실행 자체가 기록돼
+// 응답률의 분모(리포트가 실행된 고유 관측일)가 된다.
+function parseIntArg(raw, name) {
+  if (!/^\d+$/.test(raw)) throw new Error(`${name} must be a non-negative integer`)
+  return Number(raw)
+}
+
 function parseArgs(argv) {
-  const out = { date: '', pr: '', cwd: process.cwd() }
+  const out = { date: '', pr: '', cwd: process.cwd(), trackingMin: undefined, unchecked: undefined, approvalTotal: undefined }
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i]
     if (a === '--date' && argv[i + 1]) out.date = argv[++i]
     else if (a === '--pr' && argv[i + 1]) out.pr = argv[++i]
     else if (a === '--cwd' && argv[i + 1]) out.cwd = argv[++i]
+    else if (a === '--tracking-min' && argv[i + 1]) out.trackingMin = parseIntArg(argv[++i], '--tracking-min')
+    else if (a === '--unchecked' && argv[i + 1]) out.unchecked = parseIntArg(argv[++i], '--unchecked')
+    else if (a === '--approval-total' && argv[i + 1]) out.approvalTotal = parseIntArg(argv[++i], '--approval-total')
   }
   if (!out.date) {
     const d = new Date()
@@ -26,7 +36,24 @@ function parseArgs(argv) {
   if (!DATE_RE.test(out.date)) {
     throw new Error('--date must use YYYY-MM-DD')
   }
+  if (out.unchecked !== undefined && out.approvalTotal !== undefined && out.unchecked > out.approvalTotal) {
+    throw new Error('--unchecked must not exceed --approval-total')
+  }
   return out
+}
+
+// MorningObservation append — 스키마의 원본 계약은 src/lib/autonomy-log.ts
+// normalizeMorningObservation. 읽기 쪽이 무효 라인을 걸러내는 최종 게이트이므로
+// 여기서는 CLI 인자 검증(정수·상한)까지만 한다.
+function appendMorning(cwd, opts) {
+  const obs = { kind: 'morning', ts: new Date().toISOString(), date: opts.date }
+  if (opts.trackingMin !== undefined) obs.trackingMin = opts.trackingMin
+  if (opts.unchecked !== undefined) obs.uncheckedApprovals = opts.unchecked
+  if (opts.approvalTotal !== undefined) obs.approvalDecisionsTotal = opts.approvalTotal
+  const dir = join(cwd, '.vhk', 'events')
+  mkdirSync(dir, { recursive: true })
+  appendFileSync(join(dir, 'autonomy-run.jsonl'), JSON.stringify(obs) + '\n', 'utf-8')
+  return obs
 }
 
 function readEntries(cwd) {
@@ -65,10 +92,17 @@ function count(entries) {
   return { starts, complete, hardstop, blocked, runIds: [...runIds] }
 }
 
-function render(date, prUrl, entries) {
+function render(date, prUrl, entries, selfReport) {
   const c = count(entries)
   const pr = prUrl && prUrl.trim() ? prUrl.trim() : '(none — not opened yet)'
   const runIds = c.runIds.length > 0 ? c.runIds.map((id) => `- \`${id}\``).join('\n') : '- (none)'
+  const sr = []
+  sr.push(`- **tracking-min**: ${selfReport.trackingMin ?? '(not reported)'}`)
+  const ratio =
+    selfReport.unchecked !== undefined && selfReport.approvalTotal !== undefined
+      ? `${selfReport.unchecked}/${selfReport.approvalTotal}`
+      : '(not reported — both --unchecked and --approval-total required)'
+  sr.push(`- **unchecked approvals**: ${ratio}`)
   return `# Autonomy overnight — ${date}
 
 ## Summary
@@ -81,6 +115,9 @@ function render(date, prUrl, entries) {
 ## runIds
 ${runIds}
 
+## Self report (reference only — not a gate metric)
+${sr.join('\n')}
+
 ## Notes
 (none)
 
@@ -90,8 +127,9 @@ Follow \`docs/runbooks/MORNING_AUTONOMY_MERGE.md\` (3 questions). Merge = human 
 }
 
 const opts = parseArgs(process.argv)
+appendMorning(opts.cwd, opts)
 const entries = filterByDate(readEntries(opts.cwd), opts.date)
-const md = render(opts.date, opts.pr, entries)
+const md = render(opts.date, opts.pr, entries, opts)
 const dir = join(opts.cwd, 'docs', 'audits')
 mkdirSync(dir, { recursive: true })
 const outPath = join(dir, `autonomy-overnight-${opts.date}.md`)
