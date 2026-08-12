@@ -204,8 +204,69 @@ describe('calcAutonomyStats — 3중 판정 (Goal 110)', () => {
       [v2('start', 'a', 's0'), v2('complete', 'a', 's1', { interventions: 0, failureKind: 'infra' })],
       [receipt('s1')],
     )
-    // 집계 단계에서도 방어한다(기록 단계 방어는 commands/agent.ts).
-    expect(r.judgedRuns + r.infraExcluded).toBe(1)
+    // 집계 단계에서도 이벤트 종류를 확인한다(기록 단계 방어는 commands/agent.ts).
+    // 분모에 남고 인프라 제외로는 세지 않아야 한다 — 두 값을 따로 못박는다.
+    expect(r.infraExcluded).toBe(0)
+    expect(r.judgedRuns).toBe(1)
+    expect(r.verifiedComplete).toBe(1)
+  })
+
+  it('종결 이벤트가 없는 런은 실패가 아니라 진행 중 — 완주율을 왜곡하지 않는다', () => {
+    const r = calcAutonomyStats([v2('start', 'a', 's0')], [])
+    expect(r.inProgress).toBe(1)
+    expect(r.judgedRuns).toBe(0)
+    expect(r.completionRate).toBeNull()
+    expect(r.rollingFailures).toBeNull()
+  })
+
+  it('진행 중 런이 섞여도 판정 대상만 집계한다', () => {
+    const r = calcAutonomyStats(
+      [
+        v2('start', 'done', 's0'),
+        v2('complete', 'done', 's1', { interventions: 0 }),
+        v2('start', 'running', 's0'),
+      ],
+      [receipt('s1')],
+    )
+    expect(r.inProgress).toBe(1)
+    expect(r.judgedRuns).toBe(1)
+    expect(r.completionRate).toBe(1)
+  })
+})
+
+describe('calcAutonomyStats — 인프라 제외 남용 감시', () => {
+  /** 인프라로 제외되는 실패 n건 + 정상 완주 m건. */
+  function mix(infra: number, ok: number) {
+    const entries: AutonomyRunEntry[] = []
+    const receipts: ReceiptLogEntry[] = []
+    for (let i = 0; i < infra; i++) {
+      entries.push(v2('start', `i${i}`, 'base'))
+      entries.push(v2('hardstop', `i${i}`, `si${i}`, { failureKind: 'infra' }))
+    }
+    for (let i = 0; i < ok; i++) {
+      entries.push(v2('start', `o${i}`, 'base'))
+      entries.push(v2('complete', `o${i}`, `so${i}`, { interventions: 0 }))
+      receipts.push(receipt(`so${i}`))
+    }
+    return calcAutonomyStats(entries, receipts)
+  }
+
+  it('표본이 적으면 비율을 내지 않는다 — 1건 중 1건 제외를 100% 남용으로 읽지 않는다', () => {
+    const r = mix(1, 1)
+    expect(r.infraExcludedRatio).toBeNull()
+    expect(r.infraAbuseSuspected).toBe(false)
+  })
+
+  it('제외 비율이 임계 이하면 의심하지 않는다', () => {
+    const r = mix(1, 9) // 10%
+    expect(r.infraExcludedRatio).toBeCloseTo(0.1)
+    expect(r.infraAbuseSuspected).toBe(false)
+  })
+
+  it('제외 비율이 임계를 넘으면 남용 의심 — failureKind 가 자기 보고라서', () => {
+    const r = mix(5, 5) // 50%
+    expect(r.infraExcludedRatio).toBe(0.5)
+    expect(r.infraAbuseSuspected).toBe(true)
   })
 
   it('제품 실패는 분모에 남는다', () => {

@@ -245,8 +245,18 @@ export interface AutonomyStats {
   completionRate: number | null
   /** v1 라인(sha 없음)이라 기계 증거와 조인할 수 없는 런 — 분자·분모 양쪽에서 뺀다. */
   unjudgeable: number
+  /** 종결 이벤트가 없는 런 — 아직 결과가 없다. 실패가 아니라 미판정이다. */
+  inProgress: number
   /** 인프라 실패로 분모에서 제외된 런(110-T5). */
   infraExcluded: number
+  /**
+   * 인프라 제외 비율 = infraExcluded / (판정 대상 + infraExcluded). 표본이 적으면 null.
+   * failureKind 는 에이전트 자기 보고라 실패를 분모에서 빼는 남용 경로가 된다 — 그 남용을
+   * 막을 기계 증거가 없으므로, 대신 비율을 노출해 사람이 볼 수 있게 한다.
+   */
+  infraExcludedRatio: number | null
+  /** 인프라 제외 비율이 임계를 넘어 자기 보고 남용이 의심되는 상태. */
+  infraAbuseSuspected: boolean
   /** complete 라고 신고했지만 기계 증거가 뒷받침하지 못한 런 — 자기 보고와 실제의 격차. */
   selfReportedOnly: number
   /** 판정 대상 런의 작업 유형 분포(110-T3). */
@@ -261,6 +271,14 @@ export interface AutonomyStats {
 export const ROLLING_WINDOW = 10
 /** 이 횟수 이상 실패하면 권한 축소. 관찰 게이트의 "실패 2회 이하 통과"와 같은 경계. */
 export const DEMOTION_FAILURE_THRESHOLD = 3
+
+/**
+ * 인프라 제외 비율이 이 값을 넘으면 자기 보고 남용을 의심한다.
+ * 값의 근거 = 강등 임계와 같은 비율(3/10). 별도 임의값을 새로 만들지 않는다.
+ */
+export const INFRA_ABUSE_RATIO = DEMOTION_FAILURE_THRESHOLD / ROLLING_WINDOW
+/** 표본이 이보다 적으면 비율을 내지 않는다 — 1건 중 1건 제외를 100% 남용으로 읽지 않기 위해. */
+export const INFRA_RATIO_MIN_SAMPLE = 3
 
 const EMPTY_KIND_COUNTS = (): Record<TaskKind, number> => ({
   chore: 0,
@@ -322,6 +340,7 @@ export function calcAutonomyStats(
 
   const outcomes: RunOutcome[] = []
   let unjudgeable = 0
+  let inProgress = 0
   let infraExcluded = 0
   let selfReportedOnly = 0
   const byTaskKind = EMPTY_KIND_COUNTS()
@@ -334,17 +353,26 @@ export function calcAutonomyStats(
       unjudgeable++
       continue
     }
+    // 종결 이벤트가 없는 런은 아직 결과가 없다. 실패로 세면 지금 돌고 있는 런이 즉시 실패
+    // 1건이 되어 완주율과 롤링 강등을 왜곡한다. 판정 대상이 아니라 "진행 중"으로 뺀다.
+    if (!end) {
+      inProgress++
+      continue
+    }
     // 인프라 실패는 도구의 자율성 실패가 아니다 → 분모에서 제외(110-T5).
-    if (end?.failureKind === 'infra') {
+    // ★ 종결 실패에서만 인정한다. complete 에 붙은 infra 를 그대로 받으면 "성공했는데 분모에서도
+    //   빠지는" 경로가 생긴다. 기록 단계(commands/agent.ts)에서도 막지만, 원장에 직접 쓴 라인과
+    //   과거 라인이 있을 수 있으므로 집계 단계에서 이벤트 종류를 다시 확인한다.
+    if (end.event !== 'complete' && end.failureKind === 'infra') {
       infraExcluded++
       continue
     }
-    const kind = normalizeTaskKind(end?.taskKind ?? start.taskKind)
+    const kind = normalizeTaskKind(end.taskKind ?? start.taskKind)
     byTaskKind[kind]++
 
-    const verified = end?.event === 'complete' && isVerifiedComplete(end, receiptBySha)
-    if (end?.event === 'complete' && !verified) selfReportedOnly++
-    outcomes.push({ ts: end?.ts ?? start.ts, judged: true, verified, taskKind: kind })
+    const verified = end.event === 'complete' && isVerifiedComplete(end, receiptBySha)
+    if (end.event === 'complete' && !verified) selfReportedOnly++
+    outcomes.push({ ts: end.ts, judged: true, verified, taskKind: kind })
   }
 
   const judgedRuns = outcomes.length
@@ -354,6 +382,10 @@ export function calcAutonomyStats(
   const recent = [...outcomes].sort((a, b) => a.ts.localeCompare(b.ts)).slice(-ROLLING_WINDOW)
   const windowFull = recent.length >= ROLLING_WINDOW
   const rollingFailures = windowFull ? recent.filter((o) => !o.verified).length : null
+
+  // 인프라 제외 남용 감시 — 분모는 "제외되지 않았다면 판정 대상이었을 런" 전체다.
+  const infraBase = judgedRuns + infraExcluded
+  const infraExcludedRatio = infraBase < INFRA_RATIO_MIN_SAMPLE ? null : infraExcluded / infraBase
 
   return {
     starts,
@@ -366,7 +398,10 @@ export function calcAutonomyStats(
     judgedRuns,
     completionRate: judgedRuns === 0 ? null : verifiedComplete / judgedRuns,
     unjudgeable,
+    inProgress,
     infraExcluded,
+    infraExcludedRatio,
+    infraAbuseSuspected: infraExcludedRatio !== null && infraExcludedRatio > INFRA_ABUSE_RATIO,
     selfReportedOnly,
     byTaskKind,
     rollingFailures,
@@ -504,8 +539,21 @@ function renderAutonomyStats(cwd: string): void {
   if (a.unjudgeable > 0) {
     log.plain(chalk.dim(`  판정 불가 ${a.unjudgeable}건 (구 스키마 — SHA 없음)`))
   }
+  if (a.inProgress > 0) {
+    log.plain(chalk.dim(`  진행 중 ${a.inProgress}건 (종결 이벤트 없음) — 실패로 세지 않음`))
+  }
   if (a.infraExcluded > 0) {
-    log.plain(chalk.dim(`  인프라 실패 ${a.infraExcluded}건 — 분모에서 제외`))
+    // failureKind 는 자기 보고다. 기계로 판별할 수단이 없으므로 제외 사실과 비율을 드러낸다.
+    const ratio = a.infraExcludedRatio === null ? '' : ` (${pct(a.infraExcludedRatio)})`
+    log.plain(
+      chalk.dim(`  인프라 실패 ${a.infraExcluded}건${ratio} — 분모에서 제외 · 자기 보고 값입니다`),
+    )
+    if (a.infraAbuseSuspected) {
+      log.plain(
+        chalk.yellow(`  ⚠ 인프라 제외 비율이 ${pct(INFRA_ABUSE_RATIO)}를 넘습니다`) +
+          chalk.dim(' — 실패가 분모에서 빠지고 있는지 사람이 확인하세요'),
+      )
+    }
   }
 
   // 롤링 강등(110-T4) — 표본이 안 차면 "모름"을 그대로 적는다.
