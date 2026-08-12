@@ -45,6 +45,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auto_pr_goal.ps1 `
 3. 성공 시(커밋 완료, 깨끗한 작업트리) 저장소 루트·기준 브랜치 `main`·PR 제목·임시 본문 파일을 인자로
    `scripts/auto_pr_goal.ps1`을 호출한다. PR 본문에는 아침 확인 3문항을 넣는다.
 4. (선택) 아침 보고 생성 — `node scripts/gen-autonomy-morning-report.mjs --date YYYY-MM-DD`.
+   자기신고(선택·참고 지표): `--tracking-min <분>` `--unchecked <건>` `--approval-total <건>` —
+   미입력이어도 실행 자체가 응답률 분모로 기록된다 (Goal 111-T3).
 5. PR URL(또는 HARD_STOP 사유)을 보고한다. **머지하지 않는다.**
 
 ## 관련 문서
