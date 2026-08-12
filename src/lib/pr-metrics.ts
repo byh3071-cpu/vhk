@@ -182,3 +182,98 @@ export function median(values: number[]): number | null {
   const mid = Math.floor(s.length / 2)
   return s.length % 2 === 1 ? s[mid] : (s[mid - 1] + s[mid]) / 2
 }
+
+// ─── Goal 111-T4 (3/3): SHA cohort 조인 + 5상태 판정 ─────────────────────────
+
+export type PrCohort = 'autonomous' | 'interactive' | 'unknown'
+
+/** 자율 PR 보조 신호 라벨 — 소유: auto_pr_goal.ps1 + overnight 런북. */
+export const AUTONOMOUS_LABEL = 'autonomous'
+
+/** headRefOid → 그 oid 를 head 로 가진 PR 수. 복수 후보 감지용. */
+export function buildHeadOidCounts(prs: PrRecord[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const pr of prs) counts.set(pr.headRefOid, (counts.get(pr.headRefOid) ?? 0) + 1)
+  return counts
+}
+
+/**
+ * cohort 판정 — autonomous 는 **이중 신호**(종결 sha ↔ headRefOid 정확 일치 AND 라벨)일 때만.
+ *
+ * why 이중 신호인가: 라벨은 GitHub 쪽 상태라 사람이 붙이거나 뗄 수 있고, sha 는 원장 쪽이라
+ * 위조가 커밋 diff 에 드러난다. 둘이 일치할 때만 믿고, 하나만 있으면(라벨 부착 실패·수동 라벨·
+ * 원장 유실) 어느 쪽 기준선에도 섞지 않고 unknown 으로 격리한다 — 라벨 실패가 interactive 로
+ * 위장되는 경로를 막는 것이 목적이다. commits 포함 조인은 정확 일치보다 약한 신호라 쓰지 않는다.
+ */
+export function classifyCohort(
+  pr: PrRecord,
+  terminalShas: ReadonlySet<string>,
+  headOidCounts: ReadonlyMap<string, number>,
+): PrCohort {
+  const exact = terminalShas.has(pr.headRefOid)
+  const labeled = pr.labels.includes(AUTONOMOUS_LABEL)
+  if (exact && (headOidCounts.get(pr.headRefOid) ?? 0) > 1) return 'unknown' // 복수 후보
+  if (exact && labeled) return 'autonomous'
+  if (exact || labeled) return 'unknown' // 신호 하나만 — 불혼입
+  return 'interactive'
+}
+
+// 판정 임계 — 2026-08-12 사람 승인 초기값. 4주 실측 뒤 재조정 지점.
+export const WAIT_THRESHOLD_HOURS = 48
+/** 아침 한 번의 이월 건수가 이 값 이상이면 "이월 많은 아침". */
+export const CARRYOVER_THRESHOLD = 3
+/** 4주 창에서 이월 많은 아침이 이 횟수 이상이면 "반복". */
+export const CARRYOVER_REPEAT_MORNINGS = 3
+/** 관측 완료된 autonomous 반응시간 최소 표본 — 관찰 게이트의 "유효 실행 10회"와 별개 조건. */
+export const MIN_OBSERVED_SAMPLES = 10
+export const MIN_WINDOW_DAYS = 28
+
+/** 이월 많은 아침(이월 ≥ CARRYOVER_THRESHOLD) 수. */
+export function countHighCarryoverMornings(prs: PrRecord[], mornings: string[]): number {
+  return mornings.filter((m) => carryoverAtMorning(prs, m) >= CARRYOVER_THRESHOLD).length
+}
+
+export type BottleneckVerdict =
+  | 'confirmed' // 병목 확정
+  | 'mixed' // 혼합 신호·사람 검토
+  | 'not-proven' // 병목 미입증
+  | 'insufficient-data' // 데이터 부족
+  | 'unmeasurable' // 측정 불가
+
+export interface BottleneckJudgmentInput {
+  /** PR 목록·필요 타임라인이 전부 수집됐는가. 하나라도 빠지면 판정 자료 불완전. */
+  apiComplete: boolean
+  /** 관측 창 길이(일). */
+  windowDays: number
+  /** 관측 완료된 autonomous 첫 반응시간(시간 단위) — censored 제외. */
+  observedAutonomousWaitHours: number[]
+  /** 창 안에서 이월 많은 아침 수. */
+  carryoverHighMornings: number
+}
+
+export interface BottleneckJudgment {
+  verdict: BottleneckVerdict
+  medianWaitHours: number | null
+  /** 자료 불완전·표본 부족이면 null — 지표별 초과 여부를 추정하지 않는다. */
+  waitExceeded: boolean | null
+  carryoverExceeded: boolean | null
+}
+
+/**
+ * 5상태 판정 — 정확 비교(중앙값 >48h · 이월 많은 아침 ≥3회). "경계값" 같은 미정 상태 없음.
+ * 순서: 측정 불가(자료 불완전) → 데이터 부족(4주·표본 10 미충족) → 확정/혼합/미입증.
+ */
+export function judgeBottleneck(input: BottleneckJudgmentInput): BottleneckJudgment {
+  const med = median(input.observedAutonomousWaitHours)
+  if (!input.apiComplete) {
+    return { verdict: 'unmeasurable', medianWaitHours: med, waitExceeded: null, carryoverExceeded: null }
+  }
+  if (input.windowDays < MIN_WINDOW_DAYS || input.observedAutonomousWaitHours.length < MIN_OBSERVED_SAMPLES) {
+    return { verdict: 'insufficient-data', medianWaitHours: med, waitExceeded: null, carryoverExceeded: null }
+  }
+  const waitExceeded = med !== null && med > WAIT_THRESHOLD_HOURS
+  const carryoverExceeded = input.carryoverHighMornings >= CARRYOVER_REPEAT_MORNINGS
+  const verdict: BottleneckVerdict =
+    waitExceeded && carryoverExceeded ? 'confirmed' : waitExceeded || carryoverExceeded ? 'mixed' : 'not-proven'
+  return { verdict, medianWaitHours: med, waitExceeded, carryoverExceeded }
+}
