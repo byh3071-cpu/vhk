@@ -1,13 +1,15 @@
 ---
 id: ADR-018
 date: 2026-08-12
-status: proposed
+status: accepted
 tags: [architecture, agent-agnostic, governance, method-absorption]
 ---
 
 # ADR-018: Prime Agent·Hermes 를 외부 방법론 흡수 후보로 등재
 
 > 용어: ADR-011 대응표 참조.
+>
+> 상태: **Accepted — 2026-08-13 오너 명시 승인** (cross-check 검증 리뷰 통과 후).
 > 관련: [ADR-012](ADR-012-agent-agnostic-core-and-method-absorption.md) (흡수 원칙의 원본 —
 > 이 ADR 은 그 원칙의 **적용 대상 확장**이며 원칙 자체를 바꾸지 않는다)
 
