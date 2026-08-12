@@ -1,10 +1,10 @@
 # 기록 규칙 (vhk)
 
 ## 현재 상태
-- **버전:** v2.14.0 (준비 중 — 134·135·110·111 전량 머지, 태그·npm 발행 대기)
-- **Phase:** 2.14.0 발행 → 관찰 게이트(4주 AND 유효 실행 10회) 시작. 124·125는 설계 검토만 허용
+- **버전:** v2.14.0 (발행 완료 — git 태그·GitHub 릴리스·npm `latest` 전부 2.14.0, `stable` 태그 폐지)
+- **Phase:** **관찰 게이트 진행 중** — 4주 AND 관측 완료 autonomous 표본 10회. 124·125는 설계 검토만 허용, 제품 코드 구현 금지
 - **블로커:** 없음
-- **다음 액션:** 태그 push → npm 발행(사람 2FA) → 첫 overnight 런부터 v2 표본 축적. 정의 원본은 [docs/roadmap/2.x-roadmap.md](docs/roadmap/2.x-roadmap.md)
+- **다음 액션:** overnight 런으로 v2 원장(SHA 포함) 표본 축적 → `vhk stats` 병목·완주 판정 관찰. 정의 원본은 [docs/roadmap/2.x-roadmap.md](docs/roadmap/2.x-roadmap.md)
 - **마지막 업데이트:** 2026-08-12
 
 <!-- vhk:rules:start -->
