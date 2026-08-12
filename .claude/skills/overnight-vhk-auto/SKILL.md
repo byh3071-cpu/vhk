@@ -27,6 +27,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auto_pr_goal.ps1 `
 - **INV-A** 구현 루프는 `.claude/skills/vhk-auto/SKILL.md` 의 INV-1..INV-9 를 따른다.
   commit 은 그 루프 안에서만. (vhk-auto INV-7)
 - **INV-B** verify green + commit 이후에만 `scripts/auto_pr_goal.ps1`을 호출해 push + PR 할 수 있다.
+- **INV-B2** `autonomous` 라벨은 그 스크립트가 신규·재사용 두 경로에서 멱등 부착한다(Goal 111 cohort 보조 신호). 라벨을 손으로 붙이거나 떼지 마라 — 판정 1차 신호는 종결 SHA 조인이고, 신호 불일치는 unknown 으로 격리된다.
   **머지 = 0.** 래퍼는 *깨끗한 작업트리 + 미푸시 커밋* 상태를 지원한다(vhk-auto 가 이미 커밋한
   뒤의 push-only 경로) — dirty porcelain 을 기대하지 마라.
 - **INV-C** autonomy-log 의 시작 또는 종결 이벤트가 없으면 `.vhk/HARD_STOP` 을 쓰고 멈춘다.

@@ -144,6 +144,11 @@ describe('공용 에이전트 자동화 설정', () => {
         existingReused: true,
         baseScoped: true,
         headScoped: true,
+        // Goal 111-T5: autonomous 라벨 멱등 — 신규·재사용·라벨 기존재·부착 실패 생존
+        labeledOnCreate: true,
+        labeledOnReuse: true,
+        labelExistsOk: true,
+        labelFailSurvives: true,
       })
     } else {
       expect(report).toEqual({ supported: false })
