@@ -9,6 +9,7 @@ import { readReceiptLog, type ReceiptLogEntry } from '../lib/receipt-log.js'
 import { readEvolveLog, type EvolveLogEntry } from '../lib/evolve-log.js'
 import { readCheckLog, type CheckLogEntry } from '../lib/check-log.js'
 import {
+  morningHasValues,
   readAutonomyLog,
   readMorningObservations,
   selectDailyObservations,
@@ -17,7 +18,7 @@ import {
 } from '../lib/autonomy-log.js'
 import { normalizeTaskKind, type TaskKind } from '../lib/task-kind.js'
 import {
-  buildHeadOidCounts,
+  buildShaJoinCounts,
   classifyCohort,
   computeWait,
   countHighCarryoverMornings,
@@ -622,7 +623,7 @@ export interface BottleneckView {
 
 /**
  * 병목 뷰 조립(순수) — 네트워크·시계 의존은 인자로 받는다.
- * windowDays 는 달력이 아니라 **측정 기점**(sha 있는 첫 종결 이벤트) 기준이다 — GitHub 과거는
+ * windowDays 는 달력이 아니라 **측정 기점**(sha 있는 첫 complete 이벤트) 기준이다 — GitHub 과거는
  * 재구성 가능하지만 autonomous cohort 는 v2 원장 배포 이후에만 존재하므로, 4주 시계는
  * 그 시점부터 세는 것이 정직하다.
  */
@@ -632,16 +633,19 @@ export function buildBottleneckView(
   morningObs: MorningObservation[],
   nowIso: string,
   apiComplete: boolean,
+  tzOffsetMinutes?: number,
 ): BottleneckView {
-  const terminal = runs.filter((e) => e.event !== 'start' && typeof e.sha === 'string' && e.sha !== null)
-  const terminalShas = new Set(terminal.map((e) => e.sha as string))
-  const epoch = terminal.length > 0 ? [...terminal.map((e) => e.ts)].sort()[0] : null
+  // complete 만 — hardstop/blocked 런은 PR 을 만들지 않았어야 하는 실패라 cohort 신호도
+  // 관찰 시계의 기점도 될 수 없다(감사 반례 3).
+  const completes = runs.filter((e) => e.event === 'complete' && typeof e.sha === 'string' && e.sha !== null)
+  const completeShas = new Set(completes.map((e) => e.sha as string))
+  const epoch = completes.length > 0 ? [...completes.map((e) => e.ts)].sort()[0] : null
   const windowDays = epoch
     ? Math.min(MIN_WINDOW_DAYS, Math.floor((Date.parse(nowIso) - Date.parse(epoch)) / 86_400_000))
     : 0
 
   const nonBot = prs.filter((p) => !p.authorIsBot)
-  const counts = buildHeadOidCounts(nonBot)
+  const counts = buildShaJoinCounts(nonBot, completeShas)
   const cohortCounts: Record<PrCohort, number> = { autonomous: 0, interactive: 0, unknown: 0 }
   const autonomousWaits: number[] = []
   const interactiveWaits: number[] = []
@@ -649,7 +653,7 @@ export function buildBottleneckView(
   let censoredMaxAgeHours: number | null = null
 
   for (const pr of nonBot) {
-    const cohort = classifyCohort(pr, terminalShas, counts)
+    const cohort = classifyCohort(pr, completeShas, counts)
     cohortCounts[cohort]++
     if (cohort === 'unknown') continue // 불혼입 — 어느 지표에도 안 넣는다
     const w = computeWait(pr, nowIso)
@@ -670,13 +674,10 @@ export function buildBottleneckView(
   }
 
   const windowStartIso = new Date(Date.parse(nowIso) - MIN_WINDOW_DAYS * 86_400_000).toISOString()
-  const mornings = generateMornings(windowStartIso, nowIso, 9)
+  const mornings = generateMornings(windowStartIso, nowIso, 9, tzOffsetMinutes)
   const carryoverHighMornings = countHighCarryoverMornings(nonBot, mornings)
 
-  const daily = selectDailyObservations(morningObs)
-  const withValues = [...daily.values()].filter(
-    (o) => o.trackingMin !== undefined || (o.uncheckedApprovals !== undefined && o.approvalDecisionsTotal !== undefined),
-  ).length
+  const selfReport = calcSelfReport(morningObs)
 
   return {
     judgment: judgeBottleneck({
@@ -692,9 +693,16 @@ export function buildBottleneckView(
     censoredMaxAgeHours,
     interactiveMedianHours: median(interactiveWaits),
     carryoverHighMornings,
-    selfReportResponseRate: daily.size === 0 ? null : withValues / daily.size,
-    selfReportDays: daily.size,
+    selfReportResponseRate: selfReport.rate,
+    selfReportDays: selfReport.days,
   }
+}
+
+/** 자기신고 응답률 — 로컬 데이터라 gh 유무와 무관하게 계산된다. 관측일 0 이면 rate null. */
+export function calcSelfReport(morningObs: MorningObservation[]): { days: number; rate: number | null } {
+  const daily = selectDailyObservations(morningObs)
+  const withValues = [...daily.values()].filter(morningHasValues).length
+  return { days: daily.size, rate: daily.size === 0 ? null : withValues / daily.size }
 }
 
 const VERDICT_KO: Record<BottleneckJudgment['verdict'], string> = {
@@ -705,30 +713,38 @@ const VERDICT_KO: Record<BottleneckJudgment['verdict'], string> = {
   unmeasurable: '측정 불가',
 }
 
-/** 자기신고 참고 지표 표시 — gh 유무와 무관한 로컬 데이터. */
+/** 자기신고 참고 지표 표시 — gh 유무와 무관한 로컬 데이터. rate null = 관측일 0 뿐이다. */
 function renderSelfReport(view: Pick<BottleneckView, 'selfReportResponseRate' | 'selfReportDays'>): void {
-  if (view.selfReportDays === 0) {
+  if (view.selfReportDays === 0 || view.selfReportResponseRate === null) {
     log.plain(chalk.dim('  자기신고(참고): 관측일 0 — 아침 리포트 실행 기록 없음'))
     return
   }
   log.plain(
     chalk.dim(
-      `  자기신고(참고): 응답률 ${pct(view.selfReportResponseRate ?? 0)} (${view.selfReportDays}개 관측일 기준)`,
+      `  자기신고(참고): 응답률 ${pct(view.selfReportResponseRate)} (${view.selfReportDays}개 관측일 기준)`,
     ),
   )
 }
 
 /** Goal 111: 병목 계측 섹션. gh 부재·부분 실패는 측정 불가로 표기 — 0 으로 위장하지 않는다. */
 function renderBottleneckStats(cwd: string): void {
+  // 병목 섹션의 어떤 실패도 stats 의 다른 섹션을 죽이면 안 된다 — 섹션 단위 방어.
+  try {
+    renderBottleneckStatsInner(cwd)
+  } catch (e) {
+    log.plain(chalk.yellow(`  측정 불가 — 병목 섹션 내부 오류: ${e instanceof Error ? e.message : String(e)}`))
+  }
+}
+
+function renderBottleneckStatsInner(cwd: string): void {
   log.plain(chalk.cyan(`\n⏱  ${t('stats.bottleneckTitle')}`))
   const morningObs = readMorningObservations(cwd)
   const avail = ghAvailability()
   if (!avail.ok) {
     log.plain(chalk.yellow(`  측정 불가 — ${avail.reason}. PR 대기·이월 지표를 계산할 수 없습니다.`))
-    renderSelfReport({
-      selfReportDays: selectDailyObservations(morningObs).size,
-      selfReportResponseRate: null,
-    })
+    // 자기신고는 로컬 데이터 — gh 없이도 실제 응답률을 계산한다(0% 위장 금지).
+    const sr = calcSelfReport(morningObs)
+    renderSelfReport({ selfReportDays: sr.days, selfReportResponseRate: sr.rate })
     return
   }
 
@@ -739,7 +755,9 @@ function renderBottleneckStats(cwd: string): void {
   const apiComplete =
     fetched.listComplete && fetched.errors.length === 0 && nonBot.every((p) => p.timelineComplete)
 
-  const view = buildBottleneckView(fetched.prs, readAutonomyLog(cwd), morningObs, nowIso, apiComplete)
+  // 아침 관측 시각은 실행 머신 로컬 오프셋을 명시 전달하고 아래에서 시간대를 표기한다.
+  const tzOffsetMinutes = -new Date().getTimezoneOffset()
+  const view = buildBottleneckView(fetched.prs, readAutonomyLog(cwd), morningObs, nowIso, apiComplete, tzOffsetMinutes)
   const j = view.judgment
 
   log.plain(chalk.white(`  판정: ${VERDICT_KO[j.verdict]}`))
@@ -752,7 +770,7 @@ function renderBottleneckStats(cwd: string): void {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
   log.plain(
     chalk.dim(
-      `  관측 창: ${view.windowDays}/${MIN_WINDOW_DAYS}일 (측정 기점 = SHA 있는 첫 종결 이벤트) · 아침 관측 09:00 ${tz}`,
+      `  관측 창: ${view.windowDays}/${MIN_WINDOW_DAYS}일 (측정 기점 = SHA 있는 첫 complete) · 아침 관측 09:00 ${tz}`,
     ),
   )
   log.plain(

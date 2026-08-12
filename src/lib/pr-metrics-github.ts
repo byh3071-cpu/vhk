@@ -21,6 +21,8 @@ export interface PrTimelineEvent {
 export interface PrRecord {
   number: number
   createdAt: string
+  /** 마지막 활동 시각 — 종결 패스의 중단 기준(updatedAt ≥ closedAt). 구 응답엔 없을 수 있어 optional. */
+  updatedAt?: string | null
   mergedAt: string | null
   closedAt: string | null
   isDraft: boolean
@@ -28,6 +30,8 @@ export interface PrRecord {
   authorLogin: string | null
   authorIsBot: boolean
   labels: string[]
+  /** 라벨 페이지가 잘리면 false — 라벨 신호를 확신할 수 없어 cohort 는 unknown 으로 격리한다. */
+  labelsComplete: boolean
   /** PR 커밋 oid 목록 — cohort 조인 후순위 신호. */
   commitOids: string[]
   /** 커밋 페이지가 잘리면 false — commits 경유 조인은 사용하지 않는다. */
@@ -70,15 +74,17 @@ const TIMELINE_ITEM_TYPES =
 
 // states 는 GraphQL enum 배열이라 gh -f(문자열 변수)로 넘길 수 없다("MERGED,CLOSED" 실측 실패).
 // 내부 고정 2종만 쓰므로 쿼리 텍스트에 인라인한다 — 외부 입력이 아니라 주입 위험 없음.
-const prPageQuery = (statesInline: string): string => `
+// orderField: OPEN 패스는 CREATED_AT, 종결 패스는 UPDATED_AT — 창 이전에 생성됐지만 창 안에서
+// 닫힌 PR 을 놓치지 않기 위해서다(updatedAt ≥ closedAt 이라 updatedAt 정렬 중단이 안전. 감사 반례 2).
+const prPageQuery = (statesInline: string, orderField: 'CREATED_AT' | 'UPDATED_AT'): string => `
 query($owner:String!,$name:String!,$after:String){
   repository(owner:$owner,name:$name){
-    pullRequests(first:${PAGE_SIZE},after:$after,states:[${statesInline}],orderBy:{field:CREATED_AT,direction:DESC}){
+    pullRequests(first:${PAGE_SIZE},after:$after,states:[${statesInline}],orderBy:{field:${orderField},direction:DESC}){
       pageInfo{hasNextPage endCursor}
       nodes{
-        number createdAt mergedAt closedAt isDraft headRefOid
+        number createdAt updatedAt mergedAt closedAt isDraft headRefOid
         author{login __typename}
-        labels(first:20){nodes{name}}
+        labels(first:20){pageInfo{hasNextPage} nodes{name}}
         commits(first:100){pageInfo{hasNextPage} nodes{commit{oid}}}
         timelineItems(first:100,itemTypes:[${TIMELINE_ITEM_TYPES}]){
           pageInfo{hasNextPage endCursor}
@@ -161,7 +167,10 @@ export function parsePrNode(node: unknown): ParsedPrNode | null {
     return null
   }
   const author = n.author as RawActor | undefined
-  const labels = ((n.labels as { nodes?: Array<{ name?: string }> })?.nodes ?? [])
+  const labelsConn = n.labels as
+    | { pageInfo?: { hasNextPage?: boolean }; nodes?: Array<{ name?: string }> }
+    | undefined
+  const labels = (labelsConn?.nodes ?? [])
     .map((l) => l?.name)
     .filter((x): x is string => typeof x === 'string')
   const commitsConn = n.commits as
@@ -181,6 +190,7 @@ export function parsePrNode(node: unknown): ParsedPrNode | null {
     record: {
       number: n.number,
       createdAt: n.createdAt,
+      updatedAt: typeof n.updatedAt === 'string' ? n.updatedAt : null,
       mergedAt: typeof n.mergedAt === 'string' ? n.mergedAt : null,
       closedAt: typeof n.closedAt === 'string' ? n.closedAt : null,
       isDraft: n.isDraft === true,
@@ -188,6 +198,7 @@ export function parsePrNode(node: unknown): ParsedPrNode | null {
       authorLogin: author?.login ?? null,
       authorIsBot: author?.__typename === 'Bot' || (author?.login ?? '').endsWith('[bot]'),
       labels,
+      labelsComplete: labelsConn?.pageInfo?.hasNextPage !== true,
       commitOids,
       commitsComplete: commitsConn?.pageInfo?.hasNextPage !== true,
       timeline,
@@ -221,7 +232,14 @@ function runGraphql(
   const res = runner(args)
   if (!res.ok) return { ok: false, err: res.err ?? 'gh api graphql 실패' }
   try {
-    return { ok: true, data: JSON.parse(res.out) as unknown }
+    const data: unknown = JSON.parse(res.out)
+    // GitHub 은 부분 데이터와 함께 top-level errors 를 줄 수 있고, gh 가 exit 0 으로 넘길 수 있다.
+    // 그 부분 데이터를 정상으로 처리하면 "측정 불가"가 정상 판정으로 위장된다(감사 반례 4).
+    const errs = (data as { errors?: Array<{ message?: string }> } | null)?.errors
+    if (Array.isArray(errs) && errs.length > 0) {
+      return { ok: false, err: `GraphQL errors: ${errs[0]?.message ?? '(no message)'}` }
+    }
+    return { ok: true, data }
   } catch {
     return { ok: false, err: 'GraphQL 응답 파싱 실패' }
   }
@@ -256,12 +274,12 @@ export function fetchPrWindow(
   const pendingTimelines: Array<{ number: number; cursor: string | null }> = []
   let listComplete = true
 
-  const collect = (states: string, stopBeforeSince: boolean): void => {
+  const collect = (states: string, orderField: 'CREATED_AT' | 'UPDATED_AT'): void => {
     let after: string | null = null
     for (let page = 0; page < MAX_PAGES; page++) {
       const vars: Record<string, string | number> = { owner: id.owner, name: id.name }
       if (after) vars.after = after
-      const res = runGraphql(runner, prPageQuery(states), vars)
+      const res = runGraphql(runner, prPageQuery(states, orderField), vars)
       if (!res.ok) {
         errors.push(`PR 목록 조회 실패 (states=${states}): ${res.err}`)
         listComplete = false
@@ -279,9 +297,14 @@ export function fetchPrWindow(
       for (const node of conn.nodes ?? []) {
         const parsed = parsePrNode(node)
         if (!parsed) continue
-        if (stopBeforeSince && parsed.record.createdAt < sinceIso) {
-          reachedSince = true
-          break
+        // 종결 패스는 updatedAt 기준으로 멈춘다 — createdAt 으로 멈추면 창 이전에 생성됐지만
+        // 창 안에서 닫힌 PR(이월 재구성에 필요)이 사라진다(감사 반례 2). updatedAt ≥ closedAt.
+        if (orderField === 'UPDATED_AT') {
+          const activity = parsed.record.updatedAt ?? parsed.record.createdAt
+          if (activity < sinceIso) {
+            reachedSince = true
+            break
+          }
         }
         if (!byNumber.has(parsed.record.number)) {
           byNumber.set(parsed.record.number, parsed.record)
@@ -299,8 +322,8 @@ export function fetchPrWindow(
     listComplete = false
   }
 
-  collect('OPEN', false)
-  collect('MERGED,CLOSED', true)
+  collect('OPEN', 'CREATED_AT')
+  collect('MERGED,CLOSED', 'UPDATED_AT')
 
   // 타임라인 추가 페이지 — PR 별 후속 조회. 실패한 PR 은 timelineComplete=false 로 남긴다.
   for (const pending of pendingTimelines) {

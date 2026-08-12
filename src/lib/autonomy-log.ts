@@ -187,13 +187,26 @@ export function appendMorningObservation(cwd: string, obs: MorningObservation): 
   return true
 }
 
+/** 관측에 자기신고 값이 있는가 — 승인 비율은 분자·분모가 둘 다 있어야 값으로 친다. */
+export function morningHasValues(o: MorningObservation): boolean {
+  return (
+    o.trackingMin !== undefined ||
+    (o.uncheckedApprovals !== undefined && o.approvalDecisionsTotal !== undefined)
+  )
+}
+
 /**
- * 날짜별 대표 관측 선택 — 같은 date 의 **마지막 유효 관측 1개**(파일 순서 기준).
- * 응답률 = 대표 관측에 값이 하나라도 있는 날 / 대표 관측이 존재하는 날.
+ * 날짜별 대표 관측 선택 — 같은 date 에서 **값이 있는 마지막 관측**을 우선하고, 값 있는 관측이
+ * 없으면 마지막 관측을 쓴다. 단순히 마지막 관측을 채택하면 아침에 값을 신고한 뒤 옵션 없이
+ * 리포트를 재실행했을 때 그날 신고가 지워진다(리뷰 실측 지적) — 값을 잃지 않는 쪽이 규칙이다.
+ * 응답률 = 대표 관측에 값이 있는 날 / 대표 관측이 존재하는 날.
  */
 export function selectDailyObservations(observations: MorningObservation[]): Map<string, MorningObservation> {
   const byDate = new Map<string, MorningObservation>()
-  for (const o of observations) byDate.set(o.date, o) // 뒤가 앞을 덮음 = 마지막 관측 채택
+  for (const o of observations) {
+    const prev = byDate.get(o.date)
+    if (!prev || morningHasValues(o) || !morningHasValues(prev)) byDate.set(o.date, o)
+  }
   return byDate
 }
 

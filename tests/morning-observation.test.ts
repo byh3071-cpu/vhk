@@ -114,13 +114,27 @@ describe('appendMorningObservation', () => {
   })
 })
 
-describe('selectDailyObservations — 같은 날짜 마지막 유효 관측 1개', () => {
-  it('같은 날짜 두 관측이면 뒤엣것 채택', () => {
+describe('selectDailyObservations — 값 있는 마지막 관측 우선', () => {
+  it('같은 날짜에 값 있는 관측 둘이면 뒤엣것 채택', () => {
     const a: MorningObservation = { kind: 'morning', ts: '2026-08-12T00:00:00.000Z', date: '2026-08-12', trackingMin: 5 }
     const b: MorningObservation = { kind: 'morning', ts: '2026-08-12T01:00:00.000Z', date: '2026-08-12', trackingMin: 9 }
     const sel = selectDailyObservations([a, b])
     expect(sel.size).toBe(1)
     expect(sel.get('2026-08-12')!.trackingMin).toBe(9)
+  })
+
+  it('값 없는 재실행이 앞선 신고값을 지우지 않는다 (리뷰 실측 지적)', () => {
+    const a: MorningObservation = { kind: 'morning', ts: '2026-08-12T00:00:00.000Z', date: '2026-08-12', trackingMin: 30 }
+    const b: MorningObservation = { kind: 'morning', ts: '2026-08-12T01:00:00.000Z', date: '2026-08-12' }
+    expect(selectDailyObservations([a, b]).get('2026-08-12')!.trackingMin).toBe(30)
+  })
+
+  it('값 없는 관측뿐이면 마지막 관측 채택 (분모는 유지)', () => {
+    const a: MorningObservation = { kind: 'morning', ts: '2026-08-12T00:00:00.000Z', date: '2026-08-12' }
+    const b: MorningObservation = { kind: 'morning', ts: '2026-08-12T01:00:00.000Z', date: '2026-08-12' }
+    const sel = selectDailyObservations([a, b])
+    expect(sel.size).toBe(1)
+    expect(sel.get('2026-08-12')!.ts).toBe(b.ts)
   })
 
   it('다른 날짜는 각각 유지', () => {

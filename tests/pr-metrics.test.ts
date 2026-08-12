@@ -23,9 +23,10 @@ function pr(over: Partial<PrRecord> = {}): PrRecord {
     closedAt: null,
     isDraft: false,
     headRefOid: 'sha1',
-    authorLogin: 'byh3071-cpu',
+    authorLogin: 'sample-user',
     authorIsBot: false,
     labels: [],
+    labelsComplete: true,
     commitOids: ['sha1'],
     commitsComplete: true,
     timeline: [],
@@ -135,6 +136,38 @@ describe('computeWait — 관측/censored/제외 분리', () => {
     expect(w.excludedReason).toContain('종결')
   })
 
+  // ── 반례 회귀 (2026-08-12 머지 보류 감사) ──
+
+  it('반례1a: ready 되기 전(draft 중) 댓글은 사람 응답이 아니다', () => {
+    // 생성 시 draft → 댓글 → ready. 옛 구현은 createdAt 기준 12h 관측으로 오인했다.
+    const w = computeWait(
+      pr({
+        timeline: [
+          ev('comment', '2026-08-01T12:00:00Z'), // draft 중 댓글
+          ev('ready', '2026-08-02T00:00:00Z'),
+        ],
+      }),
+      NOW,
+    )
+    expect(w.waitHours).toBeNull()
+    expect(w.censored).toBe(true) // ready 후 조치 없음
+  })
+
+  it('반례1b: 재-draft 구간의 댓글도 무시 — ready 구간 안의 최초 조치만 인정', () => {
+    const w = computeWait(
+      pr({
+        timeline: [
+          ev('convert_to_draft', '2026-08-02T00:00:00Z'),
+          ev('comment', '2026-08-03T00:00:00Z'), // draft 중 댓글 — 옛 구현은 48h 관측으로 오인
+          ev('ready', '2026-08-05T00:00:00Z'),
+          ev('review', '2026-08-05T06:00:00Z'), // 진짜 응답
+        ],
+      }),
+      NOW,
+    )
+    expect(w.waitHours).toBe(6)
+  })
+
   it('사람 머지는 관측 완료다', () => {
     const w = computeWait(
       pr({ mergedAt: '2026-08-02T00:00:00Z', timeline: [ev('merged', '2026-08-02T00:00:00Z')] }),
@@ -175,6 +208,15 @@ describe('carryoverAtMorning — open + ready 24h + 조치 없음', () => {
 
   it('관측 시각 이후 조치는 그 아침 이월에 영향 없음 (결정론 재구성)', () => {
     expect(carryoverAtMorning([pr({ timeline: [ev('review', '2026-08-07T00:00:00Z')] })], MORNING)).toBe(1)
+  })
+
+  it('반례1c: draft 중 댓글은 이월도 해소하지 못한다', () => {
+    // 생성 draft → 댓글 → ready(오래됨) — 그 댓글은 검토가 아니므로 여전히 이월
+    const p = pr({
+      createdAt: '2026-08-01T00:00:00Z',
+      timeline: [ev('comment', '2026-08-01T12:00:00Z'), ev('ready', '2026-08-02T00:00:00Z')],
+    })
+    expect(carryoverAtMorning([p], MORNING)).toBe(1)
   })
 })
 

@@ -17,7 +17,7 @@ function prNode(number: number, over: Record<string, unknown> = {}): Record<stri
     closedAt: null,
     isDraft: false,
     headRefOid: `sha${number}`,
-    author: { login: 'byh3071-cpu', __typename: 'User' },
+    author: { login: 'sample-user', __typename: 'User' },
     labels: { nodes: [] },
     commits: { pageInfo: { hasNextPage: false }, nodes: [{ commit: { oid: `sha${number}` } }] },
     timelineItems: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] },
@@ -33,7 +33,7 @@ function pageResponse(nodes: unknown[], hasNextPage = false, endCursor: string |
 
 const REPO_JSON = JSON.stringify({ owner: { login: 'o' }, name: 'r' })
 
-/** 호출 순서대로 응답을 돌려주는 mock runner. */
+/** 매칭 규칙 우선순위로 응답을 고르는 mock runner — script 배열의 앞 항목이 먼저 매칭된다. */
 function scriptedRunner(script: Array<{ match: (args: string[]) => boolean; ok: boolean; out: string }>): GhRunner {
   return (args: string[]) => {
     for (const s of script) {
@@ -183,5 +183,50 @@ describe('fetchPrWindow', () => {
     expect(r.prs).toEqual([])
     expect(r.listComplete).toBe(false)
     expect(r.errors[0]).toContain('저장소 식별 실패')
+  })
+
+  // ── 반례 회귀 (2026-08-12 머지 보류 감사) ──
+
+  it('반례2: 창 이전 생성 + 창 안 종결 PR 을 수집한다 (updatedAt 기준 종료 패스)', () => {
+    const runner = scriptedRunner([
+      { match: isRepoView, ok: true, out: REPO_JSON },
+      { match: isPrPage('OPEN'), ok: true, out: pageResponse([]) },
+      {
+        match: isPrPage('MERGED,CLOSED'),
+        ok: true,
+        out: pageResponse([
+          // 6월에 생성됐지만 7월(창 안)에 닫힘 — 이월 재구성에 필요
+          prNode(5, {
+            createdAt: '2026-06-01T00:00:00Z',
+            closedAt: '2026-07-10T00:00:00Z',
+            updatedAt: '2026-07-10T00:00:00Z',
+          }),
+          // 창 이전에 마지막 활동 종료 — 여기서 멈춤
+          prNode(4, {
+            createdAt: '2026-05-01T00:00:00Z',
+            closedAt: '2026-05-02T00:00:00Z',
+            updatedAt: '2026-05-02T00:00:00Z',
+          }),
+        ]),
+      },
+    ])
+    const r = fetchPrWindow('2026-07-01T00:00:00Z', runner)
+    expect(r.prs.map((p) => p.number)).toEqual([5])
+    expect(r.errors).toEqual([])
+  })
+
+  it('반례4: GraphQL top-level errors + partial data 는 실패로 전파', () => {
+    const partialWithErrors = JSON.stringify({
+      data: { repository: { pullRequests: { pageInfo: { hasNextPage: false }, nodes: [prNode(1)] } } },
+      errors: [{ message: 'Something went wrong while executing your query.' }],
+    })
+    const runner = scriptedRunner([
+      { match: isRepoView, ok: true, out: REPO_JSON },
+      { match: isPrPage('OPEN'), ok: true, out: partialWithErrors },
+      { match: isPrPage('MERGED,CLOSED'), ok: true, out: pageResponse([]) },
+    ])
+    const r = fetchPrWindow('2026-07-01T00:00:00Z', runner)
+    expect(r.listComplete).toBe(false)
+    expect(r.errors.some((e) => e.includes('GraphQL'))).toBe(true)
   })
 })

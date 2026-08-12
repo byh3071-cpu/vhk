@@ -61,11 +61,28 @@ export function buildReadyIntervals(
 /** 적격 사람 조치 닫힌집합 — 리뷰·비봇 코멘트·머지·닫힘. committed/labeled/assigned 은 수집 단계에서 이미 제외. */
 const ELIGIBLE_TYPES: ReadonlySet<PrTimelineEvent['type']> = new Set(['review', 'comment', 'merged', 'closed'])
 
-/** 첫 적격 사람 조치 시각. 없으면 null. */
+/** 첫 적격 사람 조치 시각(ready 여부 무관 — 원시 탐색). 없으면 null. */
 export function firstEligibleHumanAction(timeline: PrTimelineEvent[]): string | null {
   let first: string | null = null
   for (const e of timeline) {
     if (!ELIGIBLE_TYPES.has(e.type) || e.actorIsBot) continue
+    if (first === null || toMs(e.ts) < toMs(first)) first = e.ts
+  }
+  return first
+}
+
+/**
+ * **ready 구간 안에서** 발생한 첫 적격 사람 조치. draft 상태의 댓글은 검토 응답이 아니다 —
+ * 그걸 관측으로 세면 draft 중 잡담 한 줄이 대기시간을 만들어낸다(머지 보류 감사 반례 1).
+ */
+export function firstEligibleActionInReady(
+  intervals: ReadyInterval[],
+  timeline: PrTimelineEvent[],
+): string | null {
+  let first: string | null = null
+  for (const e of timeline) {
+    if (!ELIGIBLE_TYPES.has(e.type) || e.actorIsBot) continue
+    if (readyIntervalAt(intervals, e.ts) === null) continue
     if (first === null || toMs(e.ts) < toMs(first)) first = e.ts
   }
   return first
@@ -78,16 +95,6 @@ function readyIntervalAt(intervals: ReadyInterval[], tIso: string): ReadyInterva
     if (toMs(iv.start) <= t && (iv.end === null || t < toMs(iv.end))) return iv
   }
   return null
-}
-
-/** 시각 t 이전에 시작한 마지막 ready 구간(있으면). */
-function lastReadyStartBefore(intervals: ReadyInterval[], tIso: string): ReadyInterval | null {
-  const t = toMs(tIso)
-  let best: ReadyInterval | null = null
-  for (const iv of intervals) {
-    if (toMs(iv.start) <= t && (best === null || toMs(iv.start) > toMs(best.start))) best = iv
-  }
-  return best
 }
 
 export interface WaitObservation {
@@ -107,12 +114,13 @@ export interface WaitObservation {
 export function computeWait(pr: PrRecord, nowIso: string): WaitObservation {
   const base = { number: pr.number, waitHours: null, censored: false, censoredAgeHours: null, excluded: false }
   const intervals = buildReadyIntervals(pr.createdAt, pr.isDraft, pr.timeline)
-  const action = firstEligibleHumanAction(pr.timeline)
+  // ready 구간 안의 조치만 응답이다 — draft 중 댓글은 관측을 만들지 않는다(감사 반례 1).
+  const action = firstEligibleActionInReady(intervals, pr.timeline)
 
   if (action !== null) {
-    // 관측 완료 — open/closed 무관. 측정 기준점은 조치 이전 마지막 ready 시작.
-    const iv = lastReadyStartBefore(intervals, action)
-    const from = iv ? iv.start : pr.createdAt // draft 중 조치된 예외 — createdAt 기준으로 관측
+    // 관측 완료 — open/closed 무관. 측정 기준점은 그 조치가 속한 ready 구간의 시작.
+    const iv = readyIntervalAt(intervals, action)
+    const from = iv ? iv.start : pr.createdAt // 방어 — InReady 가 보장하므로 실제로는 항상 iv 존재
     const hours = (toMs(action) - toMs(from)) / 3_600_000
     return { ...base, waitHours: Math.max(0, hours) }
   }
@@ -126,7 +134,8 @@ export function computeWait(pr: PrRecord, nowIso: string): WaitObservation {
     // 사람 조치 없이 종결 — 봇 머지/닫힘 등. censored 도 관측도 아니다.
     return { ...base, excluded: true, excludedReason: '사람 조치 없이 종결(봇 추정)' }
   }
-  const iv = lastReadyStartBefore(intervals, nowIso)
+  // 나이는 현재 ready 인 경우에만 — draft 로 회귀해 있으면 지금 검토 대기 중이 아니다.
+  const iv = readyIntervalAt(intervals, nowIso)
   const age = iv ? (toMs(nowIso) - toMs(iv.start)) / 3_600_000 : null
   return { ...base, censored: true, censoredAgeHours: age === null ? null : Math.max(0, age) }
 }
@@ -155,23 +164,41 @@ export function carryoverAtMorning(prs: PrRecord[], morningIso: string): number 
     const iv = readyIntervalAt(intervals, morningIso)
     if (!iv) continue
     if (t - toMs(iv.start) < CARRYOVER_AGE_MS) continue
-    const action = firstEligibleHumanAction(pr.timeline)
+    // draft 중 댓글은 이월도 해소하지 못한다 — ready 안의 조치만 검토로 인정(감사 반례 1c).
+    const action = firstEligibleActionInReady(intervals, pr.timeline)
     if (action !== null && toMs(action) <= t) continue
     count++
   }
   return count
 }
 
-/** 관측 창 안의 매일 아침 시각 목록 (로컬 시간 hour시). 순수 — 로컬 tz 는 실행 머신 기준. */
-export function generateMornings(windowStartIso: string, windowEndIso: string, hour = 9): string[] {
+/**
+ * 관측 창 안의 매일 아침 시각 목록 — 지정 오프셋 지역의 hour시.
+ *
+ * tzOffsetMinutes 를 명시하면 실행 머신과 무관하게 같은 아침 시각이 나온다(판정 재현성).
+ * 미지정이면 실행 머신 로컬 — 스펙("09:00 로컬")의 기본값이지만, 다른 타임존 머신(CI 등)에서는
+ * 이월 아침 수가 달라질 수 있으므로 판정 목적의 호출부는 오프셋을 명시하고 표기해야 한다.
+ * 고정 오프셋 근사라 DST 지역에서는 전환일 ±1h 오차가 있다(KST 는 DST 없음).
+ */
+export function generateMornings(
+  windowStartIso: string,
+  windowEndIso: string,
+  hour = 9,
+  tzOffsetMinutes?: number,
+): string[] {
+  const offsetMin = tzOffsetMinutes ?? -new Date().getTimezoneOffset()
+  const startMs = toMs(windowStartIso)
+  const endMs = toMs(windowEndIso)
+  const dayMs = 86_400_000
+  // 지역시 = UTC + offset. 창 시작을 지역 날짜로 내림한 뒤 그 날짜의 hour시를 UTC 로 환산.
+  const localStartMs = startMs + offsetMin * 60_000
+  const localMidnightMs = Math.floor(localStartMs / dayMs) * dayMs
+  let t = localMidnightMs + hour * 3_600_000 - offsetMin * 60_000
+  if (t < startMs) t += dayMs
   const out: string[] = []
-  const start = new Date(windowStartIso)
-  const end = toMs(windowEndIso)
-  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate(), hour, 0, 0, 0)
-  if (cursor.getTime() < toMs(windowStartIso)) cursor.setDate(cursor.getDate() + 1)
-  while (cursor.getTime() <= end) {
-    out.push(cursor.toISOString())
-    cursor.setDate(cursor.getDate() + 1)
+  while (t <= endMs) {
+    out.push(new Date(t).toISOString())
+    t += dayMs
   }
   return out
 }
@@ -190,31 +217,51 @@ export type PrCohort = 'autonomous' | 'interactive' | 'unknown'
 /** 자율 PR 보조 신호 라벨 — 소유: auto_pr_goal.ps1 + overnight 런북. */
 export const AUTONOMOUS_LABEL = 'autonomous'
 
-/** headRefOid → 그 oid 를 head 로 가진 PR 수. 복수 후보 감지용. */
-export function buildHeadOidCounts(prs: PrRecord[]): Map<string, number> {
+/** PR 의 SHA 신호 — 정확 일치(headRefOid) 우선, 없으면 commits 포함(커밋 목록이 완전할 때만). */
+function shaMatchesOf(pr: PrRecord, completeShas: ReadonlySet<string>): string[] {
+  if (completeShas.has(pr.headRefOid)) return [pr.headRefOid]
+  if (!pr.commitsComplete) return []
+  return pr.commitOids.filter((oid) => completeShas.has(oid))
+}
+
+/**
+ * complete SHA → 그 SHA 와 조인되는(head 정확 일치 또는 commits 포함) PR 수. 복수 후보 감지용.
+ */
+export function buildShaJoinCounts(prs: PrRecord[], completeShas: ReadonlySet<string>): Map<string, number> {
   const counts = new Map<string, number>()
-  for (const pr of prs) counts.set(pr.headRefOid, (counts.get(pr.headRefOid) ?? 0) + 1)
+  for (const pr of prs) {
+    for (const sha of new Set(shaMatchesOf(pr, completeShas))) {
+      counts.set(sha, (counts.get(sha) ?? 0) + 1)
+    }
+  }
   return counts
 }
 
 /**
- * cohort 판정 — autonomous 는 **이중 신호**(종결 sha ↔ headRefOid 정확 일치 AND 라벨)일 때만.
+ * cohort 판정 — autonomous 는 **이중 신호**(complete SHA 조인 AND 라벨)일 때만.
  *
  * why 이중 신호인가: 라벨은 GitHub 쪽 상태라 사람이 붙이거나 뗄 수 있고, sha 는 원장 쪽이라
  * 위조가 커밋 diff 에 드러난다. 둘이 일치할 때만 믿고, 하나만 있으면(라벨 부착 실패·수동 라벨·
- * 원장 유실) 어느 쪽 기준선에도 섞지 않고 unknown 으로 격리한다 — 라벨 실패가 interactive 로
- * 위장되는 경로를 막는 것이 목적이다. commits 포함 조인은 정확 일치보다 약한 신호라 쓰지 않는다.
+ * 원장 유실) 어느 쪽 기준선에도 섞지 않고 unknown 으로 격리한다.
+ *
+ * SHA 조인은 headRefOid 정확 일치를 우선하고, 리뷰 수정 커밋이 얹혀 head 가 밀린 PR 은
+ * commits 포함으로 복원한다(D‴ 계약 — 감사 반례 5). 같은 SHA 가 여러 PR 과 조인되면 전부
+ * unknown. **complete 이벤트의 SHA 만 신호다** — hardstop/blocked 런은 PR 을 만들지 않았어야
+ * 하는 실패라 cohort 근거가 될 수 없다(감사 반례 3).
  */
 export function classifyCohort(
   pr: PrRecord,
-  terminalShas: ReadonlySet<string>,
-  headOidCounts: ReadonlyMap<string, number>,
+  completeShas: ReadonlySet<string>,
+  shaJoinCounts: ReadonlyMap<string, number>,
 ): PrCohort {
-  const exact = terminalShas.has(pr.headRefOid)
+  // 라벨 페이지가 잘렸으면 라벨 신호의 유무 자체를 모른다 — 어느 쪽으로도 분류하지 않는다.
+  if (!pr.labelsComplete) return 'unknown'
+  const matches = shaMatchesOf(pr, completeShas)
+  const shaSignal = matches.length > 0
   const labeled = pr.labels.includes(AUTONOMOUS_LABEL)
-  if (exact && (headOidCounts.get(pr.headRefOid) ?? 0) > 1) return 'unknown' // 복수 후보
-  if (exact && labeled) return 'autonomous'
-  if (exact || labeled) return 'unknown' // 신호 하나만 — 불혼입
+  if (shaSignal && matches.some((s) => (shaJoinCounts.get(s) ?? 0) > 1)) return 'unknown' // 복수 후보
+  if (shaSignal && labeled) return 'autonomous'
+  if (shaSignal || labeled) return 'unknown' // 신호 하나만 — 불혼입
   return 'interactive'
 }
 

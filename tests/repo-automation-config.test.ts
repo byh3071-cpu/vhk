@@ -131,6 +131,10 @@ describe('공용 에이전트 자동화 설정', () => {
       existingReused?: boolean
       baseScoped?: boolean
       headScoped?: boolean
+      labeledOnCreate?: boolean
+      labeledOnReuse?: boolean
+      labelExistsOk?: boolean
+      labelFailSurvives?: boolean
     }
     if (process.platform === 'win32') {
       expect(report).toEqual({
@@ -153,7 +157,8 @@ describe('공용 에이전트 자동화 설정', () => {
     } else {
       expect(report).toEqual({ supported: false })
     }
-  })
+    // 라벨 시나리오 4종 추가로 PowerShell 스폰이 7회 — 전체 스위트 부하에서 30s 를 넘길 수 있다.
+  }, 120_000)
 
   it('auto-merge는 저장소를 동적으로 찾고 리뷰 스레드를 끝까지 읽는다', () => {
     const content = readFileSync('.agents/skills/auto-merge/SKILL.md', 'utf8')

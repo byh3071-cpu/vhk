@@ -20,9 +20,10 @@ function pr(number: number, over: Partial<PrRecord> = {}): PrRecord {
     closedAt: null,
     isDraft: false,
     headRefOid: `sha${number}`,
-    authorLogin: 'byh3071-cpu',
+    authorLogin: 'sample-user',
     authorIsBot: false,
     labels: [],
+    labelsComplete: true,
     commitOids: [`sha${number}`],
     commitsComplete: true,
     timeline: [],
@@ -89,6 +90,48 @@ describe('buildBottleneckView — censored·측정 기점', () => {
     const legacy: AutonomyRunEntry = { ts: '2026-07-01T00:00:00Z', runId: 'old', event: 'complete' }
     expect(buildBottleneckView([], [legacy], [], NOW, true).windowDays).toBe(0)
   })
+
+  // ── 반례3 회귀 (2026-08-12 머지 보류 감사) ──
+
+  it('반례3a: hardstop 은 측정 기점이 아니다 — complete 만 관찰 시계를 연다', () => {
+    const hardstop: AutonomyRunEntry = {
+      ts: '2026-08-01T00:00:00Z',
+      runId: 'h1',
+      event: 'hardstop',
+      schemaVersion: 2,
+      sha: 'shaH',
+    }
+    expect(buildBottleneckView([], [hardstop], [], NOW, true).windowDays).toBe(0)
+  })
+
+  it('반례3b: hardstop SHA 는 cohort 신호가 아니다 — 라벨만 남으면 unknown', () => {
+    const hardstop: AutonomyRunEntry = {
+      ts: '2026-08-01T00:00:00Z',
+      runId: 'h1',
+      event: 'hardstop',
+      schemaVersion: 2,
+      sha: 'sha1',
+    }
+    const prs = [pr(1, { labels: [AUTONOMOUS_LABEL], timeline: [ev('review', '2026-08-21T00:00:00Z')] })]
+    const v = buildBottleneckView(prs, [hardstop], [], NOW, true)
+    expect(v.cohortCounts.autonomous).toBe(0)
+    expect(v.cohortCounts.unknown).toBe(1)
+  })
+
+  it('반례5: 리뷰 수정 커밋으로 headRefOid 가 밀린 autonomous PR — commits 폴백으로 복원', () => {
+    // complete.sha 가 PR 의 커밋 목록엔 있지만 headRefOid(후속 커밋)와는 다르다
+    const prs = [
+      pr(1, {
+        headRefOid: 'followup-sha',
+        commitOids: ['sha1', 'followup-sha'],
+        labels: [AUTONOMOUS_LABEL],
+        timeline: [ev('review', '2026-08-21T00:00:00Z')],
+      }),
+    ]
+    const v = buildBottleneckView(prs, [terminalRun('sha1')], [], NOW, true)
+    expect(v.cohortCounts.autonomous).toBe(1)
+    expect(v.cohortCounts.unknown).toBe(0)
+  })
 })
 
 describe('buildBottleneckView — 판정 연결', () => {
@@ -116,11 +159,11 @@ describe('buildBottleneckView — 자기신고 응답률', () => {
     expect(v.selfReportResponseRate).toBeCloseTo(2 / 3)
   })
 
-  it('같은 날짜는 마지막 관측 1개만 — 값 있던 날이 값 없는 재실행으로 덮이면 미응답일', () => {
+  it('값 있던 날은 값 없는 재실행으로 지워지지 않는다 — 값 있는 관측 우선', () => {
     const obs = [morning('2026-08-27', { trackingMin: 5 }), morning('2026-08-27')]
     const v = buildBottleneckView([], [], obs, NOW, true)
     expect(v.selfReportDays).toBe(1)
-    expect(v.selfReportResponseRate).toBe(0)
+    expect(v.selfReportResponseRate).toBe(1)
   })
 
   it('unchecked 만 있고 total 없으면 값으로 안 친다 (비율 계산 불가)', () => {
