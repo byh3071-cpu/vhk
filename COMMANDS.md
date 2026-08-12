@@ -285,7 +285,7 @@ vhk doctor
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |
 | `vhk learn` | 교훈 기록 → memory v2 단일 SoT |
 | `vhk win` | 성공 기록 → memory successes (reinforce evolve 입력) |
-| `vhk autonomy-log` | 자율 루프 런(run) 시작/종결 기록 (`--event start\|complete\|hardstop\|blocked` `--goal` `--run-id` `--ticks` `--interventions` `--review-rejected`) — 완주율 계측 (#373) |
+| `vhk autonomy-log` | 자율 루프 런(run) 시작/종결 기록 (`--event start\|complete\|hardstop\|blocked` `--goal` `--run-id` `--ticks` `--interventions` `--review-rejected` `--failure-kind infra\|product`) — 완주율 계측 (#373). HEAD SHA·작업 유형은 CLI 가 직접 재고, 완주 인정은 같은 SHA 의 `vhk receipt` 기계 판정이 정한다 (작업 단위 110). `--failure-kind infra` 는 종결 실패에서만 유효하며 해당 런을 분모에서 뺀다 |
 | `vhk watch` | 무인 세션 정지 감시 — 세션 로그 idle 초과 시 텔레그램·콘솔 알림 (`--idle-min` `--interval` `--window` `--once`) |
 | `vhk resume` | .vhk/HARD_STOP 해제 (`--confirm` 필요) |
 | `vhk pattern` | 반복 패턴 감지·목록 (`pattern detect` · `pattern list` · `pattern dismiss`) |

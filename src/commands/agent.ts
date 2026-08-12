@@ -14,8 +14,13 @@ import {
 import {
   appendAutonomyEntry,
   newAutonomyRunId,
+  normalizeFailureKind,
+  readAutonomyLog,
+  AUTONOMY_SCHEMA_VERSION,
   type AutonomyEvent,
 } from '../lib/autonomy-log.js'
+import { changedPathsBetween, deriveTaskKind, type TaskKind } from '../lib/task-kind.js'
+import { getCommitInfo } from '../lib/git-repo.js'
 import { recordLesson, recordSuccess } from './memory.js'
 import { selectActiveId } from './goal.js'
 
@@ -118,6 +123,21 @@ export interface AutonomyLogOptions {
   ticks?: number
   interventions?: number
   reviewRejected?: boolean
+  /** Goal 110-T5: 인프라 실패(네트워크·할당량)는 분모에서 빠진다. 종결 이벤트에서만 의미 있음. */
+  failureKind?: string
+}
+
+/**
+ * Goal 110-T3: 이 런이 건드린 작업 유형을 경로에서 유도한다.
+ * 같은 runId 의 start 라인이 남긴 sha 가 시작점 — 그 라인이 없거나(구스키마) sha 가 없으면
+ * 범위를 알 수 없으므로 'unknown'. 안전한 유형으로 낙관 추정하지 않는다.
+ */
+function deriveRunTaskKind(cwd: string, runId: string, headSha: string | null): TaskKind {
+  if (!headSha) return 'unknown'
+  const start = readAutonomyLog(cwd).find((e) => e.runId === runId && e.event === 'start')
+  const fromSha = start?.sha
+  if (!fromSha) return 'unknown'
+  return deriveTaskKind(changedPathsBetween(cwd, fromSha, headSha))
 }
 
 // 이슈 #373: vhk-auto SKILL.md 루프가 자율성완주율 분모/분자를 남기는 전용 커맨드.
@@ -125,15 +145,24 @@ export interface AutonomyLogOptions {
 export async function autonomyLog(opts: AutonomyLogOptions): Promise<void> {
   console.log(chalk.bold(`\n${ko.agent.autonomyLogTitle}\n`))
   const goalId = opts.goal ?? activeGoalId()
+  const cwd = process.cwd()
+  // Goal 110-T1: SHA 는 CLI 가 직접 잰다. 에이전트 입력을 받지 않는 유일한 판정 재료라,
+  // 자기 보고(complete·interventions)를 기계 증거(receipt-log)와 조인하는 축이 된다.
+  const headSha = getCommitInfo(cwd)?.sha ?? null
   if (opts.event === 'start') {
     const runId = newAutonomyRunId()
-    appendAutonomyEntry(process.cwd(), {
+    appendAutonomyEntry(cwd, {
       ts: new Date().toISOString(),
       runId,
       goal: goalId,
       event: 'start',
+      schemaVersion: AUTONOMY_SCHEMA_VERSION,
+      sha: headSha,
     })
     console.log(chalk.green(`  ✅ 런 시작 기록 — runId: ${runId}`))
+    if (!headSha) {
+      console.log(chalk.yellow('  ⚠ HEAD SHA 미측정(git 레포 아님·커밋 0) — 이 런은 완주 판정 대상이 아닙니다.'))
+    }
     console.log(chalk.dim('  이 runId 를 종결 이벤트(--run-id)에 그대로 넘기세요.'))
     return
   }
@@ -145,7 +174,12 @@ export async function autonomyLog(opts: AutonomyLogOptions): Promise<void> {
     process.exitCode = 1
     return
   }
-  appendAutonomyEntry(process.cwd(), {
+  const taskKind = deriveRunTaskKind(cwd, opts.runId, headSha)
+  // failureKind 는 종결 실패(hardstop/blocked)에서만 의미가 있다. complete 에 붙어 오면 버린다
+  // — 성공 런을 인프라 예외로 분류해 분모에서 빼는 경로를 만들지 않기 위해서다.
+  const failureKind =
+    opts.event === 'complete' ? undefined : normalizeFailureKind(opts.failureKind)
+  appendAutonomyEntry(cwd, {
     ts: new Date().toISOString(),
     runId: opts.runId,
     goal: goalId,
@@ -153,8 +187,18 @@ export async function autonomyLog(opts: AutonomyLogOptions): Promise<void> {
     ticks: opts.ticks,
     interventions: opts.interventions,
     reviewRejected: opts.event === 'hardstop' ? opts.reviewRejected : undefined,
+    schemaVersion: AUTONOMY_SCHEMA_VERSION,
+    sha: headSha,
+    taskKind,
+    failureKind,
   })
   console.log(chalk.green(`  ✅ 런 종결 기록 — event: ${opts.event}, runId: ${opts.runId}`))
+  console.log(chalk.dim(`  작업 유형(경로 유도): ${taskKind}${taskKind === 'unknown' ? ' — 범위 미확인' : ''}`))
+  if (opts.event === 'complete') {
+    console.log(
+      chalk.dim('  완주 인정 여부는 이 기록이 아니라 같은 SHA 의 receipt 기계 판정이 정합니다 → vhk stats'),
+    )
+  }
 }
 
 export interface ResumeOptions {

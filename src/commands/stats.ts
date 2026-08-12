@@ -9,6 +9,7 @@ import { readReceiptLog, type ReceiptLogEntry } from '../lib/receipt-log.js'
 import { readEvolveLog, type EvolveLogEntry } from '../lib/evolve-log.js'
 import { readCheckLog, type CheckLogEntry } from '../lib/check-log.js'
 import { readAutonomyLog, type AutonomyRunEntry } from '../lib/autonomy-log.js'
+import { normalizeTaskKind, type TaskKind } from '../lib/task-kind.js'
 
 /**
  * Goal 61: vhk stats — 읽기전용 통계·대시보드 집계.
@@ -219,24 +220,101 @@ function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`
 }
 
-/** Goal 104 / #373: autonomy-run 완주율. starts=0 이면 rate null(0% 위장 금지). */
+/** Goal 104 / #373 + Goal 110: autonomy-run 완주율. 표본 0 이면 rate null(0% 위장 금지). */
 export interface AutonomyStats {
   starts: number
   complete: number
   hardstop: number
   blocked: number
-  /** interventions=0 complete / starts. starts=0 → null */
-  completionRate: number | null
+  /**
+   * **자기 보고** 완주율 — (complete && interventions=0) / starts. Goal 110 이전의 식 그대로다.
+   * 판정용이 아니라 아래 completionRate 와의 괴리를 보기 위한 참고값이다(리서치 결정 1:
+   * 자기 보고는 카운터 자격이 없다 — 얼마나 부정확한지를 수치로 남긴다).
+   */
+  selfReportedRate: number | null
   /** complete 중 interventions>0 */
   intervenedComplete: number
+
+  // ── Goal 110: 3중 판정 ──
+
+  /** 3중 조건을 전부 통과한 완주 수. */
+  verifiedComplete: number
+  /** 판정 대상 런 수(분모) — v2 스키마이고 인프라 실패가 아닌 런. */
+  judgedRuns: number
+  /** **공식 완주율** = verifiedComplete / judgedRuns. 표본 0 → null. */
+  completionRate: number | null
+  /** v1 라인(sha 없음)이라 기계 증거와 조인할 수 없는 런 — 분자·분모 양쪽에서 뺀다. */
+  unjudgeable: number
+  /** 종결 이벤트가 없는 런 — 아직 결과가 없다. 실패가 아니라 미판정이다. */
+  inProgress: number
+  /** 인프라 실패로 분모에서 제외된 런(110-T5). */
+  infraExcluded: number
+  /**
+   * 인프라 제외 비율 = infraExcluded / (판정 대상 + infraExcluded). 표본이 적으면 null.
+   * failureKind 는 에이전트 자기 보고라 실패를 분모에서 빼는 남용 경로가 된다 — 그 남용을
+   * 막을 기계 증거가 없으므로, 대신 비율을 노출해 사람이 볼 수 있게 한다.
+   */
+  infraExcludedRatio: number | null
+  /** 인프라 제외 비율이 임계를 넘어 자기 보고 남용이 의심되는 상태. */
+  infraAbuseSuspected: boolean
+  /** complete 라고 신고했지만 기계 증거가 뒷받침하지 못한 런 — 자기 보고와 실제의 격차. */
+  selfReportedOnly: number
+  /** 판정 대상 런의 작업 유형 분포(110-T3). */
+  byTaskKind: Record<TaskKind, number>
+  /** 최근 10회 중 완주 실패 수. 표본 10 미만이면 null(모름을 0 으로 위장 금지). */
+  rollingFailures: number | null
+  /** 최근 10회 중 3회 이상 실패 → 권한 축소 판정(110-T4). 표본 부족 → null. */
+  demotionTriggered: boolean | null
+}
+
+/** 롤링 판정 구간. roadmap 110-T4("최근 10회 중 3회")와 관찰 게이트("10회 중 2회 이하")의 공통 크기. */
+export const ROLLING_WINDOW = 10
+/** 이 횟수 이상 실패하면 권한 축소. 관찰 게이트의 "실패 2회 이하 통과"와 같은 경계. */
+export const DEMOTION_FAILURE_THRESHOLD = 3
+
+/**
+ * 인프라 제외 비율이 이 값을 넘으면 자기 보고 남용을 의심한다.
+ * 값의 근거 = 강등 임계와 같은 비율(3/10). 별도 임의값을 새로 만들지 않는다.
+ */
+export const INFRA_ABUSE_RATIO = DEMOTION_FAILURE_THRESHOLD / ROLLING_WINDOW
+/** 표본이 이보다 적으면 비율을 내지 않는다 — 1건 중 1건 제외를 100% 남용으로 읽지 않기 위해. */
+export const INFRA_RATIO_MIN_SAMPLE = 3
+
+const EMPTY_KIND_COUNTS = (): Record<TaskKind, number> => ({
+  chore: 0,
+  docs: 0,
+  deps: 0,
+  source: 0,
+  schema: 0,
+  security: 0,
+  unknown: 0,
+})
+
+/** 런 하나로 접은 결과 — 종결 이벤트 기준. */
+interface RunOutcome {
+  ts: string
+  judged: boolean
+  verified: boolean
+  taskKind: TaskKind
 }
 
 /**
- * 자율 루프 완주율 — 순수 계산(fs 0).
- * 분자 = complete 이면서 (interventions ?? 0)===0.
- * 분모 = start 이벤트 수. 표본 0이면 completionRate=null.
+ * Goal 110-T2: 완주 판정을 **검증 통과 + 검증 리포트 유효 + 사람 개입 0** 세 조건 전부로 바꾼다.
+ *
+ * why receipt-log 조인인가:
+ *   complete 이벤트도 interventions 도 에이전트가 스스로 쓴다(commands/agent.ts). 그 둘만 세면
+ *   카운터가 자기 보고 위에 서게 된다. receipt-log 는 vhk receipt 가 남기는 기계 판정
+ *   (decision·red·dirty·stale)이고 SHA 를 달고 있어, 같은 SHA 로 조인하면 "그 시점 코드가 실제로
+ *   게이트를 통과했는가"를 자기 보고와 무관하게 확인할 수 있다.
+ *
+ * ★한계(정직): ③ interventions 는 여전히 자기 보고다. 기계로 세는 방법을 찾지 못했다. 다만
+ *   ①②가 기계 증거라 자기 보고만으로는 완주가 성립하지 않는다. 또한 원장 자체를 위조하면
+ *   막을 수 없다 — receipt-log 는 추적 파일이라 위조가 커밋 diff 에 드러나는 수준까지가 방어선이다.
  */
-export function calcAutonomyStats(entries: AutonomyRunEntry[]): AutonomyStats {
+export function calcAutonomyStats(
+  entries: AutonomyRunEntry[],
+  receipts: ReceiptLogEntry[] = [],
+): AutonomyStats {
   let starts = 0
   let complete = 0
   let hardstop = 0
@@ -252,14 +330,121 @@ export function calcAutonomyStats(entries: AutonomyRunEntry[]): AutonomyStats {
     } else if (e.event === 'hardstop') hardstop++
     else if (e.event === 'blocked') blocked++
   }
+
+  // 같은 SHA 로 receipt 가 여러 번 발행될 수 있다(재실행). 마지막 발행이 최종 판정이므로
+  // ts 오름차순으로 넣어 뒤엣것이 앞엣것을 덮게 한다.
+  const receiptBySha = new Map<string, ReceiptLogEntry>()
+  for (const r of [...receipts].sort((a, b) => a.ts.localeCompare(b.ts))) {
+    if (r.sha) receiptBySha.set(r.sha, r)
+  }
+
+  const outcomes: RunOutcome[] = []
+  let unjudgeable = 0
+  let inProgress = 0
+  let infraExcluded = 0
+  let selfReportedOnly = 0
+  const byTaskKind = EMPTY_KIND_COUNTS()
+
+  for (const [, run] of groupRuns(entries)) {
+    const { start, end } = run
+    if (!start) continue // 종결만 있고 시작이 없는 라인 — 런으로 세지 않는다(분모 오염 방지)
+    // v1 라인은 sha 가 없어 기계 증거와 이을 수 없다. 실패로 몰지 않고 "판정 불가"로 뺀다.
+    if (start.schemaVersion === undefined || !start.sha) {
+      unjudgeable++
+      continue
+    }
+    // 종결 이벤트가 없는 런은 아직 결과가 없다. 실패로 세면 지금 돌고 있는 런이 즉시 실패
+    // 1건이 되어 완주율과 롤링 강등을 왜곡한다. 판정 대상이 아니라 "진행 중"으로 뺀다.
+    if (!end) {
+      inProgress++
+      continue
+    }
+    // 인프라 실패는 도구의 자율성 실패가 아니다 → 분모에서 제외(110-T5).
+    // ★ 종결 실패에서만 인정한다. complete 에 붙은 infra 를 그대로 받으면 "성공했는데 분모에서도
+    //   빠지는" 경로가 생긴다. 기록 단계(commands/agent.ts)에서도 막지만, 원장에 직접 쓴 라인과
+    //   과거 라인이 있을 수 있으므로 집계 단계에서 이벤트 종류를 다시 확인한다.
+    if (end.event !== 'complete' && end.failureKind === 'infra') {
+      infraExcluded++
+      continue
+    }
+    const kind = normalizeTaskKind(end.taskKind ?? start.taskKind)
+    byTaskKind[kind]++
+
+    const verified = end.event === 'complete' && isVerifiedComplete(end, receiptBySha)
+    if (end.event === 'complete' && !verified) selfReportedOnly++
+    outcomes.push({ ts: end.ts, judged: true, verified, taskKind: kind })
+  }
+
+  const judgedRuns = outcomes.length
+  const verifiedComplete = outcomes.filter((o) => o.verified).length
+
+  // 롤링 강등 — 판정 대상 런만, 종결 시각 오름차순의 마지막 ROLLING_WINDOW 개.
+  const recent = [...outcomes].sort((a, b) => a.ts.localeCompare(b.ts)).slice(-ROLLING_WINDOW)
+  const windowFull = recent.length >= ROLLING_WINDOW
+  const rollingFailures = windowFull ? recent.filter((o) => !o.verified).length : null
+
+  // 인프라 제외 남용 감시 — 분모는 "제외되지 않았다면 판정 대상이었을 런" 전체다.
+  const infraBase = judgedRuns + infraExcluded
+  const infraExcludedRatio = infraBase < INFRA_RATIO_MIN_SAMPLE ? null : infraExcluded / infraBase
+
   return {
     starts,
     complete,
     hardstop,
     blocked,
     intervenedComplete,
-    completionRate: starts === 0 ? null : unattendedComplete / starts,
+    selfReportedRate: starts === 0 ? null : unattendedComplete / starts,
+    verifiedComplete,
+    judgedRuns,
+    completionRate: judgedRuns === 0 ? null : verifiedComplete / judgedRuns,
+    unjudgeable,
+    inProgress,
+    infraExcluded,
+    infraExcludedRatio,
+    infraAbuseSuspected: infraExcludedRatio !== null && infraExcludedRatio > INFRA_ABUSE_RATIO,
+    selfReportedOnly,
+    byTaskKind,
+    rollingFailures,
+    demotionTriggered: rollingFailures === null ? null : rollingFailures >= DEMOTION_FAILURE_THRESHOLD,
   }
+}
+
+/** runId → {start, end}. 종결이 여러 번 기록되면 첫 종결이 그 런의 결말이다. */
+function groupRuns(
+  entries: AutonomyRunEntry[],
+): Map<string, { start?: AutonomyRunEntry; end?: AutonomyRunEntry }> {
+  const runs = new Map<string, { start?: AutonomyRunEntry; end?: AutonomyRunEntry }>()
+  for (const e of entries) {
+    const slot = runs.get(e.runId) ?? {}
+    if (e.event === 'start') {
+      slot.start ??= e
+    } else {
+      slot.end ??= e
+    }
+    runs.set(e.runId, slot)
+  }
+  return runs
+}
+
+/**
+ * 3중 조건 — 전부 참이어야 완주다.
+ * ① 검증 통과: 같은 SHA 의 receipt 가 block 이 아니고 실종료코드 red 도 아님
+ * ② 리포트 유효: 그 receipt 가 dirty 아니고 stale 도 아님
+ * ③ 사람 개입 0
+ *
+ * why stale===false 를 요구하지 않는가:
+ *   stale 기준선(.vhk/receipts/.base-sha)은 로컬 전용 파일이라 CI·새 클론에서는 항상 null 이다.
+ *   null 을 탈락시키면 그런 환경에서 완주율이 영구 0 이 된다. 관찰 게이트가 요구하는
+ *   "현재 HEAD 와 일치하는 verify 결과"는 SHA 조인 자체가 이미 보장하므로(receipt.sha ===
+ *   종결.sha), stale 은 명시적으로 true 일 때만 탈락시키는 보조 신호로 둔다.
+ */
+function isVerifiedComplete(end: AutonomyRunEntry, receiptBySha: Map<string, ReceiptLogEntry>): boolean {
+  if ((end.interventions ?? 0) > 0) return false // ③
+  if (!end.sha) return false // 조인 불가 — 기계 증거 없음
+  const r = receiptBySha.get(end.sha)
+  if (!r) return false // 그 시점 receipt 가 아예 없다 → 검증되지 않은 완료 주장
+  if (r.decision === 'block' || r.red) return false // ①
+  return !r.dirty && r.stale !== true // ②
 }
 
 // ── 커맨드 핸들러 (읽기 전용 — 파일 쓰기 없음) ──────────────────────────────────
@@ -320,23 +505,75 @@ export async function stats(opts: { trend?: boolean } = {}): Promise<void> {
   })
 }
 
-/** Goal 104: autonomy-run.jsonl → 완주율 섹션(읽기 전용). */
+/**
+ * Goal 104 + 110: autonomy-run.jsonl × receipt-log.jsonl → 완주율 섹션(읽기 전용).
+ * 표본 0·판정 불가는 비율로 위장하지 않고 건수로 그대로 적는다.
+ */
 function renderAutonomyStats(cwd: string): void {
-  const a = calcAutonomyStats(readAutonomyLog(cwd))
+  const a = calcAutonomyStats(readAutonomyLog(cwd), readReceiptLog(cwd))
   log.plain(chalk.cyan(`\n🤖 ${t('stats.autonomyTitle')}`))
   if (a.starts === 0) {
     log.plain(chalk.dim(`  ${t('stats.autonomyNoData')}`))
     return
   }
-  log.plain(
-    chalk.white(`  ${pct(a.completionRate!)}`) +
-      chalk.dim(
-        ` (무인 complete ${a.complete - a.intervenedComplete}/${a.starts}` +
-          ` · hardstop ${a.hardstop} · blocked ${a.blocked}` +
-          (a.intervenedComplete > 0 ? ` · 개입complete ${a.intervenedComplete}` : '') +
-          ')',
-      ),
-  )
+
+  if (a.completionRate === null) {
+    log.plain(chalk.dim('  판정 대상 런 0건 — 완주율 없음(0% 아님)'))
+  } else {
+    log.plain(
+      chalk.white(`  ${pct(a.completionRate)}`) +
+        chalk.dim(
+          ` (검증된 완주 ${a.verifiedComplete}/${a.judgedRuns}` +
+            ` · hardstop ${a.hardstop} · blocked ${a.blocked})`,
+        ),
+    )
+  }
+
+  // 자기 보고와 기계 판정의 격차 — 리서치 결정 1 을 수치로 남기는 자리.
+  if (a.selfReportedOnly > 0) {
+    log.plain(
+      chalk.yellow(`  ⚠ 자기 보고만 ${a.selfReportedOnly}건`) +
+        chalk.dim(' — complete 라고 기록했지만 같은 SHA 의 receipt 가 뒷받침하지 않음'),
+    )
+  }
+  if (a.unjudgeable > 0) {
+    log.plain(chalk.dim(`  판정 불가 ${a.unjudgeable}건 (구 스키마 — SHA 없음)`))
+  }
+  if (a.inProgress > 0) {
+    log.plain(chalk.dim(`  진행 중 ${a.inProgress}건 (종결 이벤트 없음) — 실패로 세지 않음`))
+  }
+  if (a.infraExcluded > 0) {
+    // failureKind 는 자기 보고다. 기계로 판별할 수단이 없으므로 제외 사실과 비율을 드러낸다.
+    const ratio = a.infraExcludedRatio === null ? '' : ` (${pct(a.infraExcludedRatio)})`
+    log.plain(
+      chalk.dim(`  인프라 실패 ${a.infraExcluded}건${ratio} — 분모에서 제외 · 자기 보고 값입니다`),
+    )
+    if (a.infraAbuseSuspected) {
+      log.plain(
+        chalk.yellow(`  ⚠ 인프라 제외 비율이 ${pct(INFRA_ABUSE_RATIO)}를 넘습니다`) +
+          chalk.dim(' — 실패가 분모에서 빠지고 있는지 사람이 확인하세요'),
+      )
+    }
+  }
+
+  // 롤링 강등(110-T4) — 표본이 안 차면 "모름"을 그대로 적는다.
+  if (a.rollingFailures === null) {
+    log.plain(chalk.dim(`  롤링 판정: 표본 부족 (${a.judgedRuns}/${ROLLING_WINDOW}회)`))
+  } else if (a.demotionTriggered) {
+    log.plain(
+      chalk.red(`  ⛔ 권한 축소 판정 — 최근 ${ROLLING_WINDOW}회 중 ${a.rollingFailures}회 실패`) +
+        chalk.dim(` (기준 ${DEMOTION_FAILURE_THRESHOLD}회)`),
+    )
+  } else {
+    log.plain(
+      chalk.dim(`  롤링 판정: 유지 — 최근 ${ROLLING_WINDOW}회 중 ${a.rollingFailures}회 실패`),
+    )
+  }
+
+  const kinds = Object.entries(a.byTaskKind).filter(([, n]) => n > 0)
+  if (kinds.length > 0) {
+    log.plain(chalk.dim(`  작업 유형: ${kinds.map(([k, n]) => `${k} ${n}`).join(' · ')}`))
+  }
 }
 
 // N6(ⓔ): receipt-log 추세 렌더링(읽기 전용). 표본 부족·미측정은 정직 표기(0 위장 금지).

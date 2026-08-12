@@ -729,6 +729,8 @@ export const ko = {
     winTitle: '🏆 성공 기록',
     resumeTitle: '▶️  HARD_STOP 해제',
     autonomyLogTitle: '🤖 자율 루프 런 기록',
+    failureKindOption:
+      '실패 성격 infra|product — infra(네트워크·할당량)는 완주율 분모에서 제외됩니다. 종결 실패에서만 유효',
   },
   work: {
     workTitle: '🚀 vhk work — 작업 시작/이어하기',
