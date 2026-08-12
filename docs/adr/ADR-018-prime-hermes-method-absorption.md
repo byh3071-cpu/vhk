@@ -16,7 +16,9 @@ tags: [architecture, agent-agnostic, governance, method-absorption]
 ADR-012 의 흡수 원칙(제품 중첩 없이 메커니즘만 clean-room 흡수)을 Prime Agent 와 Hermes 에
 적용해 흡수 후보 목록에 등재하되, **이번 2.x 계열에는 구현을 편성하지 않고** 관찰 게이트 통과와
 2.17 종료 후 재판정한다. VHK 의 정체성은 자가진화 에이전트가 아니라 **개선 효과까지 검증하는
-감사·거버넌스 하네스**로 유지한다(2026-07-07 오너 결정과 정합).
+검증·거버넌스 하네스**로 유지한다 — RSI(재귀 자가개선) 정체성 불추구는 2026-07-07 오너의
+세션 결정이었고 저장소에는 성문화돼 있지 않았으므로 **이 ADR 이 성문화한다** (같은 취지의 기존
+저장소 근거: ADR-012 "재귀 개선은 실측 근거가 생긴 범위에서만 주장한다").
 
 ## 맥락 (Context)
 
@@ -32,8 +34,8 @@ ADR-012(2026-07-31 작성, 08-01 승인)는 OMC·Superpowers·Shrimp Task Manage
 
 오너는 두 도구의 학습·자가개선 방향이 원하는 방향과 겹친다고 확인했고, 기존 흡수 원칙을 이 둘에도
 적용할지가 결정 질문이다. 동시에 기존 결정 두 가지가 경계를 이룬다: ①RSI(재귀 자가개선)는 쫓지
-않는다 — VHK 의 차별축은 반증 가능한 감사층(2026-07-07) ②상시성(데몬·heartbeat·메신저)은 VHK
-코어가 아니라 Runtime/Orca 몫(ADR-012 역할 분리).
+않는다 — VHK 의 차별축은 반증 가능한 검증 계층(2026-07-07 오너 세션 결정, 이 ADR 로 성문화)
+②상시성(데몬·heartbeat·메신저)은 VHK 코어가 아니라 Runtime/Orca 몫(ADR-012 역할 분리).
 
 ## 결정 (Decision)
 
@@ -60,8 +62,8 @@ ADR-012 와 같은 형식으로 흡수/배제 경계를 확정한다.
 1. **제품 설치·중첩** — 기각. 완료 판정자와 상태 원본이 복수가 된다(ADR-012 가 기각한 그 이유).
 2. **전면 무시** — 기각. 두 도구 모두 MIT 공개라 방법론 공급원으로서 비용이 낮고, 특히 Hermes 의
    스킬화 계약과 Prime 의 궤적 성찰은 VHK 의 evolve(현재 규칙 후보 중심)가 넓혀야 할 방향과 겹친다.
-3. **정체성 전환(RSI 추구)** — 기각. 2026-07-07 오너 결정. Hermes 가 이미 선점한 축이고, VHK 의
-   차별축은 어떤 에이전트 위에도 얹히는 반증 가능한 감사·거버넌스 층이다.
+3. **정체성 전환(RSI 추구)** — 기각. 2026-07-07 오너 세션 결정(이 ADR 로 성문화). Hermes 가
+   이미 선점한 축이고, VHK 의 차별축은 어떤 에이전트 위에도 얹히는 반증 가능한 검증·거버넌스 층이다.
 
 ## 결과 (Consequences)
 
@@ -76,7 +78,7 @@ ADR-012 와 같은 형식으로 흡수/배제 경계를 확정한다.
 
 ## 참고자료
 
-| 도구 | 출처 (2026-08-12 확인) | 라이선스 |
+| 도구 | 출처 (2026-08-13 확인) | 라이선스 (GitHub API SPDX 실측) |
 |---|---|---|
-| Prime Agent | [공개 저장소](https://github.com/PrimeIntellect-ai/prime-agent) · [공식 블로그](https://www.primeintellect.ai/blog/prime-agent) | MIT(저장소 LICENSE 확인) |
-| Hermes | [공식 문서](https://hermes-agent.nousresearch.com/docs/) · [self-evolution 저장소](https://github.com/NousResearch/hermes-agent-self-evolution) | MIT(저장소 LICENSE 확인) |
+| Prime Agent | [공개 저장소](https://github.com/PrimeIntellect-ai/prime-agent) · [공식 블로그](https://www.primeintellect.ai/blog/prime-agent) | MIT |
+| Hermes | [메인 저장소](https://github.com/NousResearch/hermes-agent) · [공식 문서](https://hermes-agent.nousresearch.com/docs/) | 메인 MIT. 단 [self-evolution 저장소](https://github.com/NousResearch/hermes-agent-self-evolution)는 **라이선스 미표기**(SPDX null) — 그쪽 코드·프롬프트는 참조도 하지 않는다 |
