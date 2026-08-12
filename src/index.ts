@@ -887,6 +887,7 @@ program
   .option('--ticks <n>', '이 런의 루프 tick 수')
   .option('--interventions <n>', '이 런의 사람 개입 횟수')
   .option('--review-rejected', 'hardstop 이 적대리뷰(critic) 거부로 인한 것인지')
+  .option('--failure-kind <kind>', ko.agent.failureKindOption)
   .description('자율 루프 런(run) 시작/종결 기록 → .vhk/events/autonomy-run.jsonl (완주율 계측, #373)')
   .action(
     async (opts: {
@@ -896,6 +897,7 @@ program
       ticks?: string
       interventions?: string
       reviewRejected?: boolean
+      failureKind?: string
     }) => {
       const KNOWN_EVENTS = new Set(['start', 'complete', 'hardstop', 'blocked'])
       if (!opts.event || !KNOWN_EVENTS.has(opts.event)) {
@@ -925,6 +927,7 @@ program
         ticks: ticksParsed,
         interventions: interventionsParsed,
         reviewRejected: opts.reviewRejected,
+        failureKind: opts.failureKind,
       })
     }
   )
