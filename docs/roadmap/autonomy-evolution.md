@@ -1,6 +1,11 @@
 # VHK 자율성 진화 로드맵
 
-> Wave A/B/C SoT. RFC 0054(실행력 진화) + RFC 0063(overnight conductor).
+> ⚠️ **Superseded (2026-08-12)** — 이 문서의 완주 정의(`complete/start, interventions=0` 자기
+> 보고 기반)와 측정 기준은 [2.x 로드맵](2.x-roadmap.md)의 작업 단위 110(SHA 조인 3중 기계 판정)·
+> 111(병목 계측)·관찰 게이트(4주 AND 관측 완료 표본 10회)로 대체됐다. Wave 구획은 역사 참고용으로만
+> 남긴다. 현 사이클의 원본은 2.x 로드맵 하나다 (ADR-010).
+
+> Wave A/B/C SoT(구). RFC 0054(실행력 진화) + RFC 0063(overnight conductor).
 > Cursor 플랜 `VHK Autonomy Roadmap`과 어긋나면 오너 확정 결정을 우선.
 
 ## 세 축

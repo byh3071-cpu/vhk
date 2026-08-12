@@ -11,6 +11,7 @@ tags: [architecture, agent-agnostic, governance]
 >
 > 상태: **Accepted — 2026-08-01 관리자 명시 승인.**
 > 관련 설계: [RFC 0064](../rfc/0064-agent-agnostic-task-spine.md)
+> 적용 확장: [ADR-018](ADR-018-prime-hermes-method-absorption.md) — Prime Agent·Hermes 를 같은 원칙의 흡수 후보로 등재 (이 문서의 결정은 불변)
 
 ## 한 줄 결정
 
