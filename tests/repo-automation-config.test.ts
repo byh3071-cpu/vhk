@@ -131,6 +131,10 @@ describe('공용 에이전트 자동화 설정', () => {
       existingReused?: boolean
       baseScoped?: boolean
       headScoped?: boolean
+      labeledOnCreate?: boolean
+      labeledOnReuse?: boolean
+      labelExistsOk?: boolean
+      labelFailSurvives?: boolean
     }
     if (process.platform === 'win32') {
       expect(report).toEqual({
@@ -144,11 +148,17 @@ describe('공용 에이전트 자동화 설정', () => {
         existingReused: true,
         baseScoped: true,
         headScoped: true,
+        // Goal 111-T5: autonomous 라벨 멱등 — 신규·재사용·라벨 기존재·부착 실패 생존
+        labeledOnCreate: true,
+        labeledOnReuse: true,
+        labelExistsOk: true,
+        labelFailSurvives: true,
       })
     } else {
       expect(report).toEqual({ supported: false })
     }
-  })
+    // 라벨 시나리오 4종 추가로 PowerShell 스폰이 7회 — 전체 스위트 부하에서 30s 를 넘길 수 있다.
+  }, 120_000)
 
   it('auto-merge는 저장소를 동적으로 찾고 리뷰 스레드를 끝까지 읽는다', () => {
     const content = readFileSync('.agents/skills/auto-merge/SKILL.md', 'utf8')

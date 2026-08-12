@@ -238,7 +238,7 @@ vhk doctor
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
 | `vhk status` | 프로젝트 상태 대시보드 |
-| `vhk stats` | 통계 대시보드 — 패스율/차단율/진화 결정 중 채택률 (읽기 전용) |
+| `vhk stats` | 통계 대시보드 — 패스율/차단율/진화 채택률/자율 완주율/병목 계측 (읽기 전용). 병목 섹션은 `gh` 로 GitHub PR 을 조회한다(수 초 소요) — `gh` 미설치·미인증이면 그 섹션만 "측정 불가"로 표기 |
 | `vhk stats --trend` | receipt-log 시계열 추세(거짓완료 판정 추이) + evolve 채택률·RULES.md 위반수 추세 (#374, 읽기 전용) |
 | `vhk loop` | 자가진화 조율 1틱 — 닫힌 것/다음 한 수 (읽기 전용, 집행 0) |
 | `vhk diff` | Git 변경사항 한국어 요약 |
@@ -285,7 +285,7 @@ vhk doctor
 | `vhk blocker` | 블로커 기록 (3건 누적 시 HARD_STOP) |
 | `vhk learn` | 교훈 기록 → memory v2 단일 SoT |
 | `vhk win` | 성공 기록 → memory successes (reinforce evolve 입력) |
-| `vhk autonomy-log` | 자율 루프 런(run) 시작/종결 기록 (`--event start\|complete\|hardstop\|blocked` `--goal` `--run-id` `--ticks` `--interventions` `--review-rejected` `--failure-kind infra\|product`) — 완주율 계측 (#373). HEAD SHA·작업 유형은 CLI 가 직접 재고, 완주 인정은 같은 SHA 의 `vhk receipt` 기계 판정이 정한다 (작업 단위 110). `--failure-kind infra` 는 종결 실패에서만 유효하며 해당 런을 분모에서 뺀다 |
+| `vhk autonomy-log` | 자율 루프 런(run) 시작/종결 기록 (`--event start\|complete\|hardstop\|blocked` `--goal` `--run-id` `--ticks` `--interventions` `--review-rejected` `--failure-kind infra\|product`) — 완주율 계측 (#373). HEAD SHA·작업 유형은 CLI 가 직접 재고, 완주 인정은 같은 SHA 의 `vhk receipt` 기계 판정이 정한다 (작업 단위 110). `--failure-kind infra` 는 종결 실패에서만 유효하며 해당 런을 분모에서 뺀다. 종결 SHA 는 작업 단위 111 의 PR cohort 조인 1차 신호이기도 하다 |
 | `vhk watch` | 무인 세션 정지 감시 — 세션 로그 idle 초과 시 텔레그램·콘솔 알림 (`--idle-min` `--interval` `--window` `--once`) |
 | `vhk resume` | .vhk/HARD_STOP 해제 (`--confirm` 필요) |
 | `vhk pattern` | 반복 패턴 감지·목록 (`pattern detect` · `pattern list` · `pattern dismiss`) |

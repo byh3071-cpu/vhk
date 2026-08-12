@@ -15,6 +15,7 @@ export const ko = {
     trendNextCursor: 'receipt 발행해줘',
     autonomyTitle: '자율 완주율 (autonomy-run):',
     autonomyNoData: '표본 없음 — vhk autonomy-log / overnight 런 누적 필요 (0%로 위장하지 않음)',
+    bottleneckTitle: '병목 계측 (Goal 111 — PR 사람 반응·아침 이월):',
   },
   loop: {
     tickTitle: 'loop tick — 자가진화 조율 (읽기 전용)',

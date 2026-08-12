@@ -21,6 +21,7 @@ Prepare a temporary PR body file that follows `AGENTS.md` and includes the morni
 ## Invariants
 - **INV-A** Follow `.agents/skills/vhk-auto/SKILL.md` INV-1..INV-9 for the implement loop. Commit only inside that loop (INV-7).
 - **INV-B** After green verify + commit, call `scripts/auto_pr_goal.ps1`. **Merge = 0.** Never push `main`, force-push, publish, or change branch protection.
+- **INV-B2** The `autonomous` label is attached idempotently by that script on both create and reuse paths (Goal 111 cohort secondary signal). Never add or remove it by hand — the primary signal is the terminal-SHA join, and signal mismatch is quarantined as `unknown`.
 - **INV-C** If autonomy-log start or terminal event is missing → write `.vhk/HARD_STOP` and stop.
 - **INV-D** Use the release order in `docs/roadmap/2.x-roadmap.md` and acceptance criteria in `docs/PRD-2.x.md`. Do not invent a queue from old Goal numbers.
 - **INV-E** Stop on HARD_STOP, verify 2× red, or open PR reported.

@@ -65,7 +65,83 @@ export interface AutonomyRunEntry {
   failureKind?: AutonomyFailureKind
 }
 
-/** 자율 런 원장 파싱(JSONL). 손상 라인은 관용적으로 skip(action-ledger.ts 와 동일 계약). */
+// ─── Goal 111-T1: 아침 자기신고 관측 (분리 타입) ─────────────────────────────
+//
+// why 같은 JSONL 에 별도 타입인가:
+//   morning 을 AutonomyEvent 에 단순 추가하면 groupRuns 류 소비자가 런 종결로 오인할 수 있는
+//   경로가 관례("runId 안 겹침")에만 기대게 된다. 판별자를 타입에 박아(runId 없음 · kind 필드)
+//   기존 완주율 집계에는 RunEvent 만 들어가는 것을 계약으로 만든다.
+//   판정식 밖 참고 지표다 — 자기신고는 카운터 자격이 없다(리서치 결정 1)는 110 전제 그대로.
+
+/** 아침 자기신고 관측 1건. 로컬 날짜별 append-only — 집계는 같은 날짜의 마지막 유효 관측만 쓴다. */
+export interface MorningObservation {
+  /** 판별자 — RunEvent 와 구분. */
+  kind: 'morning'
+  /** 기록 시각(UTC ISO). */
+  ts: string
+  /** 관측일(로컬 날짜 YYYY-MM-DD) — 응답률의 키. */
+  date: string
+  /** 상태 파악에 쓴 시간(분). 미입력 허용 — 참고 지표. */
+  trackingMin?: number
+  /** 내용 확인 없이 승인한 건수. total 과 함께 있어야 비율 계산에 쓰인다. */
+  uncheckedApprovals?: number
+  /** 그날 승인 결정 총수 — 비율의 분모. */
+  approvalDecisionsTotal?: number
+}
+
+/** 같은 JSONL 을 공유하는 라인 타입 전체. */
+export type AutonomyLogEntry = AutonomyRunEntry | MorningObservation
+
+const MORNING_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+function isNonNegInt(v: unknown): v is number {
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0
+}
+
+/**
+ * morning 관측 라인 형태 검증. 유효하지 않으면 null(손상 라인 skip 계약과 동형).
+ * 0 ≤ uncheckedApprovals ≤ approvalDecisionsTotal 을 여기서 강제 — 위반 라인은 무효.
+ */
+export function normalizeMorningObservation(raw: unknown): MorningObservation | null {
+  if (typeof raw !== 'object' || raw === null) return null
+  const o = raw as Record<string, unknown>
+  if (o.kind !== 'morning') return null
+  if (typeof o.ts !== 'string' || typeof o.date !== 'string' || !MORNING_DATE_RE.test(o.date)) return null
+  const out: MorningObservation = { kind: 'morning', ts: o.ts, date: o.date }
+  if (o.trackingMin !== undefined) {
+    if (!isNonNegInt(o.trackingMin)) return null
+    out.trackingMin = o.trackingMin
+  }
+  if (o.uncheckedApprovals !== undefined) {
+    if (!isNonNegInt(o.uncheckedApprovals)) return null
+    out.uncheckedApprovals = o.uncheckedApprovals
+  }
+  if (o.approvalDecisionsTotal !== undefined) {
+    if (!isNonNegInt(o.approvalDecisionsTotal)) return null
+    out.approvalDecisionsTotal = o.approvalDecisionsTotal
+  }
+  if (
+    out.uncheckedApprovals !== undefined &&
+    out.approvalDecisionsTotal !== undefined &&
+    out.uncheckedApprovals > out.approvalDecisionsTotal
+  ) {
+    return null
+  }
+  return out
+}
+
+/** 라인이 런 이벤트인가 — event 문자열이 있고 morning 판별자가 없다. */
+function isRunEventLine(raw: unknown): raw is AutonomyRunEntry {
+  if (typeof raw !== 'object' || raw === null) return false
+  const o = raw as Record<string, unknown>
+  return typeof o.event === 'string' && o.kind === undefined
+}
+
+/**
+ * 자율 런 원장 파싱(JSONL) — **RunEvent 만 반환한다.** morning 관측 라인은 여기서 걸러져
+ * 기존 소비자(완주율·groupRuns·아침 카운트) 전원이 무변경으로 안전하다.
+ * 손상 라인은 관용적으로 skip(action-ledger.ts 와 동일 계약).
+ */
 export function readAutonomyLog(cwd: string): AutonomyRunEntry[] {
   const p = join(cwd, AUTONOMY_LOG_PATH_REL)
   if (!existsSync(p)) return []
@@ -75,12 +151,63 @@ export function readAutonomyLog(cwd: string): AutonomyRunEntry[] {
     const t = line.trim()
     if (!t) continue
     try {
-      out.push(JSON.parse(t) as AutonomyRunEntry)
+      const parsed: unknown = JSON.parse(t)
+      if (isRunEventLine(parsed)) out.push(parsed)
     } catch {
       /* 손상 라인 skip */
     }
   }
   return out
+}
+
+/** morning 관측만 파싱. 무효·손상 라인 skip. */
+export function readMorningObservations(cwd: string): MorningObservation[] {
+  const p = join(cwd, AUTONOMY_LOG_PATH_REL)
+  if (!existsSync(p)) return []
+  const out: MorningObservation[] = []
+  for (const line of stripBom(readFileSync(p, 'utf-8')).split(/\r?\n/)) {
+    const t = line.trim()
+    if (!t) continue
+    try {
+      const obs = normalizeMorningObservation(JSON.parse(t))
+      if (obs) out.push(obs)
+    } catch {
+      /* 손상 라인 skip */
+    }
+  }
+  return out
+}
+
+/** morning 관측 1건 append. 무효 형태는 기록 자체를 거부(false). */
+export function appendMorningObservation(cwd: string, obs: MorningObservation): boolean {
+  if (!normalizeMorningObservation(obs)) return false
+  const p = join(cwd, AUTONOMY_LOG_PATH_REL)
+  mkdirSync(join(cwd, '.vhk', 'events'), { recursive: true })
+  appendFileSync(p, JSON.stringify(obs) + '\n', 'utf-8')
+  return true
+}
+
+/** 관측에 자기신고 값이 있는가 — 승인 비율은 분자·분모가 둘 다 있어야 값으로 친다. */
+export function morningHasValues(o: MorningObservation): boolean {
+  return (
+    o.trackingMin !== undefined ||
+    (o.uncheckedApprovals !== undefined && o.approvalDecisionsTotal !== undefined)
+  )
+}
+
+/**
+ * 날짜별 대표 관측 선택 — 같은 date 에서 **값이 있는 마지막 관측**을 우선하고, 값 있는 관측이
+ * 없으면 마지막 관측을 쓴다. 단순히 마지막 관측을 채택하면 아침에 값을 신고한 뒤 옵션 없이
+ * 리포트를 재실행했을 때 그날 신고가 지워진다(리뷰 실측 지적) — 값을 잃지 않는 쪽이 규칙이다.
+ * 응답률 = 대표 관측에 값이 있는 날 / 대표 관측이 존재하는 날.
+ */
+export function selectDailyObservations(observations: MorningObservation[]): Map<string, MorningObservation> {
+  const byDate = new Map<string, MorningObservation>()
+  for (const o of observations) {
+    const prev = byDate.get(o.date)
+    if (!prev || morningHasValues(o) || !morningHasValues(prev)) byDate.set(o.date, o)
+  }
+  return byDate
 }
 
 /**

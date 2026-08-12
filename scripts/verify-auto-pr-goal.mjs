@@ -101,6 +101,13 @@ try {
       process.stdout.write(url ? JSON.stringify([{ url }]) + '\\n' : '[]\\n')
     }
     else if (args[0] === 'pr' && args[1] === 'create') process.stdout.write('${createdUrl}\\n')
+    else if (args[0] === 'label' && args[1] === 'create') {
+      // 이미 존재하는 라벨 재생성은 실패가 정상 — 멱등 처리를 스크립트가 감내해야 한다.
+      if (process.env.VHK_FAKE_LABEL_EXISTS === '1') { process.stderr.write('already exists'); process.exitCode = 1 }
+    }
+    else if (args[0] === 'pr' && args[1] === 'edit' && args.includes('--add-label')) {
+      if (process.env.VHK_FAKE_LABEL_FAIL === '1') { process.stderr.write('label attach denied'); process.exitCode = 1 }
+    }
     else { process.stderr.write('unsupported gh call: ' + args.join(' ')); process.exitCode = 9 }
   `
   writeFileSync(join(bin, 'fake-git.mjs'), fakeGit)
@@ -170,6 +177,31 @@ try {
     throw new Error(JSON.stringify({ name: 'existing', result: existing.result, calls: existing.calls }))
   }
 
+  // Goal 111-T5: autonomous 라벨 멱등 — 신규·재사용 두 경로 모두 부착 시도해야 한다.
+  const labeledOnCreate = called(success.calls, 'gh', 'pr', 'edit', createdUrl, '--add-label', 'autonomous')
+  const labeledOnReuse = called(existing.calls, 'gh', 'pr', 'edit', existingUrl, '--add-label', 'autonomous')
+  if (!labeledOnCreate || !labeledOnReuse) {
+    throw new Error(JSON.stringify({ name: 'label-paths', labeledOnCreate, labeledOnReuse }))
+  }
+
+  // 라벨이 이미 존재해 label create 가 실패해도(정상) 부착은 계속돼야 한다.
+  const labelExists = await runScenario('label-exists', { VHK_FAKE_LABEL_EXISTS: '1' })
+  const labelExistsOk = labelExists.result.status === 0
+    && called(labelExists.calls, 'gh', 'pr', 'edit', createdUrl, '--add-label', 'autonomous')
+  if (!labelExistsOk) {
+    throw new Error(JSON.stringify({ name: 'label-exists', result: labelExists.result, calls: labelExists.calls }))
+  }
+
+  // 부착 실패는 PR 자체를 죽이지 않되(URL 출력·exit 0) 경고를 남긴다 —
+  // cohort 판정에서 SHA 단독 신호 = unknown 이라 interactive 로 위장되지 않는다.
+  const labelFail = await runScenario('label-fail', { VHK_FAKE_LABEL_FAIL: '1' })
+  const labelFailSurvives = labelFail.result.status === 0
+    && labelFail.result.stdout.trim() === createdUrl
+    && /autonomous label attach failed/.test(labelFail.result.stderr + labelFail.result.stdout)
+  if (!labelFailSurvives) {
+    throw new Error(JSON.stringify({ name: 'label-fail', result: labelFail.result }))
+  }
+
   process.stdout.write(JSON.stringify({
     supported: true,
     created,
@@ -181,6 +213,10 @@ try {
     existingReused,
     baseScoped,
     headScoped,
+    labeledOnCreate,
+    labeledOnReuse,
+    labelExistsOk,
+    labelFailSurvives,
   }))
 } finally {
   await rm(root, { recursive: true, force: true })
