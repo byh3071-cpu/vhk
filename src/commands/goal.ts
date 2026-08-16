@@ -211,6 +211,25 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   const activeId = selectActiveId(goals)
   if (activeId === null) {
     console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
+    // #558: 기존 파일을 그대로 두면 마지막 완료 작업이 다음 작업처럼 남아 다른 세션이 끝난 일을 다시 한다.
+    // 없는 파일을 새로 만들지는 않는다 — 도입 여부는 goal init 이 정한다(112-T2 와 같은 이유).
+    const doneAbs = join(cwd, STATE_DIR, 'next-task.md')
+    if (existsSync(doneAbs)) {
+      atomicWriteFile(
+        doneAbs,
+        [
+          '# Next Task',
+          '',
+          `_Auto-updated ${new Date().toISOString()} via \`vhk goal next\`._`,
+          '',
+          '```',
+          'TASK: 없음 — 모든 goal 이 완료되었습니다.',
+          '```',
+          '',
+        ].join('\n')
+      )
+      console.log(chalk.dim('  ✅ next-task.md 를 완료 상태로 갱신했습니다.'))
+    }
     return
   }
   const active = goals.find((g) => g.frontmatter.id === activeId)

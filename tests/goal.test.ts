@@ -245,6 +245,31 @@ describe('goalNext', () => {
     }
   })
 
+  // #558: 전부 완료인데 기존 next-task.md 를 그대로 두면 마지막 완료 작업이 다음 작업처럼 남는다.
+  // 다음 세션이나 다른 에이전트가 그 파일을 읽고 끝난 일을 다시 한다.
+  it('모든 goal DONE 이면 기존 next-task.md 를 완료 상태로 갱신한다', async () => {
+    const dir = tmpProject('next-done-stale')
+    makeGoalFile(dir, 0, 'DONE')
+    adoptStateDir(dir)
+    const stale = join(dir, 'docs/state/next-task.md')
+    writeFileSync(
+      stale,
+      '# Next Task\n\n_Auto-updated 2026-01-01T00:00:00.000Z via `vhk goal next`._\n\n```\nTASK: Goal 0 — Goal 0\n```\n',
+      'utf-8'
+    )
+    process.chdir(dir)
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      const text = readFileSync(stale, 'utf-8')
+      expect(text).not.toContain('TASK: Goal 0')
+      expect(text).toContain('모든 goal 이 완료')
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   // 112-T2/T6: 공개 경계 정리로 docs/state/ 를 제거한 레포에서 next 가 디렉터리를 되살리면
   // 작업 상태의 원본이 로드맵과 next-task.md 둘로 갈린다.
   it('docs/state/ 가 없으면 디렉터리를 만들지 않는다 (원본 이원화 방지)', async () => {
