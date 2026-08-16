@@ -18,7 +18,8 @@ import { join } from 'node:path'
 const COMMANDS_DIR = 'src/commands'
 
 // 디스크 산출물을 만들거나 바꾸는 직접 호출. mkdirSync 는 단독으론 파괴적이지 않아 제외(오탐 방지).
-const WRITE_SIGNAL = /\b(writeFileSync|appendFileSync|rmSync|renameSync|copyFileSync|atomicWriteFile|emitPrompt)\s*\(/
+// removeFileSync·removeDirSync 는 rmSync 의 대체 헬퍼(TS-005) — 삭제도 디스크 변경이라 같은 시그널로 센다.
+const WRITE_SIGNAL = /\b(writeFileSync|appendFileSync|rmSync|removeFileSync|removeDirSync|renameSync|copyFileSync|atomicWriteFile|emitPrompt)\s*\(/
 const GUARD_SIGNAL = /\bensureNotHardStopped\s*\(/
 
 // ② index.ts 단일 chokepoint 에서 가드되는 명령(파일 상대경로 → guardCli action).

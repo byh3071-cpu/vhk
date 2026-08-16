@@ -49,6 +49,7 @@
 - 셸 명령의 따옴표와 여러 줄 문법은 실제 실행 셸에 맞춘다. Bash와 PowerShell 문법을 섞지 않는다.
 - 외부 입력이나 시각으로 파일·폴더명을 만들 때는 공통 헬퍼로 운영체제 금지문자를 바꾸고, 빈 이름과 중복을 확인한다.
 - `execSync` 신규 사용 금지 → `safeExecFile` 사용 <!-- vhk:check=no-exec-sync -->
+- `fs.rmSync` 신규 사용 금지 → `removeFileSync`·`removeDirSync` 사용 (비ASCII 경로에서 프로세스 즉사·조용한 삭제 누락, TS-005) <!-- vhk:check=no-rm-sync -->
 - 모든 커맨드 파일에 `printNextStep()` 패턴 사용
 - 한국어 별칭 `.alias()` + `ko.ts` 메시지 필수
 - 신규 커맨드 시 `nlp-router.ts` 키워드 추가 필수

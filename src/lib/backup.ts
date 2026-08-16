@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import { removeDirSync } from './fs-remove.js'
 
 /**
  * vhk 자체 백업 — git 비의존 복구. 덮어쓰기 직전 원본을 `.vhk/backups/<id>/` 로 복사한다.
@@ -145,7 +146,7 @@ export function pruneBackups(keepN: number, rootDir: string): string[] {
   const all = listBackups(rootDir) // 최신순
   const toDelete = all.slice(Math.max(0, keepN))
   for (const b of toDelete) {
-    fs.rmSync(b.dir, { recursive: true, force: true })
+    removeDirSync(b.dir)
   }
   return toDelete.map((b) => b.id)
 }

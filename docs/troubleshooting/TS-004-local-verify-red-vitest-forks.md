@@ -35,3 +35,15 @@ Windows 로컬에서 `pnpm test:run`(또는 `vhk verify`) 시 6 파일 7 테스�
   main 체크아웃에서도 동일 재현 = 작업 변경과 무관한 선재 결함.
 - 판정: 원판 교리 유지 — **CI 매트릭스(green)가 진실원**. 로컬 원인 후보는 vitest 4.x rolldown/esbuild
   네이티브 × 이 머신 조합. 후속: vitest patch 갱신 시 재확인, 빈발 시 pool/isolate 설정 실험.
+
+## 2026-08-16 원인 규명 — vitest 아니라 비ASCII 경로 (TS-005)
+
+위 "vitest 4.x × 이 머신" 추정은 **틀렸다**. 워커를 죽인 것은 테스트 teardown 의
+`fs.rmSync(tmpdir)` 이고, 트리거는 임시 경로에 든 **비ASCII 문자**(한글 사용자명)다.
+`0xC0000409` 는 그 rmSync 호출의 네이티브 fast-fail 이었다. 상세·실측표는 [TS-005](TS-005-rmsync-file-exit127.md).
+
+- 확인: 임시 디렉터리를 ASCII 경로로 바꾸자 250 파일 3,000+ 테스트가 로컬에서 통과.
+- 교훈: "CI 는 green 이니 로컬 빨강은 무시"로 4개월 덮여 있었다. CI 가 초록이었던 이유 자체가
+  **CI 경로가 ASCII 라 결함을 못 밟아서**였고, 그 사이 같은 결함이 제품 코드에 남아 있었다.
+  환경 차이를 결론으로 쓰기 전에 차이의 내용을 특정해야 한다.
+- 잔여: recall-log O(n²)·gh/exec 환경 의존은 이 규명과 별개로 원판 판정 유지.

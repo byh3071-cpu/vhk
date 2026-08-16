@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { atomicWriteFile } from '../lib/atomic-write.js'
+import { removeFileSync } from '../lib/fs-remove.js'
 import { join } from 'node:path'
 import chalk from 'chalk'
 import { prompt } from '../lib/prompt.js'
@@ -285,7 +286,7 @@ export async function missionClear(): Promise<void> {
     return
   }
   try {
-    rmSync(p)
+    removeFileSync(p)
     console.log(chalk.green('  ✅ 미션 계약 삭제됨 (.vhk/mission.json).'))
   } catch (e) {
     console.error(chalk.red(`  ❌ 삭제 실패: ${e instanceof Error ? e.message : String(e)}`))

@@ -1,4 +1,5 @@
-import { existsSync, unlinkSync, rmSync } from 'node:fs'
+import { existsSync, unlinkSync } from 'node:fs'
+import { removeDirSync } from '../lib/fs-remove.js'
 import chalk from 'chalk'
 import { prompt } from '../lib/prompt.js'
 import ora from 'ora'
@@ -84,7 +85,7 @@ export async function migrate(target?: string): Promise<void> {
   }
   if (existsSync('node_modules')) {
     cleanup.text = 'node_modules 삭제 중...'
-    rmSync('node_modules', { recursive: true, force: true })
+    removeDirSync('node_modules')
   }
   cleanup.succeed('기존 파일 정리 완료')
 
