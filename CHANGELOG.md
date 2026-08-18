@@ -4,7 +4,11 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-### Added
+## [2.14.1] - 2026-08-18
+
+### Internal
+
+> 아래 두 항목은 저장소의 검사 체계 변경이라 npm 배포물(`dist`)은 바뀌지 않는다.
 
 - 패턴 사전 규약 검사 (#527) — `PAT-NNN` 명명·frontmatter 필수 필드·번호 중복·**참조 무결성**을
   `vhk check` 가 검사한다. 규약이 문서로만 있던 탓에 결번을 가리키는 참조가 `vhk sync` 로 파생본 8개에
@@ -13,8 +17,6 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   `CHANGELOG.md`·`README.md`·`RULES.md`·`docs/` 중 하나를 함께 갱신해야 한다. 로컬 훅이 요구하는
   세션 기록은 비추적이라 클론만 받는 CI 가 볼 수 없어, 추적되는 공개 기록물로 검증 축을 바꿨다.
   `[skip-record]` 우회는 로컬 훅과 동일하게 인정한다.
-
-## [2.14.1] - 2026-08-18
 
 ### Fixed
 
