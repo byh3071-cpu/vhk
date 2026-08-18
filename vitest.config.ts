@@ -1,11 +1,13 @@
 import { defineConfig } from 'vitest/config'
+import os from 'node:os'
+// @ts-expect-error — 게이트 스크립트는 .mjs 라 타입 선언이 없다(빌드 산출물 아님).
+import { asciiTempEnv } from './scripts/ascii-temp-dir.mjs'
 
-// vitest 기본 exclude 에 .claude/** 추가.
-// EnterWorktree 가 .claude/worktrees/<name>/ 에 동일 레포 복사본을 만들면서
-// 해당 트리의 tests/ 가 부모 워크트리에서 호출한 vitest 에 중복 수집될 위험 차단.
-// node_modules / dist 는 vitest 기본 exclude 이지만 명시.
 export default defineConfig({
   test: {
+    // TS-005: 워커의 os.tmpdir() 이 참조하는 환경변수. 비ASCII 임시 경로에서만 개입하고,
+    // 쓸 수 있는 대체 경로가 없으면 아무것도 바꾸지 않는다 — 여기서 던지면 vitest 가 아예 안 뜬다.
+    env: asciiTempEnv(os.tmpdir(), process.cwd()),
     // spawnSync 기반 e2e 테스트가 Windows CI 병렬 부하에서 5s 기본 타임아웃을 간헐 초과 → 머지 차단 flaky.
     // (실측: 30s 면 전건 green. CLI 콜드스타트+spawn 지연이지 코드 결함 아님 — 매 머지 재실행 세금 제거.)
     testTimeout: 30_000,
