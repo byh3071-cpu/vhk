@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs'
+import { mkdirSync, writeFileSync, rmSync, readFileSync, existsSync, readdirSync } from 'node:fs'
+import { removeDirSync } from '../src/lib/fs-remove.js'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -266,7 +267,33 @@ describe('goalNext', () => {
       expect(text).toContain('모든 goal 이 완료')
     } finally {
       process.chdir(origCwd)
-      rmSync(dir, { recursive: true, force: true })
+      removeDirSync(dir)
+    }
+  })
+
+  // 활성 Goal 경로는 덮어쓰기 전에 백업하는데(Goal 78) 완료 경로만 빠지면,
+  // 수동으로 손댄 next-task.md 가 복구 수단 없이 사라진다. 백업 계약은 두 경로에서 같아야 한다.
+  it('모든 goal DONE 이어도 수동 편집본은 덮어쓰기 전에 백업한다', async () => {
+    const dir = tmpProject('next-done-backup')
+    makeGoalFile(dir, 0, 'DONE')
+    adoptStateDir(dir)
+    const manual = join(dir, 'docs/state/next-task.md')
+    writeFileSync(manual, ['# Next Task', '', '손으로 적어둔 인수인계 메모', ''].join('\n'), 'utf-8')
+    process.chdir(dir)
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      expect(readFileSync(manual, 'utf-8')).toContain('모든 goal 이 완료')
+      const backupRoot = join(dir, '.vhk/backups')
+      expect(existsSync(backupRoot)).toBe(true)
+      const saved = readdirSync(backupRoot)
+        .map((id) => join(backupRoot, id, 'docs/state/next-task.md'))
+        .filter((f) => existsSync(f))
+      expect(saved.length).toBeGreaterThan(0)
+      expect(readFileSync(saved[0], 'utf-8')).toContain('손으로 적어둔 인수인계 메모')
+    } finally {
+      process.chdir(origCwd)
+      removeDirSync(dir)
     }
   })
 
