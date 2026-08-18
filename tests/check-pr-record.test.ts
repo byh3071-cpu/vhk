@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest'
-// @ts-expect-error — 게이트 스크립트는 .mjs 라 타입 선언이 없다(빌드 산출물 아님).
 import { judge, classify, BYPASS_TOKEN } from '../scripts/check-pr-record.mjs'
 
 /*

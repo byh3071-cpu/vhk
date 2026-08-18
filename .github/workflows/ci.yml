@@ -169,13 +169,33 @@ jobs:
     name: 기록 동반 확인
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          # PR 코드를 실행하는 잡이라 체크아웃 토큰을 남기지 않는다.
+          persist-credentials: false
+
+      # 검사받는 쪽이 검사기를 고를 수 있으면 게이트가 아니다.
+      # PR 이 이 스크립트를 항상 통과하도록 바꿔 우회하는 걸 막으려고 base 판본을 꺼내 쓴다.
+      - name: 게이트 구현을 base 에서 추출
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "$BASE_SHA:scripts/check-pr-record.mjs" 2>/dev/null; then
+            git show "$BASE_SHA:scripts/check-pr-record.mjs" > "$RUNNER_TEMP/gate.mjs"
+          else
+            echo "::notice::base 에 게이트가 없습니다 — 도입 PR 로 보고 이 PR 판본을 씁니다"
+            cp scripts/check-pr-record.mjs "$RUNNER_TEMP/gate.mjs"
+          fi
 
       - name: 코드 변경에 기록물이 동반됐는지
-        run: node scripts/check-pr-record.mjs "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node "$RUNNER_TEMP/gate.mjs" "$BASE_SHA" "$HEAD_SHA"
 
   gate:
     name: gate
