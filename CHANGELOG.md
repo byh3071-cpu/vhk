@@ -6,6 +6,9 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- 패턴 사전 규약 검사 (#527) — `PAT-NNN` 명명·frontmatter 필수 필드·번호 중복·**참조 무결성**을
+  `vhk check` 가 검사한다. 규약이 문서로만 있던 탓에 결번을 가리키는 참조가 `vhk sync` 로 파생본 8개에
+  복제된 적이 있어, 없는 번호를 참조하면 차단한다.
 - 원격 에이전트·CI 가 기록 집행 사각지대이던 문제를 메우는 PR 게이트 (#526) — 코드가 바뀐 PR 은
   `CHANGELOG.md`·`README.md`·`RULES.md`·`docs/` 중 하나를 함께 갱신해야 한다. 로컬 훅이 요구하는
   세션 기록은 비추적이라 클론만 받는 CI 가 볼 수 없어, 추적되는 공개 기록물로 검증 축을 바꿨다.
