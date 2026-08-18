@@ -52,7 +52,7 @@ export async function testmap(): Promise<void> {
   }
   console.log(`  ${hard ? chalk.red('❌') : chalk.yellow('⚠️')} 테스트 없는 기능 변경 ${untested.length}건:`)
   for (const f of untested) {
-    console.log(chalk.dim(`     - ${f}  →  tests/**/${expectedTestBasename(f)} 필요`))
+    console.log(chalk.dim(`     - ${f}  →  tests/**/ 또는 소스 옆에 ${expectedTestBasename(f)} 필요`))
   }
   if (hard) {
     console.log(chalk.red('\n  VHK_TEST_FIRST=1 — test-first 미충족으로 차단(exit 1).'))

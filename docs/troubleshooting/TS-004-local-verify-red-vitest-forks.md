@@ -17,7 +17,7 @@ Windows 로컬에서 `pnpm test:run`(또는 `vhk verify`) 시 6 파일 7 테스�
 - ✅ **recall-log**: 테스트 timeout 30s 상향(goal 79). 구현은 무해라 유지(append 최적화는 YAGNI).
 - ⏸️ **forks 불안정**: 전역 `vitest` pool 변경은 **CI(현재 green)를 건드리는 리스크** → **YAGNI 관찰**. 재현이 빈발하면 `poolOptions.forks` 조정 검토.
 - ⏸️ **gh/exec**: CI green 이라 비차단. `@env` 분리는 실사용 신호 누적 시 재개.
-- 🛡️ **회귀 방지 패턴**: 새 테스트는 `process.chdir` 금지(함수에 cwd 인자 주입), teardown `rmSync` 는 try-catch(Windows 핸들 잔존 무해화).
+- 🛡️ **회귀 방지 패턴**: 새 테스트는 `process.chdir` 금지(함수에 cwd 인자 주입), teardown 삭제는 `removeDirSync` 사용(TS-005 — `rmSync` 금지).
 
 ## 우회 (로컬 개발자)
 실패가 의심되면 **소수 파일 단독 실행**: `pnpm exec vitest run tests/<file>.test.ts`.

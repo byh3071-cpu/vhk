@@ -8,6 +8,7 @@ import {
   findUntested,
   collectTestBasenames,
 } from '../src/lib/test-mapping.js'
+import { removeDirSync } from '../src/lib/fs-remove.js'
 
 describe('test-mapping 순수 함수', () => {
   it('isFeatureSource: commands/lib .ts 만 true', () => {
@@ -43,7 +44,7 @@ describe('collectTestBasenames', () => {
     expect(set.has('a.test.ts')).toBe(true)
     expect(set.has('b.test.ts')).toBe(true)
     expect(set.has('notatest.ts')).toBe(false)
-    fs.rmSync(d, { recursive: true, force: true })
+    removeDirSync(d)
   })
 
   // #559: 소스 옆에 둔 테스트(src/lib/foo.test.ts)를 tests/ 만 보면 못 찾아
@@ -61,7 +62,7 @@ describe('collectTestBasenames', () => {
     expect(set.has('colocated.test.ts')).toBe(true)
     expect(findUntested(['src/lib/colocated.ts'], set)).toEqual([])
 
-    fs.rmSync(d, { recursive: true, force: true })
+    removeDirSync(d)
   })
 
   it('rootDir 를 안 주면 종전대로 tests/ 만 본다 (기존 호출부 하위호환)', () => {
@@ -71,6 +72,6 @@ describe('collectTestBasenames', () => {
     const set = collectTestBasenames(path.join(d, 'tests'))
     expect(set.has('only.test.ts')).toBe(true)
     expect(set.size).toBe(1)
-    fs.rmSync(d, { recursive: true, force: true })
+    removeDirSync(d)
   })
 })
