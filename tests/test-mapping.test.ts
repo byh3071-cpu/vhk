@@ -45,4 +45,32 @@ describe('collectTestBasenames', () => {
     expect(set.has('notatest.ts')).toBe(false)
     fs.rmSync(d, { recursive: true, force: true })
   })
+
+  // #559: 소스 옆에 둔 테스트(src/lib/foo.test.ts)를 tests/ 만 보면 못 찾아
+  // 실제로는 테스트가 있는 파일을 "테스트 없음"으로 보고했다.
+  it('소스와 같은 위치에 둔 테스트도 수집한다 (#559)', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-tm-colocated-'))
+    fs.mkdirSync(path.join(d, 'tests'), { recursive: true })
+    fs.mkdirSync(path.join(d, 'src', 'lib'), { recursive: true })
+    fs.writeFileSync(path.join(d, 'tests', 'in-tests-dir.test.ts'), '')
+    fs.writeFileSync(path.join(d, 'src', 'lib', 'colocated.test.ts'), '')
+    fs.writeFileSync(path.join(d, 'src', 'lib', 'colocated.ts'), '')
+
+    const set = collectTestBasenames(path.join(d, 'tests'), d)
+    expect(set.has('in-tests-dir.test.ts')).toBe(true)
+    expect(set.has('colocated.test.ts')).toBe(true)
+    expect(findUntested(['src/lib/colocated.ts'], set)).toEqual([])
+
+    fs.rmSync(d, { recursive: true, force: true })
+  })
+
+  it('rootDir 를 안 주면 종전대로 tests/ 만 본다 (기존 호출부 하위호환)', () => {
+    const d = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-tm-compat-'))
+    fs.mkdirSync(path.join(d, 'tests'), { recursive: true })
+    fs.writeFileSync(path.join(d, 'tests', 'only.test.ts'), '')
+    const set = collectTestBasenames(path.join(d, 'tests'))
+    expect(set.has('only.test.ts')).toBe(true)
+    expect(set.size).toBe(1)
+    fs.rmSync(d, { recursive: true, force: true })
+  })
 })

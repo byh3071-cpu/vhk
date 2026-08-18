@@ -44,7 +44,7 @@ export async function testmap(): Promise<void> {
     console.log(chalk.dim('  변경된 기능 소스 없음 — 검사할 것 없음.'))
     return
   }
-  const testBasenames = collectTestBasenames(join(cwd, 'tests'))
+  const testBasenames = collectTestBasenames(join(cwd, 'tests'), cwd)
   const untested = findUntested(changed, testBasenames)
   if (untested.length === 0) {
     console.log(chalk.green(`  ✅ 변경 기능 ${changed.length}개 전부 대응 테스트 있음.`))
