@@ -101,6 +101,42 @@ describe('check-rule-no-rm-sync', () => {
     expect(runGate(dir).status).toBe(0)
   })
 
+  // 템플릿 리터럴 전체를 지우면 그 안의 치환식(${...})에 숨긴 호출이 사라진다 — 우회 통로가 된다.
+  it('템플릿 치환식 안의 호출도 센다', () => {
+    fs.writeFileSync(
+      path.join(dir, 'src', 'tpl.ts'),
+      ['import fs from "node:fs"', 'export const s = `x${fs.rmSync("/tmp/x")}y`', ''].join('\n'),
+      'utf-8',
+    )
+    expect(runGate(dir).status).toBe(1)
+  })
+
+  // 별칭 import 는 호출부 이름이 달라져 호출 수가 실제보다 적게 잡힌다 — baseline 이 어긋난다.
+  it('별칭 import 의 호출 수를 정확히 센다', () => {
+    fs.writeFileSync(
+      path.join(dir, 'tests', 'alias.test.ts'),
+      ['import { rmSync as remove } from "node:fs"', 'remove("/tmp/x")', 'remove("/tmp/y")', ''].join('\n'),
+      'utf-8',
+    )
+    writeBaseline({ 'tests/alias.test.ts': 2 })
+    expect(runGate(dir).status).toBe(0)
+
+    writeBaseline({ 'tests/alias.test.ts': 1 })
+    expect(runGate(dir).status).toBe(1)
+  })
+
+  // baseline 갱신은 tests 만 다룬다. src 위반까지 통과로 보고하면 갱신 명령이 위반을 덮는다.
+  it('--update-baseline 은 src 위반이 있으면 실패한다', () => {
+    fs.writeFileSync(
+      path.join(dir, 'src', 'bad.ts'),
+      ['import { rmSync } from "node:fs"', 'rmSync("/tmp/x")', ''].join('\n'),
+      'utf-8',
+    )
+    const r = spawnSync(process.execPath, [SCRIPT, '--update-baseline'], { cwd: dir, encoding: 'utf-8' })
+    expect(r.status).toBe(1)
+    expect(fs.existsSync(path.join(dir, 'scripts', 'rmsync-baseline.json'))).toBe(false)
+  })
+
   // 실제 레포 — 게이트가 지금 초록인지 여기서 확인한다.
   it('이 레포는 현재 규칙을 만족한다', () => {
     expect(runGate(process.cwd()).status).toBe(0)

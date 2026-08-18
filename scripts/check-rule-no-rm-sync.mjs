@@ -14,6 +14,7 @@
  */
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
+import ts from 'typescript'
 
 const ROOT = process.cwd()
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'])
@@ -21,27 +22,57 @@ const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx',
 const ALLOWLIST = new Set([join('src', 'lib', 'fs-remove.ts')])
 const BASELINE_PATH = join(ROOT, 'scripts', 'rmsync-baseline.json')
 
-/** 주석·문자열 안의 언급은 위반이 아니다 — 실제 호출만 잡는다. */
-function stripCommentsAndStrings(content) {
-  return content
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/\/\/[^\n]*/g, ' ')
-    .replace(/'(?:[^'\\\n]|\\.)*'/g, "''")
-    .replace(/"(?:[^"\\\n]|\\.)*"/g, '""')
-    .replace(/`(?:[^`\\]|\\.)*`/g, '``')
-}
-
 /**
- * 파일 안의 rmSync 실제 호출 수. named import 만 있고 호출이 없어도 1 로 센다(우회 방지).
- * import 검사도 주석·문자열을 걷어낸 코드에서 한다 — 이 가드를 검사하는 테스트처럼 문자열 리터럴 안에
- * import 문을 담은 파일을 위반으로 오인하기 때문. strip 후 모듈 경로 자리에는 빈 따옴표만 남는다.
+ * 파일 안의 rmSync 실제 호출 수(AST 기준).
+ *
+ * 정규식으로 주석·문자열을 걷어내는 방식은 중첩 인용에서 무너진다 — 작은따옴표 문자열 안의 백틱을
+ * 템플릿으로 오인하거나, 반대로 템플릿 치환식(`${fs.rmSync(x)}`)에 든 진짜 호출을 통째로 날린다.
+ * 후자는 그대로 우회 통로가 된다. 잔존 건수가 baseline 정합성에 직결되므로 여기서는 파서를 쓴다.
+ *
+ * named import 만 있고 호출이 없어도 1 로 센다(간접 호출로 빠져나가는 것 방지).
  */
-function countRmSync(content) {
-  const code = stripCommentsAndStrings(content)
-  const calls = code.match(/\brmSync\s*\(/g)?.length ?? 0
+function countRmSync(content, fileName) {
+  const source = ts.createSourceFile(fileName, content, ts.ScriptTarget.Latest, true)
+  const names = new Set(['rmSync'])
+  let importedOnly = false
+  let calls = 0
+
+  // 1차: import 절에서 로컬 이름(별칭 포함)을 모은다.
+  const collectImports = (node) => {
+    if (ts.isImportDeclaration(node) && node.importClause?.namedBindings) {
+      const bindings = node.importClause.namedBindings
+      if (ts.isNamedImports(bindings)) {
+        for (const element of bindings.elements) {
+          const original = element.propertyName?.text ?? element.name.text
+          if (original === 'rmSync') {
+            names.add(element.name.text)
+            importedOnly = true
+          }
+        }
+      }
+    }
+    ts.forEachChild(node, collectImports)
+  }
+  collectImports(source)
+
+  // 2차: 호출을 센다. fs.rmSync(...) 같은 프로퍼티 접근과 rmSync(...) 직접 호출 둘 다.
+  const countCalls = (node) => {
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression
+      if (ts.isIdentifier(callee) && names.has(callee.text)) calls += 1
+      else if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'rmSync') calls += 1
+      else if (
+        ts.isElementAccessExpression(callee)
+        && ts.isStringLiteralLike(callee.argumentExpression)
+        && callee.argumentExpression.text === 'rmSync'
+      ) calls += 1
+    }
+    ts.forEachChild(node, countCalls)
+  }
+  countCalls(source)
+
   if (calls > 0) return calls
-  const imported = /import\s*\{[^}]*\brmSync\b[^}]*\}\s*from\s*(?:''|"")/s.test(code)
-  return imported ? 1 : 0
+  return importedOnly ? 1 : 0
 }
 
 /** 디렉터리를 걸어 파일별 rmSync 건수를 센다(0 건은 담지 않는다). */
@@ -58,7 +89,7 @@ function scan(dir) {
       if (!SOURCE_EXTENSIONS.has(extname(entry.name))) continue
       const rel = relative(ROOT, fullPath).split('\\').join('/')
       if (ALLOWLIST.has(relative(ROOT, fullPath))) continue
-      const n = countRmSync(readFileSync(fullPath, 'utf-8'))
+      const n = countRmSync(readFileSync(fullPath, 'utf-8'), fullPath)
       if (n > 0) counts[rel] = n
     }
   }
@@ -89,6 +120,14 @@ try {
 }
 
 if (process.argv.includes('--update-baseline')) {
+  // baseline 은 tests 잔존분만 다룬다. src 위반을 안고 성공으로 끝내면 갱신 명령이 위반을 덮는다.
+  const sourceFiles = Object.keys(sourceCounts)
+  if (sourceFiles.length > 0) {
+    process.stderr.write(
+      `src 의 rmSync 를 먼저 없애세요 (baseline 은 tests 전용):\n${sourceFiles.join('\n')}\n`,
+    )
+    process.exit(1)
+  }
   const sorted = Object.fromEntries(Object.entries(testCounts).sort(([a], [b]) => a.localeCompare(b)))
   writeFileSync(BASELINE_PATH, `${JSON.stringify(sorted, null, 2)}\n`, 'utf-8')
   const total = Object.values(sorted).reduce((a, b) => a + b, 0)
