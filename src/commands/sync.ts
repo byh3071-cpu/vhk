@@ -837,6 +837,12 @@ export interface SyncResult {
    * 사용자가 조직 규칙이 적용됐다고 오해한 채 더 약한 규칙을 쓰는 것을 막는다.
    */
   coreRulesWarning?: string
+  /**
+   * #556: 실제로 내장 기본 규칙으로 대체됐는지. 경고가 있어도 대체가 아닐 수 있다 —
+   * VHK_RULES_FILE 이 실패한 뒤 홈 설정의 규칙 원본을 읽어낸 경우가 그렇다.
+   * 두 상태를 합치면 "기본 규칙으로 동기화했다" 는 거짓 안내가 나간다.
+   */
+  coreRulesFallback?: boolean
 }
 
 /**
@@ -904,6 +910,11 @@ export async function syncCore(
   // CLAUDE.md 마커 마이그레이션 집계(있으면) — 호출자가 보존/제거 섹션 경고에 사용. 추가 I/O 없음(plan 재사용).
   const claudeMigration = plan.find((p) => p.path === 'CLAUDE.md')?.migration
 
+  // #556: dry-run 도 같은 경고를 봐야 한다 — 미리보기에서 숨기면 본실행까지 모르고 간다.
+  const coreRules = loadCoreRuleset()
+  const coreRulesWarning = coreRules.warning
+  const coreRulesFallback = coreRules.origin === 'bundled'
+
   // --dry-run — 어떤 디스크 변경도 하지 않는다(백업·쓰기·마커 전부 생략)
   if (opts.dryRun) {
     return {
@@ -917,6 +928,8 @@ export async function syncCore(
       plan,
       unmapped,
       claudeMigration,
+      coreRulesWarning,
+      coreRulesFallback,
     }
   }
 
@@ -987,7 +1000,8 @@ export async function syncCore(
     plan,
     unmapped,
     claudeMigration,
-    coreRulesWarning: loadCoreRuleset().warning,
+    coreRulesWarning,
+    coreRulesFallback,
   }
 }
 
@@ -1098,7 +1112,8 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   // init 은 이미 같은 경고를 내보내는데 sync 만 빠져 있어, sync 로만 쓰는 사용자는 대체를 모른 채 지나갔다.
   if (result.coreRulesWarning) {
     log.warn(result.coreRulesWarning)
-    console.log(chalk.yellow(`  ${ko.sync.coreRulesFallback}`))
+    // 대체 안내는 실제로 대체됐을 때만 — 홈 설정 원본을 읽어낸 경우까지 "기본 규칙으로 동기화" 라고 하면 거짓말이다.
+    if (result.coreRulesFallback) console.log(chalk.yellow(`  ${ko.sync.coreRulesFallback}`))
   }
 
   // 배치1 — 마커 없는 기존 CLAUDE.md 를 마커 형식으로 1회 정리. 보존/교체 섹션을 안내(조용한 드롭 방지).
