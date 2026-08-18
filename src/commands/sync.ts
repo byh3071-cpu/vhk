@@ -17,6 +17,7 @@ import {
   generateMcpJsonExampleContent,
   generateCoreRulesFileContent,
 } from '../lib/inject-bootstrap.js'
+import { loadCoreRuleset } from '../lib/core-rules.js'
 import { PREAMBLE_TITLE } from '../lib/rules-import.js'
 import { isInteractive, promptOrDefault } from '../lib/interactive.js'
 import { runDocDriftChecks, type DriftFinding } from '../lib/drift-pairs.js'
@@ -830,6 +831,12 @@ export interface SyncResult {
   unmapped: string[]
   /** CLAUDE.md 마커 마이그레이션 집계 — migrated=true 면 호출자가 보존/제거 섹션 경고를 출력. */
   claudeMigration?: ClaudeMdMigration
+  /**
+   * #556: 지정한 규칙 원본을 못 읽어 내장 기본 규칙으로 대체됐을 때의 사유.
+   * 대체 자체는 막지 않되(작업 중단이 더 나쁘다) 조용히 넘어가지 않는다 —
+   * 사용자가 조직 규칙이 적용됐다고 오해한 채 더 약한 규칙을 쓰는 것을 막는다.
+   */
+  coreRulesWarning?: string
 }
 
 /**
@@ -969,7 +976,19 @@ export async function syncCore(
     fs.writeFileSync(agentsPath, refreshed, 'utf-8')
   }
 
-  return { dryRun: false, firstSync, backupId, backedUp, written, skipped, truncated, plan, unmapped, claudeMigration }
+  return {
+    dryRun: false,
+    firstSync,
+    backupId,
+    backedUp,
+    written,
+    skipped,
+    truncated,
+    plan,
+    unmapped,
+    claudeMigration,
+    coreRulesWarning: loadCoreRuleset().warning,
+  }
 }
 
 export async function sync(opts: SyncOptions = {}): Promise<void> {
@@ -1073,6 +1092,13 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
           `\n     모든 도구가 읽어야 하는 내용이면 표준 제목을 쓰세요(수정은 RULES.md 에서).`
       )
     )
+  }
+
+  // #556 — 지정한 규칙 원본을 못 읽어 내장 기본 규칙이 깔렸으면 알린다.
+  // init 은 이미 같은 경고를 내보내는데 sync 만 빠져 있어, sync 로만 쓰는 사용자는 대체를 모른 채 지나갔다.
+  if (result.coreRulesWarning) {
+    log.warn(result.coreRulesWarning)
+    console.log(chalk.yellow(`  ${ko.sync.coreRulesFallback}`))
   }
 
   // 배치1 — 마커 없는 기존 CLAUDE.md 를 마커 형식으로 1회 정리. 보존/교체 섹션을 안내(조용한 드롭 방지).
