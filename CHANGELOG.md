@@ -4,6 +4,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [2.14.1] - 2026-08-18
+
 ### Fixed
 
 - **한글 등 비ASCII 경로에서 VHK 가 아무 메시지 없이 종료되던 문제** (TS-005) — Windows 사용자명에 한글이 들어가면
@@ -998,6 +1000,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
 [Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v2.13.0...HEAD
+[2.14.1]: https://github.com/byh3071-cpu/vhk/compare/v2.14.0...v2.14.1
+[2.14.0]: https://github.com/byh3071-cpu/vhk/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/byh3071-cpu/vhk/compare/v2.12.0...v2.13.0
 [2.12.0]: https://github.com/byh3071-cpu/vhk/compare/v2.11.0...v2.12.0
 [2.3.0]: https://github.com/byh3071-cpu/vhk/compare/v2.2.0...v2.3.0

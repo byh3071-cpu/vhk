@@ -1,11 +1,11 @@
 # 기록 규칙 (vhk)
 
 ## 현재 상태
-- **버전:** v2.14.0 (발행 완료 — git 태그·GitHub 릴리스·npm `latest` 전부 2.14.0, `stable` 태그 폐지)
+- **버전:** v2.14.1 (준비 중 — 리포트된 결함 배치 수정, 태그·npm 발행 대기). 2.14.0 은 발행 완료
 - **Phase:** **관찰 게이트 진행 중** — 4주 AND 관측 완료 autonomous 표본 10회. 124·125는 구현 조기 착수(2026-08-13 오너 결정, 전부 기본 off — RFC 0066·0067). `enforce` 활성화·2.15.0 발행은 게이트 통과 후
 - **블로커:** 없음
-- **다음 액션:** PR 리뷰(RFC 0066·0067 + 게이트 개정 + 124 구현) → overnight 런으로 v2 원장(SHA 포함) 표본 축적 계속. 정의 원본은 [docs/roadmap/2.x-roadmap.md](docs/roadmap/2.x-roadmap.md)
-- **마지막 업데이트:** 2026-08-13
+- **다음 액션:** 2.14.1 태그 push → npm 발행(사람 2FA) → overnight 런으로 v2 원장(SHA 포함) 표본 축적 계속. 정의 원본은 [docs/roadmap/2.x-roadmap.md](docs/roadmap/2.x-roadmap.md)
+- **마지막 업데이트:** 2026-08-18
 
 <!-- vhk:rules:start -->
 > ⚡ 아래 규칙 섹션은 RULES.md에서 자동 생성됨 (vhk sync). 직접 수정 금지.
