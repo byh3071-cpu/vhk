@@ -47,6 +47,22 @@ describe('fs-remove — 비ASCII 경로에서도 실제로 지운다 (TS-005)', 
     expect(() => removeFileSync(path.join(ROOT, '없는파일.txt'))).not.toThrow()
   })
 
+  // existsSync 는 깨진 심볼릭 링크에 false 를 준다 — 그대로 조기 반환하면 링크가 남는다.
+  // rmSync(force) 는 이 경우도 지우므로, 대체 헬퍼가 계약을 지키려면 lstat 로 봐야 한다.
+  // Windows 는 심볼릭 링크 생성에 권한이 필요해 만들지 못하면 건너뛴다.
+  it('깨진 심볼릭 링크도 지운다 (force 동등)', (ctx) => {
+    const link = path.join(ROOT, 'dangling-link')
+    try {
+      fs.symlinkSync(path.join(ROOT, 'missing-target'), link)
+    } catch {
+      ctx.skip() // 심볼릭 링크 생성 권한 없음 — 조용한 통과로 위장하지 않는다
+      return
+    }
+    expect(fs.existsSync(link)).toBe(false) // 전제: 깨진 링크는 existsSync 로 안 보인다
+    removeFileSync(link)
+    expect(fs.lstatSync(link, { throwIfNoEntry: false })).toBeUndefined()
+  })
+
   it('디렉터리에 removeFileSync 를 쓰면 던진다 (오용 차단)', () => {
     const dir = path.join(ROOT, 'a-dir')
     fs.mkdirSync(dir, { recursive: true })

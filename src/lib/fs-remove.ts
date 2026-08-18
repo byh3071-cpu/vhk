@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs'
+import { lstatSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 
 /*
@@ -14,17 +14,39 @@ import { join } from 'node:path'
  * 비동기 fs.promises.rm 도 정상이지만, 호출부가 전부 동기 CLI 경로라 동기 구현을 유지한다.
  */
 
-/** 파일 1개 삭제. 없으면 통과(rmSync 의 force 와 동등). 디렉터리면 던진다. */
-export function removeFileSync(filePath: string): void {
-  if (!existsSync(filePath)) return
-  unlinkSync(filePath)
+/*
+ * existsSync 가 아니라 lstat 를 쓰는 이유: existsSync 는 링크 대상을 따라가므로 깨진 심볼릭 링크에
+ * false 를 준다. 그대로 조기 반환하면 rmSync(force) 는 지우는 링크가 남는다.
+ * 또 확인과 삭제 사이에 다른 프로세스가 먼저 지우면 ENOENT 가 뜨는데, "없으면 통과" 계약상
+ * 이건 성공이다. 다른 오류는 그대로 던져 실패를 숨기지 않는다.
+ */
+
+/** 대상이 (링크 자체 포함) 존재하는가. */
+function exists(p: string): boolean {
+  return lstatSync(p, { throwIfNoEntry: false }) !== undefined
 }
 
-/** 디렉터리를 재귀 삭제. 없으면 통과. 파일 경로가 오면 파일로 지운다. */
+/** 이미 사라진 경우만 삼킨다. */
+function ignoreMissing(remove: () => void): void {
+  try {
+    remove()
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+}
+
+/** 파일 1개 삭제. 없으면 통과(rmSync 의 force 와 동등). 디렉터리면 던진다. */
+export function removeFileSync(filePath: string): void {
+  if (!exists(filePath)) return
+  ignoreMissing(() => unlinkSync(filePath))
+}
+
+/** 디렉터리를 재귀 삭제. 없으면 통과. 파일·심볼릭 링크 경로가 오면 그것만 지운다. */
 export function removeDirSync(dirPath: string): void {
-  if (!existsSync(dirPath)) return
-  if (!lstatSync(dirPath).isDirectory()) {
-    unlinkSync(dirPath)
+  const stat = lstatSync(dirPath, { throwIfNoEntry: false })
+  if (stat === undefined) return
+  if (!stat.isDirectory()) {
+    ignoreMissing(() => unlinkSync(dirPath))
     return
   }
   for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
@@ -33,8 +55,8 @@ export function removeDirSync(dirPath: string): void {
     if (entry.isDirectory() && !entry.isSymbolicLink()) {
       removeDirSync(child)
     } else {
-      unlinkSync(child)
+      ignoreMissing(() => unlinkSync(child))
     }
   }
-  rmdirSync(dirPath)
+  ignoreMissing(() => rmdirSync(dirPath))
 }
