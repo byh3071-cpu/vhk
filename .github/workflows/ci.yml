@@ -162,15 +162,35 @@ jobs:
   # Goal 47: 매트릭스화로 잡 컨텍스트가 'test (os, node)'·'dogfood (os)'로 바뀌어 브랜치 보호의
   #   고정 필수체크 이름이 깨진다. 집계 잡 'gate' 하나를 두고 보호 규칙은 이것만 require —
   #   매트릭스 조합이 바뀌어도 필수체크 이름(gate)은 불변(미래안전).
+  # #526 — 원격 에이전트·CI 기록 집행 사각지대.
+  # 로컬 훅이 요구하는 세션 기록은 docs/devlog/ 와 .vhk/events/ 로 전부 비추적이라 클론만 받는
+  # CI 는 존재를 볼 수 없다(훅을 CI 로 옮겨도 같다). 그래서 추적되는 공개 기록물로 축을 바꿨다.
+  record:
+    name: 기록 동반 확인
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: 코드 변경에 기록물이 동반됐는지
+        run: node scripts/check-pr-record.mjs "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+
   gate:
     name: gate
-    needs: [test, dogfood]
+    needs: [test, dogfood, record]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - name: 매트릭스 전조합 성공 확인
         run: |
-          echo "test=${{ needs.test.result }} · dogfood=${{ needs.dogfood.result }}"
+          echo "test=${{ needs.test.result }} · dogfood=${{ needs.dogfood.result }} · record=${{ needs.record.result }}"
+          # record 는 PR 에서만 도므로 main 푸시에서는 skipped 가 정상이다.
+          if [ "${{ needs.record.result }}" != "success" ] && [ "${{ needs.record.result }}" != "skipped" ]; then
+            echo "::error::기록 동반 확인 실패 — gate fail (머지 차단)"
+            exit 1
+          fi
           if [ "${{ needs.test.result }}" != "success" ] || [ "${{ needs.dogfood.result }}" != "success" ]; then
             echo "::error::매트릭스 일부 조합 실패 — gate fail (머지 차단)"
             exit 1

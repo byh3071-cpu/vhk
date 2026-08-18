@@ -4,6 +4,13 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- 원격 에이전트·CI 가 기록 집행 사각지대이던 문제를 메우는 PR 게이트 (#526) — 코드가 바뀐 PR 은
+  `CHANGELOG.md`·`README.md`·`RULES.md`·`docs/` 중 하나를 함께 갱신해야 한다. 로컬 훅이 요구하는
+  세션 기록은 비추적이라 클론만 받는 CI 가 볼 수 없어, 추적되는 공개 기록물로 검증 축을 바꿨다.
+  `[skip-record]` 우회는 로컬 훅과 동일하게 인정한다.
+
 ## [2.14.1] - 2026-08-18
 
 ### Fixed
