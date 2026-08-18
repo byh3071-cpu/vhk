@@ -1,5 +1,6 @@
-import { writeFileSync, renameSync, rmSync } from 'node:fs'
+import { writeFileSync, renameSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
+import { removeFileSync } from './fs-remove.js'
 
 // 같은 프로세스 내 temp 파일명 충돌 방지용 단조 증가 카운터.
 // (process.pid 만으로는 동일 파일을 동시에 두 번 쓸 때 temp 경로가 겹쳐 마지막 쓰기로 오염될 수 있다.)
@@ -21,7 +22,7 @@ export function atomicWriteFile(filePath: string, data: string): void {
     renameSync(tmp, filePath)
   } catch (err) {
     try {
-      rmSync(tmp, { force: true })
+      removeFileSync(tmp)
     } catch {
       /* temp 정리 실패는 무시 — 원래 에러를 던진다 */
     }

@@ -13,6 +13,7 @@ import {
 } from './core-rules.js'
 import { writeHomeConfig } from './home-config.js'
 import { useIsolatedHome, type IsolatedHome } from './test-support/isolated-home.js'
+import { removeDirSync } from './fs-remove.js'
 
 const MINIMAL: CoreRuleset = {
   version: '0.1.0',
@@ -124,7 +125,7 @@ describe('loadCoreRuleset — 범용 규칙 파일 우선순위', () => {
     const home = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-core-source-'))
     delete process.env.VHK_RULES_FILE
     expect(loadCoreRuleset(home).source).toBe('bundled')
-    fs.rmSync(home, { recursive: true, force: true })
+    removeDirSync(home)
   })
 
   it('홈 rulesFile을 읽어 live로 사용한다', () => {
@@ -137,7 +138,7 @@ describe('loadCoreRuleset — 범용 규칙 파일 우선순위', () => {
     const loaded = loadCoreRuleset(home)
     expect(loaded.source).toBe('live')
     expect(loaded.version).toBe('3.0.0')
-    fs.rmSync(home, { recursive: true, force: true })
+    removeDirSync(home)
   })
 
   it('잘못된 홈 설정 값은 bundled로 안전하게 폴백한다', () => {
@@ -149,6 +150,6 @@ describe('loadCoreRuleset — 범용 규칙 파일 우선순위', () => {
 
     expect(() => loadCoreRuleset(home)).not.toThrow()
     expect(loadCoreRuleset(home).source).toBe('bundled')
-    fs.rmSync(home, { recursive: true, force: true })
+    removeDirSync(home)
   })
 })

@@ -15,6 +15,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { removeDirSync } from '../fs-remove.js'
 
 /** `os.homedir()` 가 참조하는 환경변수 (POSIX · Windows) */
 const HOME_ENV_KEYS = ['HOME', 'USERPROFILE'] as const
@@ -49,7 +50,7 @@ export function useIsolatedHome(prefix = 'vhk-isolated-home-'): IsolatedHome {
         if (value === undefined) delete process.env[key]
         else process.env[key] = value
       }
-      fs.rmSync(dir, { recursive: true, force: true })
+      removeDirSync(dir)
     },
   }
 }

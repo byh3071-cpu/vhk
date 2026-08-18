@@ -443,6 +443,9 @@ export const ko = {
   },
   sync: {
     title: '🔄 규칙 파일 맞추기',
+    coreRulesFallback:
+      '⚠️  지정한 규칙 원본 대신 VHK 내장 기본 규칙으로 동기화했습니다 — 지정한 규칙은 반영되지 않았어요. '
+      + '경로를 고치고 다시 실행하려면 vhk config set-rules-file <경로> 를 쓰세요.',
     noRules: '⚠️ RULES.md 파일이 없어요.',
     // Goal 63 — sync --check (검사 전용)
     checkNoRules: '⚠️ RULES.md 없음 — 검사 비적용 통과',

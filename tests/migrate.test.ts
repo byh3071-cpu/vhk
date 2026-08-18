@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockSafeExecFile = vi.fn()
 const mockExistsSync = vi.fn()
 const mockUnlinkSync = vi.fn()
-const mockRmSync = vi.fn()
+const mockRemoveDirSync = vi.fn()
 const mockPrompt = vi.fn()
 
 vi.mock('../src/lib/exec.js', () => ({
@@ -13,7 +13,10 @@ vi.mock('../src/lib/exec.js', () => ({
 vi.mock('node:fs', () => ({
   existsSync: (...a: unknown[]) => mockExistsSync(...a),
   unlinkSync: (...a: unknown[]) => mockUnlinkSync(...a),
-  rmSync: (...a: unknown[]) => mockRmSync(...a),
+}))
+
+vi.mock('../src/lib/fs-remove.js', () => ({
+  removeDirSync: (...a: unknown[]) => mockRemoveDirSync(...a),
 }))
 
 vi.mock('inquirer', () => ({
@@ -58,7 +61,7 @@ describe('migrate', () => {
     const { migrate } = await import('../src/commands/migrate.js')
     await migrate('yarn')
     expect(mockUnlinkSync).not.toHaveBeenCalled()
-    expect(mockRmSync).not.toHaveBeenCalled()
+    expect(mockRemoveDirSync).not.toHaveBeenCalled()
   })
 
   it('확인 거부 시 lockfile 삭제하지 않는다', async () => {
@@ -80,7 +83,7 @@ describe('migrate', () => {
     const { migrate } = await import('../src/commands/migrate.js')
     await migrate('npm')
     expect(mockUnlinkSync).toHaveBeenCalled()
-    expect(mockRmSync).toHaveBeenCalledWith('node_modules', { recursive: true, force: true })
+    expect(mockRemoveDirSync).toHaveBeenCalledWith('node_modules')
     const installCall = mockSafeExecFile.mock.calls.find(
       (c) => c[0] === 'npm' && Array.isArray(c[1]) && (c[1] as string[]).includes('install')
     )

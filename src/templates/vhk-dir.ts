@@ -52,6 +52,8 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
   return [
     '# VHK 로컬 전용 — 개인 메모/참고링크/안전신호 (.vhk/README.md 트래킹 정책)',
     'memory.json',
+    '# 백업본도 같은 개인 메모다 — migrate 의 .v1.bak, 쓰기 전 .bak 이 추적되면 안 된다(#557).',
+    'memory.json.*',
     'refs.json',
     'HARD_STOP',
     '# 커스터마이징 트리거 마커 — 로컬 전용(존재-여부 신호, 내용 없음). hooks/ 스크립트 자체는 커밋(제외 아님).',

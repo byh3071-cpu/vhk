@@ -44,7 +44,7 @@ export async function testmap(): Promise<void> {
     console.log(chalk.dim('  변경된 기능 소스 없음 — 검사할 것 없음.'))
     return
   }
-  const testBasenames = collectTestBasenames(join(cwd, 'tests'))
+  const testBasenames = collectTestBasenames(join(cwd, 'tests'), cwd)
   const untested = findUntested(changed, testBasenames)
   if (untested.length === 0) {
     console.log(chalk.green(`  ✅ 변경 기능 ${changed.length}개 전부 대응 테스트 있음.`))
@@ -52,7 +52,7 @@ export async function testmap(): Promise<void> {
   }
   console.log(`  ${hard ? chalk.red('❌') : chalk.yellow('⚠️')} 테스트 없는 기능 변경 ${untested.length}건:`)
   for (const f of untested) {
-    console.log(chalk.dim(`     - ${f}  →  tests/**/${expectedTestBasename(f)} 필요`))
+    console.log(chalk.dim(`     - ${f}  →  tests/**/ 또는 소스 옆에 ${expectedTestBasename(f)} 필요`))
   }
   if (hard) {
     console.log(chalk.red('\n  VHK_TEST_FIRST=1 — test-first 미충족으로 차단(exit 1).'))

@@ -475,7 +475,9 @@ describe('doctor 규칙 불일치 설명', () => {
     it('장문 비URL 줄에서 URL 후보 추출이 선형이다 (성능 회귀 가드)', () => {
       // #552 성능 검수: 이전 정규식 후보 추출은 구분자 없는 장문 영숫자 줄에서
       // 백트래킹으로 O(n²) (실측 40k자=453ms → 10만자면 수 초). 선형 구현은 수 ms.
-      // 기준 2초는 CI 지터를 감안한 넉넉한 상한 — 구 구현이면 확실히 초과한다.
+      // 상한 10초 — 선형 구현은 전체 합이 1초 미만이고, 구 구현은 O(n²)라 최장 줄(100만자) 하나만으로도
+      // 40k=453ms 기준 환산 수백 초다. 판별 간격이 두 자릿수 배수라 상한을 넉넉히 잡아도 회귀는 못 빠져나간다.
+      // (2초였을 때 전체 스위트 병렬 부하에서 3.5초가 나와 간헐 실패 — 측정값이 아니라 머신 경합이 원인이었다.)
       const lines = [
         'a1'.repeat(50_000), // 10만자, URL 구분자 없음
         'a1'.repeat(25_000) + '://', // 5만자 + 미완성 구분자(구 구현의 최악 백트래킹 경로)
@@ -487,7 +489,7 @@ describe('doctor 규칙 불일치 설명', () => {
       for (const line of lines) {
         expect(driftLineHasSecret(line, 'AGENTS.md')).toBe(false)
       }
-      expect(performance.now() - started).toBeLessThan(2_000)
+      expect(performance.now() - started).toBeLessThan(10_000)
     })
 
     it('4000자 초과 초장문 줄의 앞부분 시크릿도 놓치지 않고 숨긴다', () => {

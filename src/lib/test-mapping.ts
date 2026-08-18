@@ -41,11 +41,17 @@ export function findUntested(srcRels: string[], testBasenames: Set<string>): str
   return out
 }
 
-/** tests/ 디렉터리를 재귀 스캔해 모든 *.test.ts basename 집합을 만든다(IO). */
-export function collectTestBasenames(testsDir: string): Set<string> {
+/**
+ * *.test.ts basename 집합을 만든다(IO).
+ *
+ * tests/ 와 기능 소스 디렉터리를 함께 스캔한다. #559: 소스 옆에 테스트를 두는 배치
+ * (`src/lib/foo.test.ts`)에서 tests/ 만 보면 실제로 테스트가 있는 파일을 "테스트 없음"으로
+ * 보고했다. rootDir 를 생략하면 종전대로 tests/ 만 본다(기존 호출부 하위호환).
+ */
+export function collectTestBasenames(testsDir: string, rootDir?: string): Set<string> {
   const out = new Set<string>()
-  if (!existsSync(testsDir)) return out
   const walk = (dir: string): void => {
+    if (!existsSync(dir)) return
     for (const name of readdirSync(dir)) {
       const fp = join(dir, name)
       let isDir = false
@@ -59,5 +65,8 @@ export function collectTestBasenames(testsDir: string): Set<string> {
     }
   }
   walk(testsDir)
+  if (rootDir !== undefined) {
+    for (const d of FEATURE_DIRS) walk(join(rootDir, ...d.split('/')))
+  }
   return out
 }

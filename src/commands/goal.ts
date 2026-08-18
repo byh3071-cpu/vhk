@@ -197,6 +197,27 @@ function printActiveGoalSummary(activeId: number, active: ParsedGoal): void {
   console.log(chalk.dim(`     file: ${active.filePath}`))
 }
 
+/**
+ * next-task.md 덮어쓰기 전 백업 (Goal 78).
+ * why: 조회 의도로 next 를 눌러도 수동 편집본을 복구할 수 있어야 한다. 백업 실패가 next 본기능을
+ * 막지는 않는다(best-effort). 수동 편집 여부는 auto-update 마커 부재로 휴리스틱 판정.
+ */
+function backupNextTask(rel: string, abs: string, cwd: string): void {
+  const isManual = !readFileSync(abs, 'utf-8').includes('via `vhk goal next`')
+  try {
+    const b = saveBackup([rel], cwd)
+    pruneBackups(20, cwd)
+    if (b.files.length > 0) console.log(chalk.dim(`  💾 백업: .vhk/backups/${b.id}/`))
+  } catch {
+    /* best-effort — 백업 실패해도 next 진행 */
+  }
+  if (isManual) {
+    console.log(
+      chalk.yellow('  ⚠️  기존 next-task.md 가 수동 편집본으로 보입니다 — 위 백업에서 복구 가능 (조회만 하려면 vhk goal peek)')
+    )
+  }
+}
+
 export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   if (!ensureNotHardStopped('goal next')) return // HARD_STOP 활성 시 next-task.md 변경 차단
   console.log(chalk.bold(`\n${ko.goal.nextTitle}\n`))
@@ -211,6 +232,28 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   const activeId = selectActiveId(goals)
   if (activeId === null) {
     console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
+    // #558: 기존 파일을 그대로 두면 마지막 완료 작업이 다음 작업처럼 남아 다른 세션이 끝난 일을 다시 한다.
+    // 없는 파일을 새로 만들지는 않는다 — 도입 여부는 goal init 이 정한다(112-T2 와 같은 이유).
+    const doneRel = join(STATE_DIR, 'next-task.md')
+    const doneAbs = join(cwd, doneRel)
+    if (existsSync(doneAbs)) {
+      // 활성 Goal 경로(Goal 78)와 같은 백업 계약 — 완료 경로만 빠지면 수동 편집본이 복구 수단 없이 사라진다.
+      backupNextTask(doneRel, doneAbs, cwd)
+      atomicWriteFile(
+        doneAbs,
+        [
+          '# Next Task',
+          '',
+          `_Auto-updated ${new Date().toISOString()} via \`vhk goal next\`._`,
+          '',
+          '```',
+          'TASK: 없음 — 모든 goal 이 완료되었습니다.',
+          '```',
+          '',
+        ].join('\n')
+      )
+      console.log(chalk.dim('  ✅ next-task.md 를 완료 상태로 갱신했습니다.'))
+    }
     return
   }
   const active = goals.find((g) => g.frontmatter.id === activeId)
@@ -247,21 +290,7 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   // best-effort(백업 실패가 next 본기능을 막지 않음). 수동 편집 여부는 auto-update 마커 부재로 휴리스틱 판정.
   const nextTaskRel = join(STATE_DIR, 'next-task.md')
   const nextTaskAbs = join(cwd, nextTaskRel)
-  if (existsSync(nextTaskAbs)) {
-    const isManual = !readFileSync(nextTaskAbs, 'utf-8').includes('via `vhk goal next`')
-    try {
-      const b = saveBackup([nextTaskRel], cwd)
-      pruneBackups(20, cwd)
-      if (b.files.length > 0) console.log(chalk.dim(`  💾 백업: .vhk/backups/${b.id}/`))
-    } catch {
-      /* best-effort — 백업 실패해도 next 진행 */
-    }
-    if (isManual) {
-      console.log(
-        chalk.yellow('  ⚠️  기존 next-task.md 가 수동 편집본으로 보입니다 — 위 백업에서 복구 가능 (조회만 하려면 vhk goal peek)')
-      )
-    }
-  }
+  if (existsSync(nextTaskAbs)) backupNextTask(nextTaskRel, nextTaskAbs, cwd)
   atomicWriteFile(nextTaskAbs, text) // Goal 40: 쓰기 중 kill 시 next-task.md 손상 방지
   console.log(
     chalk.green(

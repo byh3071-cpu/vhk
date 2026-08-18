@@ -48,6 +48,14 @@ describe('Goal 108 — 공개 저장소 자체 원장과 생성 프로젝트 정
     expect(isTracked('.vhk/__definitely_absent__.xyz')).toBe(false)
   })
 
+  it('생성 프로젝트의 .vhk 템플릿은 memory.json 백업본까지 제외한다 (#557)', () => {
+    // memory.json 만 막으면 migrate 가 남기는 .v1.bak, 쓰기 전 .bak 이 그대로 추적된다.
+    // 원본과 같은 개인 메모라 보호등급도 같아야 한다.
+    const lines = VHK_GITIGNORE_TEMPLATE().split('\n').map((l) => l.trim())
+    expect(lines).toContain('memory.json')
+    expect(lines).toContain('memory.json.*')
+  })
+
   it('생성 프로젝트의 .vhk 템플릿은 원장 추적 기본값을 유지한다', () => {
     const generatedIgnore = VHK_GITIGNORE_TEMPLATE()
     expect(generatedIgnore).not.toContain('ledger.jsonl\n')
