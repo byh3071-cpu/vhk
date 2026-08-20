@@ -31,6 +31,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/auto_pr_goal.ps1 `
   **머지 = 0.** 래퍼는 *깨끗한 작업트리 + 미푸시 커밋* 상태를 지원한다(vhk-auto 가 이미 커밋한
   뒤의 push-only 경로) — dirty porcelain 을 기대하지 마라.
 - **INV-C** autonomy-log 의 시작 또는 종결 이벤트가 없으면 `.vhk/HARD_STOP` 을 쓰고 멈춘다.
+  합격 종결인데 **같은 SHA 의 receipt 가 없을 때도** 같다 — 그 런은 기록돼도 완주로 판정되지
+  않아 관찰 게이트 표본에 들어가지 않는다(vhk-auto INV-10).
 - **INV-D** 사람에게 A/B/C 를 묻지 않는다 — `docs/roadmap/autonomy-evolution.md` 의 기본값을 쓴다.
 - **INV-E** 중단 조건: HARD_STOP · verify 2회 연속 red · PR 을 열어 보고 완료.
 

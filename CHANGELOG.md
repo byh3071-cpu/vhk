@@ -4,6 +4,13 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Fixed
+
+- 자율 런이 완주해도 관찰 게이트 표본에 들어가지 않던 문제 — 완주 판정은 같은 커밋 SHA 의
+  `vhk receipt` 를 요구하는데 `vhk verify` 는 그 원장을 쓰지 않고, 자율 루프 스킬에도 호출이
+  없었다. 기록은 남지만 `verified=false` 로 떨어져 유효 실행에 안 들어가고 권한 승급까지
+  막힌다. 합격 종결 전 `vhk receipt` 를 불변식(INV-10)으로 못박았다.
+
 ### Added
 
 - `vhk policy` — 자율 실행 권한 정책 조회 (작업 단위 124-T4 · RFC 0066 §8). `policy level` 은 현재

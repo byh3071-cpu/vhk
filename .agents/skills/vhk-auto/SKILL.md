@@ -28,6 +28,10 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
 - **INV-9** 루프 시작 시 `vhk autonomy-log --event start`로 runId를 발급받아 루프 내내
   유지하고, 종결 분기에서 결과에 맞는 이벤트로 반드시 종결 기록한다(이슈 #373 자율성완주율
   계측 — 시작만 있고 종결이 없으면 완주율 분모/분자가 둘 다 부정확해진다).
+- **INV-10** 합격 종결 전에 `vhk receipt` 를 반드시 실행한다. 완주 판정은 **같은 커밋 SHA 의
+  receipt** 를 요구하는데(`isVerifiedComplete`), `vhk verify` 는 그 원장을 쓰지 않는다.
+  빠지면 런이 기록돼도 `verified=false` 로 떨어져 관찰 게이트의 유효 실행에 들어가지 않고,
+  자기 보고 격차로 잡혀 권한 승급까지 영구 차단된다. 커밋 직후에 불러야 SHA 가 일치한다.
 
 ## 루프 (1회 호출 = active goal 카드 1개)
 0. **안전 확인**: `.vhk/HARD_STOP` 존재? → 있으면 즉시 중단, 사유 보고하고 종료. (INV-6)
@@ -49,8 +53,9 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
    - **합격**(verify green AND 적대 치명 0):
      1) `docs/devlog/<오늘날짜>-autopilot.md` 에 "무엇을 했고 검증 결과" 1줄 append. (INV-5)
      2) 작은 commit 1개. **commit 만** — push/PR 금지. (INV-7)
-     3) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)
-     4) goal 완주 → 정지 + 핵심 보고 → 종료.
+     3) `vhk receipt` 실행 — **커밋 직후, 종결 기록 직전**. (INV-10)
+     4) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)
+     5) goal 완주 → 정지 + 핵심 보고 → 종료.
    - **critical 발견 또는 verify 연속 2회 red**:
      1) `.vhk/HARD_STOP` 파일을 사유와 함께 생성. (INV-6)
      2) `vhk autonomy-log --event hardstop --run-id <runId> [...] [--review-rejected]`
