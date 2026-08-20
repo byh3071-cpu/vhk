@@ -118,3 +118,73 @@ describe('policy-config 로더 (RFC 0066 §7.4)', () => {
     expect(fs.existsSync(path.join(dir, POLICY_CONFIG_REL))).toBe(false)
   })
 })
+
+/*
+ * RFC 0067 §3.3 — allow·limits 섹션 (125a-T2).
+ *
+ * limits 필수화는 적대 검증 치명 5 다. 초안은 세 값을 전부 optional 로 뒀는데,
+ * 기존 evaluateBudget 은 한도가 없으면 allow 를 반환하고 시간 비교도 undefined 와의 비교라
+ * 통과한다 — **한도를 안 쓰면 한도가 없어지는 fail-open** 이었다.
+ * 자율 레인의 한도는 "안 쓰면 없음" 이 아니라 "안 쓰면 못 돎" 이어야 한다.
+ */
+describe('allow·limits 섹션 (RFC 0067 §3.3)', () => {
+  const valid = {
+    schemaVersion: 1,
+    allow: [{ id: 'lint', bin: 'pnpm', args: ['lint'], minLevel: 'L1' }],
+    limits: { perRunSec: 3600, perCommandSec: 900, perRunCommandCount: 40 },
+  }
+
+  it('정상 섹션을 읽는다', () => {
+    write(JSON.stringify(valid))
+    const c = loadPolicyConfig(dir)
+    expect(c.allow).toHaveLength(1)
+    expect(c.limits?.perRunSec).toBe(3600)
+    expect(c.sectionsUsable).toBe(true)
+  })
+
+  // 섹션이 깨져도 record·enforce·maxLevel 해석은 살아 있어야 한다(0066 §7.4 독립 파싱).
+  it('allow 가 깨져도 세 키는 독립 파싱된다', () => {
+    write(JSON.stringify({ ...valid, record: true, allow: 'not-an-array' }))
+    const c = loadPolicyConfig(dir)
+    expect(c.record).toBe(true)
+    expect(c.failClosed).toBe(false)
+    expect(c.sectionsUsable).toBe(false) // 자율 레인만 fail-closed
+  })
+
+  it('limits 가 없으면 자율 레인 사용 불가', () => {
+    write(JSON.stringify({ schemaVersion: 1, allow: valid.allow }))
+    expect(loadPolicyConfig(dir).sectionsUsable).toBe(false)
+  })
+
+  it('limits 세 값 중 하나라도 없으면 사용 불가', () => {
+    write(JSON.stringify({ ...valid, limits: { perRunSec: 10, perCommandSec: 5 } }))
+    expect(loadPolicyConfig(dir).sectionsUsable).toBe(false)
+  })
+
+  // "안 쓰면 없음" 이 아니라 "안 쓰면 못 돎".
+  it('limits 값이 0 이하면 사용 불가 — 한도가 사라지지 않는다', () => {
+    write(JSON.stringify({ ...valid, limits: { ...valid.limits, perRunSec: 0 } }))
+    expect(loadPolicyConfig(dir).sectionsUsable).toBe(false)
+    write(JSON.stringify({ ...valid, limits: { ...valid.limits, perRunCommandCount: -1 } }))
+    expect(loadPolicyConfig(dir).sectionsUsable).toBe(false)
+  })
+
+  it('allow 항목 하나가 무효면 섹션 전체 무효', () => {
+    write(JSON.stringify({ ...valid, allow: [valid.allow[0], { id: 'bad', bin: 'pnpm' }] }))
+    const c = loadPolicyConfig(dir)
+    expect(c.allow).toEqual([])
+    expect(c.sectionsUsable).toBe(false)
+  })
+
+  it('perRunUsd 는 참고 지표라 판정에 안 쓴다 — 있어도 sectionsUsable 에 영향 없음', () => {
+    write(JSON.stringify({ ...valid, limits: { ...valid.limits, perRunUsd: 5 } }))
+    expect(loadPolicyConfig(dir).sectionsUsable).toBe(true)
+  })
+
+  it('섹션이 아예 없으면 사용 불가 — 빈 허용목록은 전부 거부다', () => {
+    write(JSON.stringify({ schemaVersion: 1, record: true }))
+    const c = loadPolicyConfig(dir)
+    expect(c.record).toBe(true)
+    expect(c.sectionsUsable).toBe(false)
+  })
+})

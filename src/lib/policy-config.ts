@@ -15,6 +15,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { readJsonFile } from './read-json.js'
 import { LEVELS, type PermissionLevel } from './permission-level.js'
+import { parseAllowlist, type AllowEntry } from './command-allowlist.js'
 
 export const POLICY_CONFIG_REL = join('.vhk', 'policy.json')
 export const POLICY_SCHEMA_VERSION = 1
@@ -36,11 +37,66 @@ export interface PolicyConfig {
   failClosed: boolean
   /** fail-closed 사유. 사람이 무엇을 고쳐야 하는지 알 수 있게 남긴다 */
   reasonCode?: PolicyConfigReasonCode
+
+  // ── RFC 0067 §3.3 — allow·limits 섹션 ──
+
+  /** 허용목록. 섹션이 무효면 빈 배열 */
+  allow: AllowEntry[]
+  /** 한도. 셋 다 필수이고 >0 이어야 한다 */
+  limits?: ExecutionLimits
+  /**
+   * 자율 레인이 이 설정으로 돌 수 있는가.
+   *
+   * `failClosed` 와 구분한다 — 저건 세 키(record·enforce·maxLevel)를 못 읽은 상태이고,
+   * 이건 **allow·limits 섹션이 쓸 수 없는 상태**다. 허용목록 항목 하나의 오타가 `enforce`
+   * 해석까지 날리면 사람이 파일을 고치는 동안 무엇을 끈 건지 알 수 없다(§7.4 독립 파싱).
+   * 다만 자율 레인의 결과는 어느 쪽이든 fail-closed 로 같다.
+   */
+  sectionsUsable: boolean
+}
+
+/** 런·명령 한도. 셋 다 필수다 — 안 쓰면 없어지는 게 아니라 못 돈다(치명 5). */
+export interface ExecutionLimits {
+  perRunSec: number
+  perCommandSec: number
+  perRunCommandCount: number
+  /** 참고 지표. **판정에 쓰지 않는다** — 자기 보고라 하드리밋 근거가 못 된다(§5.5) */
+  perRunUsd?: number
 }
 
 /** 신뢰할 수 없는 설정의 결과 — 플래그는 반드시 꺼진 값으로 준다. */
 function blocked(reasonCode: PolicyConfigReasonCode): PolicyConfig {
-  return { record: false, enforce: false, failClosed: true, reasonCode }
+  return {
+    record: false,
+    enforce: false,
+    failClosed: true,
+    reasonCode,
+    allow: [],
+    sectionsUsable: false,
+  }
+}
+
+/** 한도 파싱 — 셋 다 있어야 하고 전부 >0 이어야 한다. 하나라도 어긋나면 섹션 무효. */
+function parseLimits(raw: unknown): ExecutionLimits | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
+  const o = raw as Record<string, unknown>
+  const required = ['perRunSec', 'perCommandSec', 'perRunCommandCount'] as const
+  const out: Record<string, number> = {}
+  for (const key of required) {
+    const v = o[key]
+    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) return null
+    out[key] = v
+  }
+  const limits: ExecutionLimits = {
+    perRunSec: out.perRunSec,
+    perCommandSec: out.perCommandSec,
+    perRunCommandCount: out.perRunCommandCount,
+  }
+  // 참고 지표 — 값이 이상해도 섹션을 무효화하지 않는다. 판정에 안 쓰기 때문이다.
+  if (typeof o.perRunUsd === 'number' && Number.isFinite(o.perRunUsd)) {
+    limits.perRunUsd = o.perRunUsd
+  }
+  return limits
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -65,7 +121,10 @@ function readFlag(raw: Record<string, unknown>, key: string): boolean | null {
 export function loadPolicyConfig(cwd: string): PolicyConfig {
   const p = join(cwd, POLICY_CONFIG_REL)
   // 파일 없음 = 이 기능을 안 쓰는 저장소. 손상이 아니므로 멈추지 않는다.
-  if (!existsSync(p)) return { record: false, enforce: false, failClosed: false }
+  // 다만 허용목록이 없으니 자율 레인은 쓸 수 없다(빈 허용목록 = 전부 거부).
+  if (!existsSync(p)) {
+    return { record: false, enforce: false, failClosed: false, allow: [], sectionsUsable: false }
+  }
 
   let parsed: unknown
   try {
@@ -94,6 +153,22 @@ export function loadPolicyConfig(cwd: string): PolicyConfig {
     maxLevel = raw as PermissionLevel
   }
 
+  // allow·limits 는 세 키와 **독립 파싱**이다(§7.4). 여기가 깨져도 record/enforce 해석은 살아 있다.
+  const allowParse = parseAllowlist(parsed.allow ?? [])
+  const limits = parseLimits(parsed.limits)
+  const hasAllowSection = 'allow' in parsed
+  // 자율 레인이 돌려면 유효한 허용목록 **과** 한도가 둘 다 있어야 한다.
+  // 섹션이 아예 없는 것도 사용 불가다 — 빈 허용목록은 전부 거부이므로 돌 수 있는 명령이 없다.
+  const sectionsUsable = allowParse.ok && hasAllowSection && allowParse.entries.length > 0 && limits !== null
+
   // 집행하면서 이력을 안 남기는 경로는 만들지 않는다(§7.1).
-  return { record: record || enforce, enforce, maxLevel, failClosed: false }
+  return {
+    record: record || enforce,
+    enforce,
+    maxLevel,
+    failClosed: false,
+    allow: allowParse.ok ? allowParse.entries : [],
+    limits: limits ?? undefined,
+    sectionsUsable,
+  }
 }
