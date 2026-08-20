@@ -11,6 +11,11 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   없었다. 기록은 남지만 `verified=false` 로 떨어져 유효 실행에 안 들어가고 권한 승급까지
   막힌다. 합격 종결 전 `vhk receipt` 를 불변식(INV-10)으로 못박았다.
 
+### Changed
+
+- `vhk policy` 출력이 판정 사유를 사람 문장으로 함께 보여준다 — `LEDGER_EMPTY` 같은 코드만
+  노출하면 무슨 상태인지 알 수 없다. 코드는 원장과 대조할 수 있게 그대로 남긴다.
+
 ### Added
 
 - `vhk policy` — 자율 실행 권한 정책 조회 (작업 단위 124-T4 · RFC 0066 §8). `policy level` 은 현재
