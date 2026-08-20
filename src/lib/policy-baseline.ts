@@ -18,6 +18,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { readJsonFile } from './read-json.js'
 import { POLICY_CONFIG_REL } from './policy-config.js'
 
 export const POLICY_BASELINE_REL = join('.vhk', 'policy-baseline.json')
@@ -57,7 +58,7 @@ export function checkPolicyBaseline(cwd: string): BaselineCheck {
 
   let recorded: unknown
   try {
-    recorded = JSON.parse(readFileSync(baselinePath, 'utf-8'))
+    recorded = readJsonFile<unknown>(baselinePath)
   } catch {
     return { mutated: true, baselineMissing: false, reasonCode: 'POLICY_CONFIG_MUTATED' }
   }

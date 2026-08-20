@@ -11,8 +11,9 @@
  * 이 모듈은 읽기만 한다. 설정 파일을 만들지도, 고치지도 않는다 — `enforce` 를 켜는 CLI 명령을
  * 만들지 않는 규율(§7.4)과 같은 이유다. 사람이 편집기로 직접 쓴다.
  */
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
+import { readJsonFile } from './read-json.js'
 import { LEVELS, type PermissionLevel } from './permission-level.js'
 
 export const POLICY_CONFIG_REL = join('.vhk', 'policy.json')
@@ -68,7 +69,7 @@ export function loadPolicyConfig(cwd: string): PolicyConfig {
 
   let parsed: unknown
   try {
-    parsed = JSON.parse(readFileSync(p, 'utf-8'))
+    parsed = readJsonFile<unknown>(p)
   } catch {
     return blocked('POLICY_CONFIG_UNREADABLE')
   }
