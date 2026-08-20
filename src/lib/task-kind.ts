@@ -34,6 +34,8 @@ const PATH_RULES: ReadonlyArray<{ kind: TaskKind; test: (p: string) => boolean }
     kind: 'security',
     test: (p) =>
       p.startsWith('.github/workflows/') ||
+      // RFC 0066 §7.3 조치3 — 권한 정책 설정. 이 파일이 바뀌면 자율 실행의 상한 자체가 바뀐다.
+      /(^|\/)\.vhk\/policy\.json$/.test(p) ||
       /(^|\/)(\.gitignore|\.npmrc|\.npmignore)$/.test(p) ||
       /(^|\/)[^/]*(secur|boundary|auth|secret|credential)[^/]*\.[a-z]+$/i.test(p) ||
       /(^|\/)exec\.[a-z]+$/i.test(p) ||
@@ -97,6 +99,35 @@ export function deriveTaskKind(paths: readonly string[]): TaskKind {
     if (rank > best) best = rank
   }
   return best < 0 ? 'unknown' : RISK_ORDER[best]
+}
+
+/**
+ * 변경 파일 목록의 분류 내역 (RFC 0066 §5.3 — additive).
+ *
+ * why 별도 함수인가: `deriveTaskKind` 는 위험도 최댓값만 돌려주는데, `RISK_ORDER` 에 `unknown`
+ * 이 없어서 미분류 경로는 `indexOf` 가 -1 을 주고 **어떤 분류된 유형에도 진다.** 그래서
+ * `['docs/a.md', 'Dockerfile']` 이 통째로 `docs` 가 된다 — 컨테이너 정의·CI 보조 파일·확장자
+ * 없는 스크립트가 문서 파일 하나에 묻어 낮은 위험도로 통과하는 구멍이다(적대 검증 치명 1).
+ *
+ * 기존 함수의 동작을 고치지 않는 이유는 원장에 이미 쓰인 `taskKind` 값의 의미가 달라지면
+ * 과거 라인과 비교가 깨지기 때문이다. 대신 미분류 수를 같이 돌려주고, 위험도 판정은
+ * 이 함수만 쓴다 — 미분류가 하나라도 있으면 `human` 이다.
+ */
+export interface TaskKindBreakdown {
+  /** `deriveTaskKind` 와 동일한 값 */
+  kind: TaskKind
+  /** 검사한 경로 수 */
+  total: number
+  /** `classifyPath` 가 `unknown` 을 준 경로 수 */
+  unclassified: number
+}
+
+export function deriveTaskKindDetailed(paths: readonly string[]): TaskKindBreakdown {
+  let unclassified = 0
+  for (const path of paths) {
+    if (classifyPath(path) === 'unknown') unclassified++
+  }
+  return { kind: deriveTaskKind(paths), total: paths.length, unclassified }
 }
 
 /** 외부(에이전트 플래그·과거 로그 라인)에서 들어온 값을 닫힌집합에 대조. 미매칭은 unknown. */
