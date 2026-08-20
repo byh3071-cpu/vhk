@@ -6,6 +6,11 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Internal
 
+- 위험도 분류를 신설 (작업 단위 124-T2 · RFC 0066 §5). 기존 `TaskKind` 7종을 `auto`/`human`
+  두 갈래로 접는 순수 매핑이다. **변경 경로 중 미분류가 하나라도 있으면 `human`** — 최댓값만 보면
+  `['docs/a.md', 'Dockerfile']` 이 통째로 `docs` 로 통과하던 구멍을 막는다. 권한 단계는 `human`
+  위험도를 완화하지 않는다. 이를 위해 `deriveTaskKindDetailed` 를 additive 로 추가하고
+  `.vhk/policy.json` 을 `security` 경로로 등재했다. **아직 배선되지 않았다**(계산만).
 - 권한 단계 판정을 순수 함수로 신설 (작업 단위 124-T1 · RFC 0066 §4). 자율 실행이 어디까지 갈 수
   있는지(`L0` 관찰 ~ `L3` 제출)를 3중 판정 집계에서 매번 재계산한다. 단계를 저장하지 않으므로
   원장이 사라지면 시작값으로 돌아간다 — fail-closed 다. **아직 어디에도 배선되지 않았다**(계산만).
