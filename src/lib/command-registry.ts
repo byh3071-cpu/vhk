@@ -12,6 +12,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   ref: ['add', 'list', 'open'],
   memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate', 'eval'],
   cloud: ['push', 'pull'],
+  policy: ['level', 'risk', 'show'],
   secure: ['scan'],
   // #344: env·design 은 서브커맨드 없는 leaf 다(env-check·design-palette 는 별도 top-level 명령).
   // 여기 env:['check']·design:['palette'] 를 두면 R1 가드가 'env check' 를 "실제 서브 경로"로 오판 →
@@ -39,6 +40,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
  * 별칭 없는 컨테이너(mission/seo/bootstrap 등)는 등재하지 않는다(발명 금지).
  */
 export const CONTAINER_SUBCOMMAND_ALIASES: Record<string, Record<string, string>> = {
+  policy: { 단계: 'level', 위험도: 'risk', 보기: 'show' },
   secure: { 스캔: 'scan' },
   cloud: { 올리기: 'push', 내리기: 'pull' },
   ref: { 목록: 'list', 열기: 'open' },
@@ -90,6 +92,7 @@ export const CONTAINER_ALIASES: Record<string, string> = {
   레퍼런스: 'ref',
   기억: 'memory',
   클라우드: 'cloud',
+  정책: 'policy',
   보안: 'secure',
   // #344: env·design 은 컨테이너가 아닌 leaf 라 CONTAINER_SUBCOMMANDS 에서 제거됨 →
   // 그 한글 별칭(환경변수·디자인)도 컨테이너 별칭에서 제거(별칭이 무효 컨테이너를 가리키지 않게).
@@ -120,6 +123,7 @@ export const TOP_LEVEL_COMMANDS: ReadonlyArray<{ name: string; desc: string }> =
   { name: 'recap', desc: '오늘 한 일 정리 + ADR 분리' },
   { name: 'sync', desc: 'RULES.md → 규칙 파일 동기화' },
   { name: 'check', desc: 'RULES.md 규칙 점검' },
+  { name: 'policy', desc: '자율 실행 권한 정책 조회 (읽기 전용)' },
   { name: 'secure', desc: '보안 스캔 (시크릿 유출 검사)' },
   { name: 'cloud', desc: '.vhk 클라우드 백업·복원 (push/pull)' },
   { name: 'ship', desc: '배포 체크리스트 + 회고' },

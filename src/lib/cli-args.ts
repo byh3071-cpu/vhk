@@ -13,6 +13,7 @@ export const KNOWN_COMMAND_TOKENS = new Set([
   // #345: 'scan'·'스캔' 은 secure 의 서브-별칭일 뿐 최상위 명령/별칭이 아니다 → 유령 KNOWN 토큰.
   // KNOWN 에 두면 단일토큰일 때 detect 가 null 반환 → commander raw 'too many arguments'(미지 단어보다 나쁨).
   // 빼면 NL 라우터로 흘러 친절 처리된다. (KNOWN ⊆ 실제 명령/별칭 — registry-drift-usage 테스트가 강제)
+  'policy', '정책',
   'secure', '보안',
   'ship',
   'doctor', '환경', '진단',

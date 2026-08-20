@@ -13,6 +13,7 @@ import { recap } from './commands/recap.js'
 import { sync } from './commands/sync.js'
 import { check } from './commands/check.js'
 import { secure } from './commands/secure.js'
+import { policyLevel, policyRisk, policyShow } from './commands/policy.js'
 import { doctor } from './commands/doctor.js'
 import { ship } from './commands/ship.js'
 import { save } from './commands/save.js'
@@ -249,6 +250,32 @@ program
   .option('--json', 'JSON 요약 출력 (CI/MCP용, #374)')
   .description('RULES.md 규칙 점검 — 코드 위반 검사 (또는 --goal <id> 로 goal 게이트)')
   .action(async (target: string | undefined, opts: { goal?: string; json?: boolean }) => { await check(opts, target) })
+
+// RFC 0066 §8 — 권한 정책 조회. 세 서브커맨드 전부 읽기 전용이고 원장에 기록하지 않는다
+// (조회로 전이가 일어나면 세 번 불러 단계를 올리는 경로가 열린다 — §4.3).
+const policyCmd = program
+  .command('policy')
+  .alias('정책')
+  .description('자율 실행 권한 정책 조회 — level: 단계, risk: 위험도, show: 전체')
+  .action(() => { policyShow() })
+
+policyCmd
+  .command('level')
+  .alias('단계')
+  .description('현재 권한 단계와 다음 승급 조건')
+  .action(() => { policyLevel() })
+
+policyCmd
+  .command('risk')
+  .alias('위험도')
+  .description('스테이징된 변경의 작업 유형과 위험도')
+  .action(() => { policyRisk() })
+
+policyCmd
+  .command('show')
+  .alias('보기')
+  .description('설정 상태 + 권한 단계 + 위험도')
+  .action(() => { policyShow() })
 
 const secureCmd = program
   .command('secure')
