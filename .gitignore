@@ -27,6 +27,8 @@ dist/
 # 베이스라인은 policy.json 변조 탐지용이라 같이 추적하면 둘을 함께 고치는 경로가 커밋에 남는다.
 .vhk/policy.json
 .vhk/policy-baseline.json
+# 자율 런 단위 상태(호출 수·경과) — 런 중에만 존재하는 로컬 계측값 (RFC 0067 §5.3-3)
+.vhk/run-state.json
 # SEO 대시보드 로컬 설정(vhk seo init) — 관리 사이트 목록은 프로젝트별 로컬 상태, 공유 대상 아님.
 # (값 없이 환경변수 참조만 담지만, 로컬 상태이므로 mission.json 과 동일하게 커밋 제외.)
 .vhk/seo/
