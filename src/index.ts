@@ -13,7 +13,7 @@ import { recap } from './commands/recap.js'
 import { sync } from './commands/sync.js'
 import { check } from './commands/check.js'
 import { secure } from './commands/secure.js'
-import { policyLevel, policyRisk, policyShow } from './commands/policy.js'
+import { policyLevel, policyRisk, policyShow, policyCheck } from './commands/policy.js'
 import { doctor } from './commands/doctor.js'
 import { ship } from './commands/ship.js'
 import { save } from './commands/save.js'
@@ -270,6 +270,13 @@ policyCmd
   .alias('위험도')
   .description('스테이징된 변경의 작업 유형과 위험도')
   .action(() => { policyRisk() })
+
+policyCmd
+  .command('check')
+  .alias('검사')
+  .argument('[argv...]', '검사할 명령 — vhk policy check -- pnpm typecheck')
+  .description('실행 전 결정론 검사 (판정만 — 실행하지 않는다)')
+  .action((argv: string[]) => { policyCheck(argv) })
 
 policyCmd
   .command('show')

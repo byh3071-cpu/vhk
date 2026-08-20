@@ -12,7 +12,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
   ref: ['add', 'list', 'open'],
   memory: ['add', 'list', 'remove', 'archive', 'resolve', 'unarchive', 'migrate', 'eval'],
   cloud: ['push', 'pull'],
-  policy: ['level', 'risk', 'show'],
+  policy: ['level', 'risk', 'show', 'check'],
   secure: ['scan'],
   // #344: env·design 은 서브커맨드 없는 leaf 다(env-check·design-palette 는 별도 top-level 명령).
   // 여기 env:['check']·design:['palette'] 를 두면 R1 가드가 'env check' 를 "실제 서브 경로"로 오판 →
@@ -40,7 +40,7 @@ export const CONTAINER_SUBCOMMANDS: Record<string, readonly string[]> = {
  * 별칭 없는 컨테이너(mission/seo/bootstrap 등)는 등재하지 않는다(발명 금지).
  */
 export const CONTAINER_SUBCOMMAND_ALIASES: Record<string, Record<string, string>> = {
-  policy: { 단계: 'level', 위험도: 'risk', 보기: 'show' },
+  policy: { 단계: 'level', 위험도: 'risk', 보기: 'show', 검사: 'check' },
   secure: { 스캔: 'scan' },
   cloud: { 올리기: 'push', 내리기: 'pull' },
   ref: { 목록: 'list', 열기: 'open' },
