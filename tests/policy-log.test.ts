@@ -138,3 +138,62 @@ describe('마지막 라인 CAS (§4.5)', () => {
     expect(appendPolicyDecision(dir, levelEntry(), opts).written).toBe(true)
   })
 })
+
+/*
+ * RFC 0067 §6.1 — allowlist·budget 변형.
+ *
+ * 봉투는 하나도 안 바꾼다. 변형별 필드만 얹는다.
+ * 핵심은 **원장이 공개 경계를 스스로 위반하지 않는 것**이다 — 절대경로·인자 원문·절대 수치를
+ * 남기지 않는다. .vhk/events/ 가 추적 금지 경로여도 원장 내용이 출력·요약으로 새는 경로가
+ * 그동안 여러 번 있었다.
+ */
+describe('판정 변형 (RFC 0067 §6.1)', () => {
+  const opts = { record: true, enforce: false }
+
+  it('allowlist 변형을 기록한다', () => {
+    const e: PolicyDecisionV1 = {
+      schemaVersion: POLICY_LOG_SCHEMA_VERSION,
+      ts: '2026-08-21T00:00:00.000Z',
+      kind: 'allowlist',
+      verdict: 'deny',
+      reasonCode: 'NOT_IN_ALLOWLIST',
+      bin: 'pnpm',
+      argCount: 2,
+      matchedId: null,
+    }
+    expect(appendPolicyDecision(dir, e, opts).written).toBe(true)
+    const read = readPolicyLog(dir)[0]
+    expect(read.kind).toBe('allowlist')
+    expect(read.matchedId).toBeNull()
+  })
+
+  it('budget 변형을 기록한다 — site 가 이중 집행의 관측 지점이다', () => {
+    const e: PolicyDecisionV1 = {
+      schemaVersion: POLICY_LOG_SCHEMA_VERSION,
+      ts: '2026-08-21T00:00:00.000Z',
+      kind: 'budget',
+      verdict: 'deny',
+      reasonCode: 'CALL_BUDGET_EXCEEDED',
+      dimension: 'callCount',
+      usedRatio: 1.0,
+      site: 'call',
+    }
+    expect(appendPolicyDecision(dir, e, opts).written).toBe(true)
+    expect(readPolicyLog(dir)[0].site).toBe('call')
+  })
+
+  // 관측 기록은 상태 갱신이 아니라 CAS 를 걸지 않는다 — level 만 상태다.
+  it('변형 기록은 lastLevelLine 에 잡히지 않는다', () => {
+    appendPolicyDecision(dir, {
+      schemaVersion: POLICY_LOG_SCHEMA_VERSION,
+      ts: '2026-08-21T00:00:00.000Z',
+      kind: 'allowlist',
+      verdict: 'deny',
+      reasonCode: 'NOT_IN_ALLOWLIST',
+      bin: 'rm',
+      argCount: 1,
+      matchedId: null,
+    }, opts)
+    expect(lastLevelLine(dir)).toBeNull()
+  })
+})

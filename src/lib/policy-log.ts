@@ -45,7 +45,40 @@ export interface PolicyDecisionV1 {
   judgedRuns?: number
   rollingFailures?: number | null
   window?: number
+
+  // ── RFC 0067 §6.1 — 봉투는 그대로 두고 변형별 필드만 얹는다 ──
+
+  /**
+   * kind: 'allowlist' 전용.
+   *
+   * `bin` 은 **`normalizeBin()` 을 거친 값만** 넣는다. 호출부가 절대경로를 넘기면 원장에
+   * 로컬 절대경로가 그대로 남아 이 저장소의 공개 경계 규칙을 원장이 스스로 위반한다.
+   * 같은 이유로 **인자 원문은 남기지 않고 개수만** 센다 — 인자에는 파일 경로·토큰·URL 이
+   * 들어올 수 있다. `.vhk/events/` 가 추적 금지 경로이긴 하지만 원장 내용이 출력·요약으로
+   * 새는 경로가 그동안 여러 번 있었다.
+   */
+  bin?: string
+  argCount?: number
+  matchedId?: string | null
+
+  /**
+   * kind: 'budget' 전용.
+   *
+   * `dimension` 에 `usd` 가 없는 것이 설계다(§5.5) — 자기 보고 비용은 판정에 안 쓰므로
+   * 그 축으로 막힌 기록도 존재할 수 없다.
+   * `usedRatio` 만 남기고 절대 초·횟수를 안 남기는 것도 같은 규율이다.
+   */
+  dimension?: BudgetDimension
+  usedRatio?: number
+  /** 어느 지점이 막았나. 실측에서 exec 만 계속 나오면 호출 측 집행이 안 걸리고 있다는 뜻이다 */
+  site?: EnforcementSite
 }
+
+/** 한도 축. **`usd` 는 없다** — 자기 보고 비용은 판정에 쓰지 않는다(§5.5). */
+export type BudgetDimension = 'runSec' | 'commandSec' | 'callCount'
+
+/** 이중 집행의 관측 지점 — 어느 쪽이 막았는지 남겨야 두 지점이 실제로 도는지 알 수 있다. */
+export type EnforcementSite = 'call' | 'exec'
 
 /** 기록 여부를 정하는 두 플래그(ADR-019). */
 export interface RecordGate {

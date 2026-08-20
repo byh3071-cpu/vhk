@@ -230,7 +230,7 @@ vhk doctor
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화. `<!-- vhk:sync=all -->` 절은 8개 타겟 필수. `--check`는 재생성 결과 불일치와 필수 섹션 누락을 별도 집계하고, 문서-실측 drift는 경고로 표시 |
 | `vhk check` | RULES.md 규칙 점검. 규칙 줄의 `<!-- vhk:check=no-exec-sync -->`를 `scripts/check-rule-no-exec-sync.mjs`에 연결하며 검사 비율 출력 (`--json` = 선언·검사·미검사 수와 비율 포함) |
-| `vhk policy` | 자율 실행 권한 정책 조회 (읽기 전용 — 원장에 기록하지 않음). `policy level` = 현재 단계·다음 승급 조건, `policy risk` = 스테이징 변경의 위험도, `policy show` = 설정+단계+위험도. 한글: `정책 단계`·`정책 위험도`·`정책 보기` |
+| `vhk policy` | 자율 실행 권한 정책 조회 (읽기 전용 — 원장에 기록하지 않음). `policy level` = 현재 단계·다음 승급 조건, `policy risk` = 스테이징 변경의 위험도, `policy show` = 설정+단계+위험도, `policy check -- <명령>` = 실행 전 결정론 검사(판정만 — 실행 안 함, allow 0·require-human 2·deny 1). 한글: `정책 단계`·`정책 위험도`·`정책 보기`·`정책 검사` |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
 | `vhk ship` | 배포 체크리스트 + 회고 |

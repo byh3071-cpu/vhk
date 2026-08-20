@@ -483,6 +483,30 @@ export const ko = {
       `정책 설정을 신뢰할 수 없습니다 (${reason}) — 자율 레인은 전부 거부됩니다. 사람이 실행하는 명령은 영향 없습니다.`,
     baselineMutated:
       '정책 설정이 고정해둔 내용과 다릅니다 — 자율 레인은 전부 거부됩니다. 의도한 변경이면 베이스라인을 다시 고정하세요.',
+    checkTitle: '🚦 실행 전 검사',
+    checkUsage: '검사할 명령을 주세요 — vhk policy check -- pnpm typecheck',
+    checkNoSections:
+      '허용목록·한도 설정이 없어 자율 레인은 아무 명령도 돌릴 수 없습니다 (사람이 실행하는 명령은 영향 없음).',
+    // 설정 파일을 만들어주지 않는다 — 무엇을 허용할지는 사람이 정한다. 형식만 보여준다.
+    configExample:
+      '.vhk/policy.json 형식: { "schemaVersion": 1, "allow": [{ "id": "lint", "bin": "pnpm", "args": ["lint"], "minLevel": "L1" }], "limits": { "perRunSec": 3600, "perCommandSec": 900, "perRunCommandCount": 40 } }',
+    checkVerdict: (verdict: string, reason: string): string => {
+      const label =
+        verdict === 'allow' ? '실행 가능' : verdict === 'require-human' ? '사람 확인 필요' : '거부'
+      const why: Record<string, string> = {
+        HARD_STOP_ACTIVE: '중단 신호가 켜져 있습니다 — vhk resume --confirm 으로만 풀립니다',
+        NOT_IN_ALLOWLIST: '허용목록에 없는 명령입니다',
+        CALL_BUDGET_EXCEEDED: '이 런의 명령 호출 수가 상한에 도달했습니다',
+        TIME_LIMIT_EXCEEDED: '이 런의 시간 상한을 넘었습니다',
+        TIME_LIMIT_WOULD_EXCEED: '남은 시간 안에 끝날 수 없는 명령입니다',
+        CLOCK_ANOMALY: '시계가 흔들려 이 런의 시간 한도를 믿을 수 없습니다',
+        LEVEL_TOO_LOW: '이 명령이 요구하는 권한 단계에 못 미칩니다',
+        PREFLIGHT_PASSED: '모든 검사를 통과했습니다',
+      }
+      return `판정: ${label} — ${why[reason] ?? '사유 미상'} (${reason})`
+    },
+    checkMatched: (id: string): string => `매칭된 허용목록 항목: ${id}`,
+    checkOutsideRun: '런 밖 판정입니다 — 호출 수 0, 경과 0 으로 계산했습니다',
     nextStepLevel: '설정과 위험도까지 한 번에 보려면:',
     nextStepRisk: '권한 단계와 설정까지 한 번에 보려면:',
   },

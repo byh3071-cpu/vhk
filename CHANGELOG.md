@@ -33,6 +33,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- `vhk policy check -- <명령>` — 실행 전 결정론 검사 (작업 단위 125a-T6·T7 · RFC 0067 §4·§6).
+  판정만 하고 **명령을 실행하지 않는다**. 종료 코드로 결과를 준다 — `allow` 0 · `require-human` 2 ·
+  `deny` 1. 설정이 없으면 형식을 안내한다(파일은 만들지 않는다 — 무엇을 허용할지는 사람이 정한다).
+  한글 별칭 `정책 검사`.
 - `vhk policy` — 자율 실행 권한 정책 조회 (작업 단위 124-T4 · RFC 0066 §8). `policy level` 은 현재
   단계와 다음 승급 조건을, `policy risk` 는 스테이징된 변경의 위험도를, `policy show` 는 설정까지
   함께 보여준다. 한글 별칭 `정책 단계`·`정책 위험도`·`정책 보기`. **세 서브커맨드 전부 읽기 전용이고

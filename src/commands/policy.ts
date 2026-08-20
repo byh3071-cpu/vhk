@@ -8,6 +8,8 @@
  * 전이는 자율 런 종결 이벤트에서만 일어난다. 여기서는 계산 결과를 보여주기만 한다.
  */
 import chalk from 'chalk'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { log } from '../utils/logger.js'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
@@ -19,6 +21,9 @@ import { loadPolicyConfig } from '../lib/policy-config.js'
 import { checkPolicyBaseline } from '../lib/policy-baseline.js'
 import { lastLevelLine } from '../lib/policy-log.js'
 import { deriveTaskKindDetailed, stagedPaths } from '../lib/task-kind.js'
+import { preflight, exitCodeOf } from '../lib/execution-preflight.js'
+import { readRunState } from '../lib/run-state.js'
+import { HARD_STOP_PATH } from '../lib/state-files.js'
 import { riskClassOf } from '../lib/risk-class.js'
 
 /** 설정이 신뢰할 수 없으면 그 사실을 먼저 알린다 — 자율 레인은 이 상태에서 전부 거부다. */
@@ -88,4 +93,67 @@ export function policyShow(cwd: string = process.cwd()): void {
 
   policyLevel(cwd)
   policyRisk(cwd)
+}
+
+/**
+ * `vhk policy check -- <bin> [args...]` — 실행 전 결정론 검사를 사람이 미리 돌려본다.
+ *
+ * **읽기 전용이다.** 판정만 하고 원장에 쓰지 않으며 명령을 실행하지도 않는다.
+ * 집행은 125b(작업 단위 126 과 함께)이고 여기서는 "돌리면 어떻게 판정되나" 만 보여준다.
+ *
+ * 종료 코드로 결과를 전달한다 — allow 0 · require-human 2 · deny 1.
+ * `require-human` 을 0 으로 두지 않는 이유는 §4.3 이다.
+ */
+export function policyCheck(argv: string[], cwd: string = process.cwd()): void {
+  console.log(chalk.bold(`
+${ko.policy.checkTitle}`))
+  printConfigHealth(cwd)
+
+  const [bin, ...args] = argv
+  if (!bin) {
+    log.warn(ko.policy.checkUsage)
+    process.exitCode = 1
+    return
+  }
+
+  const config = loadPolicyConfig(cwd)
+  if (!config.sectionsUsable || !config.limits) {
+    // 허용목록·한도가 없으면 자율 레인은 아무것도 못 돌린다. 그 사실을 그대로 알린다.
+    log.warn(ko.policy.checkNoSections)
+    console.log(chalk.dim(`  ${ko.policy.configExample}`))
+    process.exitCode = exitCodeOf('deny')
+    return
+  }
+
+  const stats = calcAutonomyStats(readAutonomyLog(cwd), readReceiptLog(cwd))
+  const last = lastLevelLine(cwd)
+  const previous =
+    last?.to !== undefined ? { to: last.to, judgedRuns: last.judgedRuns ?? 0, ts: last.ts } : null
+  const level = decidePermissionLevel(stats, { maxLevel: config.maxLevel }, previous).level
+
+  // 런 밖 판정이면 상태 파일이 없다 — 카운터 0, 경과 0 으로 본다(§6.3).
+  const nowUtc = new Date().toISOString()
+  const runs = Object.values(readRunState(cwd))
+  const run = runs.length === 1 ? runs[0] : undefined
+
+  const result = preflight(
+    { bin, args },
+    {
+      // 판정용 존재 확인만 한다 — 기존 가드는 출력·차단까지 해서 조회 명령에 맞지 않는다.
+      hardStopActive: existsSync(join(cwd, HARD_STOP_PATH)),
+      allowlist: config.allow,
+      limits: config.limits,
+      level,
+      runCommandCount: run?.commandCount ?? 0,
+      startedAtUtc: run?.startedAtUtc ?? nowUtc,
+      lastSeenUtc: run?.lastSeenUtc ?? nowUtc,
+      nowUtc,
+      clockAnomaly: run?.clockAnomaly,
+    },
+  )
+
+  console.log(`  ${ko.policy.checkVerdict(result.verdict, result.reasonCode)}`)
+  if (result.matchedId) console.log(chalk.dim(`  ${ko.policy.checkMatched(result.matchedId)}`))
+  if (run === undefined) console.log(chalk.dim(`  ${ko.policy.checkOutsideRun}`))
+  process.exitCode = exitCodeOf(result.verdict)
 }
