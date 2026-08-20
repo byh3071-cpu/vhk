@@ -23,6 +23,10 @@ dist/
 .vhk/cloud.json
 # 로컬 미션 범위 계약(vhk mission set) — 프로젝트별 로컬 상태, 공유 대상 아님
 .vhk/mission.json
+# 권한 정책 설정과 그 해시 베이스라인 (RFC 0066 §7.3) — 자율 실행의 상한을 정하는 로컬 전용 파일.
+# 베이스라인은 policy.json 변조 탐지용이라 같이 추적하면 둘을 함께 고치는 경로가 커밋에 남는다.
+.vhk/policy.json
+.vhk/policy-baseline.json
 # SEO 대시보드 로컬 설정(vhk seo init) — 관리 사이트 목록은 프로젝트별 로컬 상태, 공유 대상 아님.
 # (값 없이 환경변수 참조만 담지만, 로컬 상태이므로 mission.json 과 동일하게 커밋 제외.)
 .vhk/seo/
