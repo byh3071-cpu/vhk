@@ -6,6 +6,9 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Internal
 
+- 권한 단계 판정을 순수 함수로 신설 (작업 단위 124-T1 · RFC 0066 §4). 자율 실행이 어디까지 갈 수
+  있는지(`L0` 관찰 ~ `L3` 제출)를 3중 판정 집계에서 매번 재계산한다. 단계를 저장하지 않으므로
+  원장이 사라지면 시작값으로 돌아간다 — fail-closed 다. **아직 어디에도 배선되지 않았다**(계산만).
 - 자율 런 3중 판정 집계를 `commands/stats.ts` 에서 `lib/autonomy-stats.ts` 로 이관 (RFC 0066 §2.1).
   권한 단계 판정(작업 단위 124)이 이 계산을 유일한 입력으로 쓰는데, lib 이 commands 를 import 하면
   역방향 의존이 생긴다. 공개 표면과 출력은 불변 — `commands/stats.ts` 는 re-export 만 남긴다.
