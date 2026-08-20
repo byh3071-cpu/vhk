@@ -4,6 +4,12 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Internal
+
+- 자율 런 3중 판정 집계를 `commands/stats.ts` 에서 `lib/autonomy-stats.ts` 로 이관 (RFC 0066 §2.1).
+  권한 단계 판정(작업 단위 124)이 이 계산을 유일한 입력으로 쓰는데, lib 이 commands 를 import 하면
+  역방향 의존이 생긴다. 공개 표면과 출력은 불변 — `commands/stats.ts` 는 re-export 만 남긴다.
+
 ## [2.14.1] - 2026-08-18
 
 ### Internal
