@@ -141,6 +141,26 @@ export function normalizeTaskKind(raw: string | undefined | null): TaskKind {
  * 두 커밋 사이 변경 파일 목록. 기존 git 통로(gitOut)만 사용 — 새 execSync 도입 없음.
  * git 레포 아님·잘못된 SHA·범위 계산 실패는 빈 배열(추측 금지 → 호출부에서 unknown 이 된다).
  */
+/**
+ * 스테이징된 변경 경로 (RFC 0066 §5.2).
+ *
+ * 커밋 게이트와 조회 판정의 대상이다. 작업 트리 전체(`git diff --name-only`)를 쓰지 않는 이유는
+ * 실제로 커밋될 것만이 판정 대상이기 때문이다 — 스테이징하지 않은 파일까지 세면 관련 없는
+ * 로컬 변경 하나가 모든 판정을 `human` 으로 만든다.
+ */
+export function stagedPaths(cwd: string): string[] {
+  try {
+    // core.quotepath=false: 한글 등 비ASCII 경로가 octal 이스케이프되면 경로 매칭이 깨진다.
+    const out = gitOut(['-c', 'core.quotepath=false', 'diff', '--cached', '--name-only'], cwd)
+    return out
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+  } catch {
+    return []
+  }
+}
+
 export function changedPathsBetween(cwd: string, fromSha: string, toSha: string): string[] {
   if (!fromSha || !toSha) return []
   try {

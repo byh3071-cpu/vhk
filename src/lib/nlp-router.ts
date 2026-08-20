@@ -8,6 +8,7 @@ export type NlpCommand =
   | 'sync'
   | 'check'
   | 'secure'
+  | 'policy'
   | 'ship'
   | 'doctor'
   | 'save'
@@ -218,6 +219,14 @@ const RULES: NlpRule[] = [
     test: t =>
       (/테마(?!\s*(파일|이름))|theme|다크\s*모드|라이트\s*모드|dark\s*mode|light\s*mode|색상\s*모드|모드\s*전환/.test(t)) &&
       !/보안|시크릿|비밀|키\s*유출|secure|scan|스캔|배포|deploy/.test(t),
+  },
+  {
+    command: 'policy',
+    explanation: '자율 실행 권한 정책 조회 (vhk policy show)',
+    confidence: 'high',
+    test: t =>
+      /권한\s*단계|권한\s*정책|자율\s*권한|위험도|policy|permission\s*level/.test(t) &&
+      !/보안|시크릿|secure|scan|스캔/.test(t),
   },
   {
     command: 'ref',

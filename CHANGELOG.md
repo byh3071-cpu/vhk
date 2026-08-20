@@ -4,6 +4,13 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- `vhk policy` — 자율 실행 권한 정책 조회 (작업 단위 124-T4 · RFC 0066 §8). `policy level` 은 현재
+  단계와 다음 승급 조건을, `policy risk` 는 스테이징된 변경의 위험도를, `policy show` 는 설정까지
+  함께 보여준다. 한글 별칭 `정책 단계`·`정책 위험도`·`정책 보기`. **세 서브커맨드 전부 읽기 전용이고
+  원장에 기록하지 않는다** — 조회로 단계가 오르면 세 번 불러 권한을 올리는 경로가 열린다.
+
 ### Internal
 
 - 권한 판정 원장을 신설 (작업 단위 124-T3 · RFC 0066 §3·§4.5). `record` 또는 `enforce` 일 때만

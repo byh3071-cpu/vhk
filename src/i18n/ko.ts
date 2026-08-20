@@ -429,6 +429,49 @@ export const ko = {
     menuHint: 'vhk를 입력하면 메뉴에서 선택할 수 있습니다.',
     evolveExplanation: '현재 진화 후보 확인 (vhk evolve list) — 반영·되돌리기는 직접 실행',
   },
+  // RFC 0066 §8 — vhk policy. 세 서브커맨드 전부 읽기 전용이고 원장에 기록하지 않는다.
+  policy: {
+    levelTitle: '🔐 자율 실행 권한 단계',
+    riskTitle: '⚖️  변경 위험도',
+    showTitle: '🔐 권한 정책',
+    currentLevel: (level: string, reason: string): string =>
+      `현재 단계: ${level}  (사유: ${reason})`,
+    previousLine: (to: string | null, judged: number | null): string =>
+      to === null
+        ? '직전 전이: 없음 — 원장이 비어 시작 단계로 계산했습니다'
+        : `직전 전이: ${to} (표본 ${judged ?? 0}회 시점)`,
+    // 조회로는 승급하지 않으므로 무엇을 기다려야 하는지 보여준다.
+    nextPromotion: (
+      judged: number,
+      lastJudged: number,
+      failures: number | null,
+      maxFailures: number,
+    ): string =>
+      judged <= lastJudged
+        ? `다음 승급 조건: 판정 대상 런이 더 필요합니다 (현재 ${judged}회 — 직전 전이와 같음)`
+        : failures === null
+          ? `다음 승급 조건: 표본 부족 (현재 ${judged}회). 창이 찰 때까지 단계는 유지됩니다`
+          : `다음 승급 조건: 최근 창 실패 ${failures}회 / 허용 ${maxFailures}회 이하`,
+    riskLine: (risk: string, kind: string): string =>
+      risk === 'human'
+        ? `판정: 사람 확인 필요 (유형 ${kind})`
+        : `판정: 자동 허용 범위 (유형 ${kind})`,
+    riskBreakdown: (total: number, unclassified: number): string =>
+      `검사 경로 ${total}개 · 미분류 ${unclassified}개`,
+    unclassifiedHint:
+      '⚠️  미분류 경로가 있어 사람 확인이 필요합니다 — 규칙을 넓히기 전에 왜 빠졌는지 먼저 보세요',
+    flags: (record: boolean, enforce: boolean): string =>
+      `기록: ${record ? '켜짐' : '꺼짐'} · 집행: ${enforce ? '켜짐' : '꺼짐'}`,
+    maxLevelLine: (maxLevel: string | null): string =>
+      maxLevel === null ? '사람이 지정한 상한: 없음' : `사람이 지정한 상한: ${maxLevel}`,
+    configFailClosed: (reason: string): string =>
+      `정책 설정을 신뢰할 수 없습니다 (${reason}) — 자율 레인은 전부 거부됩니다. 사람이 실행하는 명령은 영향 없습니다.`,
+    baselineMutated:
+      '정책 설정이 고정해둔 내용과 다릅니다 — 자율 레인은 전부 거부됩니다. 의도한 변경이면 베이스라인을 다시 고정하세요.',
+    nextStepLevel: '설정과 위험도까지 한 번에 보려면:',
+    nextStepRisk: '권한 단계와 설정까지 한 번에 보려면:',
+  },
+
   secure: {
     title: '🔒 비밀번호·키 유출 검사',
     noGitignore: '⚠️ .gitignore 파일이 없어요!',

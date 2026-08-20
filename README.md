@@ -280,7 +280,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | 그룹 | 도구 |
 | --- | --- |
 | Git/세션 | `save`, `undo`, `status`, `diff`, `ship`, `recap` |
-| 진단/품질 | `doctor`, `check`, `secure`, `audit`, `harness` |
+| 진단/품질 | `doctor`, `check`, `secure`, `audit`, `harness`, `policy` |
 | 환경/규칙 | `env`, `env-check`, `sync`, `mcp-init` |
 | 컨텍스트/기억 | `context`, `context-show`, `brief`, `loop-brief`, `remind`, `memory-list`, `learn` |
 | 풀사이클 뒷단 | `content`, `launch`, `ops`, `sell` |

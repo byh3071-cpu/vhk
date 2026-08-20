@@ -8,6 +8,7 @@ import { recap } from '../commands/recap.js'
 import { sync } from '../commands/sync.js'
 import { check } from '../commands/check.js'
 import { secure } from '../commands/secure.js'
+import { policyShow } from '../commands/policy.js'
 import { doctor } from '../commands/doctor.js'
 import { ship } from '../commands/ship.js'
 import { save } from '../commands/save.js'
@@ -73,6 +74,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
       return sync()
     case 'check':
       return check()
+    case 'policy':
+      return policyShow()
     case 'secure':
       return secure()
     case 'ship':
