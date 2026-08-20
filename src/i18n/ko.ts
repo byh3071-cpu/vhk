@@ -434,8 +434,23 @@ export const ko = {
     levelTitle: '🔐 자율 실행 권한 단계',
     riskTitle: '⚖️  변경 위험도',
     showTitle: '🔐 권한 정책',
+    // 사유 코드를 그대로 노출하면 사람이 못 읽는다. 코드는 원장 계약이고 화면은 별개다 —
+    // 코드를 없애지 않고 한 줄 설명을 붙인다(추적성 유지 + 가독성).
+    levelReason: (reason: string): string => {
+      const table: Record<string, string> = {
+        LEDGER_EMPTY: '판정 이력이 없어 시작 단계로 계산',
+        NO_NEW_JUDGED_RUN: '판정 대상 런이 늘지 않아 단계 유지',
+        INSUFFICIENT_SAMPLE: '표본이 부족해 단계 유지 — 하강 아님',
+        DEMOTE_ROLLING_FAILURES: '최근 창의 실패가 기준을 넘어 한 칸 축소',
+        INFRA_ABUSE_SUSPECTED: '인프라 실패 제외 비율이 높아 승급 보류',
+        SELF_REPORT_GAP: '기계 증거가 뒷받침하지 못한 완료 신고가 있어 승급 보류',
+        PROMOTE_ROLLING_CLEAN: '최근 창이 깨끗해 한 칸 승급',
+        HOLD_HYSTERESIS: '승급선과 축소선 사이라 단계 유지',
+      }
+      return table[reason] ?? '사유 미상'
+    },
     currentLevel: (level: string, reason: string): string =>
-      `현재 단계: ${level}  (사유: ${reason})`,
+      `현재 단계: ${level} — ${ko.policy.levelReason(reason)} (${reason})`,
     previousLine: (to: string | null, judged: number | null): string =>
       to === null
         ? '직전 전이: 없음 — 원장이 비어 시작 단계로 계산했습니다'
