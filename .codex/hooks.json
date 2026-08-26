@@ -6,8 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "repo_root=$(git rev-parse --show-toplevel) && cd \"$repo_root\" && node \"scripts/check-records.mjs\" --hook",
-            "commandWindows": "powershell.exe -NoProfile -Command \"$repoRoot = git rev-parse --show-toplevel; if ($LASTEXITCODE -ne 0) { exit 1 }; Set-Location -LiteralPath $repoRoot; node 'scripts/check-records.mjs' --hook; exit $LASTEXITCODE\""
+            "command": "repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; [ -f \"$repo_root/scripts/check-records.mjs\" ] || exit 0; cd \"$repo_root\" && node \"scripts/check-records.mjs\" --hook",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$repoRoot = git rev-parse --show-toplevel 2>$null; if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$repoRoot)) { exit 0 }; $runner = Join-Path $repoRoot 'scripts/check-records.mjs'; if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) { exit 0 }; Set-Location -LiteralPath $repoRoot; node $runner --hook; exit $LASTEXITCODE\""
           }
         ]
       }
@@ -17,8 +17,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "repo_root=$(git rev-parse --show-toplevel) && cd \"$repo_root\" && node \"scripts/record-reminder.mjs\"",
-            "commandWindows": "powershell.exe -NoProfile -Command \"$repoRoot = git rev-parse --show-toplevel; if ($LASTEXITCODE -ne 0) { exit 1 }; Set-Location -LiteralPath $repoRoot; node 'scripts/record-reminder.mjs'; exit $LASTEXITCODE\""
+            "command": "repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0; [ -f \"$repo_root/scripts/record-reminder.mjs\" ] || exit 0; cd \"$repo_root\" && node \"scripts/record-reminder.mjs\"",
+            "commandWindows": "powershell.exe -NoProfile -Command \"$repoRoot = git rev-parse --show-toplevel 2>$null; if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$repoRoot)) { exit 0 }; $runner = Join-Path $repoRoot 'scripts/record-reminder.mjs'; if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) { exit 0 }; Set-Location -LiteralPath $repoRoot; node $runner; exit $LASTEXITCODE\""
           }
         ]
       }

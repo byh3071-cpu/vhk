@@ -65,8 +65,37 @@ function makeTempRepo() {
   throw lastError
 }
 
-const repo = makeTempRepo()
+function initGitRepo(repo) {
+  mkdirSync(repo, { recursive: true })
+  const init = spawnSync('git', ['init', '-q'], { cwd: repo, encoding: 'utf8' })
+  if (init.status !== 0) throw new Error(init.stderr)
+}
+
+function isQuietSuccess(result) {
+  return result.status === 0 && result.stdout === '' && result.stderr === ''
+}
+
+const fixtureRoot = makeTempRepo()
 try {
+  const preToolUseHook = readHook('PreToolUse')
+  const stopHook = readHook('Stop')
+
+  const nonGitDir = join(fixtureRoot, 'non-git')
+  mkdirSync(nonGitDir, { recursive: true })
+  const nonGitPreToolUse = await runHook(preToolUseHook, nonGitDir, '{}')
+  const nonGitStop = await runHook(stopHook, nonGitDir, '{}')
+  const nonGitPreToolUseQuiet = isQuietSuccess(nonGitPreToolUse)
+  const nonGitStopQuiet = isQuietSuccess(nonGitStop)
+
+  const noRunnerRepo = join(fixtureRoot, 'no-runner-repo')
+  initGitRepo(noRunnerRepo)
+  const noRunnerPreToolUse = await runHook(preToolUseHook, noRunnerRepo, '{}')
+  const noRunnerStop = await runHook(stopHook, noRunnerRepo, '{}')
+  const missingRunnerPreToolUseQuiet = isQuietSuccess(noRunnerPreToolUse)
+  const missingRunnerStopQuiet = isQuietSuccess(noRunnerStop)
+
+  const repo = join(fixtureRoot, 'vhk-repo')
+  initGitRepo(repo)
   mkdirSync(join(repo, 'scripts'), { recursive: true })
   mkdirSync(join(repo, 'src'), { recursive: true })
   mkdirSync(join(repo, '.vhk'), { recursive: true })
@@ -74,41 +103,81 @@ try {
     copyFileSync(join(process.cwd(), 'scripts', file), join(repo, 'scripts', file))
   }
 
-  const init = spawnSync('git', ['init', '-q'], { cwd: repo, encoding: 'utf8' })
-  if (init.status !== 0) throw new Error(init.stderr)
-
   writeFileSync(join(repo, '.vhk', 'HARD_STOP'), 'test')
   const payload = JSON.stringify({ tool_input: { command: 'git commit -m test' } })
-  const blocked = await runHook(readHook('PreToolUse'), join(repo, 'src'), payload)
+  const blocked = await runHook(preToolUseHook, join(repo, 'src'), payload)
   const hardStopBlocked = blocked.status === 2 && blocked.stderr.includes('HARD_STOP')
 
   unlinkSync(join(repo, '.vhk', 'HARD_STOP'))
+  const rootRun = await runHook(
+    preToolUseHook,
+    repo,
+    JSON.stringify({ tool_input: { command: 'git status --short' } }),
+  )
+  const vhkRootRuns = rootRun.status === 0
+
   writeFileSync(join(repo, 'src', 'probe.ts'), 'export const probe = true\n')
-  const reminded = await runHook(readHook('Stop'), join(repo, 'src'))
+  const reminded = await runHook(stopHook, join(repo, 'src'))
   const reminderShown = reminded.status === 0 && reminded.stdout.includes('systemMessage')
 
   const devlogDir = join(repo, 'docs', 'devlog')
   mkdirSync(devlogDir, { recursive: true })
   writeFileSync(join(devlogDir, `${localToday()}-hook-check.md`), '# hook check\n')
-  const quiet = await runHook(readHook('Stop'), join(repo, 'src'))
+  const quiet = await runHook(stopHook, join(repo, 'src'))
   const devlogSuppressed = quiet.status === 0 && quiet.stdout.trim() === ''
 
-  if (!hardStopBlocked || !reminderShown || !devlogSuppressed) {
+  const childRepo = join(fixtureRoot, 'child-exit-repo')
+  initGitRepo(childRepo)
+  mkdirSync(join(childRepo, 'scripts'), { recursive: true })
+  writeFileSync(
+    join(childRepo, 'scripts', 'check-records.mjs'),
+    "process.stdin.setEncoding('utf8'); let input = ''; process.stdin.on('data', chunk => { input += chunk }); process.stdin.on('end', () => { process.stdout.write(input); process.exitCode = 7 })\n",
+  )
+  writeFileSync(
+    join(childRepo, 'scripts', 'record-reminder.mjs'),
+    "process.stdin.setEncoding('utf8'); let input = ''; process.stdin.on('data', chunk => { input += chunk }); process.stdin.on('end', () => { process.stdout.write(input); process.exitCode = 9 })\n",
+  )
+  const preToolUseInput = 'pretool-stdin-probe'
+  const stopInput = 'stop-stdin-probe'
+  const preToolUseChild = await runHook(preToolUseHook, childRepo, preToolUseInput)
+  const stopChild = await runHook(stopHook, childRepo, stopInput)
+  const preToolUseExitPropagated = preToolUseChild.status === 7
+  const stopExitPropagated = stopChild.status === 9
+  const preToolUseStdinPreserved = preToolUseChild.stdout === preToolUseInput
+  const stopStdinPreserved = stopChild.stdout === stopInput
+
+  const report = {
+    nonGitPreToolUseQuiet,
+    nonGitStopQuiet,
+    missingRunnerPreToolUseQuiet,
+    missingRunnerStopQuiet,
+    vhkRootRuns,
+    hardStopBlocked,
+    reminderShown,
+    devlogSuppressed,
+    preToolUseExitPropagated,
+    stopExitPropagated,
+    preToolUseStdinPreserved,
+    stopStdinPreserved,
+  }
+  if (Object.values(report).some((passed) => !passed)) {
     throw new Error(
       JSON.stringify({
-        hardStopBlocked,
-        reminderShown,
-        blockedStatus: blocked.status,
-        blockedStderr: blocked.stderr,
-        reminderStatus: reminded.status,
-        reminderStdout: reminded.stdout,
-        devlogSuppressed,
-        quietStatus: quiet.status,
-        quietStdout: quiet.stdout,
+        report,
+        nonGitPreToolUse,
+        nonGitStop,
+        noRunnerPreToolUse,
+        noRunnerStop,
+        blocked,
+        rootRun,
+        reminded,
+        quiet,
+        preToolUseChild,
+        stopChild,
       }),
     )
   }
-  process.stdout.write(JSON.stringify({ hardStopBlocked, reminderShown, devlogSuppressed }))
+  process.stdout.write(JSON.stringify(report))
 } finally {
-  await rm(repo, { recursive: true, force: true })
+  await rm(fixtureRoot, { recursive: true, force: true })
 }
