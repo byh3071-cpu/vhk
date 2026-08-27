@@ -6,6 +6,8 @@ const mockWriteFileSync = vi.fn()
 const mockMkdirSync = vi.fn()
 const mockReaddirSync = vi.fn()
 const mockStatSync = vi.fn()
+const mockLstatSync = vi.fn()
+const mockOpenSync = vi.fn((path: unknown) => path)
 
 vi.mock('node:fs', () => ({
   existsSync: (...a: unknown[]) => mockExistsSync(...a),
@@ -14,6 +16,9 @@ vi.mock('node:fs', () => ({
   mkdirSync: (...a: unknown[]) => mockMkdirSync(...a),
   readdirSync: (...a: unknown[]) => mockReaddirSync(...a),
   statSync: (...a: unknown[]) => mockStatSync(...a),
+  lstatSync: (...a: unknown[]) => mockLstatSync(...a),
+  openSync: (...a: unknown[]) => mockOpenSync(...a),
+  closeSync: () => undefined,
   // writeMemory(readMemory 의 v1 자동 마이그)가 쓰는 fs — 시드가 v1 일 때 throw 방지(durability).
   copyFileSync: () => undefined,
   renameSync: () => undefined,

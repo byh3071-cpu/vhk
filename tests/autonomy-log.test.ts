@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { removeDirSync } from '../src/lib/fs-remove.js'
 import {
   appendAutonomyEntry,
   readAutonomyLog,
@@ -93,5 +94,20 @@ describe('autonomy-log — 저수준 append/read (action-ledger 패턴 미러)',
     const b = newAutonomyRunId()
     expect(a).not.toBe(b)
     expect(a).toMatch(/^[0-9a-f-]{36}$/i)
+  })
+
+  it('중단된 불완전 꼬리가 다음 정상 기록을 삼키지 않는다', () => {
+    const d = tmp()
+    try {
+      const p = path.join(d, AUTONOMY_LOG_PATH_REL)
+      fs.mkdirSync(path.dirname(p), { recursive: true })
+      fs.writeFileSync(p, `${JSON.stringify(entry())}\n{"partial"`, 'utf-8')
+
+      appendAutonomyEntry(d, entry({ event: 'complete' }))
+
+      expect(readAutonomyLog(d).map((item) => item.event)).toEqual(['start', 'complete'])
+    } finally {
+      removeDirSync(d)
+    }
   })
 })

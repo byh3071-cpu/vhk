@@ -1,6 +1,9 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { removeDirSync } from './fs-remove.js'
+import { removeDirSync, removeFileSync } from './fs-remove.js'
+import { atomicWriteFile } from './atomic-write.js'
+import { workspaceTempLockPath } from './workspace-temp-lock.js'
+import { readJsonFile } from './read-json.js'
 
 /**
  * vhk 자체 백업 — git 비의존 복구. 덮어쓰기 직전 원본을 `.vhk/backups/<id>/` 로 복사한다.
@@ -10,6 +13,60 @@ import { removeDirSync } from './fs-remove.js'
 
 const BACKUPS_REL = path.join('.vhk', 'backups')
 const VHK_GITIGNORE_REL = path.join('.vhk', '.gitignore')
+const IGNORE_LOCK_TIMEOUT_MS = 5_000
+const ignoreLockWait = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
+let ignoreLockCounter = 0
+
+function withVhkIgnoreLock<T>(rootDir: string, update: () => T): T {
+  const lockPath = workspaceTempLockPath(rootDir, 'vhk-ignore')
+  const token = `${process.pid}-${Date.now()}-${ignoreLockCounter++}`
+  const startedAt = Date.now()
+  let fd: number | undefined
+  for (;;) {
+    try {
+      fd = fs.openSync(lockPath, 'wx', 0o600)
+      try {
+        fs.writeFileSync(fd, JSON.stringify({ pid: process.pid, token }))
+      } catch (error) {
+        fs.closeSync(fd)
+        fd = undefined
+        removeFileSync(lockPath)
+        throw error
+      }
+      break
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      // Windows는 다른 프로세스가 lock을 닫고 지우는 짧은 구간에도 EPERM을 줄 수 있다.
+      // namespace 자체는 소유권·권한을 먼저 검증했으므로 이 경로의 EPERM만 제한 재시도한다.
+      if (code !== 'EEXIST' && code !== 'EPERM') throw error
+      if (Date.now() - startedAt >= IGNORE_LOCK_TIMEOUT_MS) {
+        const timeout = new Error(
+          `.vhk/.gitignore 잠금 시간이 초과되었습니다. 실행 중인 VHK 프로세스를 확인한 뒤 ${lockPath}를 사람이 직접 정리하세요.`,
+        ) as NodeJS.ErrnoException
+        timeout.code = 'VHK_IGNORE_LOCK_TIMEOUT'
+        throw timeout
+      }
+      Atomics.wait(ignoreLockWait, 0, 0, 10)
+    }
+  }
+
+  try {
+    return update()
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd)
+    try {
+      const owner = readJsonFile<{ token?: unknown }>(lockPath)
+      if (owner.token !== token) {
+        const lost = new Error('.vhk/.gitignore lock ownership changed') as NodeJS.ErrnoException
+        lost.code = 'VHK_IGNORE_LOCK_OWNERSHIP_LOST'
+        throw lost
+      }
+      removeFileSync(lockPath)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+  }
+}
 
 export interface BackupInfo {
   /** 백업 디렉터리명 = 파일시스템 안전 타임스탬프 (정렬하면 시간순) */
@@ -35,15 +92,39 @@ export function fsSafeStamp(d: Date): string {
  * `backups/` 는 `backups` 와 동치로 간주(중복 추가 방지).
  */
 export function ensureVhkIgnored(rootDir: string, ...entries: string[]): void {
-  const giPath = path.join(rootDir, VHK_GITIGNORE_REL)
-  fs.mkdirSync(path.dirname(giPath), { recursive: true })
-  let content = fs.existsSync(giPath) ? fs.readFileSync(giPath, 'utf-8') : ''
-  const present = new Set(content.split('\n').map((l) => l.trim().replace(/\/$/, '')))
-  const missing = entries.filter((e) => !present.has(e.trim().replace(/\/$/, '')))
-  if (missing.length === 0) return
-  if (content.length > 0 && !content.endsWith('\n')) content += '\n'
-  content += missing.join('\n') + '\n'
-  fs.writeFileSync(giPath, content, 'utf-8')
+  withVhkIgnoreLock(rootDir, () => {
+    const giPath = path.join(rootDir, VHK_GITIGNORE_REL)
+    const vhkDir = path.dirname(giPath)
+    const existingDir = fs.lstatSync(vhkDir, { throwIfNoEntry: false })
+    if (existingDir && (!existingDir.isDirectory() || existingDir.isSymbolicLink())) {
+      throw new Error('.vhk must be a real directory')
+    }
+    fs.mkdirSync(vhkDir, { recursive: true })
+    const existingIgnore = fs.lstatSync(giPath, { throwIfNoEntry: false })
+    if (existingIgnore && (!existingIgnore.isFile() || existingIgnore.isSymbolicLink())) {
+      throw new Error('.vhk/.gitignore must be a regular file')
+    }
+    let content = fs.existsSync(giPath) ? fs.readFileSync(giPath, 'utf-8') : ''
+    const lines = content.split(/\r?\n/).map((line) => line.trim())
+    // gitignore 는 뒤 규칙이 이긴다. 양성 규칙 문자열이 앞에 있어도 이후 `!…`가 있으면
+    // 추적 가능해질 수 있으므로, 요청 규칙을 마지막 negation 뒤에 다시 고정한다.
+    const lastNegation = lines.reduce(
+      (last, line, index) => line.startsWith('!') ? index : last,
+      -1,
+    )
+    const missing = entries.filter((entry) => {
+      const normalized = entry.trim().replace(/\/$/, '')
+      const lastPositive = lines.reduce(
+        (last, line, index) => line.replace(/\/$/, '') === normalized ? index : last,
+        -1,
+      )
+      return lastPositive < lastNegation || lastPositive === -1
+    })
+    if (missing.length === 0) return
+    if (content.length > 0 && !content.endsWith('\n')) content += '\n'
+    content += missing.join('\n') + '\n'
+    atomicWriteFile(giPath, content)
+  })
 }
 
 /** 백업 디렉터리 안의 모든 파일을 rootDir(여기선 backupDir) 기준 상대경로(posix)로 수집. */

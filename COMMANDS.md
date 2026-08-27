@@ -230,9 +230,11 @@ vhk doctor
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화. `<!-- vhk:sync=all -->` 절은 8개 타겟 필수. `--check`는 재생성 결과 불일치와 필수 섹션 누락을 별도 집계하고, 문서-실측 drift는 경고로 표시 |
 | `vhk check` | RULES.md 규칙 점검. 규칙 줄의 `<!-- vhk:check=no-exec-sync -->`를 `scripts/check-rule-no-exec-sync.mjs`에 연결하며 검사 비율 출력 (`--json` = 선언·검사·미검사 수와 비율 포함) |
-| `vhk policy` | 자율 실행 권한 정책 조회 (읽기 전용 — 원장에 기록하지 않음). `policy level` = 현재 단계·다음 승급 조건, `policy risk` = 스테이징 변경의 위험도, `policy show` = 설정+단계+위험도, `policy check -- <명령>` = 실행 전 결정론 검사(판정만 — 실행 안 함, allow 0·require-human 2·deny 1). 한글: `정책 단계`·`정책 위험도`·`정책 보기`·`정책 검사` |
+| `vhk policy` | 자율 실행 권한 정책. `level`·`risk`·`show`·`check -- <명령>`은 읽기 전용(원장 기록·대상 실행 없음, allow 0·require-human 2·deny 1). `policy baseline --confirm`만 현재 설정 또는 설정 없는 기본 off 상태를 사람이 고정하는 고위험 쓰기 명령이며 자동 생성·갱신하지 않음. 한글: `정책 단계`·`정책 위험도`·`정책 보기`·`정책 검사`·`정책 기준선` |
+
+> `policy-baseline`은 위 `policy baseline` 하위 명령의 구현 모듈명이며 별도 최상위 명령이 아닙니다.
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
-| `vhk cloud` | .vhk 클라우드 백업·복원 (push/pull) |
+| `vhk cloud` | .vhk 비공개 Gist 백업·복원 (push/pull). 공개 Gist·링크 경계·비호환/충돌 파일명·부분 fetch는 쓰기 전에 실패 폐쇄 |
 | `vhk ship` | 배포 체크리스트 + 회고 |
 | `vhk doctor` | 개발 환경 점검 + 최신 변경사항이 빠진 안내·아직 시작하지 않은 작업 알림 (`--strict` 설정 불일치 검사 포함) |
 | `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 |

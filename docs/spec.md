@@ -2,7 +2,7 @@
 title: ".vhk/ Directory Specification"
 spec_version: "1.2"
 status: draft
-updated: 2026-07-03
+updated: 2026-08-28
 ---
 
 # `.vhk/` 디렉토리 규격 (Specification)
@@ -39,6 +39,12 @@ updated: 2026-07-03
 | `work-prompt.md` · `handoff-prompt.md` | Markdown | ❌ 로컬 전용 | `vhk work` | 세션 시작/인수인계 프롬프트 산출물 |
 | `memory.json` | JSON | ❌ 로컬 전용 | `vhk memory add` (lazy) | 프로젝트 의사결정 메모 (개인/세션 기록) |
 | `refs.json` | JSON | ❌ 로컬 전용 | `vhk ref add` (lazy) | 참고 URL + 메모 모음 |
+| `policy.json` | JSON | ❌ 로컬 전용 | 사람 편집 | 자율 실행 정책 플래그·허용목록·한도 |
+| `policy-baseline.json` | JSON | ❌ 로컬 전용 | `vhk policy baseline --confirm` | 사람이 신뢰한 정책 내용 해시 또는 설정 부재(`null`) |
+| `run-state.json` | JSON | ❌ 로컬 전용 | 자율 런 시작·명령 판정 | 런별 계측, 비공개 정책 시작 해시, 미완료 종결의 최초 종료 요청·당시 정책 무효화 상태·위험도 판정 |
+| `run-state.lock` | 예약 잠금 이름 | ❌ 로컬 전용 | 생성하지 않음 | 구 workspace 잠금 잔재가 Git·cloud로 노출되지 않게 제외 |
+| `run-state-recovery.lock` | 예약 잔재 | ❌ 로컬 전용 | 생성하지 않음 | 구 구현 잔재가 Git·cloud로 노출되지 않게 제외 |
+| `.policy-baseline.json.tmp-*` · `.run-state.json.tmp-*` | 원자 저장 임시본 | ❌ 로컬 전용 | 원자 파일 교체 | 프로세스 중단 때 남아도 정책 해시가 Git·cloud로 새지 않게 제외 |
 | `mission.json` | JSON | ❌ 로컬 전용 | `vhk mission set` | 미션 범위 계약 |
 | `cost.jsonl` | JSONL | ❌ 로컬 전용 | `vhk cost add` (Goal 56) | 토큰/비용 사용 원장 (개인) |
 | `recall-log.jsonl` | JSONL | ❌ 로컬 전용 | `vhk recall` | recall 측정 로그 (RFC 0049) |
@@ -55,14 +61,18 @@ updated: 2026-07-03
 > 오버라이드할 수 있음을 공식 인정**(vhk 레포 본체가 이 오버라이드 사용). 공유는 cloud push 로도 가능.
 > ² gist id 공개 repo 노출 방지(VHK-022)로 1.0 표기와 달리 로컬 전용이 구현 정책(init 템플릿이 무시 처리).
 
+> 병렬 런의 실제 조정 잠금은 물리 workspace 경로의 SHA-256으로 이름을 정해 사용자 전용(0700)
+> OS temp 디렉터리에 두고 종료 때 제거한다. Git 초기화·worktree 전환·정책 파일 생성/삭제와 무관한
+> 단일 위치라 같은 runId가 서로 다른 잠금으로 갈라지지 않으며 `git status`에도 나타나지 않는다.
+
 > 프로젝트 루트의 `.vhkignore` (선택, 커밋) 는 `vhk cloud push` 백업에서 제외할
 > `.vhk/` 파일을 한 줄에 하나씩 적는다. 기본 제외(자동): `memory.json`·`refs.json`·
-> `HARD_STOP`·`cloud.json`·`.gitignore`.
+> `policy.json`·`policy-baseline.json`·`run-state.json`·`run-state.lock`·`run-state-recovery.lock`·원자 저장 임시본(`.*.tmp-*`)·`HARD_STOP`·`cloud.json`·`.gitignore`.
 
 > **트래킹 정책 요약 (1.1)**
 > - 커밋 = `README.md`·`.gitignore`·`config.json`·원장 2종(`ledger.jsonl`·`events/`)
 >   + (기본값) `context.md`·`brief.md`.
-> - 로컬 전용 = 개인 메모(memory/refs)·비용 원장(cost.jsonl)·런타임 신호(HARD_STOP·.synced)·
+> - 로컬 전용 = 개인 메모(memory/refs)·정책 상태(policy/policy-baseline/run-state/그 잠금)·비용 원장(cost.jsonl)·런타임 신호(HARD_STOP·.synced)·
 >   세션 프롬프트·`cloud.json`·backups/eval/reports/seo/evolve 폴더. context/brief 는
 >   프로젝트별 로컬 오버라이드 허용(¹).
 > - 팀 공유가 필관리자 로컬 항목은 `vhk cloud push`(secret gist) 경로를 쓴다.
@@ -130,8 +140,24 @@ updated: 2026-07-03
 - `vhk cloud push` — `.vhk/` 공유 파일을 GitHub **secret gist** 로 백업하고
   gist id 를 `cloud.json` 에 저장한다. 인증은 `gh` CLI 가 담당(코드에 토큰 없음).
 - `vhk cloud pull [gistId]` — gist 에서 `.vhk/` 를 복원한다. id 생략 시 `cloud.json` 사용.
+- 기존 push와 pull은 GitHub API의 `public:false`를 확인한 **비공개 Gist만** 허용한다. 공개 여부를
+  확인할 수 없거나 public이면 파일 전송과 `cloud.json` 연결을 모두 실패 폐쇄한다.
 - 백업 대상은 `collectVhkFiles` 가 결정: `.vhk/` 평면 파일 중 기본 제외 + `.vhkignore` 적용 후.
-- 개인 메모(`memory.json`)·참고링크(`refs.json`)·`HARD_STOP` 은 기본 제외(프라이버시).
+- 로컬 `.vhk/`·복원 대상·`cloud.json`이 링크/junction이면 workspace 밖 읽기·덮어쓰기를 막기 위해
+  네트워크 쓰기 전에 중단한다. push는 수집 뒤 인증 직후와 각 edit/create 직전에 경계를 다시 확인해,
+  전송 대기 중 정상 파일이 외부 링크로 바뀐 경우도 실패 폐쇄한다. 파일명은 Windows 금지문자와
+  제어문자, 대소문자/NFC 충돌까지 양방향 검사한다. pull은 원격 파일을 전부 가져온 뒤에만 로컬
+  쓰기를 시작해 한 건 실패를 부분 성공으로 보고하거나 포인터로 저장하지 않는다.
+- 기본 제외는 사용자 `.vhkignore`의 `!` 규칙으로 다시 포함할 수 없는 하드 경계다. 새 공유 파일이
+  0개여도 기존 gist의 **현재 revision**에서 제외 파일을 정리하며, 마지막 파일 제약이 있으면 기존
+  파일 하나를 pull에서 제외되는 비민감 `vhk-cloud-empty.md`로 바꾼다. Gist의 과거 revision에는
+  이전 내용이 남을 수 있으므로 완전 삭제는 Gist 재생성이라는 별도 사람 승인 작업이다.
+- `vhk-cloud-empty.md`가 이미 있으면 고정 마커 내용까지 일치해야 내부 파일로 인정한다. 동명 사용자
+  파일이면 push·pull을 모두 실패 폐쇄해 현재 revision을 삭제하거나 덮어쓰지 않는다. 검증된 마커도
+  다른 공유 파일과 함께 있을 때 삭제하지 않아 검증과 PATCH 사이 동시 편집을 사용자 파일 삭제로
+  바꾸지 않는다.
+- 개인 메모(`memory.json`)·참고링크(`refs.json`)·`HARD_STOP`·`cloud.json`과
+  원자 저장 임시본은 기본 제외(프라이버시).
 
 ## 4. 호환성 정책
 

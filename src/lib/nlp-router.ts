@@ -66,11 +66,44 @@ type NlpRule = {
   explanation: string
   confidence: NlpConfidence
   args?: string[]
+  resolveArgs?: (input: string) => string[]
   test: (normalized: string) => boolean
 }
 
 function normalize(input: string): string {
   return input.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/**
+ * 자연어 질문에서 **공백 분리만 필요한 단순 argv**를 꺼낸다.
+ *
+ * 이 결과는 실행되지 않고 허용목록과 정확 비교하는 데만 쓰지만, 셸 문법 일부만 잘라 판정하면
+ * `pnpm test && npm publish`를 안전한 첫 명령으로 오인할 수 있다. 따옴표·escape·연쇄·치환이
+ * 하나라도 보이면 전체를 거부하고 명시형 `vhk policy check -- ...` 사용법으로 닫는다.
+ */
+export function extractSimplePolicyCheckArgv(input: string): string[] {
+  const text = input.trim()
+  const patterns = [
+    /^(.+?)\s+(?:실행\s*가능(?:해|한가요?|한지|할까|하니|합니까)?|허용(?:돼|되나요?|되는지)?|실행해도\s*(?:돼|되나요?))\s*[?？]?$/u,
+    /^(?:can|could|may)\s+(.+?)\s+(?:execute|run)\s*\?$/iu,
+    /^(?:is|are)\s+(.+?)\s+allowed\s*\?$/iu,
+  ]
+  const match = patterns.map((pattern) => pattern.exec(text)).find((candidate) => candidate !== null)
+  const raw = match?.[1]?.trim()
+  if (!raw || raw.length > 2048) return []
+
+  const placeholder = raw.toLowerCase().replace(/\s+/g, ' ')
+  if (/^(?:이|그|저)\s*명령$/u.test(placeholder) || /^(?:this|that|the)\s+command$/u.test(placeholder)) {
+    return []
+  }
+
+  // 공백 토큰화로 의미를 보존할 수 없는 모든 셸 구문은 전부 거부한다. 앞부분만 판정하지 않는다.
+  if (/[\r\n"'`;&|<>$(){}[\]*?!\\]/u.test(raw)) return []
+  const argv = raw.split(/\s+/u)
+  if (argv.length === 0 || argv.length > 32 || argv.some((token) => token.length === 0 || token.length > 256)) {
+    return []
+  }
+  return argv
 }
 
 /** 자연어 → 명령 매칭용 키워드 (부분 문자열) */
@@ -219,6 +252,26 @@ const RULES: NlpRule[] = [
     test: t =>
       (/테마(?!\s*(파일|이름))|theme|다크\s*모드|라이트\s*모드|dark\s*mode|light\s*mode|색상\s*모드|모드\s*전환/.test(t)) &&
       !/보안|시크릿|비밀|키\s*유출|secure|scan|스캔|배포|deploy/.test(t),
+  },
+  {
+    command: 'policy',
+    explanation: '현재 정책 설정의 기준선 고정 안내 (vhk policy baseline --confirm)',
+    confidence: 'high',
+    args: ['baseline'],
+    test: t =>
+      /(?:정책|권한).*(?:기준선|베이스라인).*(?:고정|갱신|업데이트)|(?:기준선|베이스라인).*(?:고정|갱신|업데이트).*(?:정책|권한)|\bpolicy\s+baseline\b.*\b(?:refresh|update|pin)\b|\b(?:refresh|update|pin)\b.*\bpolicy\s+baseline\b/.test(t),
+  },
+  {
+    command: 'policy',
+    explanation: '명령 허용 여부·한도 사전 판정 (vhk policy check)',
+    confidence: 'high',
+    args: ['check'],
+    resolveArgs: input => ['check', ...extractSimplePolicyCheckArgv(input)],
+    test: t =>
+      extractSimplePolicyCheckArgv(t).length > 0 || (
+        /허용|한도|실행\s*가능|\ballow(?:ed|list)?\b|\blimits?\b|\bcan\b.*\b(?:execute|run)\b|\bexecutable\b/.test(t) &&
+        !/보안\s*(스캔|검사)|시크릿\s*(스캔|검사)|secure|scan|스캔/.test(t)
+      ),
   },
   {
     command: 'policy',
@@ -548,7 +601,7 @@ export function routeNaturalLanguage(input: string): NlpRoute | null {
         command: rule.command,
         explanation: rule.explanation,
         confidence: rule.confidence,
-        args: rule.args,
+        args: rule.resolveArgs?.(input) ?? rule.args,
       }
     }
   }

@@ -2,7 +2,17 @@
 // scripts/gen-autonomy-morning-report.mjs — Goal 103 helper (ASCII CLI).
 // Writes docs/audits/autonomy-overnight-<date>.md from autonomy-run.jsonl + optional --pr.
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  appendFileSync,
+  closeSync,
+  existsSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  writeFileSync,
+} from 'node:fs'
 import { join } from 'node:path'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -52,7 +62,24 @@ function appendMorning(cwd, opts) {
   if (opts.approvalTotal !== undefined) obs.approvalDecisionsTotal = opts.approvalTotal
   const dir = join(cwd, '.vhk', 'events')
   mkdirSync(dir, { recursive: true })
-  appendFileSync(join(dir, 'autonomy-run.jsonl'), JSON.stringify(obs) + '\n', 'utf-8')
+  const logPath = join(dir, 'autonomy-run.jsonl')
+  let separator = ''
+  let fd
+  try {
+    fd = openSync(logPath, 'r')
+    const size = fstatSync(fd).size
+    if (size > 0) {
+      const tail = Buffer.allocUnsafe(1)
+      if (readSync(fd, tail, 0, 1, size - 1) !== 1) throw new Error('autonomy log tail could not be read')
+      // Readers split on LF or CRLF. A lone CR needs LF to become a boundary.
+      if (tail[0] !== 0x0a) separator = '\n'
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  } finally {
+    if (fd !== undefined) closeSync(fd)
+  }
+  appendFileSync(logPath, `${separator}${JSON.stringify(obs)}\n`, 'utf-8')
   return obs
 }
 

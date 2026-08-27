@@ -55,7 +55,7 @@ export interface TimeBudgetResult {
  * 카운터를 영원히 올리지 못한다.
  */
 export function evaluateCallBudget(count: number, limits: ExecutionLimits): CallBudgetResult {
-  if (count >= limits.perRunCommandCount) {
+  if (!Number.isSafeInteger(count) || count < 0 || count >= limits.perRunCommandCount) {
     return { exceeded: true, reasonCode: 'CALL_BUDGET_EXCEEDED' }
   }
   return { exceeded: false }
@@ -88,7 +88,18 @@ export function evaluateTimeBudget(input: TimeBudgetInput): TimeBudgetResult {
   const lastSeen = Date.parse(lastSeenUtc)
 
   let clockAnomaly = input.priorAnomaly === true
-  let elapsedSec = (now - started) / 1000
+  const parsedClock = [now, started, lastSeen].every(Number.isFinite)
+  let elapsedSec = parsedClock ? (now - started) / 1000 : 0
+
+  if (!parsedClock) {
+    return {
+      exceeded: true,
+      reasonCode: 'CLOCK_ANOMALY',
+      elapsedSec,
+      clockAnomaly: true,
+      nextLastSeenUtc: Number.isFinite(now) ? nowUtc : lastSeenUtc,
+    }
+  }
 
   if (elapsedSec < 0) {
     elapsedSec = 0 // 음수 클램프

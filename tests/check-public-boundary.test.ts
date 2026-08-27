@@ -46,6 +46,22 @@ describe('공개 경계 검사', () => {
     expect(result.problems.some((problem: string) => problem.includes('개인 운영 경로'))).toBe(true)
   })
 
+  it.each([
+    '.vhk/policy.json',
+    '.vhk/policy-baseline.json',
+    '.vhk/.policy-baseline.json.tmp-123-0',
+    '.vhk/run-state.json',
+    '.vhk/run-state.lock',
+    '.vhk/run-state-recovery.lock',
+    '.vhk/.run-state.json.tmp-123-0',
+    '.vhk/.cloud.json.tmp-123-0',
+  ])('gitignore가 없어져 %s가 추적돼도 공개 경계에서 차단한다', (privatePath) => {
+    const result = checkPublicBoundary({
+      trackedEntries: [{ path: privatePath, content: '{}' }],
+    })
+    expect(result.problems).toContain(`${privatePath}: 공개 Git 트리에 개인 운영 경로가 포함됨`)
+  })
+
   it('개인 저장소명·메일·절대경로를 내용과 메타데이터에서 차단한다', () => {
     const repositoryName = ['yohan', 'brain'].join('-')
     const personalEmail = ['byh3071', 'gmail.com'].join('@')

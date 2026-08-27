@@ -1,11 +1,12 @@
 /*
  * policy.ts — `vhk policy` 컨테이너 (작업 단위 124-T4 · RFC 0066 §8).
  *
- * 세 서브커맨드 전부 **읽기 전용이고 원장에 기록하지 않는다.** 조회로 전이가 일어나면
+ * 이 모듈의 네 조회 서브커맨드는 전부 **읽기 전용이고 원장에 기록하지 않는다.** 조회로 전이가 일어나면
  * `vhk policy level` 을 세 번 불러 L1 → L3 로 올라가는 경로가 열린다(§4.3 적대 검증 치명 3).
  * 그래서 이 파일은 `appendPolicyDecision` 을 import 하지 않는다 — 실수로도 못 쓰게 한다.
  *
  * 전이는 자율 런 종결 이벤트에서만 일어난다. 여기서는 계산 결과를 보여주기만 한다.
+ * 사람 전용 writer인 `policy baseline`은 별도 모듈에 격리한다.
  */
 import chalk from 'chalk'
 import { existsSync } from 'node:fs'
@@ -17,8 +18,12 @@ import { readAutonomyLog } from '../lib/autonomy-log.js'
 import { readReceiptLog } from '../lib/receipt-log.js'
 import { calcAutonomyStats } from '../lib/autonomy-stats.js'
 import { decidePermissionLevel, PROMOTION_FAILURE_MAX } from '../lib/permission-level.js'
-import { loadPolicyConfig } from '../lib/policy-config.js'
-import { checkPolicyBaseline } from '../lib/policy-baseline.js'
+import {
+  loadPolicyConfig,
+  readPolicyConfigSnapshot,
+  type PolicyConfigSnapshot,
+} from '../lib/policy-config.js'
+import { checkPolicyBaseline, type BaselineCheck } from '../lib/policy-baseline.js'
 import { lastLevelLine } from '../lib/policy-log.js'
 import { deriveTaskKindDetailed, stagedPaths } from '../lib/task-kind.js'
 import { preflight, exitCodeOf } from '../lib/execution-preflight.js'
@@ -27,13 +32,18 @@ import { HARD_STOP_PATH } from '../lib/state-files.js'
 import { riskClassOf } from '../lib/risk-class.js'
 
 /** 설정이 신뢰할 수 없으면 그 사실을 먼저 알린다 — 자율 레인은 이 상태에서 전부 거부다. */
-function printConfigHealth(cwd: string): void {
-  const config = loadPolicyConfig(cwd)
+function printConfigHealth(
+  cwd: string,
+  snapshot: PolicyConfigSnapshot = readPolicyConfigSnapshot(cwd),
+): BaselineCheck {
+  const config = snapshot.config
   if (config.failClosed) {
     log.warn(ko.policy.configFailClosed(config.reasonCode ?? 'UNKNOWN'))
   }
-  const baseline = checkPolicyBaseline(cwd)
+  const baseline = checkPolicyBaseline(cwd, snapshot)
   if (baseline.mutated) log.warn(ko.policy.baselineMutated)
+  else if (baseline.configPresent && baseline.baselineMissing) log.warn(ko.policy.baselineMissing)
+  return baseline
 }
 
 export function policyLevel(cwd: string = process.cwd()): void {
@@ -107,7 +117,10 @@ export function policyShow(cwd: string = process.cwd()): void {
 export function policyCheck(argv: string[], cwd: string = process.cwd()): void {
   console.log(chalk.bold(`
 ${ko.policy.checkTitle}`))
-  printConfigHealth(cwd)
+  // 의미 파싱과 baseline 해시를 한 번 읽은 같은 바이트에 묶는다. 두 번 읽으면 그 사이 설정
+  // 교체로 경고한 파일과 실제 판정에 쓴 파일이 달라질 수 있다.
+  const snapshot = readPolicyConfigSnapshot(cwd)
+  const baseline = printConfigHealth(cwd, snapshot)
 
   const [bin, ...args] = argv
   if (!bin) {
@@ -116,7 +129,13 @@ ${ko.policy.checkTitle}`))
     return
   }
 
-  const config = loadPolicyConfig(cwd)
+  const config = snapshot.config
+  if (config.failClosed || baseline.mutated) {
+    const reason = baseline.reasonCode ?? config.reasonCode ?? 'POLICY_CONFIG_UNREADABLE'
+    console.log(`  ${ko.policy.checkVerdict('deny', reason)}`)
+    process.exitCode = exitCodeOf('deny')
+    return
+  }
   if (!config.sectionsUsable || !config.limits) {
     // 허용목록·한도가 없으면 자율 레인은 아무것도 못 돌린다. 그 사실을 그대로 알린다.
     log.warn(ko.policy.checkNoSections)
@@ -131,10 +150,14 @@ ${ko.policy.checkTitle}`))
     last?.to !== undefined ? { to: last.to, judgedRuns: last.judgedRuns ?? 0, ts: last.ts } : null
   const level = decidePermissionLevel(stats, { maxLevel: config.maxLevel }, previous).level
 
-  // 런 밖 판정이면 상태 파일이 없다 — 카운터 0, 경과 0 으로 본다(§6.3).
+  // terminal 준비 또는 정책 원장 보충이 남은 레코드는 활성 런이 아니라 종결 재시도 증거다.
+  // 이를 런 컨텍스트로 쓰면 오래된 호출 수·시작 시각이 현재 조회를 거부하므로 제외한다.
+  // 활성 런이 없으면 카운터 0, 경과 0 으로 본다(§6.3).
   const nowUtc = new Date().toISOString()
-  const runs = Object.values(readRunState(cwd))
-  const run = runs.length === 1 ? runs[0] : undefined
+  const activeRuns = Object.values(readRunState(cwd)).filter(
+    run => run.terminalRequestExpected === undefined && run.policyRecordPending !== true,
+  )
+  const run = activeRuns.length === 1 ? activeRuns[0] : undefined
 
   const result = preflight(
     { bin, args },

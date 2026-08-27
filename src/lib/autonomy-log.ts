@@ -1,7 +1,8 @@
-import { existsSync, readFileSync, mkdirSync, appendFileSync } from 'node:fs'
+import { existsSync, readFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { stripBom } from './read-json.js'
+import { appendJsonlLine } from './jsonl-append.js'
 import type { TaskKind } from './task-kind.js'
 
 // 이슈 #373: 자율성완주율 측정 스키마.
@@ -63,6 +64,15 @@ export interface AutonomyRunEntry {
   taskKind?: TaskKind
   /** 실패 성격. infra 는 분모에서 제외된다(110-T5). 종결 이벤트에서만 의미 있음. */
   failureKind?: AutonomyFailureKind
+  /**
+   * 런 시작 정책 스냅샷 위치. 실제 해시는 비추적 run-state에만 둔다.
+   * undefined는 이 필드 도입 전 legacy start 라인이다.
+   */
+  policyConfigSnapshot?: 'absent' | 'run-state-v1'
+  /** 종결 시 정책 원장 기록이 필요했는지. append 실패 재시도의 완결성 판정용 공개 boolean. */
+  policyRecordExpected?: boolean
+  /** 실제 해시는 비추적 상태에 두고, terminal은 그 상태가 만들어진 시점만 가리킨다. */
+  policyRecordSnapshot?: 'run-state-v1' | 'terminal-v1'
 }
 
 // ─── Goal 111-T1: 아침 자기신고 관측 (분리 타입) ─────────────────────────────
@@ -183,7 +193,7 @@ export function appendMorningObservation(cwd: string, obs: MorningObservation): 
   if (!normalizeMorningObservation(obs)) return false
   const p = join(cwd, AUTONOMY_LOG_PATH_REL)
   mkdirSync(join(cwd, '.vhk', 'events'), { recursive: true })
-  appendFileSync(p, JSON.stringify(obs) + '\n', 'utf-8')
+  appendJsonlLine(p, obs)
   return true
 }
 
@@ -217,7 +227,7 @@ export function selectDailyObservations(observations: MorningObservation[]): Map
 export function appendAutonomyEntry(cwd: string, entry: AutonomyRunEntry): void {
   const p = join(cwd, AUTONOMY_LOG_PATH_REL)
   mkdirSync(join(cwd, '.vhk', 'events'), { recursive: true })
-  appendFileSync(p, JSON.stringify(entry) + '\n', 'utf-8')
+  appendJsonlLine(p, entry)
 }
 
 /**

@@ -25,6 +25,8 @@ export interface GuardDeps {
   confirm?: () => Promise<boolean>
   /** 명시적 승인 플래그 (--yes / confirm:true 등) — 비대화형/preview 채널에서 실행 허용 */
   approved?: boolean
+  /** 차단 안내에 보여줄 실제 승인 플래그. 명령별 지정이 없으면 `--yes`. */
+  approvalHint?: string
   /** 사용자 안내 출력 */
   log?: (msg: string) => void
   /** just-in-time 회상 기준 디렉터리 (기본 process.cwd()) — RFC 0049 */
@@ -78,6 +80,7 @@ async function runGuardedInner<T>(
 ): Promise<{ outcome: GuardedOutcome; result?: T }> {
   const mode: SafetyMode = deps.mode ?? readConfig().safetyMode
   const log = deps.log ?? (() => {})
+  const approvalHint = deps.approvalHint ?? '--yes'
   // Goal 57: deps.target 이 있으면 글롭 위험 차원도 함께 평가(하위호환 — 미지정 시 기존 동작).
   const guard = resolveGuard(action, mode, deps.channel, deps.target)
 
@@ -109,7 +112,7 @@ async function runGuardedInner<T>(
     const canConfirm = deps.isTTY ?? !!process.stdin.isTTY
     if (!deps.approved && !canConfirm) {
       // "실행하지 않았습니다" 문구는 MCP 가 가드 차단을 식별하는 마커 — 차단 메시지 3종 공통 유지(리뷰 A1-03).
-      log(`⚠️ 위험 작업(${action}) — lite 지만 비대화형+미승인 → 실행하지 않았습니다. (--yes 로 승인)`)
+      log(`⚠️ 위험 작업(${action}) — lite 지만 비대화형+미승인 → 실행하지 않았습니다. (${approvalHint} 로 승인)`)
       return { outcome: { ran: false, guard, reason: 'lite-noninteractive-block' } }
     }
     log(`⚠️ 위험 작업(${action}) — lite 모드: 경고만 하고 진행합니다.`)
@@ -128,7 +131,7 @@ async function runGuardedInner<T>(
       log(`취소됨 — ${action} 을(를) 실행하지 않았습니다.`)
       return { outcome: { ran: false, guard, reason: 'declined' } }
     }
-    log(`⚠️ 위험 작업(${action}) — 확인 불가(비대화형). 실행하지 않았습니다. (--yes 로 명시 승인)`)
+    log(`⚠️ 위험 작업(${action}) — 확인 불가(비대화형). 실행하지 않았습니다. (${approvalHint} 로 명시 승인)`)
     return { outcome: { ran: false, guard, reason: 'no-confirm' } }
   }
 

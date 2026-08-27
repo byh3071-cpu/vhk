@@ -30,6 +30,64 @@ describe('자연어 라우팅', () => {
     expect(routeNaturalLanguage('린트 진단해줘')?.command).toBe('check')
   })
 
+  describe('policy check 자연어 라우팅', () => {
+    it.each([
+      '이 명령 허용돼?',
+      '명령 한도 확인해줘',
+    ])('대상이 없는 한국어 "%s" → policy check 사용법', (phrase) => {
+      const route = routeNaturalLanguage(phrase)
+      expect(route?.command).toBe('policy')
+      expect(route?.args).toEqual(['check'])
+    })
+
+    it.each([
+      'is this command allowed?',
+      'check the command limit',
+    ])('대상이 없는 영문 "%s" → policy check 사용법', (phrase) => {
+      const route = routeNaturalLanguage(phrase)
+      expect(route?.command).toBe('policy')
+      expect(route?.args).toEqual(['check'])
+    })
+
+    it.each([
+      ['pnpm test:run 실행 가능해?', ['check', 'pnpm', 'test:run']],
+      ['pnpm test:run --coverage 허용돼?', ['check', 'pnpm', 'test:run', '--coverage']],
+      ['can PNPM Test:Run execute?', ['check', 'PNPM', 'Test:Run']],
+      ['is pnpm test:run allowed?', ['check', 'pnpm', 'test:run']],
+      ['pnpm secure:test 실행 가능해?', ['check', 'pnpm', 'secure:test']],
+      ['pnpm scan 실행 가능해?', ['check', 'pnpm', 'scan']],
+      ['can npm run secure execute?', ['check', 'npm', 'run', 'secure']],
+    ])('구체 명령 "%s" → 원본 argv 보존', (phrase, expected) => {
+      expect(routeNaturalLanguage(phrase)?.args).toEqual(expected)
+    })
+
+    it.each([
+      'pnpm typecheck && npm publish 실행 가능해?',
+      'pnpm "test:run --coverage" 실행 가능해?',
+      'pnpm test:run 실행 가능해? 그리고 돌려줘',
+    ])('복잡하거나 뒤 문장이 붙은 "%s" → 일부 argv를 낙관 판정하지 않음', (phrase) => {
+      const route = routeNaturalLanguage(phrase)
+      expect(route?.command).toBe('policy')
+      expect(route?.args).toEqual(['check'])
+    })
+
+    it('일반 권한 정책 조회는 policy show 의미를 보존한다', () => {
+      const route = routeNaturalLanguage('현재 권한 정책 보여줘')
+      expect(route?.command).toBe('policy')
+      expect(route?.args).toBeUndefined()
+    })
+  })
+
+  it.each([
+    '정책 기준선 고정해줘',
+    'policy baseline refresh',
+  ])('"%s" → policy baseline (승인 플래그는 자동 주입하지 않음)', (phrase) => {
+    const route = routeNaturalLanguage(phrase)
+    expect(route?.command).toBe('policy')
+    expect(route?.args).toEqual(['baseline'])
+    expect(route?.args).not.toContain('--confirm')
+  })
+
   it('"프로젝트 만들고 싶어" → start (마법사)', () => {
     const result = routeNaturalLanguage('프로젝트 만들고 싶어')
     expect(result?.command).toBe('start')
@@ -137,6 +195,10 @@ describe('자연어 라우팅', () => {
   it('"보안 스캔 돌려" → secure', () => {
     const result = routeNaturalLanguage('보안 스캔 돌려')
     expect(result?.command).toBe('secure')
+  })
+
+  it('"보안 스캔해줘"는 명령 허용 질문이 아니라 secure다', () => {
+    expect(routeNaturalLanguage('보안 스캔해줘')?.command).toBe('secure')
   })
 
   it('"배포하고 싶어" → deploy', () => {

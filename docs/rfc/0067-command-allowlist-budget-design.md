@@ -463,12 +463,15 @@ Goal 125 카드의 완료 조건이 그대로 검증 조건이다.
 
 | 항목 | 내용 |
 |---|---|
-| 파일 | `.vhk/run-state.json` (비추적 — `.gitignore` 등재) |
+| 파일 | `.vhk/run-state.json` + 사용자 전용 OS-temp의 workspace 해시 잠금 + 중단 시 남을 수 있는 `.vhk/.run-state.json.tmp-*` |
 | 키 | `runId` — 병행 런이 서로를 덮지 않게 런별 레코드 |
-| 필드 | `startedAtUtc`(ISO) · `commandCount`(number) · `lastSeenUtc`(ISO) · `clockAnomaly`(boolean) |
+| 필드 | `startedAtUtc`(ISO) · `commandCount`(nonnegative safe integer) · `lastSeenUtc`(ISO) · `clockAnomaly`(boolean) · optional `policyConfigHash`(SHA-256) · optional `policySnapshotOrigin` · optional `policyRecordPending` · optional `policyRecordLegacyBackfill`(공개 의무 필드 도입 전 unmarked terminal의 원장 보충 표시) · optional `policyRiskExpected`(최초 종결의 전체 위험도 판정) · optional `terminalRequestExpected`(최초 종료 시각·요청·계측값·당시 정책 무효화 여부) |
 | 생성 | 자율 런 `start` 시점 1회 |
 | 갱신 | 진입점이 **읽고 → `+1` → 기록** |
-| 정리 | 런 종결 시 해당 레코드 제거. 종결 없이 남은 레코드는 오래되면 만료 |
+| 정리 | 종결·정책 판정 기록이 내구화된 뒤 해당 레코드 제거. 시작 원장 실패는 즉시 롤백. 종결 없이 남은 레코드는 오래되면 만료하되 `policyRecordPending:true`·`policyRiskExpected`·`terminalRequestExpected` 증거는 성공 전 TTL 정리하지 않음. 같은 SHA 재시도는 최초 종료 요청과 판정을 다시 만들지 않음 |
+
+모든 run-state writer는 파일 전체와 모든 raw 레코드를 먼저 엄격히 검증한다. 하나라도 손상됐으면
+유효 레코드만 남긴 파일로 덮지 않고 `RUN_STATE_CORRUPT`로 중단해 원본 증거를 보존한다.
 
 #### 카운터 (치명 4 잔여)
 
@@ -484,11 +487,16 @@ Goal 125 카드의 완료 조건이 그대로 검증 조건이다.
 5번이 **실행 전**인 것이 중요하다. 실행 후에 세면 프로세스가 죽었을 때 카운트가 누락되고,
 죽는 명령을 반복하는 루프가 카운터를 영원히 올리지 못한다.
 
-**원자성 한계.** 이것은 read-modify-write이므로 append 한 줄의 원자성이 적용되지 않는다.
-RFC 0066 §4.5의 CAS 관례를 그대로 쓴다 — 읽은 값을 base로 기억하고, 기록 직전에 다시 읽어
-`commandCount`가 base와 같을 때만 쓴다. 다르면 재계산한다.
-0066 §4.5와 같은 한계가 여기에도 있다(파일 잠금 없는 낙관적 방식). 막으려는 것은
-**같은 런 안에서 순차로 도는 명령들의 누락**이지 극단적 동시 쓰기가 아니다.
+**원자성.** 이것은 whole-file read-modify-write이므로 `startRun`·`endRun`·카운터 갱신 전부를
+물리 workspace 경로의 SHA-256으로 이름을 정한 OS-temp 잠금으로 직렬화한다. 잠금 디렉터리는
+현재 사용자 소유·0700·비링크임을 확인한다.
+잠금 파일 생성은 `open(..., 'wx')`의 배타 생성으로 프로세스 사이에서도 원자적이다. 잠금 위치는
+mutable `policy.json`과 Git 유무에 무관해 런 도중 설정·저장소 상태가 바뀌어도 한 임계구역을 쓴다.
+비정상 종료나 부분 쓰기로 남은 잠금은 PID가 죽어 보이더라도 자동
+삭제하지 않는다. `open('wx')` 직후 멈춘 살아 있는 프로세스를 stale로 오판하면 두 소유자가 동시에
+임계구역에 들어갈 수 있기 때문이다. 5초 뒤 fail-closed하고, 관찰한 PID 상태와 실행 중 VHK 프로세스를
+확인한 사람이 오류에 표시된 잠금 경로를 직접 정리하도록 안내한다. 카운터의 `baseCount` 비교도 유지해,
+잠금을 기다리는 동안 호출 측 판정이 낡았으면 실행하지 않고 재판정하게 한다.
 
 #### 시계 — 프로세스 경계를 넘는 기준 (치명 10 잔여)
 
@@ -639,12 +647,16 @@ RFC 0066 §7.1의 4층 분리를 그대로 상속한다.
 |---|---|---|---|
 | 판정 | 계산한다 (순수, 부작용 0, 스폰 0) | 같음 | 같음 |
 | 표시 | `vhk policy check`가 결과를 출력한다 | 같음 | 같음 |
-| 기록 | **쓰지 않는다** — 원장도, 런 상태 파일도 | 판정 이력만 원장에 남긴다 | 같음 |
+| 기록 | **판정 원장은 쓰지 않는다.** 정책 파일이 있는 자율 런은 무결성 확인용 private hash만 런 상태에 둔다 | 판정 이력도 원장에 남긴다 | 같음 |
 | 집행 | 없다 | **없다** | 요청 거부·중단 (126 이후) |
 
-런 상태 파일(§5.3-3)은 **자율 런이 시작될 때만** 생긴다. `enforce: false`에서는 자율 런이
-돌지 않으므로 파일이 만들어지지 않는다. `vhk policy check`는 어떤 경우에도 이 파일을 쓰지 않고,
-없으면 "런 밖 판정"으로 표시하며 `runCommandCount = 0`을 가정해 출력한다.
+런 상태 파일(§5.3-3)은 **자율 런이 시작될 때만** 생긴다. 정책 파일이 없으면 기본 off 자율 런도
+새 런 상태를 만들지 않는다. 정책 파일이 있으면 `record`·`enforce`가 모두 false여도 시작 때 실제
+내용 해시만 private 상태에 저장한다. 이는 집행이나 판정 기록이 아니라 런 도중 정책 바꿔치기를
+막는 무결성 예외다. `vhk policy check`는 어떤 경우에도 이 파일을 쓰지 않고, 없으면 "런 밖 판정"으로
+표시하며 `runCommandCount = 0`을 가정해 출력한다.
+종결 요청 또는 정책 원장 보충을 위해 남겨 둔 레코드는 활성 런이 아니라 재시도 증거다. 조회 시에는
+이 레코드를 예산·경과 컨텍스트에서 제외하고, 별도의 활성 레코드가 정확히 하나일 때만 그 런을 사용한다.
 
 플래그도 0066 과 같은 것을 쓴다(`.vhk/policy.json` 의 `record`·`enforce` — ADR-019).
 124용·125용을 **따로 두지 않는다** — 같은 안전 스위치가 기능마다 갈리면 하나만 켠 상태가 생긴다.
@@ -700,7 +712,7 @@ RFC 하나가 조용히 범위를 줄이면, 125를 "완료"로 표시하는 순
 | `src/lib/command-allowlist.ts` | 허용목록 타입 · 항목 검증 · `normalizeBin` · 정확 일치 매칭 | 없음 (순수) |
 | `src/lib/execution-preflight.ts` | §4 판정 5단계 · `PreflightVerdict` | 없음 (순수) |
 | `src/lib/execution-limits.ts` | 경과·호출 수 대 상한 판정 · 이상 시계 판별 | 없음 (순수) |
-| `src/lib/run-state.ts` | `.vhk/run-state.json` 읽기 · CAS 갱신 · 만료 정리(§5.3-3) | 읽기 + 런 중 쓰기 |
+| `src/lib/run-state.ts` | `.vhk/run-state.json` 읽기 · 프로세스 간 잠금 · CAS 갱신 · 만료 정리(§5.3-3) | 읽기 + 런 중 쓰기 |
 
 ### 신설 — 125b (126과 함께)
 
@@ -729,7 +741,7 @@ RFC 하나가 조용히 범위를 줄이면, 125를 "완료"로 표시하는 순
 > 등재)이 같은 계열에서 그것을 additive로 수정한다. 여기서 "손대지 않는다"고 선언하면
 > 0066과 정면으로 어긋난다. 소유는 0066에 있다.
 
-`.gitignore`에는 이 RFC가 `.vhk/run-state.json` 한 줄을 추가한다
+`.gitignore`에는 이 RFC가 `.vhk/run-state.json`, 일시 잠금 `.vhk/run-state.lock`, 원자 저장 임시본 `.vhk/.run-state.json.tmp-*`을 추가한다. 구 구현의 예약 잔재 `.vhk/run-state-recovery.lock`도 제외한다
 (0066 §7.3이 추가하는 두 줄과 같은 커밋에 묶어도 된다).
 
 ---
@@ -828,7 +840,11 @@ RFC 하나가 조용히 범위를 줄이면, 125를 "완료"로 표시하는 순
 
 RFC 0066 §7.5의 8단계 절차를 그대로 쓴다.
 `policy.json`이 `allow`·`limits`를 가지고 있어도 `enforce: false`면
-**원장 라인이 0이고 `.vhk/run-state.json`도 생기지 않아야 한다.**
+**판정 원장 라인은 0이다.** 정책 파일이 있는 자율 런은 시작 설정 무결성 확인을 위해
+`.vhk/run-state.json`에 private hash와 최초 종결의 종료 요청·위험도 판정을 남겼다가 종결·정책 판정 기록이 성공한 뒤 정리한다.
+정책 파일이 없으면 상태 파일과 ignore 규칙을 만들지 않는다. 다만 같은 runId의 중복 terminal append를
+막기 위해 종결 임계구역 동안 사용자 전용 OS-temp의 공통 잠금을 쓰고 정상 종료 때 제거한다. 따라서
+프로세스가 중단돼도 프로젝트 Git에는 잠금 잔재가 나타나지 않는다.
 
 ### 9.9 등록·별칭
 
@@ -893,6 +909,10 @@ RFC 0066 §8.1의 `vhk policy` 컨테이너에 **서브커맨드 하나만** 추
 | `execSync` 금지 규칙 | 준수 | 신규 `execSync` 0 |
 | `TaskKind` · `deriveTaskKind` | 이 RFC에서는 없음 | 위험도를 쓰지 않는다(§4.1). 같은 계열의 additive 수정 소유는 RFC 0066 §5.3·§7.3 |
 | `.vhk/run-state.json` | 신규 파일 | 부재를 정상으로 취급. 자율 런이 없으면 만들어지지 않는다 |
+| 사용자 전용 OS-temp workspace 해시 잠금 | 신규 일시 파일 | 모든 run-state·terminal 갱신을 정책·Git 상태와 무관한 단일 위치에서 직렬화 |
+| `.vhk/run-state.lock` | 예약 제외 이름 | 생성하지 않는다. 구 구현 잔재의 Git·cloud 노출만 막는다 |
+| `.vhk/run-state-recovery.lock` | 예약 제외 이름 | 생성하지 않는다. 구 구현 잔재의 Git·cloud 노출만 막는다 |
+| `.vhk/.run-state.json.tmp-*` | 신규 일시 파일 패턴 | 원자 교체 전에 중단돼 남아도 Git·cloud에서 제외한다 |
 | MCP 도구 | 없음 | 미노출 |
 | 기존 프로젝트(`policy.json` 없음) | 없음 | off + 빈 허용목록 |
 | 기존 원장 4종 | 없음 | 필드 추가 0 |

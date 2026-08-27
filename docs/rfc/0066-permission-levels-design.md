@@ -227,11 +227,25 @@ export const POLICY_SCHEMA_VERSION = 1
 
 | 항목 | 계약 |
 |---|---|
-| 쓰기 | append-only · dedup 없음 · `appendFileSync` O(1) |
+| 쓰기 | append-only · dedup 없음. 마지막 바이트가 개행이 아니면 separator와 새 레코드를 한 번의 append buffer로 써, 중단된 부분 꼬리가 다음 정상 라인을 삼키지 않게 함 |
 | 읽기 | BOM-safe · 손상 라인은 관용적 skip · `schemaVersion !== 1` 라인도 skip |
 | 동시성(라인) | 한 줄 단위 원자적 append. lost-update 없음 |
 | 동시성(상태) | **append 원자성은 상태 갱신 원자성이 아니다** — `kind: 'level'` 라인은 §4.5의 CAS 규칙을 추가로 지킨다 |
 | 크기 | 회전·정리 없음. 이번 계열에서는 다루지 않는다(§11 Q4) |
+
+종결 기록 직전에는 그 런의 최초 종료 요청(`ts`·`event`·계측값·`failureKind`·당시 정책 무효화 여부)과
+`sha`·`taskKind`·`riskClass`·`verdict`·`reasonCode`·`unclassifiedPaths`·`derivedFrom`을
+비추적 `run-state.json`에 한 묶음으로 먼저 고정한다. 종결 또는 정책 원장 append가 중단되면
+같은 SHA의 재시도는 현재 입력·분류 규칙·Git 재조회 결과로 다시 만들지 않고 이 최초 묶음을 이어 쓴다.
+SHA나 종료 종류가 달라졌거나 묶음이 손상·유실됐으면 fail-closed한다.
+종결과 정책 판정이 모두 내구화된 뒤에만 비공개 묶음을 정리한다.
+대상 `runId`의 raw 레코드가 존재하지만 형태가 잘못된 경우는 `missing`과 구분해 `corrupt`로
+중단한다. 특히 공개 start가 없는 manual/legacy 종결도 손상된 prepared 레코드를 새 요청으로
+재생성하지 않는다. 다만 정책 파일도 정책 증거 포인터도 없는 명백한 기본-off 런은 대상 레코드를
+식별할 수 없는 무관한 파일 전체 손상 때문에 막지 않는다. 기본-off의 run-state 무관 계약을 유지한다.
+start 없는 종결이 이미 정책 무효화 상태라면 공개 `blocked`를 쓰기 전에 최초 `complete` 요청과
+무효화 여부를 private 상태에 고정한다. 정책을 복구하거나 기준선을 다시 잡아도 이 요청을 새 정책으로
+backfill하지 않으며, 명시적 `blocked` 요청을 나중 `complete` 요청으로 바꾸지도 않는다.
 
 ---
 
@@ -514,8 +528,11 @@ riskClass(breakdown):
 | `src/lib/autonomy-stats.ts` | 3중 판정 집계 이관(§2.1) | 없음 (순수) |
 | `src/lib/permission-level.ts` | 단계 정의 · 전이 판정 · clamp | 없음 (순수) |
 | `src/lib/risk-class.ts` | `TaskKindBreakdown` → `RiskClass` · 단계×위험도 매트릭스 | 없음 (순수) |
-| `src/lib/policy-config.ts` | `.vhk/policy.json` 로더 | 읽기만 |
+| `src/lib/policy-config.ts` | `.vhk/policy.json` 단일 읽기 스냅샷·로더 | 읽기만 |
+| `src/lib/policy-baseline.ts` | 현재 설정 또는 설정 부재의 사람 승인 기준선 | 명시적 baseline 명령에서만 쓰기 |
+| `src/lib/policy-files.ts` | 정책 로컬 상태·일시 잠금·원자 저장 임시본 ignore 보강 | init·정책 상태 기록 때만 쓰기 |
 | `src/lib/policy-log.ts` | `policy-decision.jsonl` 읽기 · CAS append | 쓰기 — **`record` 또는 `enforce`일 때만 호출**(§7.1) |
+| `src/lib/policy-record.ts` | 종결 이벤트를 권한·위험도 판정 원장으로 투영 | 기록 게이트가 켜진 종결에서만 쓰기 |
 | `src/commands/policy.ts` | `vhk policy` 커맨드 | 출력만. **append 함수 import 금지** |
 
 ### 수정 — additive만
@@ -528,7 +545,10 @@ riskClass(breakdown):
 | `src/lib/command-registry.ts` | `TOP_LEVEL_COMMANDS` · `CONTAINER_SUBCOMMANDS` · `CONTAINER_ALIASES` · `CONTAINER_SUBCOMMAND_ALIASES` |
 | `src/i18n/ko.ts` | `policy` 메시지 블록 |
 | `src/lib/nlp-router.ts` | 키워드 추가 |
-| `.gitignore` · `scripts/check-public-boundary.mjs` | `.vhk/policy.json` 보호(§7.3) |
+| `src/lib/autonomy-log.ts` | 시작 이벤트에 실제 해시가 아닌 optional 스냅샷 포인터 추가 |
+| `src/lib/run-state.ts` | 비추적 런 상태에 optional 정책 내용 해시와 미완료 종결의 최초 종료 요청·위험도 판정 추가 · 프로세스 간 직렬화 |
+| `src/lib/risk-policy.ts` | 사람 기준선 갱신을 high-risk action으로 추가 |
+| `.gitignore` · `scripts/check-public-boundary.mjs` | 정책 로컬 상태·일시 잠금·원자 저장 임시본 보호(§7.3) |
 
 > 초안은 `task-kind.ts`를 "손대지 않는 것"에 넣었다. 치명 1의 수정이 그 파일의 additive 확장을
 > 요구하므로 이쪽으로 옮겼다.
@@ -541,12 +561,11 @@ riskClass(breakdown):
 
 ### 손대지 않는 것
 
-`src/lib/autonomy-log.ts` · `src/lib/receipt-log.ts` · `src/lib/risk-policy.ts` ·
-`src/lib/safety-mode.ts` · `src/lib/exec.ts` · `src/mcp/**` · 기존 원장 파일 전부.
+`src/lib/receipt-log.ts` · `src/lib/safety-mode.ts` · `src/lib/exec.ts` · `src/mcp/**` ·
+기존 원장 라인의 의미와 필수 필드 전부.
 
-`risk-policy.ts`를 건드리지 않는 이유는 그것이 **사람이 부른 CLI 명령**의 가드 정책이기 때문이다.
-자율 런의 권한 축과 별개 차원이다. `cost-policy.ts`가 `risk-policy.ts`를 중복이라 부르지 않고
-"별도 정책 차원"이라 선언한 선례를 그대로 따른다.
+`risk-policy.ts`의 기존 액션 의미는 그대로다. 다만 정책 기준선 갱신은 다음 자율 런의 신뢰 기준을
+바꾸는 사람 명령이므로 기존 high-risk 가드에 additive action 하나로 편입한다.
 
 ---
 
@@ -685,8 +704,29 @@ T4 계약("플래그 없으면 부작용 0")과의 관계: 부작용이 생기�
 | 어디 | `.vhk/policy-baseline.json` (비추적 — `.gitignore` 등재) |
 | 언제 검사 | **런 시작 시** 현재 해시와 베이스라인을 대조 |
 | 불일치 시 | `POLICY_CONFIG_MUTATED` 기록 + **자율 레인 fail-closed(전부 거부)** |
-| 갱신 | **사람 명령으로만.** 자율 레인에는 갱신 경로가 없다 |
+| 갱신 | **사람 명령 `vhk policy baseline --confirm`으로만.** 자율 레인에는 갱신 경로가 없다 |
 | 런 도중 | 시작·종료 해시도 계속 비교(1차 수정의 4번 유지) — 런 중 변경은 그 런의 판정을 무효화 |
+
+런 시작 해시는 추적 가능한 `autonomy-run.jsonl`에 넣지 않는다. 정책 파일은 값 조합이 작아 SHA-256도
+후보 대입으로 설정을 추정하는 equality oracle이 될 수 있기 때문이다. 실제 해시는 비추적
+`.vhk/run-state.json`에만 두고, 공개 start 라인에는 `policyConfigSnapshot: absent|run-state-v1` 포인터만 남긴다.
+종료 때 포인터가 요구한 private 레코드가 없거나 해시가 다르면 베이스라인을 런 중 다시 고정했더라도 무효다.
+private 해시가 남아 있는데 공개 start의 포인터만 빠지거나 `absent`로 바뀐 경우도 legacy로 보지 않고
+`RUN_START_MISSING`으로 무효화한다. 필드 일부 손상을 전체 유실보다 느슨하게 다루지 않는다.
+
+종결 원장과 정책 원장 기록은 같은 사용자 전용 OS-temp 조정 잠금 아래 직렬화한다. 정책 원장 실패 뒤 같은
+`runId`·같은 terminal로 재시도하면 기존 terminal의 SHA와 범위를 재사용하고 새 terminal을 append하지
+않는다. `risk`는 필수 봉투·위험도 필드가 완전한 같은 `runId` 라인만 완료 증거로 인정해 멱등화한다.
+파싱만 되는 불완전 객체는 pending 의무를 해제하지 않는다. 다른 terminal 이벤트로 결과를 바꾸는 재시도는
+거부하며, 정책 기록이 필요한 terminal에는 `policyRecordExpected: true`를 남긴다. 이 terminal 뒤
+에는 `policyRecordSnapshot: run-state-v1|terminal-v1` 포인터도 남기고, start를 거치지 않은
+manual/legacy 종결의 실제 정책 해시와 출처도 비추적 `run-state.json`에 최초 1회 고정한다. 재시도는
+현재 정책·공개 포인터·private 해시와 출처가 모두 일치할 때만 원장을 보충한다. 정책 변경 후 재고정,
+start 포인터 삭제, private 상태 유실 어느 하나도 legacy로 강등하지 않는다. 정책 원장과 private
+상태가 모두 끝난 뒤에만 해시를 정리한다.
+공개 `policyRecordExpected`·`policyRecordSnapshot` 도입 전에 이미 남은 unmarked terminal을 보충할 때는
+`policyRecordLegacyBackfill:true`를 같은 private 묶음에 함께 고정한다. 이 표시가 없는 현대 terminal에서
+공개 의무 필드만 사라진 경우는 legacy로 재해석하지 않고 계속 fail-closed한다.
 
 런 시작 검사가 핵심이다. 런과 런 사이에 파일이 바뀌면 다음 런 시작에서 걸린다.
 "런 도중만" 보던 1차 설계의 사각지대가 이것으로 닫힌다.
@@ -694,14 +734,16 @@ T4 계약("플래그 없으면 부작용 0")과의 관계: 부작용이 생기�
 #### 베이스라인의 순환 — 완전 방어가 아니다
 
 베이스라인 파일 자체도 같은 디스크에 있고 같은 프로세스가 쓸 수 있다.
-`policy.json`과 `policy-baseline.json`을 **같이** 고치면 대조는 통과한다.
+런 밖에서 `policy.json`과 `policy-baseline.json`을 **같이** 고치면 다음 시작 대조는 통과한다.
+단 이미 시작한 런에서는 private 시작 해시가 별도로 남으므로 두 파일을 같이 고치거나 새 기준선으로
+재고정해도 종료 대조에서 걸린다.
 
 이 순환은 닫히지 않는다. 닫으려면 저장소 밖(다른 사용자 권한·원격·하드웨어)에 신뢰 기점이
 있어야 하고, 그것은 이번 계열의 범위가 아니다. 여기서 얻는 것은 **탐지 확률**이다.
 
 | 얻는 것 | 못 얻는 것 |
 |---|---|
-| 파일 하나만 고치면 반드시 걸린다 | 두 파일을 같이 고치면 안 걸린다 |
+| 파일 하나만 고치면 반드시 걸린다 | 런 밖에서 두 파일을 같이 고치면 다음 시작 대조는 안 걸린다 |
 | 변조가 우발적이면 거의 다 잡힌다 | 변조가 의도적이고 이 문서를 읽었으면 못 잡는다 |
 | 사람이 나중에 원장에서 이력을 본다 | 실시간 차단 |
 
@@ -712,17 +754,22 @@ T4 계약("플래그 없으면 부작용 0")과의 관계: 부작용이 생기�
 
 | # | 조치 | 대상 | 유효 환경 |
 |---|---|---|---|
-| 1 | `.vhk/policy.json` · `.vhk/policy-baseline.json`을 `.gitignore`에 추가 | `.gitignore` | A |
-| 2 | 두 파일을 `PRIVATE_TRACKED_PATHS`에 추가 | `scripts/check-public-boundary.mjs` | A·B |
+| 1 | `.vhk/policy.json` · `.vhk/policy-baseline.json` · `.vhk/run-state.json` · `.vhk/run-state.lock`과 두 원자 저장 임시본 패턴을 `.gitignore`와 cloud 제외에 추가. `run-state-recovery.lock`은 구 구현 예약 잔재로 제외만 유지 | init·기존 프로젝트 보강 | A |
+| 2 | 정책 상태·잠금·원자 저장 임시본을 `PRIVATE_TRACKED_PATHS`에 추가 | `scripts/check-public-boundary.mjs` | A·B |
 | 3 | `PATH_RULES`의 `security` 규칙에 `.vhk/policy.json` 등재 | `src/lib/task-kind.ts` | **B만** |
 | 4 | 런 **시작** 시 베이스라인 대조 → 불일치면 `POLICY_CONFIG_MUTATED` + 자율 레인 전부 거부 | 124-T4 | A·B |
 | 5 | 런 시작·종료 해시 비교 → 런 중 변경이면 그 런의 판정 무효화 | 124-T4 | A·B |
-| 6 | 베이스라인 갱신은 사람 명령만. 자율 레인에 갱신 경로 없음(정적 검사) | 124-T4 | A·B |
+| 6 | `vhk policy baseline --confirm`으로만 갱신. 자율 레인에 갱신 경로 없음(정적 검사) | 124-T4 | A·B |
 
 **이 여섯 조치는 `enforce`와 무관하게 항상 동작한다**(헤더의 예외 조항).
 `enforce: false`일 때도 베이스라인 대조는 돌고, 불일치는 `vhk policy show` 출력에 표시된다.
-단 §7.1의 부작용 규칙은 지킨다 — off 상태에서 베이스라인 **파일을 새로 쓰지는 않는다.**
-베이스라인이 아직 없으면 "미설정"으로 표시하고 사람에게 생성 명령을 안내한다.
+단 §7.1의 부작용 규칙은 지킨다 — 조회는 베이스라인 **파일을 새로 쓰지 않는다.** 베이스라인이
+아직 없으면 "미설정"으로 표시하고 사람에게 생성 명령을 안내한다. 사람이 명시 실행한 baseline writer는
+설정 부재도 `{ "hash": null }`로 고정해 default-off 복귀를 승인할 수 있다.
+
+무결성 예외 하나는 숨기지 않는다. `policy.json` 자체가 없으면 자율 start도 새 run-state를 만들지 않는다.
+파일이 존재하면 `record/enforce`가 false여도 런 중 변경 탐지를 위해 private 시작 해시만 기록한다.
+이는 판정 원장이나 명령 집행이 아니라 §7.3 자물쇠 상태이며, 종결·정책 판정 기록이 내구화된 뒤 해당 레코드를 정리한다.
 
 `enforce`를 켜는 CLI 명령을 만들지 않는 이유도 같은 규율이다. 사람이 편집기로 직접 쓴다.
 이것은 128-T3("머지를 실행하는 경로가 코드에 없다")과 같다.
@@ -741,6 +788,9 @@ T4 계약("플래그 없으면 부작용 0")과의 관계: 부작용이 생기�
 
 > **적대 검증 지적(치명 6)으로 손상 처리를 RFC 0067과 통일했다.** 초안은 0066이 "off 폴백",
 > 0067이 "전부 거부"로 서로 달랐다. 같은 파일에 두 해석이 있으면 안 된다.
+
+실제 디렉터리 엔트리가 없는 경우만 기본 off다. `policy.json`은 일반 파일이어야 하며, 끊어진 링크·
+심볼릭 링크·디렉터리·장치 파일·경로 조회 실패는 “부재”가 아니라 읽기 불가 손상으로 취급한다.
 
 **손상·미지원 버전일 때의 단일 규칙.**
 
@@ -778,7 +828,7 @@ RFC 0065 §9의 "무쓰기" 검증 패턴을 확장한다.
 1. 임시 프로젝트에 원장·설정을 준비한다.
 2. **`.git/` 을 제외한** 전체 파일 목록 + 내용 해시 + mtime을 스냅샷한다.
 3. `child_process`의 spawn 계열을 계측기로 감싸 **스폰 횟수와 argv를 수집**한다.
-4. `vhk policy` 계열 명령을 전부 실행한다.
+4. 읽기 전용 `vhk policy level|risk|show|check`를 전부 실행한다. `baseline`은 별도 writer 검증으로 분리한다.
 5. 스냅샷 완전 일치를 단언한다. 신규 파일 0, mtime 변화 0.
 6. 수집된 스폰이 **읽기 전용 git 서브커맨드 화이트리스트**에만 속함을 단언한다. 그 외 스폰 0.
 7. `.vhk/policy.json` 부재 / `enforce: false` / 손상 세 경우를 각각 검사한다.
@@ -792,15 +842,18 @@ RFC 0065 §9의 "무쓰기" 검증 패턴을 확장한다.
 
 ### 8.1 명령
 
-신규 top-level 컨테이너 하나. 서브커맨드는 전부 **읽기 전용이고 원장에 기록하지 않는다**(§4.3).
+신규 top-level 컨테이너 하나. 네 조회 서브커맨드는 **읽기 전용이고 원장에 기록하지 않는다**(§4.3).
+`baseline`만 현재 설정 해시를 사람이 명시적으로 고정하는 writer이며, high-risk 가드와 `--confirm`을 모두 요구한다.
 
 | 명령 | 한글 별칭 | 하는 일 | 기록 |
 |---|---|---|---|
 | `vhk policy level` | `정책 단계` | 현재 단계 · 직전 라인 · 다음 전이에 필요한 조건 출력 | **없음** |
 | `vhk policy risk` | `정책 위험도` | 현재 HEAD 기준 작업 유형 · 미분류 경로 수 · 위험도 출력 | **없음** |
 | `vhk policy show` | `정책 보기` | 위 둘 + `enforce` 상태 + `maxLevel` + 설정 손상 여부 | **없음** |
+| `vhk policy check -- <명령>` | `정책 검사` | 허용목록·한도에 따른 사전 판정. 대상 명령은 실행하지 않음 | **없음** |
+| `vhk policy baseline --confirm` | `정책 기준선` | 현재 설정 해시를 신뢰 기준으로 고정 | 기준선 파일 1개 |
 
-컨테이너 별칭은 `정책`. RFC 0067이 여기에 `check` 하나를 추가한다.
+컨테이너 별칭은 `정책`. RFC 0067의 `check`까지 같은 컨테이너에 둔다.
 **신규 top-level 명령은 이 계열에서 `policy` 하나뿐이다.**
 
 `vhk policy level`의 출력에는 "다음 승급까지 필요한 것"을 명시한다 —
@@ -821,9 +874,9 @@ RFC 0065 §9의 "무쓰기" 검증 패턴을 확장한다.
 - [ ] **`src/index.ts`** — commander 컨테이너 + 서브커맨드 정의 + `.alias('정책')` + 서브별칭
 - [ ] **`src/lib/command-registry.ts`**
   - [ ] `TOP_LEVEL_COMMANDS`에 `{ name: 'policy', desc: ... }`
-  - [ ] `CONTAINER_SUBCOMMANDS`에 `policy: ['level', 'risk', 'show']`
+  - [ ] `CONTAINER_SUBCOMMANDS`에 `policy: ['level', 'risk', 'show', 'check', 'baseline']`
   - [ ] `CONTAINER_ALIASES`에 `정책: 'policy'`
-  - [ ] `CONTAINER_SUBCOMMAND_ALIASES`에 `policy: { 단계: 'level', 위험도: 'risk', 보기: 'show' }`
+  - [ ] `CONTAINER_SUBCOMMAND_ALIASES`에 조회 별칭과 `기준선: 'baseline'`
 - [ ] **`src/lib/cli-args.ts`** — 컨테이너 목록은 레지스트리에서 파생되므로 자동이다. 다만 서브커맨드가 인자를 받으면(RFC 0067의 `check`) `FREEFORM_ARG_COMMANDS` 판단을 명시적으로 검토한다
 - [ ] **`src/i18n/ko.ts`** — `policy` 메시지 블록. 영문 문자열 하드코딩 금지
 - [ ] **`src/lib/nlp-router.ts`** — "권한", "단계", "위험도" 키워드
@@ -846,7 +899,7 @@ RFC 0065 §9의 "무쓰기" 검증 패턴을 확장한다.
 |---|---|---|
 | 기존 명령 이름·플래그 | 없음 | 추가만. `stats` 출력도 불변 |
 | `.vhk/config.json` | 없음 | 새 키를 넣지 않고 별도 `policy.json`을 쓴다 |
-| `autonomy-run.jsonl` | 없음 | 필드 추가 0. 읽기도 집계 함수를 통해서만 |
+| `autonomy-run.jsonl` | additive | start 라인에 optional `policyConfigSnapshot`, 정책 기록이 필요한 terminal에 optional `policyRecordExpected: true`와 `policyRecordSnapshot` 포인터 추가. 실제 해시는 비추적 `run-state.json`에만 둔다 |
 | `receipt-log.jsonl` | 없음 | 동일 |
 | `ai-actions.jsonl` | 없음 | 새 원장으로 분리 |
 | `deriveTaskKind()` | 없음 | 시그니처 불변. `deriveTaskKindDetailed`를 추가만(§5.3) |
@@ -919,15 +972,22 @@ RFC 0065 §9의 "무쓰기" 검증 패턴을 확장한다.
 
 | 케이스 | 기대 |
 |---|---|
-| `.vhk/policy.json` · `policy-baseline.json`이 `git status`에 뜨는가 | 뜨지 않음(`.gitignore` 등재) |
-| `boundary:check` | 두 파일 `PRIVATE_TRACKED_PATHS` 등재 확인 |
+| `.vhk/policy.json` · `policy-baseline.json` · `run-state.json` · `run-state.lock` · 예약 잔재 `run-state-recovery.lock` · 두 원자 저장 임시본이 `git status`에 뜨는가 | 뜨지 않음(`.gitignore` 등재) |
+| `boundary:check` | 정책 상태·잠금·원자 저장 임시본 `PRIVATE_TRACKED_PATHS` 등재 확인 |
 | `classifyPath('.vhk/policy.json')` | `security` — **환경 B에서만 유효한 규칙임을 주석에 명시** |
-| **런과 런 사이** 파일 변경 후 새 런 시작 | `POLICY_CONFIG_MUTATED` · **자율 레인 fail-closed** (1차 사각지대 회귀 가드) |
+| **런과 런 사이** 파일 변경 후 새 런 시작 | 기준선과 다르면 `POLICY_CONFIG_MUTATED` · **자율 레인 fail-closed** |
 | 런 도중 파일 변경 | `POLICY_CONFIG_MUTATED` · 그 런 판정 무효 |
-| 베이스라인 없음 | "미설정" 표시 + 사람 생성 명령 안내. **자동 생성 안 함** |
+| private 시작 해시는 남았는데 공개 start 라인이 손상·유실 | `RUN_START_MISSING` · legacy 수동 종결로 낙관 해석하지 않고 그 런 판정 무효 |
+| private 시작 해시는 남았는데 start의 포인터만 삭제·`absent` 변조 | `RUN_START_MISSING` · 부분 손상도 동일하게 무효 |
+| 정책 원장 실패 뒤 같은 terminal 재시도 | terminal·risk 각 최대 1줄 · 기존 terminal SHA 재사용 · 성공 뒤 private 상태 정리 |
+| 같은 runId를 다른 terminal로 재시도 | 원장 변경 없이 실패 |
+| 베이스라인 없음 | "미설정" 표시 + `vhk policy baseline --confirm` 안내. **자동 생성 안 함** |
 | `enforce: false` + 베이스라인 불일치 | 대조는 돌고 `vhk policy show`에 표시. 파일 쓰기 0 |
 | 자율 레인 모듈에서 베이스라인 갱신 함수 참조 | 정적 검사 실패(§7.3 조치6) |
-| 두 파일을 같이 고침 | **통과한다.** §7.3의 명시된 한계 — 이것이 통과함을 테스트로 고정해 나중에 "막힌다"고 오해하지 않게 한다 |
+| 런 밖에서 설정과 기준선을 같이 고침 | **다음 시작은 통과한다.** 사람 기준선 파일까지 바꿀 수 있는 공격은 이 2파일 설계의 명시된 한계 |
+| 런 도중 설정 변경 뒤 새 값으로 기준선 재고정 | 시작 때 private hash와 달라 종결 실패. 런 중 재고정으로 우회할 수 없음 |
+| 설정 삭제 후 default-off 기준선 고정 | `{ "hash": null }`로 기록되고 다음 시작은 정상 |
+| init·기존 프로젝트 보강·cloud push | 정책 상태·잠금·원자 저장 임시본이 추적·업로드되지 않음 |
 
 ### 10.6 손상 처리 통일 (치명 6)
 

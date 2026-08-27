@@ -10,6 +10,12 @@ const route = (command: NlpRoute['command'], confidence: NlpRoute['confidence'])
   confidence,
 })
 
+const subRoute = (
+  command: NlpRoute['command'],
+  subcommand: string,
+  confidence: NlpRoute['confidence'] = 'high',
+): NlpRoute => ({ ...route(command, confidence), args: [subcommand] })
+
 describe('quick actions (자연어 도움말 — 읽기전용)', () => {
   it('10개 quick action + 핵심 문구 포함', () => {
     expect(QUICK_ACTIONS.length).toBe(10)
@@ -46,6 +52,10 @@ describe('requiresConfirmation — 상태변경 명령은 confidence 무관 conf
   it('start/init 는 high 라도 confirm 필요 (스캐폴딩 방지)', () => {
     expect(requiresConfirmation(route('start', 'high'))).toBe(true)
     expect(requiresConfirmation(route('init', 'high'))).toBe(true)
+  })
+
+  it('policy baseline은 high라도 confirm 필요 (신뢰 기준 자동 갱신 방지)', () => {
+    expect(requiresConfirmation(subRoute('policy', 'baseline'))).toBe(true)
   })
 
   it('help/status 등 읽기전용 high 는 confirm 불필요', () => {

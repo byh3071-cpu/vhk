@@ -37,7 +37,11 @@ function writeConfig(content: string): void {
 
 describe('정책 설정 해시 베이스라인 (RFC 0066 §7.3)', () => {
   it('설정 파일이 없으면 검사할 것도 없다', () => {
-    expect(checkPolicyBaseline(dir).mutated).toBe(false)
+    expect(checkPolicyBaseline(dir)).toMatchObject({
+      mutated: false,
+      baselineMissing: true,
+      configPresent: false,
+    })
   })
 
   // 설정은 있는데 베이스라인이 없는 상태 — 아직 고정되지 않았다.
@@ -46,6 +50,7 @@ describe('정책 설정 해시 베이스라인 (RFC 0066 §7.3)', () => {
     const r = checkPolicyBaseline(dir)
     expect(r.mutated).toBe(false)
     expect(r.baselineMissing).toBe(true)
+    expect(r.configPresent).toBe(true)
   })
 
   it('고정한 뒤 그대로면 통과', () => {
@@ -78,10 +83,44 @@ describe('정책 설정 해시 베이스라인 (RFC 0066 §7.3)', () => {
     expect(checkPolicyBaseline(dir).mutated).toBe(true)
   })
 
+  it('사람이 설정 부재를 다시 고정하면 default-off가 정상 상태가 된다', () => {
+    writeConfig('{"schemaVersion":1,"record":true}')
+    writePolicyBaseline(dir)
+    fs.unlinkSync(path.join(dir, POLICY_CONFIG_REL))
+    expect(checkPolicyBaseline(dir).mutated).toBe(true)
+
+    writePolicyBaseline(dir)
+    expect(checkPolicyBaseline(dir)).toMatchObject({
+      configPresent: false,
+      mutated: false,
+      baselineMissing: false,
+    })
+    expect(JSON.parse(fs.readFileSync(path.join(dir, POLICY_BASELINE_REL), 'utf-8'))).toEqual({ hash: null })
+  })
+
+  it('default-off 기준선 뒤 설정이 다시 생기면 변조로 잡는다', () => {
+    writePolicyBaseline(dir)
+    writeConfig('{"schemaVersion":1,"record":false}')
+    expect(checkPolicyBaseline(dir).mutated).toBe(true)
+  })
+
   it('베이스라인이 깨졌으면 변조로 취급한다 — 판단 불가는 통과가 아니다', () => {
     writeConfig('{"schemaVersion":1}')
     fs.writeFileSync(path.join(dir, POLICY_BASELINE_REL), '{ broken', 'utf-8')
     expect(checkPolicyBaseline(dir).mutated).toBe(true)
+  })
+
+  it('라이브러리 writer 직접 호출도 손상 설정을 신뢰 기준으로 고정하지 않는다', () => {
+    writeConfig('{ broken')
+    expect(() => writePolicyBaseline(dir)).toThrow()
+    expect(fs.existsSync(path.join(dir, POLICY_BASELINE_REL))).toBe(false)
+  })
+
+  it('hash가 null·SHA-256 문자열 외 타입이면 fail-closed', () => {
+    for (const invalid of [123, false, '짧은해시']) {
+      fs.writeFileSync(path.join(dir, POLICY_BASELINE_REL), JSON.stringify({ hash: invalid }), 'utf-8')
+      expect(checkPolicyBaseline(dir).mutated).toBe(true)
+    }
   })
 
   it('갱신하면 다시 통과한다 — 갱신은 사람 명령으로만', () => {

@@ -3,7 +3,6 @@
   "tests/adr.test.ts": 1,
   "tests/agent.test.ts": 4,
   "tests/ai-actions-ledger.test.ts": 6,
-  "tests/atomic-write.test.ts": 1,
   "tests/autonomy-log.test.ts": 5,
   "tests/backend-hardstop.test.ts": 1,
   "tests/backup.test.ts": 2,

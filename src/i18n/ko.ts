@@ -429,7 +429,7 @@ export const ko = {
     menuHint: 'vhk를 입력하면 메뉴에서 선택할 수 있습니다.',
     evolveExplanation: '현재 진화 후보 확인 (vhk evolve list) — 반영·되돌리기는 직접 실행',
   },
-  // RFC 0066 §8 — vhk policy. 세 서브커맨드 전부 읽기 전용이고 원장에 기록하지 않는다.
+  // RFC 0066 §8 — vhk policy. 네 조회 명령은 읽기 전용, baseline만 사람 전용 writer다.
   policy: {
     levelTitle: '🔐 자율 실행 권한 단계',
     riskTitle: '⚖️  변경 위험도',
@@ -483,6 +483,24 @@ export const ko = {
       `정책 설정을 신뢰할 수 없습니다 (${reason}) — 자율 레인은 전부 거부됩니다. 사람이 실행하는 명령은 영향 없습니다.`,
     baselineMutated:
       '정책 설정이 고정해둔 내용과 다릅니다 — 자율 레인은 전부 거부됩니다. 의도한 변경이면 베이스라인을 다시 고정하세요.',
+    baselineMissing:
+      '정책 설정의 기준선이 아직 없습니다 — 집행은 켜지 말고 사람이 `vhk policy baseline --confirm`으로 먼저 고정하세요.',
+    baselineBlocked:
+      'POLICY_CONFIG_MUTATED — 정책 설정이 기준선과 달라 이 자율 런을 거부했습니다.',
+    baselineInvalidated:
+      'POLICY_CONFIG_MUTATED — 정책 설정이 런 종결 전에 달라져 완료 판정을 blocked로 무효화했습니다.',
+    runStartMissing:
+      'RUN_START_MISSING — 비공개 시작 상태는 남아 있지만 공개 start 기록을 확인할 수 없어 완료 판정을 blocked로 무효화했습니다.',
+    baselineTitle: '🔐 정책 설정 기준선 고정',
+    baselineConfirmRequired:
+      '--confirm이 필요합니다. 이 작업은 현재 정책 설정을 신뢰 기준으로 바꾸므로 자동 호출할 수 없습니다.',
+    baselineConfirmNext: '현재 설정을 확인한 뒤 사람이 고정하려면:',
+    baselineConfigNext: '설정 상태와 형식을 먼저 확인하려면:',
+    baselineWritten: '✅ 현재 정책 설정의 해시 기준선을 고정했습니다.',
+    baselineDefaultOffWritten: '✅ 정책 설정이 없는 기본 off 상태를 기준선으로 고정했습니다.',
+    baselineWriteFailed: (code: string): string =>
+      `정책 기준선을 쓰지 못했습니다 (${code}). 원본 설정은 바뀌지 않았습니다.`,
+    baselineShowNext: '고정 결과와 정책 상태를 확인하려면:',
     checkTitle: '🚦 실행 전 검사',
     checkUsage: '검사할 명령을 주세요 — vhk policy check -- pnpm typecheck',
     checkNoSections:
@@ -501,6 +519,8 @@ export const ko = {
         TIME_LIMIT_WOULD_EXCEED: '남은 시간 안에 끝날 수 없는 명령입니다',
         CLOCK_ANOMALY: '시계가 흔들려 이 런의 시간 한도를 믿을 수 없습니다',
         LEVEL_TOO_LOW: '이 명령이 요구하는 권한 단계에 못 미칩니다',
+        POLICY_CONFIG_MUTATED: '정책 설정이 기준선과 달라 자율 판정을 신뢰할 수 없습니다',
+        POLICY_CONFIG_UNREADABLE: '정책 설정을 읽거나 해석할 수 없습니다',
         PREFLIGHT_PASSED: '모든 검사를 통과했습니다',
       }
       return `판정: ${label} — ${why[reason] ?? '사유 미상'} (${reason})`
@@ -608,10 +628,16 @@ export const ko = {
     noVhkDir: '.vhk/ 폴더가 없습니다. vhk init 또는 vhk context 를 먼저 실행하세요.',
     nothingToSync: '백업할 파일이 없습니다 (.vhkignore 로 모두 제외됨).',
     noGistId: '복원할 gist id 가 없습니다.',
+    invalidGistId: 'gist id 형식이 올바르지 않습니다.',
+    configReadFail: '기존 cloud.json 포인터를 읽을 수 없어 원격 작업을 중단합니다.',
     pushDone: '✅ 클라우드 백업 완료',
     pullDone: '✅ 클라우드 복원 완료',
     pushFail: '❌ 백업 실패',
     pullFail: '❌ 복원 실패',
+    unsafeLocalBoundary: '.vhk/ 또는 대상 파일이 링크여서 워크스페이스 경계를 안전하게 보장할 수 없습니다.',
+    unsafeLocalFilename: '운영체제 사이에서 안전하지 않은 로컬 파일명이 있어 업로드 전에 중단합니다.',
+    filenameCollision: '대소문자 또는 유니코드 정규화가 다른 동명 파일이 있어 다른 운영체제에서 안전하게 동기화할 수 없습니다.',
+    secretGistRequired: '비공개 Gist임을 확인할 수 없어 로컬 맥락의 전송·연결을 중단합니다.',
     flatOnlyWarn: (dirs: string) =>
       `⚠️  평면 파일만 백업됩니다 — 하위 폴더(${dirs})는 제외 (spec v1). 그 안의 파일(예: evolve/queue.json)은 로컬에만 남습니다.`,
   },

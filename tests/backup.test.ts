@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { spawn } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
 import {
   saveBackup,
   listBackups,
@@ -33,6 +35,39 @@ describe('fsSafeStamp', () => {
     expect(s).not.toMatch(/[:.]/)
     expect(s).toBe('2026-05-30T09-19-17-358Z')
   })
+})
+
+describe('ensureVhkIgnored 병렬 보강', () => {
+  it('서로 다른 프로세스가 동시에 추가한 규칙을 합집합으로 보존한다', async () => {
+    write('.vhk/.gitignore', 'memory.json\n')
+    const moduleHref = pathToFileURL(path.join(process.cwd(), 'src', 'lib', 'backup.ts')).href
+    const child = (entry: string): Promise<void> => new Promise((resolve, reject) => {
+      const source = [
+        `const { ensureVhkIgnored } = await import(${JSON.stringify(moduleHref)})`,
+        `ensureVhkIgnored(${JSON.stringify(dir)}, ${JSON.stringify(entry)})`,
+      ].join(';')
+      const proc = spawn(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', source], {
+        cwd: process.cwd(),
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      let stderr = ''
+      proc.stderr.setEncoding('utf-8')
+      proc.stderr.on('data', (chunk: string) => { stderr += chunk })
+      proc.on('error', reject)
+      proc.on('exit', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error(`ensureVhkIgnored child failed (${code}): ${stderr}`))
+      })
+    })
+
+    await Promise.all(['policy.json', 'cloud.json', 'receipts/', 'reports/'].map(child))
+
+    const lines = read('.vhk/.gitignore').split(/\r?\n/)
+    expect(lines).toContain('memory.json')
+    for (const entry of ['policy.json', 'cloud.json', 'receipts/', 'reports/']) {
+      expect(lines.filter(line => line === entry)).toHaveLength(1)
+    }
+  }, 20_000)
 })
 
 describe('saveBackup', () => {

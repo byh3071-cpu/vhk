@@ -200,6 +200,11 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     expect(readme).toContain('memory.json')
     expect(readme).toContain('로컬 전용')
     expect(readme).toContain('docs/spec.md')
+    expect(readme).toContain('policy.json')
+    expect(readme).toContain('policy-baseline.json')
+    expect(readme).toContain('run-state.json')
+    expect(readme).toContain('run-state.lock')
+    expect(readme).toContain('run-state-recovery.lock')
   })
 
   it('.vhk/.gitignore 씨앗으로 로컬 전용 파일을 폴더 단위 자기방어한다', () => {
@@ -208,6 +213,14 @@ describe('vhk init — .vhk/ 프리셋 씨앗', () => {
     expect(ignore).toContain('memory.json')
     expect(ignore).toContain('refs.json')
     expect(ignore).toContain('HARD_STOP')
+    expect(ignore).toContain('policy.json')
+    expect(ignore).toContain('policy-baseline.json')
+    expect(ignore).toContain('.policy-baseline.json.tmp-*')
+    expect(ignore).toContain('run-state.json')
+    expect(ignore).toContain('run-state.lock')
+    expect(ignore).toContain('run-state-recovery.lock')
+    expect(ignore).toContain('.run-state.json.tmp-*')
+    expect(ignore).toContain('.cloud.json.tmp-*')
   })
 
   // #331 + 갭⑤: 일회성 프롬프트 산출물(ops/sell)·사용자 검색어 원문(recall-log/recall-eval)이

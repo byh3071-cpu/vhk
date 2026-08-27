@@ -9,9 +9,13 @@
  *   ① `record` 또는 `enforce` 일 때만 쓴다(ADR-019). 아무 플래그도 없으면 0줄이다.
  *   ② 단계 전이는 마지막 라인 CAS 를 통과해야 쓴다(§4.5).
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { PermissionLevel, TransitionKind } from './permission-level.js'
+import { stripBom } from './read-json.js'
+import { appendJsonlLine } from './jsonl-append.js'
+import type { RiskClass } from './risk-class.js'
+import type { TaskKind } from './task-kind.js'
 
 export const POLICY_LOG_PATH_REL = join('.vhk', 'events', 'policy-decision.jsonl')
 export const POLICY_LOG_SCHEMA_VERSION = 1
@@ -21,6 +25,9 @@ export type PolicyVerdict = 'allow' | 'require-human' | 'deny'
 
 /** 닫힌집합. `level`·`risk` 는 RFC 0066, `allowlist`·`budget` 은 RFC 0067 이 쓴다. */
 export type PolicyDecisionKind = 'level' | 'risk' | 'allowlist' | 'budget'
+
+/** 위험도 유도 출처(§3.4). `paths` 는 커밋 diff 에서 유도, `none` 은 범위를 못 구한 것이고 `human` 고정. */
+export type RiskDerivation = 'paths' | 'none'
 
 /**
  * 모든 라인이 공유하는 봉투(§3.2). RFC 0067 은 이 봉투에 필드를 추가하지 않고
@@ -36,7 +43,10 @@ export interface PolicyDecisionV1 {
   verdict: PolicyVerdict
   reasonCode: string
   runId?: string
-  sha?: string
+  /** 판정 시점 HEAD 전체 SHA. git 아님·커밋 0 이면 `null` — 추측하지 않는다(§3.2). */
+  sha?: string | null
+  /** 기계 유도값만. 에이전트 신고값을 넣지 않는다(§3.2). 종결 배선(124-T3)이 채운다. */
+  taskKind?: TaskKind
 
   // kind: 'level' 전용 (§3.3)
   from?: PermissionLevel | null
@@ -45,6 +55,12 @@ export interface PolicyDecisionV1 {
   judgedRuns?: number
   rollingFailures?: number | null
   window?: number
+
+  // kind: 'risk' 전용 (§3.4) — 전부 additive. 과거 라인에는 없고, 없어도 읽기는 그대로다.
+  riskClass?: RiskClass
+  /** 미분류 경로 수. 1 이상이면 `riskClass` 는 반드시 `human` 이다(§5.3). */
+  unclassifiedPaths?: number
+  derivedFrom?: RiskDerivation
 
   // ── RFC 0067 §6.1 — 봉투는 그대로 두고 변형별 필드만 얹는다 ──
 
@@ -98,12 +114,142 @@ function isLine(v: unknown): v is PolicyDecisionV1 {
   return o.schemaVersion === POLICY_LOG_SCHEMA_VERSION && typeof o.kind === 'string'
 }
 
+export type RiskReasonCode =
+  | 'RISK_SCOPE_UNKNOWN'
+  | 'RISK_UNCLASSIFIED_PATH'
+  | 'RISK_AUTO_KIND'
+  | 'RISK_HUMAN_KIND'
+
+const RISK_REASON_CODES = new Set<RiskReasonCode>([
+  'RISK_SCOPE_UNKNOWN',
+  'RISK_UNCLASSIFIED_PATH',
+  'RISK_AUTO_KIND',
+  'RISK_HUMAN_KIND',
+])
+
+const VALID_RISK_TASK_KINDS = new Set<TaskKind>([
+  'chore',
+  'docs',
+  'deps',
+  'source',
+  'schema',
+  'security',
+  'unknown',
+])
+const AUTO_RISK_TASK_KINDS = new Set<TaskKind>(['chore', 'docs', 'deps'])
+
+export interface ExpectedRiskDecision {
+  sha: string | null
+  taskKind: TaskKind
+  riskClass: RiskClass
+  verdict: PolicyVerdict
+  reasonCode: RiskReasonCode
+  unclassifiedPaths: number
+  derivedFrom: RiskDerivation
+}
+
+export function sameExpectedRiskDecision(
+  left: ExpectedRiskDecision,
+  right: ExpectedRiskDecision,
+): boolean {
+  return left.sha === right.sha
+    && left.taskKind === right.taskKind
+    && left.riskClass === right.riskClass
+    && left.verdict === right.verdict
+    && left.reasonCode === right.reasonCode
+    && left.unclassifiedPaths === right.unclassifiedPaths
+    && left.derivedFrom === right.derivedFrom
+}
+
+export function isExpectedRiskDecision(value: unknown): value is ExpectedRiskDecision {
+  if (typeof value !== 'object' || value === null) return false
+  const decision = value as Record<string, unknown>
+  if (
+    !(decision.sha === null || (typeof decision.sha === 'string' && decision.sha.length > 0))
+    || typeof decision.taskKind !== 'string'
+    || !VALID_RISK_TASK_KINDS.has(decision.taskKind as TaskKind)
+    || (decision.riskClass !== 'auto' && decision.riskClass !== 'human')
+    || (decision.verdict !== 'allow' && decision.verdict !== 'require-human')
+    || typeof decision.reasonCode !== 'string'
+    || !RISK_REASON_CODES.has(decision.reasonCode as RiskReasonCode)
+    || !Number.isSafeInteger(decision.unclassifiedPaths)
+    || (decision.unclassifiedPaths as number) < 0
+    || (decision.derivedFrom !== 'paths' && decision.derivedFrom !== 'none')
+  ) {
+    return false
+  }
+
+  const taskKind = decision.taskKind as TaskKind
+  if (decision.derivedFrom === 'none') {
+    return taskKind === 'unknown'
+      && decision.unclassifiedPaths === 0
+      && decision.riskClass === 'human'
+      && decision.verdict === 'require-human'
+      && decision.reasonCode === 'RISK_SCOPE_UNKNOWN'
+  }
+  if ((decision.unclassifiedPaths as number) > 0) {
+    return decision.riskClass === 'human'
+      && decision.verdict === 'require-human'
+      && decision.reasonCode === 'RISK_UNCLASSIFIED_PATH'
+  }
+  if (taskKind === 'unknown') {
+    return decision.riskClass === 'human'
+      && decision.verdict === 'require-human'
+      && decision.reasonCode === 'RISK_SCOPE_UNKNOWN'
+  }
+  const auto = AUTO_RISK_TASK_KINDS.has(taskKind)
+  return decision.riskClass === (auto ? 'auto' : 'human')
+    && decision.verdict === (auto ? 'allow' : 'require-human')
+    && decision.reasonCode === (auto ? 'RISK_AUTO_KIND' : 'RISK_HUMAN_KIND')
+}
+
+/**
+ * Retry deduplication accepts only a complete, machine-produced risk decision.
+ * A parseable but truncated object must not discharge a pending policy record.
+ */
+export function isCompleteRiskDecisionForRun(
+  line: PolicyDecisionV1,
+  runId: string,
+  expected?: ExpectedRiskDecision,
+): boolean {
+  const timestamp = Date.parse(line.ts)
+  const validRiskEnvelope =
+    line.schemaVersion === POLICY_LOG_SCHEMA_VERSION
+    && line.kind === 'risk'
+    && line.runId === runId
+    && typeof line.ts === 'string'
+    && Number.isFinite(timestamp)
+    && (line.verdict === 'allow' || line.verdict === 'require-human')
+    && typeof line.reasonCode === 'string'
+    && RISK_REASON_CODES.has(line.reasonCode as RiskReasonCode)
+    && (line.riskClass === 'auto' || line.riskClass === 'human')
+    && Number.isSafeInteger(line.unclassifiedPaths)
+    && (line.unclassifiedPaths ?? -1) >= 0
+    && (line.derivedFrom === 'paths' || line.derivedFrom === 'none')
+    && (typeof line.sha === 'string' || line.sha === null)
+    && typeof line.taskKind === 'string'
+    && VALID_RISK_TASK_KINDS.has(line.taskKind)
+  if (!validRiskEnvelope) return false
+  const actual: ExpectedRiskDecision = {
+    sha: line.sha ?? null,
+    taskKind: line.taskKind as TaskKind,
+    riskClass: line.riskClass as RiskClass,
+    verdict: line.verdict,
+    reasonCode: line.reasonCode as RiskReasonCode,
+    unclassifiedPaths: line.unclassifiedPaths ?? 0,
+    derivedFrom: line.derivedFrom as RiskDerivation,
+  }
+  if (!isExpectedRiskDecision(actual)) return false
+  return expected === undefined
+    || (isExpectedRiskDecision(expected) && sameExpectedRiskDecision(actual, expected))
+}
+
 /** 원장 전체를 읽는다. 손상 라인은 건너뛴다 — 한 줄이 전체를 죽이지 않는다. */
 export function readPolicyLog(cwd: string): PolicyDecisionV1[] {
   const p = join(cwd, POLICY_LOG_PATH_REL)
   if (!existsSync(p)) return []
   const out: PolicyDecisionV1[] = []
-  for (const line of readFileSync(p, 'utf-8').split('\n')) {
+  for (const line of stripBom(readFileSync(p, 'utf-8')).split(/\r?\n/)) {
     const trimmed = line.trim()
     if (!trimmed) continue
     try {
@@ -161,6 +307,6 @@ export function appendPolicyDecision(
 
   const p = join(cwd, POLICY_LOG_PATH_REL)
   mkdirSync(dirname(p), { recursive: true })
-  appendFileSync(p, `${JSON.stringify(entry)}\n`, 'utf-8')
+  appendJsonlLine(p, entry)
   return { written: true, conflict: false }
 }

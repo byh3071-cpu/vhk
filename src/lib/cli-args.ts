@@ -194,14 +194,21 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
   const first = rest[0]
   if (isOptionToken(first)) return null
 
-  // 옵션(-/--)이 하나라도 있으면 commander가 파싱. 자연어 가로채기 금지.
-  // 예: vhk init --skip-gate --name vhk --type cli -y
-  if (rest.some(isOptionToken)) return null
-
   const input = rest.join(' ').trim()
   if (!input) return null
 
   const firstIsKnown = KNOWN_COMMAND_TOKENS.has(first)
+
+  // 옵션(-/--)은 원칙적으로 commander가 파싱한다. 유일한 예외는 실제 대상 argv 추출에 성공한
+  // 읽기 전용 `policy check` 질문이다. 단, 등록 명령이 첫 토큰이면 옵션·자유 본문을 포함한
+  // 명시 호출이므로 자연어가 절대 가로채지 않는다.
+  if (rest.some(isOptionToken)) {
+    if (firstIsKnown) return null
+    const route = routeNaturalLanguage(input)
+    const concretePolicyCheck =
+      route?.command === 'policy' && route.args?.[0] === 'check' && route.args.length > 1
+    return concretePolicyCheck ? input : null
+  }
 
   // #147: 자유형식 본문 명령(learn/blocker)은 본문에 NLP 키워드가 있어도 가로채지 않는다.
   if (firstIsKnown && FREEFORM_ARG_COMMANDS.has(first)) return null
@@ -213,10 +220,19 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
   if (firstIsKnown && rest.length === 1) return null
 
   if (firstIsKnown && rest.length > 1) {
+    const route = routeNaturalLanguage(input)
+    // `정책 기준선 고정해줘`처럼 실제 서브경로 뒤에 자연어 동사가 붙은 경우다.
+    // baseline은 자연어에서 실행되지 않고 사람용 --confirm 안내만 하므로 이 한 경로만 안전하게 허용한다.
+    const naturalPolicyBaseline =
+      (CONTAINER_ALIASES[first] ?? first) === 'policy' &&
+      resolveSubcommandAlias('policy', rest[1]) === 'baseline' &&
+      route?.command === 'policy' &&
+      route.args?.[0] === 'baseline' &&
+      rest.length > 2
+    if (naturalPolicyBaseline) return input
     // R1 가드: 실제 서브커맨드 경로(goal check, ref add, memory list 등)는
     // 명령어 매칭을 우선해 commander 가 처리한다 — 자연어 라우터가 절대 가로채지 않는다.
     if (isRealSubcommandPath(first, rest[1])) return null
-    const route = routeNaturalLanguage(input)
     // #314: 첫 토큰이 컨테이너 명령(memory/goal 등)이고 둘째가 무효 서브커맨드면, NL 라우트가
     // **다른** 명령으로 새는 cross-misroute 를 차단한다. (memory 왜안되나 → doctor, goal 어떻게 → status)
     // 컨테이너 자기 명령으로 라우팅될 때만(보안 확인 → secure) NL 가로채기를 허용해 회귀를 막는다.

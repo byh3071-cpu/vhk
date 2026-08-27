@@ -72,6 +72,21 @@ describe('runGuarded — 단일 chokepoint', () => {
     expect(t.ran).toBe(false)
   })
 
+  it('명령별 승인 플래그를 차단 안내에 그대로 쓴다', async () => {
+    const t = tracker()
+    const logs: string[] = []
+    const { outcome } = await runGuarded('policy-baseline', {
+      channel: 'cli',
+      mode: 'standard',
+      isTTY: false,
+      approvalHint: '--confirm',
+      log: (message) => logs.push(message),
+    }, t.run)
+    expect(outcome.ran).toBe(false)
+    expect(logs.join('\n')).toContain('--confirm')
+    expect(logs.join('\n')).not.toContain('--yes')
+  })
+
   it('CLI 명시적 승인(approved=true) → 실행', async () => {
     const t = tracker()
     const { outcome } = await runGuarded('deploy', {

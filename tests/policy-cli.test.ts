@@ -23,8 +23,8 @@ describe('vhk policy 등록 지점 (RFC 0066 §8.3)', () => {
     expect(TOP_LEVEL_COMMANDS.map((c) => c.name)).toContain('policy')
   })
 
-  it('서브커맨드 네 개가 등록돼 있다', () => {
-    expect(CONTAINER_SUBCOMMANDS.policy).toEqual(['level', 'risk', 'show', 'check'])
+  it('조회 네 개와 사람 전용 기준선 명령이 등록돼 있다', () => {
+    expect(CONTAINER_SUBCOMMANDS.policy).toEqual(['level', 'risk', 'show', 'check', 'baseline'])
   })
 
   it('컨테이너 한글 별칭이 있다', () => {
@@ -37,6 +37,7 @@ describe('vhk policy 등록 지점 (RFC 0066 §8.3)', () => {
       위험도: 'risk',
       보기: 'show',
       검사: 'check',
+      기준선: 'baseline',
     })
   })
 
@@ -51,6 +52,7 @@ describe('vhk policy 등록 지점 (RFC 0066 §8.3)', () => {
     expect(resolveSubcommandAlias('policy', '단계')).toBe('level')
     expect(resolveSubcommandAlias('policy', '위험도')).toBe('risk')
     expect(resolveSubcommandAlias('policy', '보기')).toBe('show')
+    expect(resolveSubcommandAlias('policy', '기준선')).toBe('baseline')
   })
 })
 

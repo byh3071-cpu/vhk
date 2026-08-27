@@ -37,6 +37,7 @@ import { scaffoldMission, writeMission, readMission, MISSION_PATH_REL } from './
 import { upsertRulesStackSection, type StackStatus } from '../lib/stack-state.js'
 import { CI_WORKFLOW_TEMPLATE } from '../templates/ci-workflow.js'
 import { getVhkVersion } from '../lib/version.js'
+import { ensurePolicyFilesIgnored } from '../lib/policy-files.js'
 
 const PROJECT_TYPES = [
   { name: '🌐 웹 앱 (Next.js + Supabase + Vercel)', value: 'webapp' },
@@ -358,6 +359,10 @@ export async function init(options: InitOptions = {}) {
     writeFile(fullPath, content)
     log.success(filePath)
   }
+
+  // 기존 프로젝트에서 `.vhk/.gitignore` 씨앗을 보존해 건너뛴 경우에도 정책 로컬 파일은
+  // 추적되지 않아야 한다. 기존 내용은 유지하고 세 항목만 멱등 보강한다.
+  ensurePolicyFilesIgnored(cwd)
 
   await writeInitExtras(cwd, !isInteractive(options))
 

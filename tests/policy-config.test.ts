@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { loadPolicyConfig, POLICY_CONFIG_REL, POLICY_SCHEMA_VERSION } from '../src/lib/policy-config.js'
+import {
+  loadPolicyConfig,
+  POLICY_CONFIG_REL,
+  POLICY_SCHEMA_VERSION,
+  readPolicyConfigSnapshot,
+} from '../src/lib/policy-config.js'
 import { removeDirSync } from '../src/lib/fs-remove.js'
 
 /*
@@ -69,6 +74,23 @@ describe('policy-config 로더 (RFC 0066 §7.4)', () => {
       const c = loadPolicyConfig(dir)
       expect(c.failClosed).toBe(true)
       expect(c.reasonCode).toBe('POLICY_CONFIG_UNREADABLE')
+    })
+
+    it('대상이 끊긴 정책 링크는 파일 부재가 아니라 fail-closed다', () => {
+      const policyPath = path.join(dir, POLICY_CONFIG_REL)
+      try {
+        fs.symlinkSync(path.join(dir, '.vhk', 'missing-policy.json'), policyPath, 'file')
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EPERM') return
+        throw error
+      }
+      const snapshot = readPolicyConfigSnapshot(dir)
+      expect(snapshot.configPresent).toBe(true)
+      expect(snapshot.contentHash).toBeNull()
+      expect(snapshot.config).toMatchObject({
+        failClosed: true,
+        reasonCode: 'POLICY_CONFIG_UNREADABLE',
+      })
     })
 
     it('record·enforce 가 boolean 이 아니면 fail-closed', () => {
