@@ -26,6 +26,11 @@ function spawnCollected(file, args, cwd, input) {
       stderr += chunk
     })
     child.on('error', reject)
+    child.stdin.on('error', (error) => {
+      // A hook may intentionally exit before consuming stdin. Linux reports the
+      // closed pipe as EPIPE and Windows as EOF; the child close status remains authoritative.
+      if (error.code !== 'EPIPE' && error.code !== 'EOF') reject(error)
+    })
     child.on('close', (status) => resolve({ status, stdout, stderr }))
     child.stdin.end(input)
   })
@@ -82,7 +87,10 @@ try {
 
   const nonGitDir = join(fixtureRoot, 'non-git')
   mkdirSync(nonGitDir, { recursive: true })
-  const nonGitPreToolUse = await runHook(preToolUseHook, nonGitDir, '{}')
+  // PR #610: pipe backpressure makes an early hook exit reproduce Node 24/Linux's
+  // asynchronous child.stdin EPIPE instead of depending on scheduler timing.
+  const earlyExitPayload = JSON.stringify({ padding: 'x'.repeat(1024 * 1024) })
+  const nonGitPreToolUse = await runHook(preToolUseHook, nonGitDir, earlyExitPayload)
   const nonGitStop = await runHook(stopHook, nonGitDir, '{}')
   const nonGitPreToolUseQuiet = isQuietSuccess(nonGitPreToolUse)
   const nonGitStopQuiet = isQuietSuccess(nonGitStop)
