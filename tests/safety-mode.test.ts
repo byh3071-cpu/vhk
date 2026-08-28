@@ -34,12 +34,12 @@ describe('safety-mode — 모드 정의', () => {
   })
 })
 
-describe('risk-policy — high-risk 10종 + 채널/모드 정책', () => {
-  it('high-risk 10종 포함', () => {
-    for (const a of ['undo', 'deploy', 'publish', 'migrate', 'cloud-pull', 'resume', 'env-write', 'delete', 'restore', 'policy-baseline']) {
+describe('risk-policy — high-risk 11종 + 채널/모드 정책', () => {
+  it('high-risk 11종 포함 (save 는 ADR-021/#611 승격)', () => {
+    for (const a of ['undo', 'deploy', 'publish', 'migrate', 'cloud-pull', 'resume', 'env-write', 'delete', 'restore', 'policy-baseline', 'save']) {
       expect(HIGH_RISK_ACTIONS).toContain(a)
     }
-    expect(HIGH_RISK_ACTIONS.length).toBe(10)
+    expect(HIGH_RISK_ACTIONS.length).toBe(11)
   })
 
   it('isHighRisk 판정', () => {
@@ -58,9 +58,10 @@ describe('risk-policy — high-risk 10종 + 채널/모드 정책', () => {
     expect(resolveGuard('deploy', 'lite', 'mcp')).toBe('warn')
   })
 
-  it('strict: 더 많은 작업(save/sync)도 confirm', () => {
-    expect(resolveGuard('save', 'standard', 'cli')).toBe('allow')
+  it('strict: 추가 작업(sync)도 가드 — save 는 이제 모드 무관 high-risk (ADR-021)', () => {
+    expect(resolveGuard('save', 'standard', 'cli')).toBe('confirm')
     expect(resolveGuard('save', 'strict', 'cli')).toBe('confirm')
+    expect(resolveGuard('sync', 'standard', 'cli')).toBe('allow')
     expect(resolveGuard('sync', 'strict', 'mcp')).toBe('preview')
   })
 

@@ -24,7 +24,7 @@ Rules compound as you go, so the project doesn't collapse when a better model re
 > [!NOTE]
 > VHK is **not** a coding agent. It wraps the ones you already use and pins "what we agreed to do · is it actually done · where the next session resumes" as files + CLI gates. Swap the model — the rules, memory, and gates stay in your repo.
 
-Run `vhk` for a menu, or natural language: `vhk save`, `vhk goal next`, `vhk preflight`. Korean-first (`vhk 저장해줘`); the Korean [README.md](README.md) is the fullest reference.
+Run `vhk` for a menu, or natural language: `vhk save`, `vhk goal next`, `vhk preflight`. Korean-first (`vhk 저장해줘`); the Korean [README.md](README.md) is the fullest reference. Since ADR-021, `vhk save` is a high-risk action: non-TTY/agent runs require explicit `--yes`, natural-language save only previews, and `--no-push` commits without uploading.
 
 ## What's new in v2.15.0
 
@@ -107,7 +107,7 @@ vhk verify --dismiss lint-gate  # dismiss a current advisory; repeated dismissal
 vhk review
 vhk preflight --pr
 vhk goal done
-vhk save -m "fix checkout bug"
+vhk save -m "fix checkout bug"           # agents (non-TTY): add --yes; --no-push commits without pushing
 vhk work handoff
 ```
 

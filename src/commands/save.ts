@@ -67,6 +67,8 @@ function statusIcon(code: string): string {
 export interface SaveOptions {
   /** #154: 커밋 메시지 직접 지정 — 비-TTY/에이전트에서 MCP save 처럼 의미있는 메시지 사용. */
   message?: string
+  /** #611/ADR-021: 커밋만 하고 push 생략 — 반출(원격 업로드)과 기록(커밋)의 분리. 에이전트 권장 경로. */
+  noPush?: boolean
 }
 
 export async function save(opts: SaveOptions = {}): Promise<void> {
@@ -144,6 +146,18 @@ export async function save(opts: SaveOptions = {}): Promise<void> {
     must(stageAll(gitRoot))
     didAdd = true
     must(commit(message, gitRoot))
+
+    if (opts.noPush) {
+      spinner.succeed(t('save.successNoPush'))
+      console.log(chalk.yellow(`   💡 ${t('save.noPushHint')}`))
+      console.log(chalk.green(`\n✅ ${t('save.done', lines.length)}`))
+      printNextStep({
+        message: t('save.nextOkMessage'),
+        command: 'vhk recap',
+        cursorHint: t('save.nextOkCursor'),
+      })
+      return
+    }
     spinner.text = t('save.pushing')
 
     if (!hasGitRemote(gitRoot)) {

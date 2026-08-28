@@ -239,7 +239,7 @@ vhk doctor
 | `vhk cloud` | .vhk 비공개 Gist 백업·복원 (push/pull). 공개 Gist·링크 경계·비호환/충돌 파일명·부분 fetch는 쓰기 전에 실패 폐쇄 |
 | `vhk ship` | 배포 체크리스트 + 회고 |
 | `vhk doctor` | 개발 환경 점검 + 최신 변경사항이 빠진 안내·아직 시작하지 않은 작업 알림 (`--strict` 설정 불일치 검사 포함) |
-| `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 |
+| `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 · **high-risk 가드(ADR-021)**: TTY 는 승격 전과 동일(standard=자체 프롬프트, strict=y/N 확인), 비-TTY/에이전트는 `--yes` 또는 `--no-push` 필수(없으면 차단·exit 1), 자연어 "저장해줘" 는 미리보기 + exit 1 · `--no-push` 로 커밋만 하고 원격 업로드 생략(반출 0 → 승인 인정, 에이전트 권장) |
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
 | `vhk status` | 프로젝트 상태 대시보드 |

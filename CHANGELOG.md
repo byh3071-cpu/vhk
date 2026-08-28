@@ -4,6 +4,17 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Security
+
+- `vhk save`를 high-risk로 승격했다(ADR-021, #611). 비-TTY/에이전트 실행은 `--yes`(또는 반출이
+  없는 `--no-push`) 없이는 차단되고 exit 1로 끝나며, 자연어 "저장해줘"는 미리보기만 하고 exit 1로
+  끝난다. TTY 흐름은 승격 전과 동일하다 — standard는 save 자체 프롬프트가 확인 역할(이중 프롬프트
+  없음), strict는 기존 y/N 확인 유지. 새 `--no-push` 옵션으로 커밋(기록)과 원격 push(반출)를
+  분리한다 — 에이전트 권장 경로는 `vhk save --yes -m "메시지" --no-push`. 가드의 대화형 판정은
+  stdin TTY 단일 축이라 `vhk save | tee` 오판이 없고, `VHK_FORCE_INTERACTIVE` 환경변수는 가드
+  승인을 대신하지 못한다(Git Bash/MinTTY는 `--yes`로 승인 — 이후 save 자체 프롬프트는 탈출구가
+  정상 동작). strict의 y/N에서 No를 답하면 이제 exit 1로 끝난다.
+
 ### Changed
 
 - README·COMMANDS·2.x 원본 문서를 실제 2.15 동작에 맞췄다. MCP 35개 목록에서 CLI 전용 `policy`를

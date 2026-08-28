@@ -19,7 +19,7 @@ export interface GuardDeps {
   channel: Channel
   /** 미지정 시 .vhk/config.json 에서 읽음 */
   mode?: SafetyMode
-  /** CLI confirm 가능 여부 (기본 process.stdout.isTTY) */
+  /** CLI confirm 가능 여부 (기본 process.stdin.isTTY — 승인 축이라 VHK_FORCE_INTERACTIVE 탈출구 미반영, #611 P1-NEW) */
   isTTY?: boolean
   /** CLI 대화형 확인 (y/N) */
   confirm?: () => Promise<boolean>
@@ -109,6 +109,8 @@ async function runGuardedInner<T>(
 
   if (guard === 'warn') {
     // R13/E8: lite 여도 비대화형(stdin 비-TTY)+미승인이면 destructive 중단 — 경고 볼 사람 없음.
+    // #611 P1-NEW: warn 은 프롬프트 없이 진행하므로 여기의 축은 "사람이 보고 있다"는 승인 근거다.
+    // VHK_FORCE_INTERACTIVE 탈출구는 프롬프트 *가능성*만 열지 승인을 대신 못 한다 → stdin 축 유지.
     const canConfirm = deps.isTTY ?? !!process.stdin.isTTY
     if (!deps.approved && !canConfirm) {
       // "실행하지 않았습니다" 문구는 MCP 가 가드 차단을 식별하는 마커 — 차단 메시지 3종 공통 유지(리뷰 A1-03).
@@ -124,6 +126,10 @@ async function runGuardedInner<T>(
     if (deps.approved === true) {
       return { outcome: { ran: true, guard, reason: 'approved' }, result: await run() }
     }
+    // #611 P1-NEW: 가드의 confirm 게이트는 stdin TTY 만 — VHK_FORCE_INTERACTIVE 탈출구 제외.
+    // 탈출구를 승인 축에 넣으면 환경변수 한 줄이 y 응답을 대신하고(무확인 push 재발), 탈출구
+    // 경로에서 프롬프트를 시도하면 stdin 파이프 에이전트에서 행(unsettled await, exit 13)이 된다.
+    // MinTTY 사람은 차단 메시지의 명시 플래그(--yes 등)로 승인한다 — env ≠ consent.
     const tty = deps.isTTY ?? !!process.stdin.isTTY
     if (tty && deps.confirm) {
       const ok = await deps.confirm()

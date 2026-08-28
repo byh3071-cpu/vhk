@@ -233,11 +233,14 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
       ? 'policy-baseline'
       : NL_GUARDED_ACTIONS[route.command]
   if (riskAction) {
-    await runGuarded(
+    const { outcome } = await runGuarded(
       riskAction,
       { channel: 'nl', approved: false, log: (m) => console.log(chalk.yellow(`  ${m}`)) },
       () => dispatchNlpRoute(route, input),
     )
+    // #611 P1-5: 가드가 실행을 막았는데 exit 0 이면 스크립트 체인(`vhk 저장해줘 && …`)이
+    // 성공으로 오판 — 미인식(#346)·TTY_REQUIRED 와 같은 원칙으로 비-0 종료.
+    if (!outcome.ran) process.exitCode = 1
     return
   }
 
