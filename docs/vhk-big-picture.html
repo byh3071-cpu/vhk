@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="VHK의 작업 루프, 책임 경계, 안전 게이트를 한눈에 설명하는 큰그림">
+  <link rel="icon" type="image/png" href="https://yohanstudio.co/images/emoji/tool-solid.png">
+  <title>VHK 큰그림</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #171717;
+      --muted: #66625d;
+      --paper: #f5f2ec;
+      --card: #fffdfa;
+      --line: #d9d2c8;
+      --line-strong: #a89f93;
+      --accent: #ff5c28;
+      --accent-text: #a8320f;
+      --accent-soft: #fff0e9;
+      --good: #246b49;
+      --good-soft: #e9f5ee;
+      --wait: #8a5a00;
+      --wait-soft: #fff5d8;
+      --future: #505866;
+      --future-soft: #edf0f4;
+      --danger: #9c3329;
+      --danger-soft: #fbece9;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(var(--line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--line) 1px, transparent 1px),
+        var(--paper);
+      background-size: 32px 32px;
+      font-family: "Pretendard", "Noto Sans KR", "Segoe UI", sans-serif;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    a { color: inherit; }
+
+    .page {
+      width: min(calc(100% - 32px), var(--max));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    .hero,
+    .section,
+    .source-note {
+      background: rgba(255, 253, 250, 0.96);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .hero {
+      padding: clamp(28px, 5vw, 62px);
+      border-top: 6px solid var(--accent);
+    }
+
+    .eyebrow {
+      margin: 0 0 14px;
+      color: var(--accent-text);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 920px;
+      margin-bottom: 18px;
+      font-size: clamp(34px, 5.8vw, 68px);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    .lead {
+      max-width: 900px;
+      margin-bottom: 26px;
+      color: #35322f;
+      font-size: clamp(19px, 2.2vw, 27px);
+      line-height: 1.6;
+      letter-spacing: -0.018em;
+    }
+
+    .analogy {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      align-items: center;
+      padding: 10px 14px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent-soft);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .three-lines {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 30px;
+    }
+
+    .three-lines > div {
+      min-height: 118px;
+      padding: 18px;
+      border-left: 4px solid var(--accent);
+      background: #f8f5f0;
+    }
+
+    .three-lines strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 17px;
+    }
+
+    .three-lines span { color: var(--muted); }
+
+    .section {
+      margin-top: 18px;
+      padding: clamp(24px, 4vw, 42px);
+    }
+
+    .section-heading {
+      display: flex;
+      gap: 11px;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: clamp(25px, 3.2vw, 38px);
+      line-height: 1.2;
+      letter-spacing: -0.03em;
+    }
+
+    .section-heading img,
+    .card-title img,
+    .now-title img {
+      flex: 0 0 auto;
+      object-fit: contain;
+    }
+
+    .section-heading img { width: 24px; height: 24px; }
+
+    .section-intro {
+      max-width: 800px;
+      margin-bottom: 28px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .loop {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .loop-step {
+      position: relative;
+      min-height: 154px;
+      padding: 18px 15px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .loop-step:not(:last-child)::after {
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      right: -16px;
+      width: 20px;
+      height: 20px;
+      border-top: 3px solid var(--accent);
+      border-right: 3px solid var(--accent);
+      background: var(--card);
+      content: "";
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .step-no {
+      display: block;
+      margin-bottom: 12px;
+      color: var(--accent-text);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.11em;
+    }
+
+    .loop-step strong {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 17px;
+      line-height: 1.3;
+    }
+
+    .loop-step p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .rails {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .rail {
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8f5f0;
+    }
+
+    .rail strong { display: block; margin-bottom: 5px; }
+    .rail span { color: var(--muted); }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: #45413c;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .ownership {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+    }
+
+    .owner-card {
+      padding: 19px 16px;
+      border-top: 4px solid var(--accent);
+      background: #f8f5f0;
+    }
+
+    .owner-card strong {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 16px;
+    }
+
+    .owner-card p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .now-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 14px;
+    }
+
+    .now-card {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .now-card.primary { border: 2px solid var(--accent); }
+
+    .now-title,
+    .card-title {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      margin-bottom: 13px;
+      font-size: 19px;
+    }
+
+    .now-title img,
+    .card-title img { width: 20px; height: 20px; }
+
+    .big-stat {
+      margin-bottom: 9px;
+      font-size: clamp(34px, 5vw, 54px);
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: -0.045em;
+    }
+
+    .big-stat small {
+      color: var(--muted);
+      font-size: 19px;
+      font-weight: 700;
+    }
+
+    .fine {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .facts {
+      display: grid;
+      gap: 10px;
+    }
+
+    .fact {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .fact:last-child { padding-bottom: 0; border-bottom: 0; }
+    .fact span { color: var(--muted); }
+    .fact strong { text-align: right; }
+
+    .roadmap {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 8px;
+    }
+
+    .roadmap-stage {
+      min-height: 194px;
+      padding: 17px 14px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .roadmap-stage.current {
+      border: 2px solid var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .stage-state {
+      display: inline-block;
+      margin-bottom: 14px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+    }
+
+    .done .stage-state { color: var(--good); background: var(--good-soft); }
+    .current .stage-state { color: var(--danger); background: var(--danger-soft); }
+    .staged .stage-state { color: var(--wait); background: var(--wait-soft); }
+    .planned .stage-state { color: var(--future); background: var(--future-soft); }
+
+    .roadmap-stage h3 {
+      margin-bottom: 8px;
+      font-size: 17px;
+      line-height: 1.3;
+    }
+
+    .roadmap-stage p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .strategy {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+    }
+
+    .quote {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 250px;
+      padding: clamp(24px, 4vw, 42px);
+      border-left: 7px solid var(--accent);
+      background: #191816;
+      color: #fff;
+    }
+
+    .quote p {
+      margin-bottom: 14px;
+      font-size: clamp(23px, 3vw, 36px);
+      font-weight: 850;
+      line-height: 1.35;
+      letter-spacing: -0.025em;
+    }
+
+    .quote span { color: #bdb7ae; }
+
+    .boundary {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8f5f0;
+    }
+
+    .boundary ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+    }
+
+    .boundary li + li { margin-top: 8px; }
+
+    .source-note {
+      margin-top: 18px;
+      padding: 22px 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .source-note strong { color: var(--ink); }
+    .source-note a { text-decoration-color: var(--accent); text-underline-offset: 3px; }
+
+    @media (max-width: 980px) {
+      .three-lines { grid-template-columns: 1fr; }
+      .loop { grid-template-columns: repeat(3, 1fr); }
+      .loop-step:nth-child(3)::after { display: none; }
+      .ownership { grid-template-columns: repeat(2, 1fr); }
+      .roadmap { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      .page { width: min(calc(100% - 20px), var(--max)); padding-top: 10px; }
+      .hero, .section { border-radius: 8px; }
+      .loop { grid-template-columns: 1fr; }
+      .loop-step { min-height: auto; }
+      .loop-step::after { display: none !important; }
+      .rails, .now-grid, .strategy { grid-template-columns: 1fr; }
+      .ownership, .roadmap { grid-template-columns: 1fr; }
+      .owner-card, .roadmap-stage, .fact { min-width: 0; }
+      .owner-card p, .roadmap-stage p, .fact strong { overflow-wrap: anywhere; }
+      .roadmap-stage { min-height: auto; }
+      .fact { display: block; }
+      .fact strong { display: block; margin-top: 3px; text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <p class="eyebrow">Vibe Harness Kit · Big Picture</p>
+      <h1>AI는 바뀌어도<br>개발 시스템은 남는다.</h1>
+      <p class="lead"><strong>VHK는 새 AI 에이전트가 아니다.</strong> Codex·Claude Code·Cursor 같은 교체 가능한 실행자 위에, 저장소에 남는 목표·규칙·증거·기억·안전장치를 얹는 풀사이클 코딩 하네스다.</p>
+      <div class="analogy">
+        <span>AI 모델 = 엔진</span>
+        <span>VHK = 차체 + 계기판 + 블랙박스 + 브레이크</span>
+      </div>
+
+      <div class="three-lines" aria-label="핵심 세 줄">
+        <div><strong>AI가 구현한다</strong><span>어떤 모델이나 에이전트를 쓸지는 사용자가 고른다.</span></div>
+        <div><strong>VHK가 흐름을 고정한다</strong><span>무엇을 할지, 정말 끝났는지, 다음 세션이 어디서 이을지를 저장소에 남긴다.</span></div>
+        <div><strong>사람이 경계를 승인한다</strong><span>머지·배포·발행과 자율 실행 활성화는 끝까지 사람 게이트다.</span></div>
+      </div>
+    </header>
+
+    <section class="section">
+      <h2 class="section-heading">
+        <img src="https://yohanstudio.co/images/emoji/ai-solid.png" width="24" height="24" alt="">
+        한 번의 작업이 도는 방식
+      </h2>
+      <p class="section-intro">핵심은 명령어 수가 아니라 이 폐루프다. 한 번에 Goal 하나를 잡고, 말이 아닌 기계 증거로 닫은 뒤, 다음 실행에 교훈을 돌려준다.</p>
+
+      <div class="loop">
+        <article class="loop-step">
+          <span class="step-no">01 · 방향</span>
+          <strong>맥락 복구</strong>
+          <p>VISION·context·이전 결정에서 왜 하는지 되찾는다.</p>
+        </article>
+        <article class="loop-step">
+          <span class="step-no">02 · 선택</span>
+          <strong>Goal 하나</strong>
+          <p>선행 조건을 확인하고 지금 할 작업 하나만 고른다.</p>
+        </article>
+        <article class="loop-step">
+          <span class="step-no">03 · 실행</span>
+          <strong>AI가 작업</strong>
+          <p>Codex·Claude Code·Cursor가 코드와 문서를 만든다.</p>
+        </article>
+        <article class="loop-step">
+          <span class="step-no">04 · 증명</span>
+          <strong>게이트 실행</strong>
+          <p>타입·테스트·빌드·규칙·변경 증거를 실제 종료코드로 대조한다.</p>
+        </article>
+        <article class="loop-step">
+          <span class="step-no">05 · 판정</span>
+          <strong>완료 또는 정지</strong>
+          <p>증거가 맞아야 done. 반복 차단은 HARD_STOP으로 멈춘다.</p>
+        </article>
+        <article class="loop-step">
+          <span class="step-no">06 · 진화</span>
+          <strong>기억과 규칙</strong>
+          <p>실패·성공·결정을 쌓고 반복 패턴만 사람 승인 뒤 규칙으로 올린다.</p>
+        </article>
+      </div>
+
+      <div class="rails">
+        <div class="rail">
+          <strong>저장소가 기억한다</strong>
+          <span>세션 채팅이 아니라 파일이 진실의 원본이다.</span>
+          <div class="pill-row">
+            <span class="pill">VISION</span><span class="pill">RULES</span><span class="pill">Goals</span><span class="pill">Context</span><span class="pill">Evidence</span><span class="pill">Memory</span>
+          </div>
+        </div>
+        <div class="rail">
+          <strong>안전 레일이 항상 감싼다</strong>
+          <span>HARD_STOP · 위험도 판정 · 비용 한도 · 출고 전 점검 · 사람 승인</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-heading">
+        <img src="https://yohanstudio.co/images/emoji/tool-solid.png" width="24" height="24" alt="">
+        VHK가 소유하는 다섯 층
+      </h2>
+      <p class="section-intro">여러 명령은 아래 다섯 책임을 구현하는 표면일 뿐이다.</p>
+      <div class="ownership">
+        <article class="owner-card"><strong>1. 의도</strong><p>Vision·Mission·Goal로 “왜, 무엇을” 고정한다.</p></article>
+        <article class="owner-card"><strong>2. 연속성</strong><p>Context·Work·Brief로 세션이 끊겨도 이어간다.</p></article>
+        <article class="owner-card"><strong>3. 규칙 이동성</strong><p>RULES 한 벌을 여러 에이전트 규칙 파일로 동기화한다.</p></article>
+        <article class="owner-card"><strong>4. 증거</strong><p>Verify·Review·Receipt·Preflight로 “했다”와 “됐다”를 분리한다.</p></article>
+        <article class="owner-card"><strong>5. 학습과 안전</strong><p>Memory·Pattern·Evolve·Policy·HARD_STOP으로 반복을 개선하고 위험을 막는다.</p></article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-heading">
+        <img src="https://yohanstudio.co/images/emoji/result-solid.png" width="24" height="24" alt="">
+        발행 경계는 어떻게 열리는가
+      </h2>
+      <p class="section-intro">구현 완료와 발행 가능은 다르다. 코드가 끝나도 실사용 관찰과 사람 승인을 모두 통과해야 다음 권한을 연다.</p>
+
+      <div class="now-grid">
+        <article class="now-card primary">
+          <h3 class="now-title">
+            <img src="https://yohanstudio.co/images/emoji/time-solid.png" width="20" height="20" alt="">
+            관찰 게이트
+          </h3>
+          <div class="big-stat">4주 + 10회</div>
+          <p><strong>기간 4주와 유효 실행 10회</strong>를 모두 채우고, 최근 10회 실패 2회 이하·치명적 안전 위반 0을 확인한 뒤 사람이 계속/중단을 결정한다.</p>
+          <p class="fine">실제 진행률은 <strong>vhk stats</strong>와 2.x 로드맵에서 확인한다. 이 문서는 고정된 개념도이며 실시간 상태판이 아니다.</p>
+        </article>
+
+        <article class="now-card">
+          <h3 class="now-title">
+            <img src="https://yohanstudio.co/images/emoji/success-solid.png" width="20" height="20" alt="">
+            상태를 읽는 원본
+          </h3>
+          <div class="facts">
+            <div class="fact"><span>구현 범위</span><strong>2.x 로드맵 · PRD</strong></div>
+            <div class="fact"><span>관찰 증거</span><strong>vhk stats</strong></div>
+            <div class="fact"><span>출고 가능성</span><strong>release gate · 사람 판단</strong></div>
+            <div class="fact"><span>안전 정책</span><strong>record-only · 기본 off</strong></div>
+            <div class="fact"><span>공개 패키지</span><strong>npm · GitHub Release</strong></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-heading">
+        <img src="https://yohanstudio.co/images/emoji/growth-solid.png" width="24" height="24" alt="">
+        2.x 로드맵의 한 줄
+      </h2>
+      <p class="section-intro">신뢰를 복구하고, 작업을 기계가 읽게 만들고, 충분히 관찰한 다음에만 제한적 실행 권한을 연다.</p>
+
+      <div class="roadmap">
+        <article class="roadmap-stage done">
+          <span class="stage-state">완료</span>
+          <h3>2.13<br>신뢰 복구</h3>
+          <p>첫 실행의 거짓말, 규칙 누락, Goal 순서와 CI 연결을 바로잡는다.</p>
+        </article>
+        <article class="roadmap-stage done">
+          <span class="stage-state">완료</span>
+          <h3>2.14<br>읽고 측정</h3>
+          <p>Goal Phase·Task를 투영하고 완주·사람 병목을 계측한다.</p>
+        </article>
+        <article class="roadmap-stage staged">
+          <span class="stage-state">코드 완료</span>
+          <h3>2.15<br>안전 정책</h3>
+          <p>권한·위험도·허용목록·한도를 판정한다. record-only와 기본 off로 배선됐다.</p>
+        </article>
+        <article class="roadmap-stage current">
+          <span class="stage-state">현재 관문</span>
+          <h3>관찰<br>계속/중단</h3>
+          <p>4주와 유효 실행 10회. 구현 완료와 발행 가능을 구분한다.</p>
+        </article>
+        <article class="roadmap-stage planned">
+          <span class="stage-state">계획</span>
+          <h3>2.16<br>제한 실행</h3>
+          <p>자율 실행 상한은 push+PR. 머지 경로는 만들지 않는다.</p>
+        </article>
+        <article class="roadmap-stage planned">
+          <span class="stage-state">계획</span>
+          <h3>2.17<br>승인 경계</h3>
+          <p>머지 준비 여부만 판정하고 예산·무진전·반복이면 정지한다.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-heading">
+        <img src="https://yohanstudio.co/images/emoji/idea-solid.png" width="24" height="24" alt="">
+        이 프로젝트의 진짜 전략
+      </h2>
+      <div class="strategy">
+        <div class="quote">
+          <p>“좋은 기능인가?”보다<br>“사람이 다시 부르지 않아도 걸리는가?”</p>
+          <span>25시간 도그푸딩에서 막는 기능은 살아남고, 권고만 하는 기능은 방치됐다. 그래서 지금의 방향은 기능 수가 아니라 실행 조건과 증거의 자동화다.</span>
+        </div>
+        <aside class="boundary">
+          <h3 class="card-title">
+            <img src="https://yohanstudio.co/images/emoji/security-solid.png" width="20" height="20" alt="">
+            의도적으로 하지 않는 것
+          </h3>
+          <ul>
+            <li>VHK 자체가 LLM을 직접 호출하거나 모델을 고르지 않는다.</li>
+            <li>대시보드 제품이 아니다. 코어는 CLI와 파일 계약에 집중한다.</li>
+            <li>자동 머지·배포·발행은 현재 범위 밖이며 사람 승인 없이 열지 않는다.</li>
+            <li>특정 벤더 세션에 규칙·기억·판정을 가두지 않는다.</li>
+            <li>자가진화 후보를 자동 적용하지 않는다. 승격에는 사람 확인이 필요하다.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <footer class="source-note">
+      <strong>읽은 원본:</strong>
+      <a href="../VISION.md">VISION.md</a> ·
+      <a href="roadmap/2.x-roadmap.md">2.x 로드맵</a> ·
+      <a href="PRD-2.x.md">2.x PRD</a> ·
+      <a href="../README.md">README</a>.
+      이 문서는 구조를 설명하는 개념도다. 실제 진행률과 패키지 상태는 위 원본과 각 배포 채널에서 확인한다.
+    </footer>
+  </main>
+</body>
+</html>
