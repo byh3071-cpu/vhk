@@ -10,6 +10,8 @@ dist/
 
 # VHK runtime tripwire — local-only, never commit
 .vhk/HARD_STOP
+# npm release 검증 캐시 — 로그에 로컬 절대경로가 포함될 수 있어 공개 추적 금지
+.vhk/npm-cache-*/
 
 # VHK 개인 메모/참고링크 — 로컬 전용 (docs/spec.md 트래킹 정책)
 .vhk/memory.json
