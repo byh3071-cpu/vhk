@@ -304,7 +304,10 @@ export const ko = {
     stepSkills: '[6/6] Cursor skills 설치',
     stepVerify: '배선 검증 — vhk verify',
     skillsCreated: (names: string[]) => `Cursor skills 생성: ${names.join(', ')}`,
+    skillsUpdated: (names: string[]) => `Cursor skills 안전 갱신: ${names.join(', ')}`,
     skillsSkipped: (names: string[]) => `Cursor skills 이미 있음(건너뜀): ${names.join(', ')}`,
+    skillsOutdated: (names: string[]) =>
+      `사용자 수정 가능성이 있어 자동 갱신하지 않은 구형 Cursor skills: ${names.join(', ')} — 최신 템플릿과 수동 병합하세요.`,
     done: '✅ Cursor bootstrap 완료',
     nextHint: 'goal/receipt/review/learn 루프를 vhk-gate skill 로 실행하세요.',
   },

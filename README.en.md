@@ -83,6 +83,8 @@ vhk context
 vhk mcp-init     # let MCP clients (Cursor / Claude Desktop, …) call VHK
 ```
 
+For an existing Cursor project, `vhk bootstrap cursor` installs VHK-managed workflow skills. It safely upgrades an unchanged legacy template, preserves customized legacy copies with a manual-merge warning, and delegates project-specific test-script detection to `vhk verify` instead of assuming a pnpm script name.
+
 **Daily loop**
 ```bash
 vhk work

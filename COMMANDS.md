@@ -50,7 +50,7 @@ Cursor에게 한국어로 말해도 됩니다.
 |-------------|-----------|------------------|
 | Cursor 독푸딩 (설치+배선) | `vhk bootstrap cursor` (`-y`, `--skip-verify`) | "VHK 독푸딩 해줘" |
 
-> doctor → goal migrate --dry-run → inject-bootstrap → mcp-init → sync → `.cursor/skills/vhk-*` 5종 → verify(선택). brownfield Cursor 마이그레이션용.
+> doctor → goal migrate --dry-run → inject-bootstrap → mcp-init → sync → `.cursor/skills/vhk-*` 5종 → verify(선택). brownfield Cursor 마이그레이션용. VHK가 그대로 생성했던 구형 skill은 버전 확인 후 안전하게 갱신하고, 사용자가 고친 구형 skill은 덮어쓰지 않은 채 수동 병합 경고를 냅니다. 검증 skill은 프로젝트별 패키지 명령을 추측하지 않고 `vhk verify`에 위임합니다.
 
 | 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |
 | 배포 | `vhk 배포` | "배포해" |
