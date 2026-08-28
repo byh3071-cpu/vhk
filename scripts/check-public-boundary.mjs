@@ -18,6 +18,14 @@ const PRIVATE_TRACKED_PATHS = [
   'goals/',
   '.agents/SOUL.md',
   '.vhk/config.json',
+  '.vhk/policy.json',
+  '.vhk/policy-baseline.json',
+  '.vhk/.policy-baseline.json.tmp-*',
+  '.vhk/run-state.json',
+  '.vhk/run-state.lock',
+  '.vhk/run-state-recovery.lock',
+  '.vhk/.run-state.json.tmp-*',
+  '.vhk/.cloud.json.tmp-*',
   '.vhk/events/',
   '.vhk/ledger.jsonl',
   '.claude/agents/memtest.md',
@@ -144,7 +152,9 @@ function historyContainsPrivateText() {
 function matchesPath(normalized, parts) {
   return parts.some((part) => {
     const target = part.toLowerCase()
-    return target.endsWith('/') ? normalized.startsWith(target) : normalized === target
+    if (target.endsWith('/')) return normalized.startsWith(target)
+    if (target.endsWith('*')) return normalized.startsWith(target.slice(0, -1))
+    return normalized === target
   })
 }
 

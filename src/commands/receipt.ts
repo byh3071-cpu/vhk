@@ -9,8 +9,8 @@ import { atomicWriteFile } from '../lib/atomic-write.js'
 import { localDate } from '../lib/date.js'
 import { stripBom } from '../lib/read-json.js'
 import { ko } from '../i18n/ko.js'
-import { getCommitInfo, gitOut } from '../lib/git-repo.js'
-import { isGateWarning, verifyEvidence } from './verify.js'
+import { getCommitInfo, gitOut, type CommitInfo } from '../lib/git-repo.js'
+import { checkEvidenceFreshness, isGateWarning, verifyEvidence, type VerifyReport } from './verify.js'
 import { diffUnified0 } from '../lib/git-session.js'
 import { addedLinesByFile } from '../lib/diff-hunks.js'
 import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
@@ -40,12 +40,11 @@ import { appendReceiptLog, buildReceiptLogEntry } from '../lib/receipt-log.js'
  * 기존 디스크 작동 자산(verifyEvidence·getCommitInfo·diff-coverage)을 조립하는 글루코드.
  *
  * ② dirty 는 getCommitInfo 가 Goal 85 filterSelfTrackedLines 를 이미 적용한다(자기 ledger 제외).
- * ③ stale 은 작업시작 기준선 SHA(.vhk/receipts/.base-sha, 로컬 전용)와 현재 HEAD 비교 —
- *    기준선이 없으면 stale 미상(거짓 block 안 함, 단 caution).
+ * ③ stale 은 verify 리포트의 커밋 SHA·dirty와 현재 HEAD·dirty 비교 — 작업 기준선과 독립이다.
  */
 
 export const RECEIPT_DIR_REL = join('.vhk', 'receipts')
-/** 작업시작 기준선 SHA — stale(③) 비교 기준. 로컬 전용(추적 안 함). */
+/** 작업시작 기준선 SHA — intent 변경 범위 비교 기준. 로컬 전용(추적 안 함). */
 export const RECEIPT_BASE_REL = join(RECEIPT_DIR_REL, '.base-sha')
 const COVERAGE_JSON_REL = join('coverage', 'coverage-final.json')
 
@@ -66,8 +65,8 @@ export function readBaseSha(cwd: string): string | null {
  * 방향 3-④: baseSha 무결성 검증 — 그 SHA 가 실제 레포의 커밋 객체인지 git 에 묻는다.
  *
  * 왜: baseSha(.base-sha 파일 또는 --since 인자)는 사람·외부 입력이라 위조·오타·다른 레포 SHA·
- *   비커밋 객체(blob/tree)일 수 있다. 검증 없이 그대로 쓰면 "baseSha ≠ HEAD"가 무조건 참이 되어
- *   **거짓 stale(block)** 을 만들고, intent 의 `git diff <baseSha>` 도 엉뚱한 기준으로 돌아간다.
+ *   비커밋 객체(blob/tree)일 수 있다. 검증 없이 그대로 쓰면 intent 의 `git diff <baseSha>`가
+ *   엉뚱한 변경 범위를 검사한다. stale은 verify 증거와 현재 HEAD를 별도로 대조한다.
  *   `git rev-parse --verify <sha>^{commit}` 는 해당 객체를 커밋으로 역참조 가능할 때만 0 으로 끝나고
  *   아니면 throw → 무효로 판정한다(존재하지 않거나 커밋이 아니면 false).
  *
@@ -79,7 +78,7 @@ export function verifyBaseSha(cwd: string, sha: string): boolean {
     gitOut(['rev-parse', '--verify', `${sha}^{commit}`], cwd)
     return true
   } catch {
-    // throw = 미존재/비커밋/레포 아님 → 무효. 거짓 stale 방지로 호출부가 baseSha 를 버린다.
+    // throw = 미존재/비커밋/레포 아님 → 무효. 잘못된 intent 기준을 막도록 호출부가 baseSha 를 버린다.
     return false
   }
 }
@@ -135,8 +134,8 @@ export function collectDiffCover(cwd: string): ReceiptDiffCover {
  *  - baseSha(작업시작 기준선)가 있으면 `git diff --name-only <baseSha>` (baseSha..working tree) +
  *    untracked 신규 — **커밋된 변경까지 포함**한다. 그래야 금지 파일을 고친 뒤 곧장 커밋해 status 에서
  *    숨겨도(forbiddenHits=0 위장) 의도 위반을 놓치지 않는다(CodeRabbit #394 지적 — 거짓완료 우회 차단).
- *  - 기준선 미기록이면 미커밋 변경(status -uall)만 본다. 이 경우 커밋된 변경은 receipt 의 stale(③)이
- *    "증거 낡음"으로 잡는다(가능하면 vhk receipt --mark-start 로 기준선을 박는 게 정확).
+ *  - 기준선 미기록이면 미커밋 변경(status -uall)만 본다. 이미 커밋된 intent 위반까지 보려면
+ *    작업 전에 vhk receipt --mark-start 로 기준선을 고정해야 한다.
  *
  * dirty(②)와 **동일 기준**으로 vhk 자기 산출 추적파일(isSelfTrackedPath)을 제외한다 — receipt 자신이
  * 남기는 .vhk/events·ledger 가 scope 경고를 만드는 자기참조 노이즈 방지(Goal 85). (수동 `vhk mission
@@ -205,6 +204,7 @@ export function collectIntent(cwd: string, baseSha?: string | null): ReceiptInte
   const mission = readMission(cwd)
   if (!mission) return undefined
   const files = new Set<string>()
+  let scanKnown = true
   try {
     if (baseSha) {
       // baseSha..working tree — 커밋된 변경까지 포함. diff 는 tracked 만이므로 untracked 는 ls-files 로 보충.
@@ -221,7 +221,8 @@ export function collectIntent(cwd: string, baseSha?: string | null): ReceiptInte
       }
     }
   } catch {
-    // git 실패 → 변경 목록 미상. 빈 목록(위반 0)으로 둔다 — 거짓 block 금지(정직). 다른 증거가 보완.
+    // git 실패 → 변경 목록 미상. 부분 결과의 위반은 보존하되 0건을 성공으로 위장하지 않는다.
+    scanKnown = false
   }
   const changed = [...files].filter((f) => !isSelfTrackedPath(f))
   const result = checkMission(changed, mission)
@@ -233,11 +234,32 @@ export function collectIntent(cwd: string, baseSha?: string | null): ReceiptInte
   }
   return {
     missionKnown: true,
+    baselineKnown: baseSha != null,
+    scanKnown,
     forbiddenHits: result.violations.length,
     scopeWarnings: result.warnings.length,
     unsupportedForbiddenCount: result.unsupportedForbiddenPatterns.length,
     missionChecksum: missionChecksum(cwd),
     objectiveTokenOverlap,
+  }
+}
+
+export interface ReceiptFreshness {
+  /** verify 리포트와 현재 커밋을 모두 식별할 수 있었는가. */
+  staleKnown: boolean
+  /** 식별 가능한 두 증거가 SHA·dirty 기준으로 어긋나는가. */
+  stale: boolean
+}
+
+/**
+ * 작업 범위 기준선과 독립된 receipt 신선도 판정.
+ * 증거 또는 현재 커밋을 모르면 거짓 BLOCK 대신 미상(caution)으로 남긴다.
+ */
+export function receiptFreshness(report: VerifyReport, current: CommitInfo | null): ReceiptFreshness {
+  const staleKnown = report.commit != null && current !== null
+  return {
+    staleKnown,
+    stale: staleKnown ? checkEvidenceFreshness(report, current).stale : false,
   }
 }
 
@@ -256,16 +278,14 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
   const headSha = commit?.sha ?? null
   const dirty = commit?.dirty ?? false
 
-  // ③ stale — 작업시작 기준선 SHA ≠ 현재 HEAD. 기준선/HEAD 미상이면 stale 미상(거짓 block 금지).
-  // 방향 3-④: 기준선 SHA 가 실제 커밋인지 먼저 검증 — 위조·오타·다른 레포 SHA·비커밋 객체면 무효
-  //   처리해 거짓 stale(block)·엉뚱한 diff 기준을 막는다(무효 → null → stale 미상=caution, block 아님).
+  // 작업 기준선은 ⑤ intent 범위에만 사용한다. 위조·오타·다른 레포 SHA·비커밋 객체면 무효화해
+  // 엉뚱한 diff 기준을 막는다. ③ stale은 이 값과 독립적으로 verify 증거와 현재 HEAD를 대조한다.
   const rawBaseSha = baseShaOverride !== undefined ? baseShaOverride : readBaseSha(cwd)
   const baseSha = rawBaseSha !== null && !verifyBaseSha(cwd, rawBaseSha) ? null : rawBaseSha
   if (rawBaseSha !== null && baseSha === null) {
     console.error(chalk.yellow(`  ⚠️  ${ko.receipt.invalidBaseSha(rawBaseSha)}`))
   }
-  const staleKnown = baseSha !== null && headSha !== null
-  const stale = staleKnown ? baseSha !== headSha : false
+  const { staleKnown, stale } = receiptFreshness(report, commit)
 
   // ④ diff-cover — advisory(약신호).
   const diffCover = collectDiffCover(cwd)
@@ -318,9 +338,9 @@ const DECISION_BADGE: Record<ReceiptDecision, string> = {
 
 export interface ReceiptOptions {
   json?: boolean
-  /** 현재 HEAD 를 작업시작 기준선으로 기록(이후 stale 비교 기준). */
+  /** 현재 HEAD 를 작업시작 기준선으로 기록(이후 intent 변경 범위 기준). */
   markStart?: boolean
-  /** stale 비교 기준 SHA 를 명시(.base-sha 무시). */
+  /** intent 변경 범위 기준 SHA 를 명시(.base-sha 무시). */
   since?: string
 }
 
@@ -329,7 +349,7 @@ export async function receipt(opts: ReceiptOptions = {}): Promise<void> {
   if (!ensureNotHardStopped('receipt')) return
   const cwd = process.cwd()
 
-  // --mark-start: 현재 HEAD 를 작업시작 기준선으로 박는다(증거 안 만듦).
+  // --mark-start: 현재 HEAD 를 intent 변경 범위 기준선으로 박는다(검증 증거는 만들지 않음).
   if (opts.markStart) {
     const commit = getCommitInfo(cwd)
     if (!commit) {
@@ -366,7 +386,7 @@ export async function receipt(opts: ReceiptOptions = {}): Promise<void> {
   console.log(`  판정: ${DECISION_BADGE[r.decision]}`)
   console.log(
     chalk.dim(
-      `  HEAD: ${r.head.shortSha ?? '미상'}  ·  작업시작: ${r.base.shortSha ?? '미기록'}  ·  게이트: ${r.evidence.gates.status}`
+      `  HEAD: ${r.head.shortSha ?? '미상'}  ·  작업기준: ${r.base.shortSha ?? '미기록'}  ·  게이트: ${r.evidence.gates.status}`
     )
   )
   console.log('')

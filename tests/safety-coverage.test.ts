@@ -15,6 +15,7 @@ const HANDLER_ACTION: Record<string, string> = {
   undo: 'undo', deploy: 'deploy', publish: 'publish', migrate: 'migrate',
   cloudPull: 'cloud-pull', env: 'env-write', save: 'save', sync: 'sync', resume: 'resume',
   restore: 'restore',
+  policyBaseline: 'policy-baseline',
 }
 
 describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () => {
@@ -33,14 +34,16 @@ describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () 
         expect(Object.keys(NL_GUARDED_ACTIONS), `NL '${cmd}'→${handler}() 가드 미경유`).toContain(cmd)
       }
     }
+    expect(src).toContain("route.command === 'policy' && route.args?.[0] === 'baseline'")
+    expect(src).toContain("? 'policy-baseline'")
   })
 
   it('CLI 등록: 가드대상 + CLI 커맨드 있는 action 은 전부 guardCli/guardCliDefer 경유 (index.ts)', () => {
     const idx = readFileSync('src/index.ts', 'utf-8')
-    const CLI_ACTIONS = ['deploy', 'publish', 'migrate', 'env-write', 'cloud-pull', 'undo', 'resume', 'save', 'sync', 'restore']
+    const CLI_ACTIONS = ['deploy', 'publish', 'migrate', 'env-write', 'cloud-pull', 'undo', 'resume', 'save', 'sync', 'restore', 'policy-baseline']
     for (const a of CLI_ACTIONS) {
       // undo/resume 는 guardCliDefer(명령 자체확인 위임), 나머지는 guardCli
-      expect(new RegExp(`guardCli(Defer)?\\('${a}'`).test(idx), `CLI '${a}' 가드 미경유`).toBe(true)
+      expect(new RegExp(`guardCli(Defer)?\\(\\s*'${a}'`).test(idx), `CLI '${a}' 가드 미경유`).toBe(true)
     }
   })
 
@@ -55,7 +58,7 @@ describe('완전성 가드 — high-risk 무바이패스 (적대리뷰 R2)', () 
 
   it('인라인 메뉴 switch 등: 가드대상 핸들러 직접 호출 없음(전부 guardCli 경유)', () => {
     const idx = readFileSync('src/index.ts', 'utf-8')
-    const direct = [...idx.matchAll(/return\s+(undo|save|sync|deploy|publish|migrate|env|cloudPull|resume)\(/g)]
+    const direct = [...idx.matchAll(/return\s+(undo|save|sync|deploy|publish|migrate|env|cloudPull|resume|policyBaseline)\(/g)]
     expect(direct.map((m) => m[1]), '가드 미경유 직접 호출 발견').toEqual([])
   })
 
@@ -102,7 +105,7 @@ describe('HIGH_RISK 완전성 — index.ts guard 경유', () => {
   for (const a of HIGH_RISK_ACTIONS) {
     if (EXEMPT.has(a)) continue
     it(`${a} 는 index.ts 에서 guard 경유`, () => {
-      expect(new RegExp(`guardCli(Defer)?\\('${a}'`).test(idx)).toBe(true)
+      expect(new RegExp(`guardCli(Defer)?\\(\\s*'${a}'`).test(idx)).toBe(true)
     })
   }
 })

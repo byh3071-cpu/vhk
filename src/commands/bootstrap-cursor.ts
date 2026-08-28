@@ -53,8 +53,14 @@ export async function bootstrapCursor(options: BootstrapCursorOptions = {}): Pro
   if (skills.created.length > 0) {
     console.log(chalk.green(`  ${ko.bootstrapCursor.skillsCreated(skills.created)}`))
   }
+  if (skills.updated.length > 0) {
+    console.log(chalk.green(`  ${ko.bootstrapCursor.skillsUpdated(skills.updated)}`))
+  }
   if (skills.skipped.length > 0) {
     console.log(chalk.dim(`  ${ko.bootstrapCursor.skillsSkipped(skills.skipped)}`))
+  }
+  if (skills.outdated.length > 0) {
+    console.log(chalk.yellow(`  ${ko.bootstrapCursor.skillsOutdated(skills.outdated)}`))
   }
 
   if (!options.skipVerify) {

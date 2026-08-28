@@ -4,8 +4,40 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Changed
+
+- README·COMMANDS·2.x 원본 문서를 실제 2.15 동작에 맞췄다. MCP 35개 목록에서 CLI 전용 `policy`를
+  제외하고, `policy check`의 셸 경계, receipt의 자체 5-gate 검증·stale 미상 CAUTION,
+  DONE/CANCELED 종결 스냅샷 계약을 명시했다. 이 수정은 GitHub 문서부터 적용되며 이미 발행된 npm
+  2.15.0의 내장 README는 불변인 릴리스 시점 스냅샷으로 남는다.
+
+### Internal
+
+- Codex hook 검증기가 입력을 읽기 전에 정상 종료한 자식 프로세스의 stdin 닫힘을 Node 24/Linux와
+  Windows 모두에서 처리한다. 실제 종료 코드와 출력은 그대로 검증하며 다른 스트림 오류는 실패로 남긴다.
+
+## [2.15.0] - 2026-08-29
+
 ### Fixed
 
+- `vhk receipt`가 작업 시작 기준선과 검증 증거 기준선을 분리한다. 작업 범위는 `mark-start` 시점부터
+  계산하되, 낡은 증거 여부는 `receipt`가 자체 검증을 시작할 때의 HEAD·dirty와 게이트 종료 후 상태로
+  판정해 정상적인 A→B 구현 뒤 B 검증을 stale로 오인하지 않는다. 검증 중 HEAD가 바뀌거나 작업트리가
+  더러워지면 stale이 된다.
+- 모든 Goal이 정상 DONE인 branch closeout을 손상된 Goal 상태와 구분한다. 전자는 review N/A·branch
+  receipt 안내로 닫고, 후자만 `goal-health`로 보낸다. 관리되는 Cursor 스킬은 사용자 수정본을 덮지 않고
+  안전하게 새 템플릿으로 이관한다.
+- `vhk goal next`가 BLOCKED·DEFERRED·OBSERVING Goal을 전체 완료로 오인하지 않으며, 미해결 Goal 없이
+  DONE/CANCELED만 남은 종결 상태를 반복 조회해도 `next-task` 시각이나 백업을 다시 쓰지 않는다. 완료
+  스냅샷 뒤 Goal이 재개되면 낡은 완료 표시와 시각을 함께 무효화한다.
+- 패턴 ID의 빈 값과 추적되지 않은 패턴 문서 내부의 깨진 `PAT-NNN` 참조까지 검사한다. 자기 선언은 내부
+  참조로 세지 않아 정상 패턴 문서를 거짓 차단하지 않는다.
+- JSON 형식은 맞지만 알 수 없는 자율 런 event를 종결로 취급하지 않아, 손상 라인 하나가 정상 complete를
+  영구히 가로막지 않는다.
+- 신규 Gist 생성 뒤 공개 여부 확인이 실패하거나 공개 Gist로 판정되면 `cloud.json`에는 연결하지 않되,
+  이미 생성된 객체를 확인·삭제할 수 있도록 복구 ID를 출력한다.
+- 릴리스 worktree와 중첩된 `.vhk` 작업공간이 Vitest 수집·공개 경계 검사에 섞이지 않으며, 정책·원자 쓰기
+  상태 파일을 클라우드 백업 대상에서 제외한다.
 - 자율 런이 완주해도 관찰 게이트 표본에 들어가지 않던 문제 — 완주 판정은 같은 커밋 SHA 의
   `vhk receipt` 를 요구하는데 `vhk verify` 는 그 원장을 쓰지 않고, 자율 루프 스킬에도 호출이
   없었다. 기록은 남지만 `verified=false` 로 떨어져 유효 실행에 안 들어가고 권한 승급까지
@@ -13,6 +45,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Internal
 
+- 릴리스 검증용 `.vhk/npm-cache-*`를 로컬 전용으로 고정해 npm 로그·캐시의 절대경로가 공개 경계 검사나 커밋 후보에 섞이지 않게 했다.
 - 실행 전 결정론 검사를 신설 (작업 단위 125a-T5 · RFC 0067 §4). 중단신호 → 허용목록 → 호출 수 →
   시간 → 권한 단계 순 **단락 평가**이고, **하드리밋을 전부 통과한 뒤에만 사람 승인을 묻는다** —
   순서가 뒤바뀌면 사람이 승인한 순간 한도 없는 실행이 된다. `require-human` 은 종료 코드 0 이 아니다.
@@ -28,6 +61,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Changed
 
+- 오너 결정(2026-08-28)으로 기본-off인 2.15 판정 기능의 패키지 공개를 관찰 게이트와 분리했다.
+  자동 집행 활성화와 2.16 실행 배선은 기존대로 4주·유효 실행 10회·사람 계속 판정 뒤에만 진행한다.
 - `vhk policy` 출력이 판정 사유를 사람 문장으로 함께 보여준다 — `LEDGER_EMPTY` 같은 코드만
   노출하면 무슨 상태인지 알 수 없다. 코드는 원장과 대조할 수 있게 그대로 남긴다.
 
@@ -1070,7 +1105,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v2.13.0...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v2.15.0...HEAD
+[2.15.0]: https://github.com/byh3071-cpu/vhk/compare/v2.14.1...v2.15.0
 [2.14.1]: https://github.com/byh3071-cpu/vhk/compare/v2.14.0...v2.14.1
 [2.14.0]: https://github.com/byh3071-cpu/vhk/compare/v2.13.0...v2.14.0
 [2.13.0]: https://github.com/byh3071-cpu/vhk/compare/v2.12.0...v2.13.0

@@ -200,8 +200,15 @@ describe('공용 에이전트 자동화 설정', () => {
     for (const hook of commands) {
       expect(hook.command).toContain('git rev-parse --show-toplevel')
       expect(hook.commandWindows).toContain('git rev-parse --show-toplevel')
+      expect(hook.command).toContain('2>/dev/null')
+      expect(hook.command).toContain('[ -f "$repo_root/scripts/')
+      expect(hook.command).toContain('] || exit 0')
+      expect(hook.commandWindows).toContain('2>$null')
+      expect(hook.commandWindows).toContain('[string]::IsNullOrWhiteSpace')
+      expect(hook.commandWindows).toContain('Test-Path -LiteralPath $runner -PathType Leaf')
       expect(hook.command).toContain('cd "$repo_root"')
       expect(hook.commandWindows).toContain('Set-Location -LiteralPath $repoRoot')
+      expect(hook.commandWindows).toContain('exit $LASTEXITCODE')
 
       const command = process.platform === 'win32' ? hook.commandWindows : hook.command
       const result = process.platform === 'win32'
@@ -225,9 +232,18 @@ describe('공용 에이전트 자동화 설정', () => {
 
     expect(result.status, result.stderr || result.stdout).toBe(0)
     expect(JSON.parse(result.stdout)).toEqual({
+      nonGitPreToolUseQuiet: true,
+      nonGitStopQuiet: true,
+      missingRunnerPreToolUseQuiet: true,
+      missingRunnerStopQuiet: true,
+      vhkRootRuns: true,
       hardStopBlocked: true,
       reminderShown: true,
       devlogSuppressed: true,
+      preToolUseExitPropagated: true,
+      stopExitPropagated: true,
+      preToolUseStdinPreserved: true,
+      stopStdinPreserved: true,
     })
   })
 

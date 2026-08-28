@@ -1,14 +1,14 @@
 ---
 id: vhk-readme
 date: 2026-06-08
-tags: [vhk, cli, readme, v2.14.1, mcp, proof, ai-coding]
+tags: [vhk, cli, readme, v2.15.0, mcp, proof, ai-coding]
 ---
 
 <div align="center">
 
 # VHK — Vibe Harness Kit
 
-**v2.14.1**
+**v2.15.0**
 
 **모델·에이전트를 뭘로 바꿔도 안 무너지는 풀사이클 AI 코딩 하네스.**
 
@@ -21,7 +21,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![MCP](https://img.shields.io/badge/MCP-35_tools-8A2BE2)
 
-**[30초 시작](#30초-시작) · [VHK vs 맨 에이전트](#vhk-vs-맨-에이전트) · [핵심 루프](#핵심-루프) · [명령 전체](#명령-전체)**
+**[v2.15 핵심](#v215-핵심) · [30초 시작](#30초-시작) · [VHK vs 맨 에이전트](#vhk-vs-맨-에이전트) · [핵심 루프](#핵심-루프) · [명령 전체](#명령-전체)**
 
 </div>
 
@@ -40,7 +40,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
   🟢 Node     v24.13.0 (shim-safe)
   🟢 pnpm     11.17.0
   🟢 git      2.53.0 (user configured)
-  🟢 VHK      v2.14.1 (최신)
+  🟢 VHK      v2.15.0
   🟢 MCP      35 tools 등록
 
   📁 프로젝트 파일 확인:
@@ -56,9 +56,18 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
   vhk work
 ```
 
+## v2.15 핵심
+
+- **기본-off 안전 정책** — `vhk policy level/risk/show/check`로 권한 단계·위험도·허용목록·호출 수·시간 한도를 조회하고 판정합니다. 대상 명령을 실행하거나 자동 집행을 켜지는 않습니다.
+- **증거 기준선 분리** — `vhk receipt --mark-start`는 intent/forbidden 대조용 변경 범위의 시작 SHA만 기록합니다. `receipt`는 발행 중 새 검증을 실행하고, 검증 시작 HEAD·dirty와 게이트 종료 후 상태를 비교해 stale 여부를 판정합니다.
+- **안정적인 마감** — `vhk goal next`는 BLOCKED·DEFERRED·OBSERVING을 완료로 오인하지 않고, 미해결 Goal 없이 DONE/CANCELED만 남은 종결 상태를 반복 조회해도 완료 시각이나 백업을 다시 만들지 않습니다. 생성되는 gate skill은 모든 Goal이 정상 DONE인 branch closeout을 `review N/A`와 branch receipt 경로로 안내합니다.
+
+자동 집행과 `enforce` 활성화는 2.15 범위가 아닙니다. 관찰 게이트를 충족하고 사람이 계속을 결정한 뒤 2.16에서 다룹니다.
+
 <details>
 <summary>목차</summary>
 
+- [v2.15 핵심](#v215-핵심)
 - [왜 VHK인가](#왜-vhk인가)
 - [30초 시작](#30초-시작)
 - [VHK vs 맨 에이전트](#vhk-vs-맨-에이전트)
@@ -114,6 +123,8 @@ Node.js 22 이상이 필요합니다. `vhk start --stack "..."`은 지정한 기
 기존 프로젝트에서 `vhk init`을 실행하면 여러 규칙 파일의 같은 관리 구역은 한 번만 가져옵니다. 같은 이름인데 내용이 다르거나 `BEGIN/END` 표시가 깨진 구역은 자동으로 고르지 않고, 원본을 그대로 둔 채 복구 방법과 함께 중단합니다.
 
 설치가 끝나면 규칙 파일 연결 수와 함께 핵심 규칙의 출처·버전을 따로 보여줍니다. `VHK 내장 기본 규칙`으로 대신한 경우에는 사용자 규칙 파일이 연결된 상태가 아님을 마지막 설치 점검에서 다시 경고합니다.
+
+Cursor 기존 프로젝트는 `vhk bootstrap cursor`로 VHK 관리 skill을 설치할 수 있습니다. 수정되지 않은 구형 관리본은 안전하게 최신화하고, 사용자가 손댄 구형본은 덮어쓰지 않고 수동 병합을 안내합니다. 생성되는 검증 skill은 특정 `pnpm` 스크립트를 가정하지 않고 `vhk verify`가 프로젝트의 실제 스크립트를 판별하게 합니다.
 
 ### 선택: 사용자 규칙 YAML 연결
 
@@ -177,6 +188,8 @@ vhk check --json   # declaredRules·checkedRules·uncheckedRules·coveragePercen
 
 Goal은 `goals/*.md`와 `scripts/check-goal-<id>.mjs`를 연결합니다. `vhk goal done`은 게이트를 다시 돌려 통과할 때만 DONE으로 전이합니다. 선택 필드 `depends_on: 1,2`를 쓰면 두 Goal이 모두 DONE이 되기 전에는 다음 작업이나 완료 대상으로 선택되지 않습니다. 블로커가 반복되면(3건 누적) `.vhk/HARD_STOP`으로 진행을 멈춥니다.
 
+`vhk goal next`는 선택 가능한 Goal 없이 BLOCKED·DEFERRED·OBSERVING만 남으면 완료로 오인하지 않고 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각을 함께 무효화합니다. 미해결 Goal 없이 DONE/CANCELED만 남은 종결 상태에서는 기존 `next-task.md`가 있을 때만 백업 후 완료 스냅샷으로 갱신하며, 파일이 없으면 새로 만들지 않습니다. 이미 완료 스냅샷이면 아무것도 쓰지 않아 시각과 백업이 늘지 않습니다.
+
 ```powershell
 vhk goal next
 vhk goal done --id 42
@@ -215,13 +228,72 @@ pending Task는 직전 Phase의 모든 Task가 terminal이면 `ready`, 아니면
 객체 ID입니다. 차단된 입력 원문은 오류에 다시 노출하지 않으며, 예시는 `sample-*`, `<HOME>`,
 명백히 가짜 ID만 사용합니다. `--compact --json` 충돌은 `valid: false`와 exit 1인 flag 구조 오류입니다.
 
+#### 기본 off 실행 정책 조회
+
+실행 정책은 기본 off입니다. `vhk policy show`는 현재 `record`·`enforce` 플래그와 계산된 권한
+단계·위험도를 읽기 전용으로 보여줄 뿐 설정을 켜거나 명령을 실행하지 않습니다.
+
+판정 이력만 쌓으려면 사람이 `.vhk/policy.json`을 직접 만들거나 편집해 `record: true`로 둡니다.
+VHK가 이 값을 자동으로 켜는 명령은 없으며, `enforce: false`에서는 판정을 기록해도 실행을 막지 않습니다.
+
+```json
+{
+  "schemaVersion": 1,
+  "record": true,
+  "enforce": false
+}
+```
+
+```powershell
+vhk policy show
+vhk 정책 보기
+```
+
+설정을 만든 뒤에는 현재 내용의 해시를 기준선으로 고정할 수 있습니다. 이 명령만 정책 조회와 달리
+파일을 쓰는 고위험 작업이며, 사람이 `--confirm`을 붙여 명시적으로 실행해야 합니다. VHK는 기준선을
+자동 생성하거나 자동 갱신하지 않습니다. 이후 자율 런 시작·종료 때 설정이 기준선과 달라졌는지 확인합니다.
+정책 파일을 지워 기본 off로 돌아갈 때도 같은 명령을 실행하면 “설정 없음” 상태를 `hash: null`로
+고정합니다. 그러면 정책 파일이 다시 생기는 것도 변경으로 탐지됩니다.
+
+```powershell
+vhk policy baseline --confirm
+vhk 정책 기준선 --confirm
+```
+
+`policy.json`·`policy-baseline.json`·`run-state.json`·`cloud.json`과 구 잠금 예약 이름,
+정책·런 상태·클라우드 포인터의 원자 저장 임시본 패턴은 새 프로젝트의 `.vhk/.gitignore`와
+VHK cloud 제외 목록에 자동 등록됩니다.
+구현 중 사용됐던 `run-state-recovery.lock` 이름도 호환 잔재가 노출되지 않도록 예약 제외합니다.
+기존 프로젝트도 기준선 기록이나 런 상태 기록 시 보강합니다.
+실행 중 비교용 정책 해시와 최초 종결의 종료 요청·당시 정책 무효화 상태·위험도 판정은 비추적 `run-state.json`에만 저장합니다.
+종결·판정 원장이 모두 기록될 때까지 같은 작업 SHA의 재시도는 이 최초 요청과 판정을 그대로 이어 쓰며,
+추적 가능한 실행 원장에는 정책 내용 해시를 남기지 않습니다.
+공개 정책 의무 필드 도입 전에 남은 종료 기록을 보충할 때도 그 의무를 비공개 상태에 먼저 고정하며,
+현대 종료 기록에서 공개 필드만 지워진 경우와 구분해 후자는 완료로 재사용하지 않습니다.
+정책 무효화 상태에서 먼저 남은 수동 종료도 최초 요청을 비공개 상태에 고정하므로, 정책을 복구한 뒤
+새 판단으로 덮어쓰지 않습니다. 종결 보충용으로 남은 상태는 새 `policy check`의 실행 한도에 섞이지 않습니다.
+병렬 런의 실제 잠금은 Git·정책 상태와 무관한 사용자 전용 OS 임시 디렉터리에 두며 프로젝트에는 남기지 않습니다.
+
+허용목록과 호출 수·시간 한도에 따라 특정 명령이 실행 가능한지만 미리 판정하려면 `--` 뒤에
+명령을 argv 그대로 붙입니다. `check`는 대상 명령을 실행하지 않으며 `allow`는 exit 0,
+`deny`는 exit 1, 사람 확인이 필요한 `require-human`은 exit 2로 끝납니다.
+
+```powershell
+vhk policy check -- pnpm typecheck
+vhk 정책 검사 -- pnpm typecheck
+```
+
+단순 질문은 `vhk pnpm typecheck 실행 가능해?`처럼 자연어로도 검사할 수 있습니다. 명시형도 **단일 실행 파일과 argv만** 지원합니다. 파이프·연쇄(`&&`, `;`)·명령 치환을 붙이면 셸이 VHK 밖에서 실제 명령을 실행할 수 있으므로 절대 붙이지 말고, 각 명령을 따로 검사하세요.
+
+활성화 설정이 없으면 조회 표면은 판정만 하고 실행 집행이나 정책 원장 기록을 시작하지 않습니다.
+
 ### 3. 증거와 자기검증 — "실행했다"와 "완료됐다"를 분리
 
 ```powershell
 vhk verify     # 게이트 실행 → 확인이 필요한 항목의 경과 시간·숨긴 횟수 표시 + .vhk/reports/latest.json
 vhk verify --dismiss lint-gate  # 현재 알림 숨기기(같은 문제가 다시 발생하면 다시 표시)
 vhk review     # 최신 증거와 goal 완료조건 교차검증
-vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale SHA·diff-cover)로 완료 보고 검증 (LLM 0)
+vhk receipt    # 4대 기계증거(verify 5개 게이트·git dirty·verify SHA 신선도·diff-cover)로 완료 보고 검증 (LLM 0)
 vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
 ```
 
@@ -234,7 +306,7 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 🧾 검증 리포트 (receipt)
 ────────────────────────────────────────────
   판정: 🔴 BLOCK
-  HEAD: adb79f9  ·  작업시작: adb79f9  ·  게이트: FAIL
+  HEAD: adb79f9  ·  작업기준: adb79f9  ·  게이트: FAIL
 
    • 게이트 실패(실종료코드 ≠ 0): test — red
    • working tree 가 dirty — 미커밋/untracked 변경 있음(자기파일 제외 후에도)
@@ -245,6 +317,7 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 ```
 
 30초 재현: 아무 프로젝트에서 `vhk receipt --mark-start` → 코드 수정(커밋 X, 테스트 깨진 채) → `vhk receipt`.
+`--mark-start`는 intent/forbidden 대조용 변경 범위의 시작 SHA만 기록합니다. `receipt`는 발행 중 `verify`를 새로 실행해 검증 시작 HEAD·dirty와 게이트 종료 후 현재 상태를 비교합니다. 어느 한쪽 커밋을 식별할 수 없어 stale 여부가 미상이면 CAUTION(exit 0), 식별된 상태가 실제로 어긋날 때만 BLOCK(exit 1)입니다.
 판정은 종료코드·git dirty·SHA 같은 기계증거 기반이며 LLM 추론이 아닙니다 — 그래서 "그럴듯한 말"에 안 속습니다.
 (한계도 정직하게: 게으른 허위 완료 보고를 잡는 도구지, 그럴듯하게 틀린 코드까지 잡지는 못합니다.)
 
@@ -280,7 +353,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | 그룹 | 도구 |
 | --- | --- |
 | Git/세션 | `save`, `undo`, `status`, `diff`, `ship`, `recap` |
-| 진단/품질 | `doctor`, `check`, `secure`, `audit`, `harness`, `policy` |
+| 진단/품질 | `doctor`, `check`, `secure`, `audit`, `harness` |
 | 환경/규칙 | `env`, `env-check`, `sync`, `mcp-init` |
 | 컨텍스트/기억 | `context`, `context-show`, `brief`, `loop-brief`, `remind`, `memory-list`, `learn` |
 | 풀사이클 뒷단 | `content`, `launch`, `ops`, `sell` |
@@ -302,7 +375,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | 풀사이클 뒷단 | `vhk content`, `vhk launch`, `vhk ops`, `vhk sell` | 콘텐츠/런칭/운영/판매 초안 프롬프트 생성 (초안만, 게시·발송·결제는 사람이) · RULES.md 치명 규칙 자동 상속 · 과거 교훈(`.vhk/memory`) ≤3 자동 회상 주입 — 다음 사이클로 복리 |
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 불일치(drift) 관리 |
 | Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 완료 보고 검증, 검증 리포트, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
-| 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan` | HARD_STOP, safety mode, 시크릿 스캔 |
+| 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan`, `vhk policy level/risk/show/check/baseline` | HARD_STOP, safety mode, 시크릿 스캔, 기본-off 실행 정책 조회·판정·기준선 |
 | Git | `vhk status`, `vhk diff`, `vhk save`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인(아직 시작하지 않은 작업 수·가장 오래된 작업 포함), 커밋/푸시, 되돌리기, 세션 로그 |
 | 환경/품질 | `vhk doctor`, `vhk check`, `vhk env`, `vhk env-check`, `vhk harness`, `vhk audit`, `vhk worktree check/add` | 개발환경, RULES 린트, env, 통합 품질, 보안 감사, worktree 가드 |
 | 배포/패키지 | `vhk ship`, `vhk deploy`, `vhk publish`, `vhk update`, `vhk migrate` | 배포 체크, 배포 실행, npm 릴리스 자동화, 셀프 업데이트, 패키지 매니저 전환 |
@@ -332,8 +405,11 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 
 - VHK는 기본 local-first입니다. 로그·맥락·기억은 repo와 `.vhk/`에 남습니다.
 - `.env`와 민감 파일은 `.gitignore`·`secure scan`·`preflight`에서 계속 확인합니다.
-- `vhk cloud push`는 GitHub secret gist를 사용하며 토큰은 코드나 설정에 저장하지 않습니다.
-- `memory.json`·`refs.json`·`HARD_STOP` 같은 개인/상태 파일은 기본 백업 제외 대상입니다.
+- `vhk cloud push/pull`은 `public:false`가 확인된 Gist만 연결하며 토큰은 코드나 설정에 저장하지 않습니다.
+- 신규 Gist 생성 뒤 공개 여부 확인이 실패하면 `cloud.json`에는 연결하지 않고, 상태 확인·삭제에 쓸 복구 ID를 출력합니다.
+- `.vhk` 링크, 전송 대기 중 링크로 교체된 파일, 운영체제 비호환 파일명·정규화 충돌,
+  원격 일부 읽기 실패는 로컬·원격 쓰기 전에 실패 폐쇄합니다.
+- `memory.json`·`refs.json`·정책 상태와 그 잠금·원자 저장 임시본·`HARD_STOP` 같은 개인/상태 파일은 기본 백업 제외 대상입니다.
 - 취약점은 공개 이슈에 세부 정보를 올리지 말고 [SECURITY.md](SECURITY.md)의 비공개 제보 절차를 이용하세요.
 
 ## 요구 사항

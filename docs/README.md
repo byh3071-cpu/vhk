@@ -8,8 +8,9 @@
 1. [../CLAUDE.md](../CLAUDE.md) — 헌법(의례·금지) + 현재 상태
 2. [roadmap/2.x-roadmap.md](roadmap/2.x-roadmap.md) — **현 사이클의 원본** (작업 단위·순서·릴리스 종료 조건)
 3. [PRD-2.x.md](PRD-2.x.md) — 현 사이클 수용 기준
-4. [spec.md](spec.md) — `.vhk/` 데이터 규격
-5. [ARCHITECTURE.md](ARCHITECTURE.md) — 코드 구조
+4. [vhk-big-picture.html](vhk-big-picture.html) — 작업 루프·책임·발행 경계를 한눈에 보는 큰그림
+5. [spec.md](spec.md) — `.vhk/` 데이터 규격
+6. [ARCHITECTURE.md](ARCHITECTURE.md) — 코드 구조
 
 ## 카테고리 맵 (11)
 
@@ -46,6 +47,7 @@
 - [PRD-2.x.md](PRD-2.x.md) — 2.x 계열 요구사항·수용 기준
 - [til.md](til.md) — 배움 메모 (가벼운 한 줄들)
 - [mcp-evolution.md](mcp-evolution.md) — MCP 0→29 tools 진화 카탈로그
+- [vhk-big-picture.html](vhk-big-picture.html) — VHK 작업 루프·책임·발행 경계 큰그림
 - [vhk-feature-guide.md](vhk-feature-guide.md) — 기능 안내 (쉬운 말)
 - [seo-key-setup.md](seo-key-setup.md) — 검색 노출 설정 절차
 

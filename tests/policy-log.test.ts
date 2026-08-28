@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {
   appendPolicyDecision,
+  isCompleteRiskDecisionForRun,
   readPolicyLog,
   lastLevelLine,
   POLICY_LOG_PATH_REL,
@@ -79,12 +80,102 @@ describe('읽기', () => {
     expect(readPolicyLog(dir)).toHaveLength(2)
   })
 
+  it('첫 줄의 UTF-8 BOM을 제거하고 읽는다', () => {
+    const p = path.join(dir, POLICY_LOG_PATH_REL)
+    fs.writeFileSync(p, `\uFEFF${JSON.stringify(levelEntry())}\r\n`, 'utf-8')
+    expect(readPolicyLog(dir)).toHaveLength(1)
+  })
+
   it('schemaVersion 이 없는 라인은 손상으로 보고 skip', () => {
     const p = path.join(dir, POLICY_LOG_PATH_REL)
     const broken = { ...levelEntry() } as Record<string, unknown>
     delete broken.schemaVersion
     fs.writeFileSync(p, `${JSON.stringify(broken)}\n`, 'utf-8')
     expect(readPolicyLog(dir)).toHaveLength(0)
+  })
+
+  it('중단된 불완전 꼬리가 다음 정책 판정을 삼키지 않는다', () => {
+    const p = path.join(dir, POLICY_LOG_PATH_REL)
+    fs.writeFileSync(p, '{"partial"', 'utf-8')
+
+    expect(appendPolicyDecision(dir, levelEntry(), { record: true, enforce: false }).written).toBe(true)
+    expect(readPolicyLog(dir)).toEqual([levelEntry()])
+  })
+
+  it('lone CR 꼬리를 CRLF 경계로 완성한 뒤 다음 판정을 독립 라인으로 남긴다', () => {
+    const p = path.join(dir, POLICY_LOG_PATH_REL)
+    const first = levelEntry({ to: 'L1' })
+    const second = levelEntry({ to: 'L2' })
+    fs.writeFileSync(p, `${JSON.stringify(first)}\r`, 'utf-8')
+
+    expect(appendPolicyDecision(dir, second, { record: true, enforce: false }).written).toBe(true)
+    expect(readPolicyLog(dir)).toEqual([first, second])
+  })
+
+  it('필수 판정 필드가 없는 risk 객체는 완료 증거가 아니다', () => {
+    const malformed = {
+      schemaVersion: 1,
+      kind: 'risk',
+      runId: 'sample-run',
+    } as PolicyDecisionV1
+    expect(isCompleteRiskDecisionForRun(malformed, 'sample-run')).toBe(false)
+  })
+
+  it('taskKind와 위험 판정이 모순된 risk 라인은 완료 증거가 아니다', () => {
+    const contradictory: PolicyDecisionV1 = {
+      schemaVersion: 1,
+      ts: '2026-08-20T00:00:00.000Z',
+      kind: 'risk',
+      runId: 'sample-run',
+      sha: 'sample-sha',
+      taskKind: 'security',
+      riskClass: 'auto',
+      verdict: 'allow',
+      reasonCode: 'RISK_AUTO_KIND',
+      unclassifiedPaths: 0,
+      derivedFrom: 'paths',
+    }
+    expect(isCompleteRiskDecisionForRun(contradictory, 'sample-run')).toBe(false)
+  })
+
+  it('유효한 risk 라인도 종결 SHA·taskKind가 다르면 해당 런의 완료 증거가 아니다', () => {
+    const valid: PolicyDecisionV1 = {
+      schemaVersion: 1,
+      ts: '2026-08-20T00:00:00.000Z',
+      kind: 'risk',
+      runId: 'sample-run',
+      sha: 'sample-sha',
+      taskKind: 'chore',
+      riskClass: 'auto',
+      verdict: 'allow',
+      reasonCode: 'RISK_AUTO_KIND',
+      unclassifiedPaths: 0,
+      derivedFrom: 'paths',
+    }
+    const expected = {
+      sha: 'sample-sha',
+      taskKind: 'chore' as const,
+      riskClass: 'auto' as const,
+      verdict: 'allow' as const,
+      reasonCode: 'RISK_AUTO_KIND',
+      unclassifiedPaths: 0,
+      derivedFrom: 'paths' as const,
+    }
+    expect(isCompleteRiskDecisionForRun(valid, 'sample-run', {
+      ...expected,
+      sha: 'other-sha',
+    })).toBe(false)
+    expect(isCompleteRiskDecisionForRun(valid, 'sample-run', {
+      ...expected,
+      taskKind: 'security',
+    })).toBe(false)
+    expect(isCompleteRiskDecisionForRun(valid, 'sample-run', {
+      ...expected,
+      riskClass: 'human',
+      verdict: 'require-human',
+      reasonCode: 'RISK_UNCLASSIFIED_PATH',
+      unclassifiedPaths: 1,
+    })).toBe(false)
   })
 
   it('lastLevelLine 은 level 종류만 본다', () => {

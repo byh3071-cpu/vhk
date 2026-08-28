@@ -33,12 +33,17 @@ export function VHK_README_TEMPLATE(): string {
     '| `eval/recall-eval.json` | ❌ 로컬 전용 | recall 평가셋 — 라벨 쿼리(프라이버시) (`vhk memory eval --init`) |',
     '| `memory.json` | ❌ 로컬 전용 | 의사결정 메모 (`vhk memory add`) |',
     '| `refs.json` | ❌ 로컬 전용 | 참고 URL (`vhk ref add`) |',
+    '| `policy.json` | ❌ 로컬 전용 | 사람이 편집하는 자율 실행 정책 |',
+    '| `policy-baseline.json` | ❌ 로컬 전용 | 사람이 고정한 정책 설정 해시 또는 설정 부재 |',
+    '| `run-state.json` | ❌ 로컬 전용 | 런별 명령 수·시간·정책 시작 상태 |',
+    '| `run-state.lock` | ❌ 로컬 전용 | 생성하지 않는 구 workspace 잠금 예약 이름 |',
+    '| `run-state-recovery.lock` | ❌ 로컬 전용 | 생성하지 않는 구 구현 예약 이름 |',
     '| `HARD_STOP` | ❌ 로컬 전용 | 존재하면 모든 자동화 즉시 중단 |',
     '| `hooks/` | ✅ | SessionStart 커스터마이징 트리거 스크립트 |',
     '| `NEEDS_CUSTOMIZATION` | ❌ 로컬 전용 | 존재하면 첫 세션에서 도메인 인터뷰 트리거 |',
     '| `customization-done` | ❌ 로컬 전용 | 인터뷰 완료 마커 (재트리거 방지) |',
     '',
-    '> `memory.json`·`refs.json` 은 개인 메모 노출 방지를 위해 `.gitignore` 에 등록됩니다.',
+    '> `memory.json`·`refs.json`과 정책 상태·잠금·원자 저장 임시본은 프라이버시·무결성을 위해 `.gitignore`에 등록됩니다.',
     '> `HARD_STOP` 해제는 `vhk resume --confirm` 으로만 가능합니다.',
     '',
   ].join('\n')
@@ -55,6 +60,14 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
     '# 백업본도 같은 개인 메모다 — migrate 의 .v1.bak, 쓰기 전 .bak 이 추적되면 안 된다(#557).',
     'memory.json.*',
     'refs.json',
+    '# 자율 실행 정책·신뢰 기준·런 상태 — 프로젝트 로컬 보안 상태. Git 공유 금지.',
+    'policy.json',
+    'policy-baseline.json',
+    '.policy-baseline.json.tmp-*',
+    'run-state.json',
+    'run-state.lock',
+    'run-state-recovery.lock',
+    '.run-state.json.tmp-*',
     'HARD_STOP',
     '# 커스터마이징 트리거 마커 — 로컬 전용(존재-여부 신호, 내용 없음). hooks/ 스크립트 자체는 커밋(제외 아님).',
     'NEEDS_CUSTOMIZATION',
@@ -81,6 +94,7 @@ export function VHK_GITIGNORE_TEMPLATE(): string {
     'eval/recall-eval.json',
     '# secret gist 포인터 (gistId). 공개 repo 에 커밋되면 백업 gist 가 노출됨 (VHK-022).',
     'cloud.json',
+    '.cloud.json.tmp-*',
     '# sync 덮어쓰기 전 자동 백업 (로컬 복구용 — vhk restore). 추적/클라우드 제외.',
     'backups/',
     // Goal 86 (RFC 0056 T1): 증거 영수증은 로컬 산출물. 추적하면 영수증 자신이 작업트리를
@@ -110,13 +124,13 @@ export function VHK_GITATTRIBUTES_TEMPLATE(): string {
 
 /**
  * 루트 `.vhkignore` 씨앗 — `vhk cloud push` 백업에서 제외할 .vhk/ 파일 지정.
- * 기본 제외(memory.json·refs.json·HARD_STOP·cloud.json·.gitignore)는 코드에 내장되어
+ * 기본 제외(memory.json·refs.json·정책 로컬 파일·HARD_STOP·cloud.json·.gitignore)는 코드에 내장되어
  * 있으므로, 이 파일은 사용자가 추가로 제외할 항목을 적는 용도다.
  */
 export function VHK_IGNORE_TEMPLATE(): string {
   return [
     '# vhk cloud push 백업에서 제외할 .vhk/ 파일 (한 줄에 하나)',
-    '# 기본 제외(자동): memory.json, refs.json, HARD_STOP, cloud.json, .gitignore',
+    '# 기본 제외(자동): memory.json, refs.json, policy.json, policy-baseline.json, .*.tmp-*, run-state.json, run-state.lock, run-state-recovery.lock, HARD_STOP, cloud.json, .gitignore',
     '# 예) 아래 주석을 풀면 brief.md 도 백업에서 제외됩니다.',
     '# brief.md',
     '',

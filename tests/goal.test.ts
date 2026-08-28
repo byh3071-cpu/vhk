@@ -297,6 +297,95 @@ describe('goalNext', () => {
     }
   })
 
+  it('이미 완료 상태인 next-task는 다시 쓰거나 백업하지 않는다', async () => {
+    const dir = tmpProject('next-done-idempotent')
+    makeGoalFile(dir, 0, 'DONE')
+    adoptStateDir(dir)
+    const nextTask = join(dir, 'docs/state/next-task.md')
+    const completed = [
+      '# Next Task',
+      '',
+      '_Auto-updated 2026-01-01T00:00:00.000Z via `vhk goal next`._',
+      '',
+      '```',
+      'TASK: 없음 — 모든 goal 이 완료되었습니다.',
+      '```',
+      '',
+    ].join('\n')
+    writeFileSync(nextTask, completed, 'utf-8')
+    process.chdir(dir)
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      expect(readFileSync(nextTask, 'utf-8')).toBe(completed)
+      expect(existsSync(join(dir, '.vhk', 'backups'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      removeDirSync(dir)
+    }
+  })
+
+  it('DONE+BLOCKED만 남으면 모두 완료로 오보하거나 next-task를 덮어쓰지 않는다', async () => {
+    const dir = tmpProject('next-blocked')
+    makeGoalFile(dir, 0, 'DONE')
+    makeGoalFile(dir, 1, 'BLOCKED')
+    adoptStateDir(dir)
+    const nextTask = join(dir, 'docs/state/next-task.md')
+    const handoff = '# Next Task\n\nGoal 1 blocker를 먼저 해소\n'
+    writeFileSync(nextTask, handoff, 'utf-8')
+    process.chdir(dir)
+    const logs: string[] = []
+    vi.spyOn(console, 'log').mockImplementation((m?: unknown) => { logs.push(String(m)) })
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      const out = logs.join('\n')
+      expect(out).toMatch(/BLOCKED|차단/)
+      expect(out).not.toMatch(/모든 goal 이 완료/)
+      expect(readFileSync(nextTask, 'utf-8')).toBe(handoff)
+      expect(existsSync(join(dir, '.vhk', 'backups'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      removeDirSync(dir)
+    }
+  })
+
+  it('완료 스냅샷 뒤 Goal이 BLOCKED로 돌아가면 거짓 완료 표시만 무효화한다', async () => {
+    const dir = tmpProject('next-reopened-blocked')
+    makeGoalFile(dir, 0, 'DONE')
+    makeGoalFile(dir, 1, 'BLOCKED')
+    adoptStateDir(dir)
+    const nextTask = join(dir, 'docs/state/next-task.md')
+    writeFileSync(
+      nextTask,
+      [
+        '# Next Task',
+        '',
+        '_Auto-updated 2026-01-01T00:00:00.000Z via `vhk goal next`._',
+        '',
+        '```',
+        'TASK: 없음 — 모든 goal 이 완료되었습니다.',
+        '```',
+        '',
+      ].join('\n'),
+      'utf-8',
+    )
+    process.chdir(dir)
+    try {
+      const { goalNext } = await import('../src/commands/goal.js')
+      await goalNext()
+      const text = readFileSync(nextTask, 'utf-8')
+      expect(text).not.toContain('모든 goal 이 완료')
+      expect(text).toContain('실행 가능한 goal 없음')
+      expect(text).not.toContain('2026-01-01T00:00:00.000Z')
+      expect(text).toMatch(/_Auto-updated \d{4}-\d{2}-\d{2}T[^\r\n]+ via `vhk goal next`\._/)
+      expect(existsSync(join(dir, '.vhk', 'backups'))).toBe(false)
+    } finally {
+      process.chdir(origCwd)
+      removeDirSync(dir)
+    }
+  })
+
   // 112-T2/T6: 공개 경계 정리로 docs/state/ 를 제거한 레포에서 next 가 디렉터리를 되살리면
   // 작업 상태의 원본이 로드맵과 next-task.md 둘로 갈린다.
   it('docs/state/ 가 없으면 디렉터리를 만들지 않는다 (원본 이원화 방지)', async () => {

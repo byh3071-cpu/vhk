@@ -41,6 +41,21 @@ describe('Goal 108 — 공개 저장소 자체 원장과 생성 프로젝트 정
     expect(isIgnored('.vhk/events/ai-actions.jsonl')).toBe(true)
   })
 
+  gitIt('정책 상태와 중단된 원자 저장 임시본도 실제 Git 판정에서 무시한다', () => {
+    for (const rel of [
+      '.vhk/policy.json',
+      '.vhk/policy-baseline.json',
+      '.vhk/.policy-baseline.json.tmp-123-0',
+      '.vhk/run-state.json',
+      '.vhk/run-state.lock',
+      '.vhk/run-state-recovery.lock',
+      '.vhk/.run-state.json.tmp-123-0',
+      '.vhk/.cloud.json.tmp-123-0',
+    ]) {
+      expect(isIgnored(rel)).toBe(true)
+    }
+  })
+
   gitIt('양성 대조: 가드가 실제로 작동함을 증명(거짓 통과 방지)', () => {
     // .vhk/memory.json 은 root .gitignore 로 제외됨(로컬 전용) → isIgnored 가 반드시 잡아야 함.
     expect(isIgnored('.vhk/memory.json')).toBe(true)
@@ -54,6 +69,7 @@ describe('Goal 108 — 공개 저장소 자체 원장과 생성 프로젝트 정
     const lines = VHK_GITIGNORE_TEMPLATE().split('\n').map((l) => l.trim())
     expect(lines).toContain('memory.json')
     expect(lines).toContain('memory.json.*')
+    expect(lines).toContain('.cloud.json.tmp-*')
   })
 
   it('생성 프로젝트의 .vhk 템플릿은 원장 추적 기본값을 유지한다', () => {

@@ -3,15 +3,18 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import type { CommitInfo } from '../src/lib/git-repo.js'
 import {
   decideReceipt,
+  receiptReasons,
   buildReceipt,
   renderReceiptMarkdown,
   type ReceiptEvidence,
   type ReceiptDecision,
   HONESTY_LINE,
 } from '../src/lib/receipt.js'
-import { collectReceipt, collectIntent, verifyBaseSha } from '../src/commands/receipt.js'
+import { collectReceipt, collectIntent, receiptFreshness, verifyBaseSha } from '../src/commands/receipt.js'
+import { buildReport } from '../src/commands/verify.js'
 
 // Goal 86 (RFC 0056 T1): vhk receipt — 4대 기계증거 → 영수증 1장.
 // 핵심 불변식(테스트로 고정):
@@ -49,7 +52,7 @@ describe('decideReceipt — 기계증거만(LLM 0)', () => {
     expect(decideReceipt(e)).toBe('block')
   })
 
-  it('stale(작업시작 SHA ≠ HEAD) → block', () => {
+  it('stale(검증 SHA 불일치 또는 어느 한쪽 dirty) → block', () => {
     const e = cleanEvidence()
     e.stale = true
     expect(decideReceipt(e)).toBe('block')
@@ -68,7 +71,7 @@ describe('decideReceipt — 기계증거만(LLM 0)', () => {
     const e = cleanEvidence()
     e.stale = false
     e.staleKnown = false
-    // 기준선 미기록 = 알 수 없음 → 거짓 block 안 함(단 pass 도 아니고 caution 으로 정직).
+    // 검증 SHA 또는 현재 HEAD 미상 = 알 수 없음 → 거짓 block 안 함(단 pass도 아니고 caution).
     expect(decideReceipt(e)).not.toBe('block')
   })
 })
@@ -246,7 +249,25 @@ describe('renderReceiptMarkdown — PR/대화 붙여넣기 1블록', () => {
     const md = renderReceiptMarkdown(r)
     expect(md).toContain('BLOCK')
     expect(md).toMatch(/미커밋|dirty/)
-    expect(md).toMatch(/낡|stale|작업\s*시작/)
+    expect(md).toMatch(/낡|stale|검증/)
+  })
+
+  it('dirty 때문에 stale인 증거를 SHA 불일치라고 단정하지 않는다', () => {
+    const e = cleanEvidence()
+    e.dirty = true
+    e.stale = true
+    const r = buildReceipt(e, {
+      generatedAt: '2026-08-28T00:00:00.000Z',
+      date: '2026-08-28',
+      slug: 'dirty-stale',
+      headSha: 'abc1234def',
+      baseSha: 'abc1234def',
+    })
+    const md = renderReceiptMarkdown(r)
+
+    expect(r.reasons.join('\n')).toMatch(/SHA가 현재 HEAD와 다르거나.*dirty/)
+    expect(md).toMatch(/SHA가 HEAD와 다르거나.*dirty/)
+    expect(md).not.toContain('검증 SHA·dirty ≠ HEAD·dirty')
   })
 })
 
@@ -270,7 +291,7 @@ describe('lint 게이트 → receipt block 합류 (#381 거짓완료 포획)', (
     )
     g(['add', '.'])
     g(['commit', '-m', 'seed'])
-    // 작업시작 기준선 = 현재 HEAD (stale 미상/거짓 stale 차단).
+    // 작업시작 기준선 = 현재 HEAD (intent 변경 범위 대조용).
     fs.mkdirSync(path.join(d, '.vhk', 'receipts'), { recursive: true })
     const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: d, encoding: 'utf-8' }).trim()
     fs.writeFileSync(path.join(d, '.vhk', 'receipts', '.base-sha'), head + '\n', 'utf-8')
@@ -339,6 +360,28 @@ describe('decideReceipt — ⑤ intent(의도 대조) 반영', () => {
     const e = cleanEvidence()
     e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0 }
     expect(decideReceipt(e)).toBe('pass')
+  })
+
+  it('작업 기준선 없이 mission을 검사하면 커밋된 변경 범위 미상이라 caution', () => {
+    const e = cleanEvidence()
+    e.intent = { missionKnown: true, forbiddenHits: 0, scopeWarnings: 0, baselineKnown: false }
+    expect(decideReceipt(e)).toBe('caution')
+  })
+
+  it('intent 변경 목록 조회 실패는 변경 없음으로 위장하지 않고 caution', () => {
+    const e = cleanEvidence()
+    e.intent = {
+      missionKnown: true,
+      baselineKnown: true,
+      scanKnown: false,
+      forbiddenHits: 0,
+      scopeWarnings: 0,
+    }
+
+    expect(decideReceipt(e)).toBe('caution')
+    expect(receiptReasons(e)).toContain(
+      'intent 변경 목록 조회 실패 — scope/forbidden 대조 결과를 확인할 수 없음(caution)'
+    )
   })
 
   it('단조성 — clean 에 forbidden 위반을 더해도 절대 pass 로 격상 안 됨(→block)', () => {
@@ -488,9 +531,39 @@ describe('collectIntent(경계) — mission.json ↔ 변경 파일', () => {
     execFileSync('git', ['commit', '-m', 'leak'], { cwd: d, stdio: 'pipe' })
     // 커밋 후 working tree 는 clean — status(미커밋)만 보면 놓친다. baseSha 기준이면 커밋된 위반을 잡는다.
     expect(collectIntent(d, base)?.forbiddenHits).toBeGreaterThan(0)
-    // 대조: 기준선 없으면 status 폴백 → 미커밋 0 이라 forbiddenHits=0 (이 경우 receipt stale 이 보완).
+    // 대조: 기준선 없으면 status 폴백 → 미커밋 0 이라 forbiddenHits=0. 그래서 작업 전 기준선이 필요하다.
     expect(collectIntent(d)?.forbiddenHits).toBe(0)
   })
+
+  it('git intent 스캔 실패를 빈 변경 목록으로 기록하지 않는다', () => {
+    const d = makeMissionRepo({ forbidden: ['secret/**'], scope: [] })
+    const intent = collectIntent(d, '존재하지-않는-기준선')
+
+    expect(intent?.baselineKnown).toBe(true)
+    expect(intent?.scanKnown).toBe(false)
+    const e = cleanEvidence()
+    e.intent = intent
+    expect(decideReceipt(e)).toBe('caution')
+  })
+
+  it('collectReceipt — 기준 A 이후 커밋된 forbidden은 잡고 B의 최신 검증은 stale로 오판하지 않는다', () => {
+    const d = makeMissionRepo({ forbidden: ['secret/**'], scope: [] })
+    fs.writeFileSync(path.join(d, '.vhk', '.gitignore'), 'reports/\nreceipts/\n', 'utf-8')
+    execFileSync('git', ['add', '.vhk/.gitignore'], { cwd: d, stdio: 'pipe' })
+    execFileSync('git', ['commit', '-m', 'ignore local evidence'], { cwd: d, stdio: 'pipe' })
+    const base = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: d, encoding: 'utf-8' }).trim()
+    fs.mkdirSync(path.join(d, 'secret'), { recursive: true })
+    fs.writeFileSync(path.join(d, 'secret', 'key.txt'), 'leak', 'utf-8')
+    execFileSync('git', ['add', '.'], { cwd: d, stdio: 'pipe' })
+    execFileSync('git', ['commit', '-m', 'forbidden change'], { cwd: d, stdio: 'pipe' })
+
+    const r = collectReceipt(d, base)
+
+    expect(r.base.sha).toBe(base)
+    expect(r.evidence.stale).toBe(false)
+    expect(r.evidence.intent?.forbiddenHits).toBeGreaterThan(0)
+    expect(r.decision).toBe('block')
+  }, 30_000)
 
   it('scope 밖 변경 → scopeWarnings>0 · forbiddenHits=0 → caution', () => {
     const d = makeMissionRepo({ forbidden: [], scope: ['allowed/**'] })
@@ -605,7 +678,7 @@ describe('renderReceiptMarkdown — mission checksum 1줄(3-③)', () => {
   })
 })
 
-// 방향 3-④: baseSha 무결성 — 위조·오타·비커밋 SHA 를 무효 처리(거짓 stale 방지).
+// 방향 3-④: baseSha 무결성 — 위조·오타·비커밋 SHA 를 intent 변경 범위 기준에서 제외.
 describe('verifyBaseSha / collectReceipt — baseSha 무결성(3-④)', () => {
   const tmpDirs: string[] = []
   afterEach(() => {
@@ -630,6 +703,7 @@ describe('verifyBaseSha / collectReceipt — baseSha 무결성(3-④)', () => {
     g(['config', 'user.email', 't@t'])
     g(['config', 'user.name', 't'])
     fs.writeFileSync(path.join(d, 'README.md'), 'seed\n', 'utf-8')
+    fs.writeFileSync(path.join(d, '.gitignore'), '.vhk/\ncoverage/\n', 'utf-8')
     g(['add', '.'])
     g(['commit', '-m', 'seed'])
     const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: d, encoding: 'utf-8' }).trim()
@@ -654,14 +728,13 @@ describe('verifyBaseSha / collectReceipt — baseSha 무결성(3-④)', () => {
     expect(verifyBaseSha(dir, treeSha)).toBe(false)
   })
 
-  // 무효 baseSha → 무효 처리(stale 미상). decision 은 임시 레포의 dirty/게이트로 오염될 수 있어
-  // 단언하지 않는다 — 3-④의 직접 출력(base.sha null·staleKnown false·stale false)만 본다.
-  it('collectReceipt — 무효 baseSha(--since 위조) → base.sha null · staleKnown false · stale false', () => {
+  // 무효 baseSha는 intent 기준에서만 제외한다. stale은 verify 증거와 HEAD로 독립 판정한다.
+  it('collectReceipt — 무효 baseSha(--since 위조) → base.sha null · 최신 검증이면 stale=false', () => {
     const { dir } = makeRepo()
     const r = collectReceipt(dir, '0000000000000000000000000000000000000000')
     expect(r.base.sha).toBeNull()
-    expect(r.evidence.staleKnown).toBe(false)
-    expect(r.evidence.stale).toBe(false) // 무효 baseSha 는 거짓 stale 을 만들지 않는다.
+    expect(r.evidence.staleKnown).toBe(true)
+    expect(r.evidence.stale).toBe(false)
   }, 30_000)
 
   it('collectReceipt — 유효 baseSha(=HEAD) → base.sha 보존 · staleKnown true · stale=false', () => {
@@ -671,6 +744,30 @@ describe('verifyBaseSha / collectReceipt — baseSha 무결성(3-④)', () => {
     expect(r.evidence.staleKnown).toBe(true)
     expect(r.evidence.stale).toBe(false)
   }, 30_000)
+
+  it('collectReceipt — 작업 기준 A 뒤 커밋 B를 B에서 검증하면 base=A를 보존하고 stale=false', () => {
+    const { dir, head: base } = makeRepo()
+    fs.writeFileSync(path.join(dir, 'feature.txt'), 'implemented\n', 'utf-8')
+    execFileSync('git', ['add', '.'], { cwd: dir, stdio: 'pipe' })
+    execFileSync('git', ['commit', '-m', 'implement'], { cwd: dir, stdio: 'pipe' })
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: dir, encoding: 'utf-8' }).trim()
+
+    const r = collectReceipt(dir, base)
+
+    expect(r.base.sha).toBe(base)
+    expect(r.head.sha).toBe(head)
+    expect(r.evidence.staleKnown).toBe(true)
+    expect(r.evidence.stale).toBe(false)
+  }, 30_000)
+
+  it('receiptFreshness — verify가 B를 기록한 뒤 HEAD가 C로 이동하면 stale=true', () => {
+    const verified: CommitInfo = { sha: 'b'.repeat(40), shortSha: 'bbbbbbb', dirty: false }
+    const current: CommitInfo = { sha: 'c'.repeat(40), shortSha: 'ccccccc', dirty: false }
+    expect(receiptFreshness(buildReport([], 't', 'd', verified), current)).toEqual({
+      staleKnown: true,
+      stale: true,
+    })
+  })
 
   // RFC 0057 트랙②: collectReceipt(실 조립부) 가 detectAgent() 를 실제로 호출해 agent 를 채우는지.
   // CLAUDECODE 를 강제로 설정해 검증 — buildReceipt 의 기본값('unknown')만으로는 통과 못 하고,

@@ -161,7 +161,7 @@ describe('calcAutonomyStats — 3중 판정 (Goal 110)', () => {
     expect(stale.verifiedComplete).toBe(0)
   })
 
-  it('stale 미확인(null)은 통과 — 기준선 파일이 로컬 전용이라 CI 에서 항상 null 이다', () => {
+  it('과거 로그의 stale 미확인(null)은 SHA 조인이 맞으면 소급 탈락시키지 않는다', () => {
     const r = calcAutonomyStats(
       [v2('start', 'a', 's0'), v2('complete', 'a', 's1', { interventions: 0 })],
       [receipt('s1', { stale: null })],

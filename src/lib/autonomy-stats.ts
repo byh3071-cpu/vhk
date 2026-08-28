@@ -232,10 +232,9 @@ export function groupRuns(
  * ③ 사람 개입 0
  *
  * why stale===false 를 요구하지 않는가:
- *   stale 기준선(.vhk/receipts/.base-sha)은 로컬 전용 파일이라 CI·새 클론에서는 항상 null 이다.
- *   null 을 탈락시키면 그런 환경에서 완주율이 영구 0 이 된다. 관찰 게이트가 요구하는
- *   "현재 HEAD 와 일치하는 verify 결과"는 SHA 조인 자체가 이미 보장하므로(receipt.sha ===
- *   종결.sha), stale 은 명시적으로 true 일 때만 탈락시키는 보조 신호로 둔다.
+ *   과거 receipt-log에는 신선도 미상(null)이 남아 있다. 이를 소급 탈락시키지 않되, 관찰 게이트가
+ *   요구하는 "현재 HEAD와 일치하는 verify 결과"는 SHA 조인(receipt.sha === 종결.sha)으로 보장한다.
+ *   신규 receipt는 verify SHA·dirty와 현재 HEAD·dirty를 직접 대조하고 true일 때 탈락시킨다.
  */
 export function isVerifiedComplete(end: AutonomyRunEntry, receiptBySha: Map<string, ReceiptLogEntry>): boolean {
   if ((end.interventions ?? 0) > 0) return false // ③

@@ -77,15 +77,24 @@ const PATH_RULES: ReadonlyArray<{ kind: TaskKind; test: (p: string) => boolean }
   },
 ]
 
-/** 파일 경로 하나의 유형. 어떤 규칙에도 안 걸리면 unknown. */
-export function classifyPath(path: string): TaskKind {
-  // git 은 항상 POSIX 구분자를 주지만, 호출부가 OS 경로를 넘길 수 있어 정규화한다.
-  const p = path.replace(/\\/g, '/').replace(/^\.\//, '').trim()
+function classifyNormalizedPath(p: string): TaskKind {
   if (!p) return 'unknown'
   for (const rule of PATH_RULES) {
     if (rule.test(p)) return rule.kind
   }
   return 'unknown'
+}
+
+/** OS 경로 하나의 유형. 직접 호출 호환을 위해 Windows 구분자와 `./`만 정규화한다. */
+export function classifyPath(path: string): TaskKind {
+  // 선행·후행 공백은 유효한 POSIX pathname이다. 이를 지우면 ` package.json` 같은 미분류
+  // 경로가 자동 허용 가능한 의존성 경로로 낮아지므로 구분자 외의 문자는 보존한다.
+  return classifyNormalizedPath(path.replace(/\\/g, '/').replace(/^\.\//, ''))
+}
+
+/** Git `-z` 출력은 이미 POSIX pathname이다. backslash도 파일명 문자이므로 바꾸지 않는다. */
+function classifyGitPath(path: string): TaskKind {
+  return classifyNormalizedPath(path)
 }
 
 /**
@@ -95,7 +104,7 @@ export function classifyPath(path: string): TaskKind {
 export function deriveTaskKind(paths: readonly string[]): TaskKind {
   let best = -1
   for (const path of paths) {
-    const rank = RISK_ORDER.indexOf(classifyPath(path))
+    const rank = RISK_ORDER.indexOf(classifyGitPath(path))
     if (rank > best) best = rank
   }
   return best < 0 ? 'unknown' : RISK_ORDER[best]
@@ -125,7 +134,7 @@ export interface TaskKindBreakdown {
 export function deriveTaskKindDetailed(paths: readonly string[]): TaskKindBreakdown {
   let unclassified = 0
   for (const path of paths) {
-    if (classifyPath(path) === 'unknown') unclassified++
+    if (classifyGitPath(path) === 'unknown') unclassified++
   }
   return { kind: deriveTaskKind(paths), total: paths.length, unclassified }
 }
@@ -138,10 +147,6 @@ export function normalizeTaskKind(raw: string | undefined | null): TaskKind {
 }
 
 /**
- * 두 커밋 사이 변경 파일 목록. 기존 git 통로(gitOut)만 사용 — 새 execSync 도입 없음.
- * git 레포 아님·잘못된 SHA·범위 계산 실패는 빈 배열(추측 금지 → 호출부에서 unknown 이 된다).
- */
-/**
  * 스테이징된 변경 경로 (RFC 0066 §5.2).
  *
  * 커밋 게이트와 조회 판정의 대상이다. 작업 트리 전체(`git diff --name-only`)를 쓰지 않는 이유는
@@ -151,25 +156,48 @@ export function normalizeTaskKind(raw: string | undefined | null): TaskKind {
 export function stagedPaths(cwd: string): string[] {
   try {
     // core.quotepath=false: 한글 등 비ASCII 경로가 octal 이스케이프되면 경로 매칭이 깨진다.
-    const out = gitOut(['-c', 'core.quotepath=false', 'diff', '--cached', '--name-only'], cwd)
-    return out
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0)
+    const out = gitOut(['-c', 'core.quotepath=false', 'diff', '--cached', '--name-only', '-z'], cwd)
+    return parseNulDelimitedPaths(out)
   } catch {
     return []
   }
 }
 
-export function changedPathsBetween(cwd: string, fromSha: string, toSha: string): string[] {
-  if (!fromSha || !toSha) return []
+function parseNulDelimitedPaths(out: string): string[] {
+  if (out.length === 0) return []
+  if (!out.endsWith('\0')) throw new Error('git pathname output is not NUL-terminated')
+  const paths = out.slice(0, -1).split('\0')
+  if (paths.some((path) => path.length === 0)) throw new Error('git pathname output contains an empty entry')
+  return paths
+}
+
+export interface ChangedPathsResult {
+  ok: boolean
+  paths: string[]
+}
+
+/**
+ * 두 커밋 사이 변경 파일 목록. 기존 git 통로(gitOut)만 사용 — 새 execSync 도입 없음.
+ * 성공한 빈 diff와 범위 계산 실패를 구분해 호출부가 유도 출처를 정직하게 기록할 수 있게 한다.
+ */
+export function changedPathsBetweenDetailed(
+  cwd: string,
+  fromSha: string,
+  toSha: string,
+): ChangedPathsResult {
+  if (!fromSha || !toSha) return { ok: false, paths: [] }
   try {
-    const out = gitOut(['diff', '--name-only', fromSha, toSha], cwd)
-    return out
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0)
+    const out = gitOut(['-c', 'core.quotepath=false', 'diff', '--name-only', '-z', fromSha, toSha], cwd)
+    return {
+      ok: true,
+      paths: parseNulDelimitedPaths(out),
+    }
   } catch {
-    return []
+    return { ok: false, paths: [] }
   }
+}
+
+/** 기존 소비자 호환용 경로 목록 API. 실패 시의 빈 배열 계약은 유지한다. */
+export function changedPathsBetween(cwd: string, fromSha: string, toSha: string): string[] {
+  return changedPathsBetweenDetailed(cwd, fromSha, toSha).paths
 }

@@ -11,9 +11,10 @@
  * 이 모듈은 읽기만 한다. 설정 파일을 만들지도, 고치지도 않는다 — `enforce` 를 켜는 CLI 명령을
  * 만들지 않는 규율(§7.4)과 같은 이유다. 사람이 편집기로 직접 쓴다.
  */
-import { existsSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { lstatSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { readJsonFile } from './read-json.js'
+import { parseJsonText } from './read-json.js'
 import { LEVELS, type PermissionLevel } from './permission-level.js'
 import { parseAllowlist, type AllowEntry } from './command-allowlist.js'
 
@@ -55,6 +56,13 @@ export interface PolicyConfig {
   sectionsUsable: boolean
 }
 
+/** 한 번 읽은 동일 바이트에서 의미와 해시를 함께 만든 정책 설정 스냅샷. */
+export interface PolicyConfigSnapshot {
+  configPresent: boolean
+  contentHash: string | null
+  config: PolicyConfig
+}
+
 /** 런·명령 한도. 셋 다 필수다 — 안 쓰면 없어지는 게 아니라 못 돈다(치명 5). */
 export interface ExecutionLimits {
   perRunSec: number
@@ -74,6 +82,10 @@ function blocked(reasonCode: PolicyConfigReasonCode): PolicyConfig {
     allow: [],
     sectionsUsable: false,
   }
+}
+
+function defaultOff(): PolicyConfig {
+  return { record: false, enforce: false, failClosed: false, allow: [], sectionsUsable: false }
 }
 
 /** 한도 파싱 — 셋 다 있어야 하고 전부 >0 이어야 한다. 하나라도 어긋나면 섹션 무효. */
@@ -118,20 +130,7 @@ function readFlag(raw: Record<string, unknown>, key: string): boolean | null {
  * 해석까지 날리면, 사람이 파일을 고치는 동안 "내가 무엇을 끈 건지" 알 수 없게 된다.
  * 그러면서도 어느 섹션이 깨지든 자율 레인의 결과는 fail-closed 로 같다.
  */
-export function loadPolicyConfig(cwd: string): PolicyConfig {
-  const p = join(cwd, POLICY_CONFIG_REL)
-  // 파일 없음 = 이 기능을 안 쓰는 저장소. 손상이 아니므로 멈추지 않는다.
-  // 다만 허용목록이 없으니 자율 레인은 쓸 수 없다(빈 허용목록 = 전부 거부).
-  if (!existsSync(p)) {
-    return { record: false, enforce: false, failClosed: false, allow: [], sectionsUsable: false }
-  }
-
-  let parsed: unknown
-  try {
-    parsed = readJsonFile<unknown>(p)
-  } catch {
-    return blocked('POLICY_CONFIG_UNREADABLE')
-  }
+function parsePolicyConfig(parsed: unknown): PolicyConfig {
   if (!isRecord(parsed)) return blocked('POLICY_CONFIG_UNREADABLE')
 
   const version = parsed.schemaVersion
@@ -171,4 +170,63 @@ export function loadPolicyConfig(cwd: string): PolicyConfig {
     limits: limits ?? undefined,
     sectionsUsable,
   }
+}
+
+/**
+ * 정책 파일을 한 번만 읽어 의미 파싱과 내용 해시를 같은 시점에 묶는다.
+ * 읽기 실패는 파일 부재와 다르다. `configPresent:true` + fail-closed로 반환한다.
+ */
+export function readPolicyConfigSnapshot(cwd: string): PolicyConfigSnapshot {
+  const p = join(cwd, POLICY_CONFIG_REL)
+  let stat
+  try {
+    stat = lstatSync(p, { throwIfNoEntry: false })
+  } catch {
+    return {
+      configPresent: true,
+      contentHash: null,
+      config: blocked('POLICY_CONFIG_UNREADABLE'),
+    }
+  }
+  if (stat === undefined) {
+    return { configPresent: false, contentHash: null, config: defaultOff() }
+  }
+  // 실제 경로 엔트리 부재만 default-off다. 링크·디렉터리·장치 파일은 읽을 수 없는
+  // 정책으로 닫아, dangling link가 설정 삭제처럼 통과하는 경로를 만들지 않는다.
+  if (!stat.isFile() || stat.isSymbolicLink()) {
+    return {
+      configPresent: true,
+      contentHash: null,
+      config: blocked('POLICY_CONFIG_UNREADABLE'),
+    }
+  }
+
+  let raw: Buffer
+  try {
+    raw = readFileSync(p)
+  } catch {
+    return {
+      configPresent: true,
+      contentHash: null,
+      config: blocked('POLICY_CONFIG_UNREADABLE'),
+    }
+  }
+
+  const contentHash = createHash('sha256').update(raw).digest('hex')
+  let parsed: unknown
+  try {
+    parsed = parseJsonText<unknown>(raw.toString('utf-8'))
+  } catch {
+    return {
+      configPresent: true,
+      contentHash,
+      config: blocked('POLICY_CONFIG_UNREADABLE'),
+    }
+  }
+  return { configPresent: true, contentHash, config: parsePolicyConfig(parsed) }
+}
+
+/** 기존 호출자의 공개 계약을 유지하는 스냅샷 wrapper. */
+export function loadPolicyConfig(cwd: string): PolicyConfig {
+  return readPolicyConfigSnapshot(cwd).config
 }

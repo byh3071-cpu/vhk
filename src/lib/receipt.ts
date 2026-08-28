@@ -49,6 +49,10 @@ export interface ReceiptDiffCover {
 export interface ReceiptIntentEvidence {
   /** mission.json 이 있어 의도 대조를 수행했는가. false 면 decision 영향 0(missionKnown 패턴은 staleKnown 과 동형). */
   missionKnown: boolean
+  /** 커밋된 변경까지 대조할 작업 시작 기준선이 있었는가. false면 미커밋 변경만 보여 caution. */
+  baselineKnown?: boolean
+  /** git 변경 목록을 끝까지 수집했는가. false면 0건이어도 검증 성공으로 보지 않고 caution. */
+  scanKnown?: boolean
   /** forbidden glob 위반 파일 수(>0 → 실차단 block — 결정론). */
   forbiddenHits: number
   /** scope 밖 변경 파일 수(>0 → caution — advisory). */
@@ -78,9 +82,9 @@ export interface ReceiptEvidence {
   gates: ReceiptGateEvidence
   /** ② git dirty(자기파일 제외 — Goal 85 filterSelfTrackedLines 적용 후). 실차단 사유 ②. */
   dirty: boolean
-  /** ③ stale(작업시작 SHA ≠ 현재 HEAD). 실차단 사유 ③. staleKnown=false 면 이 값 무의미. */
+  /** ③ stale(verify SHA가 현재 HEAD와 다르거나 어느 한쪽이 dirty). 실차단 사유 ③. staleKnown=false 면 이 값 무의미. */
   stale: boolean
-  /** 작업시작 기준선 SHA 를 알 수 있었는가(기준선 미기록 시 false → stale 미상 = caution, block 아님). */
+  /** verify 리포트 SHA와 현재 HEAD를 모두 알 수 있었는가(false → stale 미상 = caution, block 아님). */
   staleKnown: boolean
   /** ④ 변경라인 diff-cover(advisory). */
   diffCover: ReceiptDiffCover
@@ -116,9 +120,11 @@ export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
   const scopeWarned = intentKnown && e.intent!.scopeWarnings > 0
   // intentKnown이 false면 단락평가로 e.intent! 접근 안 됨 — 이 순서 필수(GA 동결, 단조성 불변식 ②·③ 유지).
   const unsupportedForbidden = intentKnown && (e.intent!.unsupportedForbiddenCount ?? 0) > 0
+  const intentBaselineUnknown = intentKnown && e.intent!.baselineKnown === false
+  const intentScanUnknown = intentKnown && e.intent!.scanKnown === false
   // ⓑ(N4): objective 토큰 교집합 0 → advisory caution(목표와 실제 작업 어휘 안 겹침 = 약신호). `=== 0` 이라 undefined(미계산) 무영향 → block 절대 안 함.
   const objectiveMismatch = intentKnown && e.intent!.objectiveTokenOverlap === 0
-  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange || scopeWarned || unsupportedForbidden || objectiveMismatch) return 'caution'
+  if (e.gates.hasSoftWarning || !e.staleKnown || hasUncoveredChange || scopeWarned || unsupportedForbidden || intentBaselineUnknown || intentScanUnknown || objectiveMismatch) return 'caution'
 
   return 'pass'
 }
@@ -131,10 +137,10 @@ export function receiptReasons(e: ReceiptEvidence): string[] {
     reasons.push(`게이트 실패(실종료코드 ≠ 0): ${ids} — red`)
   }
   if (e.dirty) reasons.push('working tree 가 dirty — 미커밋/untracked 변경 있음(자기파일 제외 후에도)')
-  if (e.staleKnown && e.stale) reasons.push('작업 시작 SHA ≠ 현재 HEAD — 증거가 낡았을 수 있음(stale)')
+  if (e.staleKnown && e.stale) reasons.push('검증 SHA가 현재 HEAD와 다르거나 검증·현재 상태 중 하나가 dirty — 증거가 낡았음(stale)')
   if (e.intent?.missionKnown && e.intent.forbiddenHits > 0)
     reasons.push(`의도 위반 — forbidden(금지 경로) 변경 ${e.intent.forbiddenHits}건: mission 계약을 어김 — block`)
-  if (!e.staleKnown) reasons.push('작업 시작 기준선 미기록 — stale 판정 불가(vhk receipt --mark-start 로 기준선 고정 가능)')
+  if (!e.staleKnown) reasons.push('검증 SHA 또는 현재 HEAD 미상 — stale 판정 불가(vhk verify 로 증거 재생성 필요)')
   if (e.gates.hasSoftWarning) reasons.push('일부 게이트 skip/warn — 결과 불완전(수동 확인 권장)')
   if (e.diffCover.measured && e.diffCover.totalUncovered > 0) {
     const pct = Math.round(e.diffCover.ratio * 100)
@@ -148,6 +154,10 @@ export function receiptReasons(e: ReceiptEvidence): string[] {
     reasons.push(
       `forbidden 패턴 ${e.intent.unsupportedForbiddenCount}개가 glob 미지원 문법 포함 — forbidden 검증이 무효할 수 있음(!, {}, [], 후행 / — caution)`
     )
+  if (e.intent?.missionKnown && e.intent.baselineKnown === false)
+    reasons.push('작업 기준선 미기록 — 커밋된 변경의 intent/forbidden 대조 범위를 증명할 수 없음(caution)')
+  if (e.intent?.missionKnown && e.intent.scanKnown === false)
+    reasons.push('intent 변경 목록 조회 실패 — scope/forbidden 대조 결과를 확인할 수 없음(caution)')
   if (e.intent?.missionKnown && e.intent.objectiveTokenOverlap === 0)
     reasons.push('objective 토큰 교집합 0 — 목표와 최근 작업(goal·commit) 어휘가 겹치지 않음(advisory, 차단 안 함)')
   if (reasons.length === 0) reasons.push('전 게이트 green · clean · 신선 · 변경라인 풀커버')
@@ -163,7 +173,7 @@ export interface ReceiptMeta {
   slug: string
   /** 현재 HEAD 전체 SHA(미상 → null). */
   headSha: string | null
-  /** 작업시작 기준선 SHA(미기록 → null). */
+  /** intent 변경 범위를 대조하는 작업시작 기준선 SHA(미기록 → null). */
   baseSha: string | null
   /**
    * RFC 0057 트랙②: 이 영수증을 만든 에이전트(로컬 환경변수 감지, detectAgent()). 옵셔널 —
@@ -192,7 +202,7 @@ export interface Receipt {
   evidence: ReceiptEvidence
   /** 현재 HEAD. */
   head: ReceiptCommit
-  /** 작업시작 기준선(stale 비교 기준). */
+  /** 작업시작 기준선(intent 변경 범위 비교 기준). */
   base: ReceiptCommit
   /** 정직성 경계 1줄. */
   honesty: string
@@ -260,7 +270,7 @@ export function renderReceiptMarkdown(r: Receipt): string {
   lines.push(`> ${DECISION_HEADLINE[r.decision]}`)
   lines.push('')
   lines.push(
-    `- 생성: ${r.date} (${r.generatedAt})  ·  HEAD: \`${r.head.shortSha ?? '미상'}\`  ·  작업시작: \`${r.base.shortSha ?? '미기록'}\``
+    `- 생성: ${r.date} (${r.generatedAt})  ·  HEAD: \`${r.head.shortSha ?? '미상'}\`  ·  작업기준: \`${r.base.shortSha ?? '미기록'}\``
   )
   lines.push('')
   lines.push('| 게이트 | 상태 | 비고 |')
@@ -278,26 +288,34 @@ export function renderReceiptMarkdown(r: Receipt): string {
   // ③ stale 미상은 ✅(통과)도 ❌(차단)도 아닌 ℹ️(판정 불가) — 모르는 걸 통과로 위장하지 않는다.
   const staleCell = !e.staleKnown ? 'ℹ️' : e.stale ? '❌' : '✅'
   const staleNote = !e.staleKnown
-    ? '기준선 미기록 — 판정 불가(vhk receipt --mark-start)'
+    ? '검증 SHA 또는 현재 HEAD 미상 — 판정 불가(vhk verify)'
     : e.stale
-      ? '작업시작 SHA ≠ HEAD — 낡은 증거 의심'
-      : '신선(SHA 일치)'
-  lines.push(`| ③ stale(작업시작 SHA≠HEAD) | ${staleCell} | ${staleNote} |`)
+      ? '검증 SHA가 HEAD와 다르거나 검증·현재 상태 중 하나가 dirty — 낡은 증거'
+      : '신선(검증 SHA=HEAD·양쪽 clean)'
+  lines.push(`| ③ stale(검증 증거↔현재 상태) | ${staleCell} | ${staleNote} |`)
   // ④ 는 advisory — 체크표시는 정보용이지 decision 에 영향 없음(표 비고에 명시).
   lines.push(`| ④ diff-cover(advisory) | ${dc.measured && dc.totalUncovered === 0 ? '✅' : 'ℹ️'} | ${dcNote} |`)
   // ⑤ intent(의도 대조, Goal 87) — mission.json 있을 때만 행 추가(없으면 출력 변화 0 = 하위호환).
   if (e.intent?.missionKnown) {
     const it = e.intent
     const unsupportedCount = it.unsupportedForbiddenCount ?? 0
-    const intentCell = it.forbiddenHits > 0 ? '❌' : it.scopeWarnings > 0 || unsupportedCount > 0 ? 'ℹ️' : '✅'
+    const intentCell = it.forbiddenHits > 0
+      ? '❌'
+      : it.scopeWarnings > 0 || unsupportedCount > 0 || it.baselineKnown === false || it.scanKnown === false
+        ? 'ℹ️'
+        : '✅'
     let intentNote: string
     if (it.forbiddenHits > 0) {
       intentNote = `forbidden 위반 ${it.forbiddenHits}건 — 시킨 범위(의도) 어김`
+    } else if (it.scanKnown === false) {
+      intentNote = '변경 목록 조회 실패 — scope/forbidden 대조 미확인(caution)'
     } else if (it.scopeWarnings > 0) {
       intentNote = `scope 밖 변경 ${it.scopeWarnings}건 — advisory(차단 안 함)`
     } else if (unsupportedCount > 0) {
       // forbiddenHits=0 이더라도 미지원 문법으로 인해 검증 자체가 무효일 수 있음 — 정직 표기.
       intentNote = `forbidden 패턴 미지원 문법 — 검증 무효 가능(caution)`
+    } else if (it.baselineKnown === false) {
+      intentNote = '작업 기준선 미기록 — 커밋된 변경 범위 미상(caution)'
     } else {
       intentNote = 'scope/forbidden 계약 준수'
     }

@@ -10,6 +10,8 @@ dist/
 
 # VHK runtime tripwire — local-only, never commit
 .vhk/HARD_STOP
+# npm release 검증 캐시 — 로그에 로컬 절대경로가 포함될 수 있어 공개 추적 금지
+.vhk/npm-cache-*/
 
 # VHK 개인 메모/참고링크 — 로컬 전용 (docs/spec.md 트래킹 정책)
 .vhk/memory.json
@@ -21,14 +23,19 @@ dist/
 .vhk/refs.json
 # secret gist 포인터 (gistId) — 공개 repo 노출 방지 (VHK-022)
 .vhk/cloud.json
+.vhk/.cloud.json.tmp-*
 # 로컬 미션 범위 계약(vhk mission set) — 프로젝트별 로컬 상태, 공유 대상 아님
 .vhk/mission.json
 # 권한 정책 설정과 그 해시 베이스라인 (RFC 0066 §7.3) — 자율 실행의 상한을 정하는 로컬 전용 파일.
 # 베이스라인은 policy.json 변조 탐지용이라 같이 추적하면 둘을 함께 고치는 경로가 커밋에 남는다.
 .vhk/policy.json
 .vhk/policy-baseline.json
+.vhk/.policy-baseline.json.tmp-*
 # 자율 런 단위 상태(호출 수·경과) — 런 중에만 존재하는 로컬 계측값 (RFC 0067 §5.3-3)
 .vhk/run-state.json
+.vhk/run-state.lock
+.vhk/run-state-recovery.lock
+.vhk/.run-state.json.tmp-*
 # SEO 대시보드 로컬 설정(vhk seo init) — 관리 사이트 목록은 프로젝트별 로컬 상태, 공유 대상 아님.
 # (값 없이 환경변수 참조만 담지만, 로컬 상태이므로 mission.json 과 동일하게 커밋 제외.)
 .vhk/seo/

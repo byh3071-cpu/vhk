@@ -69,8 +69,24 @@ export function frontmatterKeys(content) {
 export function frontmatterValue(content, key) {
   const end = content.indexOf('\n---', 3)
   const block = content.slice(3, end === -1 ? undefined : end)
-  const m = block.match(new RegExp(`^${key}:\\s*(.+)$`, 'm'))
+  // `\s`는 줄바꿈도 먹어 빈 `id:`가 다음 필드 전체를 값으로 삼을 수 있다. 수평 공백만 허용한다.
+  const m = block.match(new RegExp(`^${key}:[\\t ]*(.*)$`, 'm'))
   return m ? m[1].trim() : null
+}
+
+export function referencesInMarkdown(rel, content) {
+  const references = content.match(/PAT-\d{3}/g) ?? []
+  const normalized = rel.replace(/\\/g, '/')
+  if (!normalized.startsWith('docs/patterns/') || basename(normalized) === 'README.md') return references
+  const own = basename(normalized).match(PATTERN_FILE_RE)
+  if (!own) return references
+  const ownId = `PAT-${own[1]}`
+  return references.filter((reference) => reference !== ownId)
+}
+
+export function referencesFromPatternFiles(files) {
+  return files.flatMap(({ name, content }) =>
+    referencesInMarkdown(`docs/patterns/${name}`, content))
 }
 
 /**
@@ -106,7 +122,7 @@ export function judge(files, references) {
       if (!keys.includes(field)) violations.push(`${name} — frontmatter 필드 누락: ${field}`)
     }
     const id = frontmatterValue(content, 'id')
-    if (id !== null && id !== `PAT-${num}`) {
+    if (id !== `PAT-${num}`) {
       violations.push(`${name} — frontmatter id(${id})가 파일명 번호(PAT-${num})와 다릅니다`)
     }
   }
@@ -129,19 +145,18 @@ if (existsSync(PATTERN_DIR)) {
     .filter((f) => f.endsWith('.md') && f !== 'README.md')
     .map((name) => ({ name, content: readFileSync(join(PATTERN_DIR, name), 'utf-8') }))
 
-  let references = []
+  // readdir 결과를 먼저 보므로 아직 Git에 추가하지 않은 새 패턴도 내부 참조 검사를 받는다.
+  const references = referencesFromPatternFiles(files)
   try {
     for (const rel of trackedMarkdown()) {
-      // 패턴 문서 자신의 제목·id 는 참조가 아니다.
-      if (rel.startsWith('docs/patterns/') && basename(rel) !== 'README.md') continue
       const text = readFileSync(join(ROOT, rel), 'utf-8')
-      references.push(...(text.match(/PAT-\d{3}/g) ?? []))
+      // 패턴 문서도 내부의 다른 PAT 참조는 검사한다. 자기 파일 번호 선언만 제외한다.
+      references.push(...referencesInMarkdown(rel, text))
     }
   } catch (error) {
-    // fail-open: git 이 없거나 얕은 클론이면 참조 검사만 건너뛴다(나머지는 계속).
+    // fail-open: git 이 없거나 얕은 클론이면 추적 문서 조회만 건너뛴다. 로컬 패턴 참조 검사는 보존한다.
     const message = error instanceof Error ? error.message : String(error)
     process.stdout.write(`참조 무결성 검사 생략(git 조회 실패): ${message}\n`)
-    references = []
   }
 
   const violations = judge(files, references)

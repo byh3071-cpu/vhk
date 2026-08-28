@@ -16,6 +16,8 @@ export default defineConfig({
       '**/node_modules/**',
       '**/dist/**',
       '**/.claude/**',
+      // 릴리스 검증용 중첩 worktree를 포함한 로컬 VHK 상태는 현재 저장소의 테스트 대상이 아니다.
+      '**/.vhk/**',
     ],
     // Goal 50 / RFC 0050: coverage 측정(차단 아님 — 리포트 + vhk diff-cover 입력용).
     coverage: {

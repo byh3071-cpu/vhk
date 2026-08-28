@@ -14,6 +14,7 @@ import { sync } from './commands/sync.js'
 import { check } from './commands/check.js'
 import { secure } from './commands/secure.js'
 import { policyLevel, policyRisk, policyShow, policyCheck } from './commands/policy.js'
+import { policyBaseline } from './commands/policy-baseline.js'
 import { doctor } from './commands/doctor.js'
 import { ship } from './commands/ship.js'
 import { save } from './commands/save.js'
@@ -112,21 +113,24 @@ async function guardCliDefer(
   action: string,
   approved: boolean,
   run: () => Promise<void> | void,
-): Promise<void> {
+  approvalHint: string = '--yes',
+): Promise<boolean> {
   // #338: undo 등 high-risk 는 HARD_STOP 활성 시 차단. resume 만 예외 — resume 은 HARD_STOP
   // *해제* 명령이라 가드하면 자기 자신을 막는 역설(resume --confirm 이 유일한 트립와이어 해제 통로).
-  if (action !== 'resume' && !ensureNotHardStopped(action)) return
-  await runGuarded(
+  if (action !== 'resume' && !ensureNotHardStopped(action)) return false
+  const { outcome } = await runGuarded(
     action,
     {
       channel: 'cli',
       approved,
+      approvalHint,
       // TTY 면 통과(명령이 자체 확인), 비대화형은 confirm 불가 → 가드가 차단.
       confirm: async () => !!process.stdout.isTTY,
       log: (m) => console.log(chalk.yellow(`  ${m}`)),
     },
     run,
   )
+  return outcome.ran
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalMigrate, goalNext, goalPeek, goalSync } from './commands/goal.js'
@@ -251,12 +255,12 @@ program
   .description('RULES.md 규칙 점검 — 코드 위반 검사 (또는 --goal <id> 로 goal 게이트)')
   .action(async (target: string | undefined, opts: { goal?: string; json?: boolean }) => { await check(opts, target) })
 
-// RFC 0066 §8 — 권한 정책 조회. 세 서브커맨드 전부 읽기 전용이고 원장에 기록하지 않는다
-// (조회로 전이가 일어나면 세 번 불러 단계를 올리는 경로가 열린다 — §4.3).
+// RFC 0066 §8 — 네 조회 서브커맨드는 읽기 전용이고 원장에 기록하지 않는다.
+// baseline만 현재 설정을 사람이 명시적으로 신뢰 기준으로 고정하는 high-risk writer다.
 const policyCmd = program
   .command('policy')
   .alias('정책')
-  .description('자율 실행 권한 정책 조회 — level: 단계, risk: 위험도, show: 전체')
+  .description('자율 실행 권한 정책 — 조회 + 사람 전용 기준선 고정')
   .action(() => { policyShow() })
 
 policyCmd
@@ -283,6 +287,21 @@ policyCmd
   .alias('보기')
   .description('설정 상태 + 권한 단계 + 위험도')
   .action(() => { policyShow() })
+
+policyCmd
+  .command('baseline')
+  .alias('기준선')
+  .option('--confirm', '현재 정책 설정을 신뢰 기준으로 고정')
+  .description('현재 정책 설정의 해시 기준선 고정 (사람 전용)')
+  .action(async (opts: { confirm?: boolean }) => {
+    const ran = await guardCliDefer(
+      'policy-baseline',
+      opts.confirm === true,
+      () => policyBaseline(opts),
+      '--confirm',
+    )
+    if (!ran && (process.exitCode === undefined || process.exitCode === 0)) process.exitCode = 1
+  })
 
 const secureCmd = program
   .command('secure')
@@ -631,8 +650,8 @@ program
   .command('receipt')
   .alias('증거영수증')
   .option('--json', '영수증 JSON 을 stdout 으로 출력 (CI/기계용 — block 이면 exit 1)')
-  .option('--mark-start', '현재 HEAD 를 작업시작 기준선으로 기록 (이후 stale 비교 기준)')
-  .option('--since <sha>', 'stale 비교 기준 SHA 를 명시 (.base-sha 무시)')
+  .option('--mark-start', '현재 HEAD 를 작업시작 기준선으로 기록 (이후 변경·의도 대조 기준)')
+  .option('--since <sha>', '변경·의도 대조 기준 SHA 를 명시 (.base-sha 무시)')
   .description('증거 영수증 — 4대 기계증거(종료코드·dirty·stale·diff-cover)로 거짓완료 판정 (.vhk/receipts/)')
   .action(async (opts: { json?: boolean; markStart?: boolean; since?: string }) => { await receipt(opts) })
 
@@ -984,7 +1003,7 @@ program
   .alias('재개')
   .option('--confirm', '사람 확인 — 자동 호출 금지 (Forbidden 위반)')
   .description('.vhk/HARD_STOP 해제 (사용자가 사유 확인 후 --confirm 필요)')
-  .action(async (opts: { confirm?: boolean }) => { await guardCliDefer('resume', opts?.confirm === true, () => resume(opts)) })
+  .action(async (opts: { confirm?: boolean }) => { await guardCliDefer('resume', opts?.confirm === true, () => resume(opts), '--confirm') })
 
 const patternCmd = program
   .command('pattern')
@@ -1199,7 +1218,8 @@ program.action(async () => {
     case 'save':
       return guardCli('save', false, () => save())
     case 'undo':
-      return guardCliDefer('undo', false, () => undo())
+      await guardCliDefer('undo', false, () => undo())
+      return
     case 'status':
       return status()
     case 'diff':

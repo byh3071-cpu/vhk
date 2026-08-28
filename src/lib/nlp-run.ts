@@ -8,7 +8,8 @@ import { recap } from '../commands/recap.js'
 import { sync } from '../commands/sync.js'
 import { check } from '../commands/check.js'
 import { secure } from '../commands/secure.js'
-import { policyShow } from '../commands/policy.js'
+import { policyCheck, policyShow } from '../commands/policy.js'
+import { policyBaseline } from '../commands/policy-baseline.js'
 import { doctor } from '../commands/doctor.js'
 import { ship } from '../commands/ship.js'
 import { save } from '../commands/save.js'
@@ -49,6 +50,7 @@ import { missionShow } from '../commands/mission.js'
 import { patternList } from '../commands/pattern.js'
 import { evolveList } from '../commands/evolve.js'
 import { runGuarded } from './safety-guard.js'
+import { ensureInteractive } from './interactive.js'
 import { NL_GUARDED_ACTIONS } from './risk-policy.js'
 
 export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<void> {
@@ -75,6 +77,8 @@ export async function dispatchNlpRoute(route: NlpRoute, input: string): Promise<
     case 'check':
       return check()
     case 'policy':
+      if (route.args?.[0] === 'baseline') return policyBaseline({ confirm: false })
+      if (route.args?.[0] === 'check') return policyCheck(route.args.slice(1))
       return policyShow()
     case 'secure':
       return secure()
@@ -186,7 +190,8 @@ const STATE_CHANGING_COMMANDS: ReadonlySet<NlpCommand> = new Set([
 /** NL 라우트 실행 전 확인 프롬프트가 필관리자가 — low confidence 또는 상태변경 명령. */
 export function requiresConfirmation(route: NlpRoute): boolean {
   const goalSync = route.command === 'goal' && route.args?.[0] === 'sync'
-  return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command) || goalSync
+  const policyBaseline = route.command === 'policy' && route.args?.[0] === 'baseline'
+  return route.confidence === 'low' || STATE_CHANGING_COMMANDS.has(route.command) || goalSync || policyBaseline
 }
 
 
@@ -206,6 +211,7 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
   console.log(chalk.cyan(`  → ${route.explanation}`))
 
   if (requiresConfirmation(route)) {
+    if (!ensureInteractive('대화형 터미널에서 다시 실행하거나 위에 표시된 명시형 CLI 명령을 사용하세요.')) return
     const { confirm } = await prompt<{ confirm: boolean }>([{
       type: 'confirm',
       name: 'confirm',
@@ -222,7 +228,10 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
   // 자연어로 부른 high-risk 작업은 단일 가드(runGuarded) 경유 — 기본 비실행(preview).
   // 자연어는 명시 승인 수단이 없으므로 high-risk 는 실행되지 않고 안내만 한다.
   // (이전 nlSafetyNotice 는 preview 만 찍고 dispatch 로 그대로 실행하던 비차단 버그 — 제거.)
-  const riskAction = NL_GUARDED_ACTIONS[route.command]
+  const riskAction =
+    route.command === 'policy' && route.args?.[0] === 'baseline'
+      ? 'policy-baseline'
+      : NL_GUARDED_ACTIONS[route.command]
   if (riskAction) {
     await runGuarded(
       riskAction,

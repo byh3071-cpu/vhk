@@ -35,6 +35,48 @@ describe('detectNaturalLanguageInput', () => {
     ).toBeNull()
   })
 
+  it('구체 argv가 있는 읽기 전용 policy 질문만 옵션 토큰을 보존해 자연어로 보낸다', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'pnpm', 'test:run', '--coverage', '실행', '가능해?'])
+    ).toBe('pnpm test:run --coverage 실행 가능해?')
+  })
+
+  it('명시형 policy check -- 경로는 자연어가 가로채지 않는다', () => {
+    expect(
+      detectNaturalLanguageInput(['node', 'vhk', 'policy', 'check', '--', 'pnpm', 'test:run'])
+    ).toBeNull()
+  })
+
+  it.each([
+    { tokens: ['정책', '기준선', '고정해줘'], expected: '정책 기준선 고정해줘' },
+    { tokens: ['policy', 'baseline', 'refresh'], expected: 'policy baseline refresh' },
+  ])('등록된 baseline 경로 뒤 자연어 동사는 안내 라우트로 보낸다: $expected', ({ tokens, expected }) => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', ...tokens])).toBe(expected)
+  })
+
+  it('명시 승인형 policy baseline --confirm은 commander가 처리한다', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'policy', 'baseline', '--confirm'])).toBeNull()
+  })
+
+  it.each([
+    ['secure', 'scan', '정책', '기준선', '업데이트'],
+    ['policy', 'check', 'echo', '정책', '기준선', '업데이트'],
+  ])('다른 실제 서브명령의 인자는 baseline 자연어 예외가 가로채지 않는다: %s', (...tokens) => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', ...tokens])).toBeNull()
+  })
+
+  it('옵션이 있는 기존 명령의 자유 본문은 policy 질문처럼 끝나도 가로채지 않는다', () => {
+    expect(
+      detectNaturalLanguageInput([
+        'node',
+        'vhk',
+        'blocker',
+        '--dry-run',
+        'pnpm test:run 실행 가능해?',
+      ])
+    ).toBeNull()
+  })
+
   it('vhk "보안 확인" (한 덩어리) → 자연어', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '보안 확인'])).toBe('보안 확인')
   })

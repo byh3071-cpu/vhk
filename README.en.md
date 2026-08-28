@@ -4,6 +4,8 @@
 
 # VHK — Vibe Harness Kit
 
+**v2.15.0**
+
 **A full-cycle, agent-agnostic coding harness that survives swapping the model underneath.**
 
 Wrap whatever agent you use — Claude Code, Cursor, Codex — in one loop of review · verify · memory.
@@ -15,7 +17,7 @@ Rules compound as you go, so the project doesn't collapse when a better model re
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![MCP](https://img.shields.io/badge/MCP-35_tools-8A2BE2)
 
-**[Quick Start](#install) · [VHK vs. a bare agent](#vhk-vs-a-bare-agent) · [Core loops](#core-loops)**
+**[What's new in v2.15](#whats-new-in-v2150) · [Quick Start](#install) · [VHK vs. a bare agent](#vhk-vs-a-bare-agent) · [Core loops](#core-loops)**
 
 </div>
 
@@ -23,6 +25,15 @@ Rules compound as you go, so the project doesn't collapse when a better model re
 > VHK is **not** a coding agent. It wraps the ones you already use and pins "what we agreed to do · is it actually done · where the next session resumes" as files + CLI gates. Swap the model — the rules, memory, and gates stay in your repo.
 
 Run `vhk` for a menu, or natural language: `vhk save`, `vhk goal next`, `vhk preflight`. Korean-first (`vhk 저장해줘`); the Korean [README.md](README.md) is the fullest reference.
+
+## What's new in v2.15.0
+
+- **Default-off safety policy** — `vhk policy level/risk/show/check` evaluates permission, risk, allowlist, call-count, and time limits without executing the target command or enabling enforcement.
+- **Separate intent and proof baselines** — `vhk receipt --mark-start` records only the starting SHA for intent/forbidden change scope. A receipt runs a fresh verification and compares its starting HEAD/dirty state with the state after the gates finish.
+- **Stable closeout** — `vhk goal next` no longer mistakes blocked/deferred/observing Goals for completion or rewrites a terminal DONE/CANCELED snapshot. Generated gate skills route a normal all-DONE branch closeout to `review N/A` plus a branch receipt.
+
+Automatic enforcement is not part of v2.15. It remains behind the observation gate and a separate human decision for v2.16.
+Pass only one executable plus its argv to `policy check`; never append shell pipes, chains, or substitutions, which the shell could execute outside VHK.
 
 ## Why VHK
 
@@ -83,6 +94,8 @@ vhk context
 vhk mcp-init     # let MCP clients (Cursor / Claude Desktop, …) call VHK
 ```
 
+For an existing Cursor project, `vhk bootstrap cursor` installs VHK-managed workflow skills. It safely upgrades an unchanged legacy template, preserves customized legacy copies with a manual-merge warning, and delegates project-specific test-script detection to `vhk verify` instead of assuming a pnpm script name.
+
 **Daily loop**
 ```bash
 vhk work
@@ -97,6 +110,8 @@ vhk goal done
 vhk save -m "fix checkout bug"
 vhk work handoff
 ```
+
+`vhk goal next` preserves a human-written `next-task.md` when only blocked, deferred, or observing goals remain. If a VHK-generated terminal snapshot becomes false after a goal is reopened, VHK invalidates that marker and its timestamp. When only DONE/CANCELED Goals remain, VHK updates an existing `next-task.md` but does not create a missing file; repeated calls on the resulting snapshot are read-only and create no timestamp or backup churn.
 
 ## Core loops
 
@@ -138,8 +153,10 @@ personal repository names, and real external-service object IDs. Rejected raw in
 **3. Trust / evidence gates**
 - `vhk verify` — runs 5 gates, shows advisory age/dismiss count, and writes `.vhk/reports/latest.json`
 - `vhk review` — cross-checks the latest evidence against the goal's done-conditions
-- `vhk receipt` — 4 machine proofs (tsc/test/build exit codes, git dirty, stale SHA, diff-cover) to catch false "done", **zero LLM**
+- `vhk receipt` — 4 machine proofs (the five verify gates: typecheck/lint/test/build exit codes plus secure scan, git dirty, verify-SHA freshness, diff-cover) to catch false "done", **zero LLM**
 - `vhk preflight` — pre-ship checks (2FA / shim / env / lint / type / test / git / branch)
+
+`vhk receipt` runs its own fresh verification. If either the verification-start commit or the post-gate commit cannot be identified, freshness is unknown and the result is CAUTION (exit 0); only known stale evidence is BLOCK (exit 1).
 
 ## MCP — 35 tools
 

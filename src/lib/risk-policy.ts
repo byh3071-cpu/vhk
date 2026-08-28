@@ -1,10 +1,10 @@
 import type { SafetyMode } from './safety-mode.js'
 
 /**
- * 정책 적용 대상 high-risk 액션 9종 — 되돌리기 어렵거나 외부에 영향 주는 작업.
+ * 정책 적용 대상 high-risk 액션 10종 — 되돌리기 어렵거나 외부에 영향 주는 작업.
  * (undo: 커밋 되돌림 / deploy·publish: 외부 배포 / migrate: 패키지매니저 전환 /
  *  cloud-pull: 로컬 .vhk 덮어씀 / resume: HARD_STOP 해제 / env-write: 시크릿 파일 변경 /
- *  delete: 삭제 / restore: 백업 덮어쓰기 — 로컬 파일을 백업으로 복원)
+ *  delete: 삭제 / restore: 백업 덮어쓰기 / policy-baseline: 정책 신뢰 기준 갱신)
  */
 export const HIGH_RISK_ACTIONS = [
   'undo',
@@ -16,6 +16,7 @@ export const HIGH_RISK_ACTIONS = [
   'env-write',
   'delete',
   'restore',
+  'policy-baseline',
 ] as const
 
 export type HighRiskAction = (typeof HIGH_RISK_ACTIONS)[number]
@@ -52,7 +53,7 @@ export function isHighRisk(action: string): action is HighRiskAction {
 }
 
 /**
- * Goal 57: 파일·경로 글롭 위험 차원 — 액션 문자열(9종)만으로는 못 잡는 "위험 대상".
+ * Goal 57: 파일·경로 글롭 위험 차원 — 액션 문자열(10종)만으로는 못 잡는 "위험 대상".
  * 자동수정/삭제가 위험한 대상을 basename/정규식만으로 판정(신규 의존성 0):
  *  - 생성-SoT 파일(RULES.md·AGENTS.md·.cursorrules·.windsurfrules): vhk sync 산출 원본 — 자동수정 시 규칙 드리프트.
  *  - .env 시작 시크릿 파일: 변경 시 자격증명 노출/손상.

@@ -1,10 +1,32 @@
-import { writeFileSync, renameSync } from 'node:fs'
+import { closeSync, lstatSync, openSync, writeFileSync, renameSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
 import { removeFileSync } from './fs-remove.js'
 
 // 같은 프로세스 내 temp 파일명 충돌 방지용 단조 증가 카운터.
 // (process.pid 만으로는 동일 파일을 동시에 두 번 쓸 때 temp 경로가 겹쳐 마지막 쓰기로 오염될 수 있다.)
 let writeCounter = 0
+
+const RENAME_MAX_RETRIES = 5
+const RENAME_RETRY_DELAY_MS = 10
+const renameRetryWait = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT))
+
+function isTransientRenameError(error: unknown): boolean {
+  return error instanceof Error && (error as NodeJS.ErrnoException).code === 'EPERM'
+}
+
+function renameWithRetry(tmp: string, filePath: string): void {
+  for (let retry = 0; ; retry += 1) {
+    try {
+      renameSync(tmp, filePath)
+      return
+    } catch (error) {
+      if (!isTransientRenameError(error) || retry >= RENAME_MAX_RETRIES) throw error
+      // Windows 에서 백신·인덱서가 대상 파일 핸들을 잠깐 잡는 구간만 흡수한다.
+      // 선형 대기(총 150ms)와 횟수 상한으로 영구 권한 오류를 숨기지 않는다.
+      Atomics.wait(renameRetryWait, 0, 0, RENAME_RETRY_DELAY_MS * (retry + 1))
+    }
+  }
+}
 
 /**
  * 원자적 파일 쓰기 — 같은 디렉터리의 temp 파일에 먼저 쓰고 `renameSync`(원자적 교체)로 옮긴다.
@@ -13,18 +35,43 @@ let writeCounter = 0
  * 대상 파일이 부분 기록(손상)된다 → 다음 read/JSON.parse 가 실패. rename 은 (같은 볼륨에서) 원자적이라
  * 대상 파일은 "이전 내용" 또는 "완전한 새 내용" 둘 중 하나만 갖는다(손상 중간상태 없음).
  *
- * temp 파일명에 process.pid 를 붙여 동시 실행 충돌을 피한다. 실패 시 temp 를 정리하고 에러를 다시 던진다.
+ * temp 파일명에 process.pid 와 카운터를 붙여 동시 실행 충돌을 피한다. Windows 의 일시적 EPERM 은
+ * 짧게 재시도하고, 최종 실패 시 temp 를 정리한 뒤 원래 에러를 다시 던진다.
  */
-export function atomicWriteFile(filePath: string, data: string): void {
+export interface AtomicWriteOptions {
+  /** 새 파일 권한. 생략하면 기존 파일 권한을 보존하고, 신규 파일은 일반 umask를 따른다. */
+  mode?: number
+}
+
+export function atomicWriteFile(
+  filePath: string,
+  data: string,
+  options: AtomicWriteOptions = {},
+): void {
   const tmp = join(dirname(filePath), `.${basename(filePath)}.tmp-${process.pid}-${writeCounter++}`)
+  const existing = lstatSync(filePath, { throwIfNoEntry: false })
+  const mode = options.mode
+    ?? (existing?.isFile() && !existing.isSymbolicLink() ? existing.mode & 0o777 : 0o666)
+  let ownsTemp = false
   try {
-    writeFileSync(tmp, data, 'utf-8')
-    renameSync(tmp, filePath)
-  } catch (err) {
+    // `wx`는 예측 가능한 temp 이름을 먼저 심어 둔 링크를 따라 쓰지 않고 안전하게 실패시킨다.
+    // 호출부가 민감 파일에 0600을 지정할 수 있고, 일반 파일은 기존 권한/umask를 유지한다.
+    const fd = openSync(tmp, 'wx', mode)
+    ownsTemp = true
     try {
-      removeFileSync(tmp)
-    } catch {
-      /* temp 정리 실패는 무시 — 원래 에러를 던진다 */
+      writeFileSync(fd, data, { encoding: 'utf-8' })
+    } finally {
+      closeSync(fd)
+    }
+    renameWithRetry(tmp, filePath)
+    ownsTemp = false
+  } catch (err) {
+    if (ownsTemp) {
+      try {
+        removeFileSync(tmp)
+      } catch {
+        /* temp 정리 실패는 무시 — 원래 에러를 던진다 */
+      }
     }
     throw err
   }

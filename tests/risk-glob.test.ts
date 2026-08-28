@@ -59,7 +59,7 @@ describe('risk-policy — resolveGuard(target?) 4번째 인자', () => {
     expect(resolveGuard('edit', 'standard', 'cli', 'src/foo.ts')).toBe('allow')
   })
 
-  it('하위호환 — target 없으면 기존 9종 동작 회귀 0', () => {
+  it('하위호환 — target 없으면 기존 high-risk 동작 회귀 0', () => {
     expect(resolveGuard('publish', 'standard', 'cli')).toBe('confirm')
     expect(resolveGuard('publish', 'standard', 'mcp')).toBe('preview')
     expect(resolveGuard('publish', 'lite', 'cli')).toBe('warn')

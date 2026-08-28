@@ -36,6 +36,11 @@ describe('호출 수 판정 (§5.3-3)', () => {
   it('상한을 이미 넘겼어도 거부', () => {
     expect(evaluateCallBudget(99, limits).exceeded).toBe(true)
   })
+
+  it.each([-1, 1.5, Number.NaN])('손상된 호출 수 %s는 상한 우회로 쓰지 못한다', (count) => {
+    const result = evaluateCallBudget(count, limits)
+    expect(result).toMatchObject({ exceeded: true, reasonCode: 'CALL_BUDGET_EXCEEDED' })
+  })
 })
 
 describe('시간 판정 — 두 층을 다른 시계로 (§5.3-3)', () => {
@@ -92,6 +97,23 @@ describe('이상 시계 — 드문 상황에서 관대해지지 않는다 (§5.3
     })
     expect(r.clockAnomaly).toBe(true)
     expect(r.elapsedSec).toBe(0)
+  })
+
+  it.each([
+    ['bad', started, '2026-08-21T01:10:00.000Z'],
+    [started, 'bad', '2026-08-21T01:10:00.000Z'],
+    [started, started, 'bad'],
+  ])('파싱할 수 없는 시각은 NaN 통과 대신 CLOCK_ANOMALY로 거부', (start, last, now) => {
+    const result = evaluateTimeBudget({
+      startedAtUtc: start,
+      lastSeenUtc: last,
+      nowUtc: now,
+      limits,
+      commandMaxSec: 1,
+    })
+    expect(result.exceeded).toBe(true)
+    expect(result.reasonCode).toBe('CLOCK_ANOMALY')
+    expect(Number.isFinite(result.elapsedSec)).toBe(true)
   })
 
   it('시간이 뒤로 갔으면 이상으로 표시', () => {

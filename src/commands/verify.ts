@@ -441,9 +441,11 @@ export function checkEvidenceFreshness(
  * @returns 리포트 객체 + 기록 경로
  */
 export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyReport; path: string } {
-  const gates = runGates(cwd)
-  // Goal 44: 증거를 지금 코드(커밋)에 묶는다. 기존 git-access 통로(getCommitInfo) 사용.
+  // 증거는 게이트가 시작된 코드에 묶는다. 긴 게이트 도중 다른 프로세스가 HEAD를 옮기면
+  // 이후 현재 HEAD와의 신선도 대조가 반드시 stale로 잡아야 하며, 종료 뒤 SHA를 기록하면 C를
+  // 검증한 것처럼 거짓 바인딩할 수 있다.
   const commit = getCommitInfo(cwd)
+  const gates = runGates(cwd)
   const report = buildReport(gates, new Date().toISOString(), localDate(), commit)
   report.advisories = trackAdvisories(
     report.advisories ?? [],
@@ -696,9 +698,8 @@ export async function verify(
 
   // 멀티PC dirty-block(B축): verify 가 방금 append 한 증거 원장(events·ledger)을 저소음 단일
   // 커밋으로 정리한다. 멀티PC 에서 미커밋 증거가 외부 pull 의 fast-forward 를 막던 문제 해소.
-  // ★커밋은 반드시 verifyEvidence 밖(여기 명령 본체)에 둔다★ — verifyEvidence 안에서 커밋하면
-  // HEAD 가 이동해, 직후 receipt(collectReceipt)가 읽는 stale 판정(작업시작 SHA≠HEAD)이 거짓
-  // true 가 되어 거짓 CAUTION/BLOCK 을 낸다. 비치명: 실패해도 증거는 이미 기록됐다.
+  // ★커밋은 반드시 verifyEvidence 밖(여기 명령 본체)에 둔다★ — 수집 함수 내부에서 HEAD가 이동하면
+  // report.commit과 호출자가 직후 읽는 HEAD가 어긋난다. 비치명: 실패해도 증거는 이미 기록됐다.
   try {
     commitPaths(
       'chore(vhk): evidence ledger [skip ci]',

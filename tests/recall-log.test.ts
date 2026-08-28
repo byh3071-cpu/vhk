@@ -26,14 +26,20 @@ describe('recall-log (사용 로그)', () => {
 
   it('1000줄 초과 시 오래된 것부터 trim (maxSize)', () => {
     const dir = tmp()
-    for (let i = 0; i < RECALL_LOG_MAX + 5; i++) {
+    const seeded = Array.from({ length: RECALL_LOG_MAX }, (_, i) =>
+      JSON.stringify({ ts: 't', source: 'recall', query: `q${i}`, hitIds: [], topScore: 0 })
+    )
+    fs.mkdirSync(path.join(dir, '.vhk'), { recursive: true })
+    fs.writeFileSync(path.join(dir, RECALL_LOG_REL), seeded.join('\n') + '\n', 'utf-8')
+
+    for (let i = RECALL_LOG_MAX; i < RECALL_LOG_MAX + 5; i++) {
       logRecall(dir, { source: 'recall', query: `q${i}`, hitIds: [], topScore: 0 })
     }
     const log = readRecallLog(dir)
     expect(log).toHaveLength(RECALL_LOG_MAX)
     expect(log[0].query).toBe('q5') // q0~q4 trim
     expect(log[log.length - 1].query).toBe(`q${RECALL_LOG_MAX + 4}`)
-  }, 30000) // Goal 79: 1005회 logRecall(매 호출 전체 재작성=O(n²)) × Windows 동기 I/O 가 5s 기본 timeout 을 넘김 — 상향(실사용은 recall 1회당 1호출이라 무해). 상세 TS-004.
+  })
 
   it('손상된 줄은 skip (부분 파싱 안전)', () => {
     const dir = tmp()

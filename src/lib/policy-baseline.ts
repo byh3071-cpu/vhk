@@ -15,27 +15,26 @@
  * 즉 여기서 얻는 것은 차단이 아니라 **탐지 확률**이다. 진짜 방어선은 여전히 `enforce` 가
  * 기본 off 이고 켜는 것이 사람이라는 사실이다. 그 상한을 알고 켠다.
  */
-import { createHash } from 'node:crypto'
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { atomicWriteFile } from './atomic-write.js'
 import { readJsonFile } from './read-json.js'
-import { POLICY_CONFIG_REL } from './policy-config.js'
+import {
+  readPolicyConfigSnapshot,
+  type PolicyConfigSnapshot,
+} from './policy-config.js'
+import { ensurePolicyFilesIgnored } from './policy-files.js'
 
 export const POLICY_BASELINE_REL = join('.vhk', 'policy-baseline.json')
 
 export interface BaselineCheck {
+  /** policy.json 자체가 있는가. 미설정 안내와 기능 미도입 상태를 구분한다. */
+  configPresent: boolean
   /** 설정이 베이스라인과 다르다 → 자율 레인 fail-closed */
   mutated: boolean
   /** 아직 고정된 적이 없다. 변조와 구분한다 */
   baselineMissing: boolean
   reasonCode?: 'POLICY_CONFIG_MUTATED'
-}
-
-/** 설정 파일 내용 해시. 파일이 없으면 null — "없음" 도 하나의 상태다. */
-function configHash(cwd: string): string | null {
-  const p = join(cwd, POLICY_CONFIG_REL)
-  if (!existsSync(p)) return null
-  return createHash('sha256').update(readFileSync(p)).digest('hex')
 }
 
 /**
@@ -45,46 +44,67 @@ function configHash(cwd: string): string | null {
  * 않은 상태이며 변조가 아니다 — 이 기능을 막 도입한 저장소를 멈춰세우지 않는다.
  * 베이스라인이 깨져 읽을 수 없으면 변조로 취급한다. 판단 불가는 통과가 아니다.
  */
-export function checkPolicyBaseline(cwd: string): BaselineCheck {
-  const current = configHash(cwd)
+export function checkPolicyBaseline(
+  cwd: string,
+  snapshot: PolicyConfigSnapshot = readPolicyConfigSnapshot(cwd),
+): BaselineCheck {
+  const { configPresent, contentHash: current } = snapshot
+  if (configPresent && current === null) {
+    return {
+      configPresent,
+      mutated: true,
+      baselineMissing: false,
+      reasonCode: 'POLICY_CONFIG_MUTATED',
+    }
+  }
   const baselinePath = join(cwd, POLICY_BASELINE_REL)
 
   if (current === null && !existsSync(baselinePath)) {
-    return { mutated: false, baselineMissing: true }
+    return { configPresent, mutated: false, baselineMissing: true }
   }
   if (!existsSync(baselinePath)) {
-    return { mutated: false, baselineMissing: true }
+    return { configPresent, mutated: false, baselineMissing: true }
   }
 
   let recorded: unknown
   try {
     recorded = readJsonFile<unknown>(baselinePath)
   } catch {
-    return { mutated: true, baselineMissing: false, reasonCode: 'POLICY_CONFIG_MUTATED' }
+    return { configPresent, mutated: true, baselineMissing: false, reasonCode: 'POLICY_CONFIG_MUTATED' }
   }
 
-  const expected =
+  const expected: unknown =
     typeof recorded === 'object' && recorded !== null && 'hash' in recorded
       ? recorded.hash
       : undefined
-  if (typeof expected !== 'string') {
-    return { mutated: true, baselineMissing: false, reasonCode: 'POLICY_CONFIG_MUTATED' }
+  // null 은 사람이 명시 승인한 default-off(설정 파일 부재) 상태다. 문자열은 SHA-256만 받는다.
+  if (expected !== null && (typeof expected !== 'string' || !/^[a-f0-9]{64}$/.test(expected))) {
+    return { configPresent, mutated: true, baselineMissing: false, reasonCode: 'POLICY_CONFIG_MUTATED' }
   }
 
-  // 설정을 지운 경우도 여기서 걸린다 — current 가 null 이라 문자열 해시와 절대 같지 않다.
+  // 문자열 기준선 뒤 삭제, null 기준선 뒤 생성 모두 여기서 걸린다.
   if (current !== expected) {
-    return { mutated: true, baselineMissing: false, reasonCode: 'POLICY_CONFIG_MUTATED' }
+    return { configPresent, mutated: true, baselineMissing: false, reasonCode: 'POLICY_CONFIG_MUTATED' }
   }
-  return { mutated: false, baselineMissing: false }
+  return { configPresent, mutated: false, baselineMissing: false }
 }
 
 /**
  * 베이스라인 고정 — **사람 명령으로만 호출한다.** 자율 레인에는 이 경로가 없다.
  * 자율 레인이 스스로 갱신할 수 있으면 변조를 스스로 승인하는 것과 같다.
  */
-export function writePolicyBaseline(cwd: string): void {
-  const hash = configHash(cwd)
+export function writePolicyBaseline(
+  cwd: string,
+  snapshot: PolicyConfigSnapshot = readPolicyConfigSnapshot(cwd),
+): void {
+  if (snapshot.configPresent && snapshot.config.failClosed) {
+    const error = new Error(snapshot.config.reasonCode ?? 'POLICY_CONFIG_UNREADABLE') as NodeJS.ErrnoException
+    error.code = snapshot.config.reasonCode ?? 'POLICY_CONFIG_UNREADABLE'
+    throw error
+  }
+  const hash = snapshot.contentHash
   const p = join(cwd, POLICY_BASELINE_REL)
+  ensurePolicyFilesIgnored(cwd)
   mkdirSync(dirname(p), { recursive: true })
-  writeFileSync(p, `${JSON.stringify({ hash }, null, 2)}\n`, 'utf-8')
+  atomicWriteFile(p, `${JSON.stringify({ hash }, null, 2)}\n`, { mode: 0o600 })
 }
