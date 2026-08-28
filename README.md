@@ -179,6 +179,8 @@ vhk check --json   # declaredRules·checkedRules·uncheckedRules·coveragePercen
 
 Goal은 `goals/*.md`와 `scripts/check-goal-<id>.mjs`를 연결합니다. `vhk goal done`은 게이트를 다시 돌려 통과할 때만 DONE으로 전이합니다. 선택 필드 `depends_on: 1,2`를 쓰면 두 Goal이 모두 DONE이 되기 전에는 다음 작업이나 완료 대상으로 선택되지 않습니다. 블로커가 반복되면(3건 누적) `.vhk/HARD_STOP`으로 진행을 멈춥니다.
 
+`vhk goal next`는 BLOCKED·DEFERRED·OBSERVING을 완료로 오인하지 않으며 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각만 갱신해 무효화합니다. 실제 모든 Goal 완료 스냅샷은 한 번만 기록해 반복 조회가 시각과 백업을 늘리지 않습니다.
+
 ```powershell
 vhk goal next
 vhk goal done --id 42

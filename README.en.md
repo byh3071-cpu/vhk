@@ -100,6 +100,8 @@ vhk save -m "fix checkout bug"
 vhk work handoff
 ```
 
+`vhk goal next` preserves a human-written `next-task.md` when only blocked, deferred, or observing goals remain. If a VHK-generated all-done snapshot becomes false after a goal is reopened, VHK invalidates that marker and refreshes its timestamp. Repeated calls on a genuinely all-done snapshot remain read-only and create no timestamp or backup churn.
+
 ## Core loops
 
 **1. Rules portability** — `RULES.md` is the source; VHK generates/updates 8 targets: `.cursorrules`, `CLAUDE.md`, `.windsurfrules`, `.github/copilot-instructions.md`, `.agents/rules/vhk-rules.md`, `AGENTS.md`, `GEMINI.md`, `.clinerules/vhk-rules.md`. `vhk sync --check` fails (exit 1) on drift — CI-friendly.

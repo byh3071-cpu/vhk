@@ -48,14 +48,30 @@ function effectiveGoalStatus(fm: ParsedGoal['frontmatter']): GoalStatus | undefi
   return normalizeLegacyStatus(s) ?? (GOAL_STATUSES.includes(s as GoalStatus) ? (s as GoalStatus) : undefined)
 }
 
-// #329: --id 없이 active goal 이 null 일 때, goalNext(VHK-017)와 동일하게 0개/전부완료를 구분 안내.
-//        이전엔 둘 다 generic '대상 결정 불가'(exit 1)로 뭉개 '설정 오류'처럼 오해를 줬다.
-//        0개·전부완료는 정상 상태 → 안내만 하고 exit 0. (true 반환 = 정상 종료 신호)
-function reportNoActiveGoal(goals: ParsedGoal[]): boolean {
+// #329: --id 없이 active goal 이 null 일 때 0개·전부완료·미해결 상태를 구분한다.
+// 이전엔 모두 generic '대상 결정 불가'(exit 1)로 뭉개 설정 오류처럼 보이거나 완료로 오보했다.
+function unresolvedGoals(goals: ParsedGoal[]): ParsedGoal[] {
+  return goals.filter((goal) => {
+    const status = effectiveGoalStatus(goal.frontmatter)
+    return status !== 'DONE' && status !== 'CANCELED'
+  })
+}
+
+function reportNoActiveGoal(goals: ParsedGoal[], failIfUnresolved = false): boolean {
   if (goals.length === 0) {
     console.log(chalk.yellow('  📭 정의된 goal 이 없습니다.'))
     console.log(chalk.dim('  vhk goal init 으로 시작하세요.'))
     return true
+  }
+  const unresolved = unresolvedGoals(goals)
+  if (unresolved.length > 0) {
+    const summary = unresolved
+      .map((goal) => `${goal.frontmatter.id ?? '?'}:${effectiveGoalStatus(goal.frontmatter) ?? 'NOT_STARTED'}`)
+      .join(', ')
+    console.log(chalk.yellow(`  ${ko.goal.noRunnable(summary)}`))
+    console.log(chalk.dim(`  ${ko.goal.noRunnableHint}`))
+    if (failIfUnresolved) process.exitCode = 1
+    return false
   }
   console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다 — 검사/완료할 대상이 없습니다.'))
   return true
@@ -218,6 +234,25 @@ function backupNextTask(rel: string, abs: string, cwd: string): void {
   }
 }
 
+const DONE_SNAPSHOT_TASK = 'TASK: 없음 — 모든 goal 이 완료되었습니다.'
+const AUTO_UPDATED_MARKER = /^_Auto-updated(?: [^\r\n]*)? via `vhk goal next`\._$/m
+
+function invalidateGeneratedDoneSnapshot(cwd: string): void {
+  const path = join(cwd, STATE_DIR, 'next-task.md')
+  if (!existsSync(path)) return
+  const current = readFileSync(path, 'utf-8')
+  const generated = AUTO_UPDATED_MARKER.test(current) && current.includes(DONE_SNAPSHOT_TASK)
+  if (!generated) return
+  const invalidated = current
+    .replace(
+      AUTO_UPDATED_MARKER,
+      `_Auto-updated ${new Date().toISOString()} via \`vhk goal next\`._`,
+    )
+    .replace(DONE_SNAPSHOT_TASK, ko.goal.noRunnableSnapshot)
+  atomicWriteFile(path, invalidated)
+  console.log(chalk.dim(`  ${ko.goal.doneSnapshotInvalidated}`))
+}
+
 export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   if (!ensureNotHardStopped('goal next')) return // HARD_STOP 활성 시 next-task.md 변경 차단
   console.log(chalk.bold(`\n${ko.goal.nextTitle}\n`))
@@ -231,12 +266,23 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
   if (!validateGoalSelection(analyzeGoalDependencies(goals))) return
   const activeId = selectActiveId(goals)
   if (activeId === null) {
+    if (unresolvedGoals(goals).length > 0) {
+      // 사람이 쓴 인수인계는 보존하되, VHK가 만든 과거 완료 스냅샷은 거짓 상태로 남기지 않는다.
+      invalidateGeneratedDoneSnapshot(cwd)
+      reportNoActiveGoal(goals)
+      return
+    }
     console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
     // #558: 기존 파일을 그대로 두면 마지막 완료 작업이 다음 작업처럼 남아 다른 세션이 끝난 일을 다시 한다.
     // 없는 파일을 새로 만들지는 않는다 — 도입 여부는 goal init 이 정한다(112-T2 와 같은 이유).
     const doneRel = join(STATE_DIR, 'next-task.md')
     const doneAbs = join(cwd, doneRel)
     if (existsSync(doneAbs)) {
+      const current = readFileSync(doneAbs, 'utf-8')
+      if (current.includes(DONE_SNAPSHOT_TASK)) {
+        console.log(chalk.dim(`  ${ko.goal.doneSnapshotCurrent}`))
+        return
+      }
       // 활성 Goal 경로(Goal 78)와 같은 백업 계약 — 완료 경로만 빠지면 수동 편집본이 복구 수단 없이 사라진다.
       backupNextTask(doneRel, doneAbs, cwd)
       atomicWriteFile(
@@ -247,7 +293,7 @@ export async function goalNext(cwd: string = process.cwd()): Promise<void> {
           `_Auto-updated ${new Date().toISOString()} via \`vhk goal next\`._`,
           '',
           '```',
-          'TASK: 없음 — 모든 goal 이 완료되었습니다.',
+          DONE_SNAPSHOT_TASK,
           '```',
           '',
         ].join('\n')
@@ -311,6 +357,10 @@ export async function goalPeek(cwd: string = process.cwd()): Promise<void> {
   if (!validateGoalSelection(analyzeGoalDependencies(goals))) return
   const activeId = selectActiveId(goals)
   if (activeId === null) {
+    if (unresolvedGoals(goals).length > 0) {
+      reportNoActiveGoal(goals)
+      return
+    }
     console.log(chalk.green('  🎉 모든 goal 이 완료되었습니다!'))
     return
   }
@@ -528,7 +578,7 @@ export async function goalCheck(opts: { id?: string; force?: boolean }): Promise
   }
   if (id === null) {
     // #329: --id 없이 active 없음 = 0개 또는 전부완료(정상). next 와 일관 안내 + exit 0.
-    reportNoActiveGoal(goals)
+    reportNoActiveGoal(goals, true)
     return
   }
   // ② 없는 goal id 는 게이트 검사 전에 통일된 메시지로 거부 (done 과 동일).
@@ -610,7 +660,7 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   }
   if (id === null) {
     // #329: --id 없이 active 없음 = 0개 또는 전부완료(정상). next 와 일관 안내 + exit 0.
-    reportNoActiveGoal(goals)
+    reportNoActiveGoal(goals, true)
     return
   }
   const target = goals.find((g) => g.frontmatter.id === id)

@@ -834,6 +834,12 @@ export const ko = {
       `${dir}/ 가 없어 상태 문서를 쓰지 않고 조회만 했습니다 — 이 프로젝트는 작업 상태를 다른 곳에서 관리합니다.`,
     stateDirAbsentHint: (dir: string) =>
       `${dir}/ 를 쓰려면 vhk goal init 으로 먼저 만드세요 (next 는 없는 디렉터리를 새로 만들지 않습니다).`,
+    noRunnable: (summary: string) =>
+      `실행 가능한 goal 이 없습니다 — 완료되지 않은 상태가 남아 있습니다: ${summary}`,
+    noRunnableHint: 'BLOCKED는 차단 사유를 해소하고, DEFERRED·OBSERVING은 사람이 상태를 전환해야 합니다.',
+    noRunnableSnapshot: 'TASK: 확인 필요 — 실행 가능한 goal 없음 (미완료 Goal 상태 확인)',
+    doneSnapshotInvalidated: '과거의 모든-goal-완료 스냅샷을 무효화했습니다 — 미완료 상태를 확인하세요.',
+    doneSnapshotCurrent: 'next-task.md 가 이미 모든 goal 완료 상태입니다 — 파일·백업을 갱신하지 않았습니다.',
   },
   watch: {
     title: '👁️  무인 세션 정지 감시',

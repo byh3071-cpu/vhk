@@ -70,6 +70,8 @@ Cursor에게 한국어로 말해도 됩니다.
 
 Goal frontmatter에 `depends_on: 1,2`를 선택적으로 쓰면 선행 Goal이 모두 `DONE`일 때만 `next/peek/done` 대상이 됩니다. 잘못된 ID·자기 참조·순환 참조는 설정 오류로 표시됩니다.
 
+`goal next`는 BLOCKED·DEFERRED·OBSERVING만 남으면 “모두 완료”로 쓰지 않고 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각만 갱신해 무효화합니다. 실제로 모든 Goal이 완료된 기존 스냅샷은 시각·백업을 다시 만들지 않습니다.
+
 ### Goal 본문 Phase/Task JSON
 
 코드 펜스 밖의 정확한 `### Phase N`과 `- [ ] **Task N** 설명`만 읽습니다. Phase 번호와 Goal

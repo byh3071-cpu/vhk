@@ -137,7 +137,7 @@
 |---|---|
 | 136 | PreToolUse와 Stop 훅은 비 Git 디렉터리에서 종료 코드 0·stdout/stderr 무출력으로 끝난다 · Git 저장소라도 각 훅의 VHK 실행기 파일이 없으면 종료 코드 0·stdout/stderr 무출력으로 끝난다 · POSIX는 Git 루트 조회 실패 또는 실행기 파일 부재를 비적용으로 처리하고 Windows는 Git 조회 실패·빈 루트·`Leaf` 파일 확인 실패를 비적용으로 처리한다 · 실행기가 있으면 Git 루트로 이동하고 stdin과 자식 Node 프로세스 종료 코드를 보존한다 · 기존 VHK 루트 실행, 하위 디렉터리 HARD_STOP 차단, Stop 기록 알림, 당일 devlog 무출력은 유지된다 · 검증 fixture는 성공·실패와 무관하게 정리된다 |
 | 137 | 작업 시작 SHA A와 최종 HEAD B가 달라도 B에 묶인 최신 verify가 clean이면 receipt stale=false다 · 작업 시작 SHA A 기준 intent 검사는 B에 커밋된 forbidden/scope 변경을 계속 본다 · verify SHA와 현재 HEAD가 다르거나 어느 한쪽이 dirty면 stale=true다 · 기존 receipt JSON 필드와 CLI 인자는 깨지지 않는다 · 생성 gate 스킬은 Goal 스키마 오류와 정상 전체-DONE closeout을 구분하고 후자는 review `N/A`로 안내한다 |
-| 138 | BLOCKED가 남은 Goal 집합을 모두 완료로 보고하거나 완료 스냅샷으로 덮어쓰지 않는다 · 빈 패턴 ID와 패턴 문서 내부의 깨진 PAT 참조를 검사한다 · 중첩 `.vhk` worktree 테스트는 수집되지 않는다 · Windows 기본 병렬 전체 스위트와 `npm publish --dry-run`이 우회 환경변수 없이 반복 통과한다 |
+| 138 | BLOCKED가 남은 Goal 집합을 모두 완료로 보고하거나 사람의 인수인계를 덮어쓰지 않고, 거짓이 된 VHK 완료 스냅샷은 완료 표시와 시각을 함께 무효화하며, 실제 모든 Goal 완료 스냅샷은 시각·백업을 다시 만들지 않는다 · 빈 패턴 ID와 패턴 문서 내부의 깨진 PAT 참조를 검사한다 · 중첩 `.vhk` worktree 테스트는 수집되지 않는다 · Windows 기본 병렬 전체 스위트와 `npm publish --dry-run`이 우회 환경변수 없이 반복 통과한다 |
 
 ### 6-1. 선행 (112 ~ 114)
 
