@@ -397,7 +397,8 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 
 - VHK는 기본 local-first입니다. 로그·맥락·기억은 repo와 `.vhk/`에 남습니다.
 - `.env`와 민감 파일은 `.gitignore`·`secure scan`·`preflight`에서 계속 확인합니다.
-- `vhk cloud push/pull`은 비공개 Gist임을 확인한 뒤에만 전송·연결하며 토큰은 코드나 설정에 저장하지 않습니다.
+- `vhk cloud push/pull`은 `public:false`가 확인된 Gist만 연결하며 토큰은 코드나 설정에 저장하지 않습니다.
+- 신규 Gist 생성 뒤 공개 여부 확인이 실패하면 `cloud.json`에는 연결하지 않고, 상태 확인·삭제에 쓸 복구 ID를 출력합니다.
 - `.vhk` 링크, 전송 대기 중 링크로 교체된 파일, 운영체제 비호환 파일명·정규화 충돌,
   원격 일부 읽기 실패는 로컬·원격 쓰기 전에 실패 폐쇄합니다.
 - `memory.json`·`refs.json`·정책 상태와 그 잠금·원자 저장 임시본·`HARD_STOP` 같은 개인/상태 파일은 기본 백업 제외 대상입니다.

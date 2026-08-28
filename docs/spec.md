@@ -142,6 +142,8 @@ updated: 2026-08-28
 - `vhk cloud pull [gistId]` — gist 에서 `.vhk/` 를 복원한다. id 생략 시 `cloud.json` 사용.
 - 기존 push와 pull은 GitHub API의 `public:false`를 확인한 **비공개 Gist만** 허용한다. 공개 여부를
   확인할 수 없거나 public이면 파일 전송과 `cloud.json` 연결을 모두 실패 폐쇄한다.
+- 신규 Gist 생성 호출은 성공했지만 후속 공개 여부 확인이 실패하면 `cloud.json`에는 연결하지 않고,
+  사용자가 상태를 확인하거나 삭제할 수 있도록 생성된 Gist ID를 복구 안내로 출력한다.
 - 백업 대상은 `collectVhkFiles` 가 결정: `.vhk/` 평면 파일 중 기본 제외 + `.vhkignore` 적용 후.
 - 로컬 `.vhk/`·복원 대상·`cloud.json`이 링크/junction이면 workspace 밖 읽기·덮어쓰기를 막기 위해
   네트워크 쓰기 전에 중단한다. push는 수집 뒤 인증 직후와 각 edit/create 직전에 경계를 다시 확인해,

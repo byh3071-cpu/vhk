@@ -533,9 +533,9 @@ describe('cloud — cloudPush 신규 gist 비공개 검증 (gh mock)', () => {
   })
 
   it.each([
-    ['비공개 여부 조회 실패', { gistVisibilityLookupFails: true }],
-    ['공개 Gist 판정', { gistPublic: true }],
-  ] as const)('%s면 신규 gist 포인터를 저장하지 않는다', async (_case, options) => {
+    ['비공개 여부 조회 실패', { gistVisibilityLookupFails: true }, '비공개 여부 확인에 실패'],
+    ['공개 Gist 판정', { gistPublic: true }, '공개 Gist'],
+  ] as const)('%s면 신규 gist 포인터를 저장하지 않고 복구 ID를 안내한다', async (_case, options, reason) => {
     installGhMock([], options)
     const { cloudPush } = await import('../src/commands/cloud.js')
 
@@ -551,6 +551,9 @@ describe('cloud — cloudPush 신규 gist 비공개 검증 (gh mock)', () => {
       return args[0] === 'api' && args.includes('--jq')
     })).toHaveLength(1)
     expect(fs.existsSync(path.join(repo, '.vhk', 'cloud.json'))).toBe(false)
+    const output = vi.mocked(console.log).mock.calls.flat().join('\n')
+    expect(output).toContain(reason)
+    expect(output).toContain('abc123def456')
   })
 })
 

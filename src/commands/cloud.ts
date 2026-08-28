@@ -151,8 +151,9 @@ export async function cloudPush(): Promise<void> {
   const desc = `vhk .vhk backup — ${path.basename(cwd)}`
 
   if (existing) {
-    if (!isSecretGist(existing.gistId)) {
-      console.log(chalk.red(`  ${ko.cloud.pushFail} — ${ko.cloud.secretGistRequired}`))
+    const visibility = inspectGistVisibility(existing.gistId)
+    if (visibility !== 'secret') {
+      console.log(chalk.red(`  ${ko.cloud.pushFail} — ${gistVisibilityFailureMessage(visibility)}`))
       process.exitCode = 1
       return
     }
@@ -241,8 +242,11 @@ export async function cloudPush(): Promise<void> {
     return
   }
 
-  if (!isSecretGist(gistId)) {
-    console.log(chalk.red(`  ${ko.cloud.pushFail} — ${ko.cloud.secretGistRequired}`))
+  const visibility = inspectGistVisibility(gistId)
+  if (visibility !== 'secret') {
+    console.log(chalk.red(`  ${ko.cloud.pushFail} — ${gistVisibilityFailureMessage(visibility)}`))
+    // 생성 API는 이미 성공했다. 연결은 실패 폐쇄하되 복구 ID를 숨기면 재시도 때 고아 Gist가 늘어난다.
+    console.log(chalk.yellow(`  ${ko.cloud.createdGistRecovery(gistId)}`))
     process.exitCode = 1
     return
   }
@@ -310,8 +314,9 @@ export async function cloudPull(gistIdArg?: string): Promise<void> {
     return
   }
 
-  if (!isSecretGist(gistId)) {
-    console.log(chalk.red(`  ${ko.cloud.pullFail} — ${ko.cloud.secretGistRequired}`))
+  const visibility = inspectGistVisibility(gistId)
+  if (visibility !== 'secret') {
+    console.log(chalk.red(`  ${ko.cloud.pullFail} — ${gistVisibilityFailureMessage(visibility)}`))
     process.exitCode = 1
     return
   }
@@ -450,14 +455,24 @@ interface GistFileListResult {
   unsafeNames: boolean
 }
 
+type GistVisibility = 'secret' | 'public' | 'unavailable'
+
 /** 공개 Gist에는 로컬 맥락을 쓰지 않는다. 조회 실패도 비공개라고 낙관하지 않는다. */
-function isSecretGist(gistId: string): boolean {
+function inspectGistVisibility(gistId: string): GistVisibility {
   const res = safeExecFile(
     'gh',
     ['api', `/gists/${gistId}`, '--jq', '.public'],
     { timeoutMs: NETWORK_EXEC_TIMEOUT_MS },
   )
-  return res.ok && res.out.trim() === 'false'
+  if (!res.ok) return 'unavailable'
+  const value = res.out.trim()
+  if (value === 'false') return 'secret'
+  if (value === 'true') return 'public'
+  return 'unavailable'
+}
+
+function gistVisibilityFailureMessage(visibility: Exclude<GistVisibility, 'secret'>): string {
+  return visibility === 'public' ? ko.cloud.publicGistRejected : ko.cloud.gistVisibilityUnavailable
 }
 
 interface GistHeadSnapshot extends GistFileListResult {

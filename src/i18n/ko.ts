@@ -640,7 +640,10 @@ export const ko = {
     unsafeLocalBoundary: '.vhk/ 또는 대상 파일이 링크여서 워크스페이스 경계를 안전하게 보장할 수 없습니다.',
     unsafeLocalFilename: '운영체제 사이에서 안전하지 않은 로컬 파일명이 있어 업로드 전에 중단합니다.',
     filenameCollision: '대소문자 또는 유니코드 정규화가 다른 동명 파일이 있어 다른 운영체제에서 안전하게 동기화할 수 없습니다.',
-    secretGistRequired: '비공개 Gist임을 확인할 수 없어 로컬 맥락의 전송·연결을 중단합니다.',
+    publicGistRejected: '공개 Gist로 확인되어 로컬 맥락의 전송·연결을 중단합니다.',
+    gistVisibilityUnavailable: 'Gist 비공개 여부 확인에 실패해 로컬 맥락의 전송·연결을 중단합니다.',
+    createdGistRecovery: (gistId: string) =>
+      `이미 생성된 Gist 복구 ID: ${gistId} — 상태를 확인하거나 삭제한 뒤 다시 시도하세요.`,
     flatOnlyWarn: (dirs: string) =>
       `⚠️  평면 파일만 백업됩니다 — 하위 폴더(${dirs})는 제외 (spec v1). 그 안의 파일(예: evolve/queue.json)은 로컬에만 남습니다.`,
   },
