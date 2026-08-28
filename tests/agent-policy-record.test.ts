@@ -132,6 +132,22 @@ function runGit(args: string[]): void {
 }
 
 describe('① 기본 off — 새 쓰기 0 · 출력 불변', () => {
+  it('같은 runId의 알 수 없는 event가 정상 complete를 가로막지 않는다', async () => {
+    const { autonomyLog } = await import('../src/commands/agent.js')
+    await autonomyLog({ event: 'start' })
+    const runId = latestStartRunId()
+    appendFileSync(
+      join(dir, AUTONOMY),
+      `${JSON.stringify({ ts: new Date().toISOString(), runId, event: 'future-event' })}\n`,
+      'utf-8',
+    )
+
+    await autonomyLog({ event: 'complete', runId, ticks: 1, interventions: 0 })
+
+    expect(readJsonl(AUTONOMY).map(line => line.event)).toEqual(['start', 'future-event', 'complete'])
+    expect(process.exitCode).toBe(origExitCode)
+  })
+
   it('policy.json 이 없으면 종결해도 판정 원장이 생기지 않는다', async () => {
     const { autonomyLog } = await import('../src/commands/agent.js')
     await autonomyLog({ event: 'complete', runId: 'fixed-run-id', ticks: 3, interventions: 0 })

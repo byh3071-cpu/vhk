@@ -140,11 +140,15 @@ export function normalizeMorningObservation(raw: unknown): MorningObservation | 
   return out
 }
 
-/** 라인이 런 이벤트인가 — event 문자열이 있고 morning 판별자가 없다. */
+function isAutonomyEvent(value: unknown): value is AutonomyEvent {
+  return value === 'start' || value === 'complete' || value === 'hardstop' || value === 'blocked'
+}
+
+/** 라인이 알려진 런 이벤트인가 — 미래·손상 event를 종결로 오인하지 않는다. */
 function isRunEventLine(raw: unknown): raw is AutonomyRunEntry {
   if (typeof raw !== 'object' || raw === null) return false
   const o = raw as Record<string, unknown>
-  return typeof o.event === 'string' && o.kind === undefined
+  return isAutonomyEvent(o.event) && o.kind === undefined
 }
 
 /**

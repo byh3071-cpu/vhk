@@ -80,6 +80,23 @@ describe('autonomy-log — 저수준 append/read (action-ledger 패턴 미러)',
     }
   })
 
+  it('JSON 형식이어도 알 수 없는 event는 런 종결로 읽지 않는다', () => {
+    const d = tmp()
+    try {
+      const p = path.join(d, AUTONOMY_LOG_PATH_REL)
+      fs.mkdirSync(path.dirname(p), { recursive: true })
+      fs.writeFileSync(
+        p,
+        `${JSON.stringify(entry())}\n${JSON.stringify({ ...entry(), event: 'future-event' })}\n`,
+        'utf-8',
+      )
+
+      expect(readAutonomyLog(d).map((item) => item.event)).toEqual(['start'])
+    } finally {
+      removeDirSync(d)
+    }
+  })
+
   it('원장 없으면 빈 배열', () => {
     const d = tmp()
     try {
