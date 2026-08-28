@@ -70,7 +70,7 @@ Cursor에게 한국어로 말해도 됩니다.
 
 Goal frontmatter에 `depends_on: 1,2`를 선택적으로 쓰면 선행 Goal이 모두 `DONE`일 때만 `next/peek/done` 대상이 됩니다. 잘못된 ID·자기 참조·순환 참조는 설정 오류로 표시됩니다.
 
-`goal next`는 BLOCKED·DEFERRED·OBSERVING만 남으면 “모두 완료”로 쓰지 않고 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각만 갱신해 무효화합니다. 실제로 모든 Goal이 완료된 기존 스냅샷은 시각·백업을 다시 만들지 않습니다.
+`goal next`는 선택 가능한 Goal 없이 BLOCKED·DEFERRED·OBSERVING만 남으면 “모두 완료”로 쓰지 않고 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각을 함께 무효화합니다. 미해결 Goal 없이 DONE/CANCELED만 남으면 기존 `next-task.md`가 있을 때만 백업 후 완료 스냅샷으로 갱신하고, 파일이 없으면 만들지 않습니다. 이미 완료 스냅샷이면 시각·백업을 다시 만들지 않습니다.
 
 ### Goal 본문 Phase/Task JSON
 
@@ -112,6 +112,8 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 
 > `review` 는 증거(latest.json)와 goal 완료조건을 교차검증해 "거짓완료 의심"을 찾습니다. 판정은 신뢰도 신호이며 보장이 아닙니다(미검증·stale 증거는 통과로 취급하지 않음).
 
+> `vhk review` 자체는 active Goal이 없으면 exit 1입니다. 다만 모든 Goal이 정상 DONE인 branch closeout은 Goal 손상이 아니므로, 생성되는 `vhk-gate` skill은 이를 `review N/A`와 branch receipt 경로로 안내합니다. `goal-health`는 Goal 파일이 깨졌거나 무시된 경우에만 사용합니다.
+
 ## 증거 영수증 (receipt — RFC 0056 T1)
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
@@ -120,7 +122,7 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 | 변경·의도 대조 기준선 기록 | `vhk receipt --mark-start` | "작업 시작점 찍어줘" |
 | 기계용 JSON 출력 | `vhk receipt --json` | — |
 
-> `receipt` 는 에이전트가 "됐어요"라고 한 순간, **4대 기계증거**(① tsc/test/build 실종료코드 ② git dirty ③ verify SHA·dirty와 현재 HEAD·dirty의 stale 대조 ④ 변경라인 diff-cover)를 모아 `.vhk/receipts/<날짜-decision-시각>.{json,md}` 영수증 1장으로 굳힙니다. `--mark-start` 기준선은 stale 판정이 아니라 작업 이후의 커밋된 변경까지 intent/forbidden 검사에 포함하는 데 씁니다. `decision = block|caution|pass` 는 **기계증거로만(LLM 추론 0)** — 실차단(red·dirty·stale·mission forbidden 위반) 중 하나라도면 block, ④ diff-cover 는 advisory(약신호)라 차단시키지 못합니다. block 이면 exit 1. **이 영수증은 게으른 거짓완료(빌드 깨짐·미커밋·낡은 증거)를 잡지, 미묘한 오류(그럴듯하게 틀린 코드)는 못 잡습니다.**
+> `receipt` 는 에이전트가 "됐어요"라고 한 순간 검증을 새로 실행하고, **4대 기계증거**(① verify 5개 게이트 — typecheck/lint/test/build 실종료코드 + secure scan 결과 ② git dirty ③ 검증 시작 SHA·dirty와 게이트 종료 후 HEAD·dirty의 stale 대조 ④ 변경라인 diff-cover)를 모아 `.vhk/receipts/<날짜-decision-시각>.{json,md}` 영수증 1장으로 굳힙니다. `--mark-start`는 stale 복구가 아니라 작업 이후의 커밋된 변경까지 intent/forbidden 검사에 포함할 시작 SHA만 기록합니다. `decision = block|caution|pass` 는 **기계증거로만(LLM 추론 0)** — 실차단(red·dirty·known stale·mission forbidden 위반) 중 하나라도면 block, stale 판정에 필요한 커밋을 식별하지 못하면 caution(exit 0), ④ diff-cover 는 advisory(약신호)라 차단시키지 못합니다. block 이면 exit 1. **이 영수증은 게으른 거짓완료(빌드 깨짐·미커밋·낡은 증거)를 잡지, 미묘한 오류(그럴듯하게 틀린 코드)는 못 잡습니다.**
 
 ## 미션 계약 (mission)
 
@@ -232,9 +234,7 @@ vhk doctor
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
 | `vhk sync` | RULES.md → 규칙 파일 동기화. `<!-- vhk:sync=all -->` 절은 8개 타겟 필수. `--check`는 재생성 결과 불일치와 필수 섹션 누락을 별도 집계하고, 문서-실측 drift는 경고로 표시 |
 | `vhk check` | RULES.md 규칙 점검. 규칙 줄의 `<!-- vhk:check=no-exec-sync -->`를 `scripts/check-rule-no-exec-sync.mjs`에 연결하며 검사 비율 출력 (`--json` = 선언·검사·미검사 수와 비율 포함) |
-| `vhk policy` | 자율 실행 권한 정책. `level`·`risk`·`show`·`check -- <명령>`은 읽기 전용(원장 기록·대상 실행 없음, allow 0·require-human 2·deny 1). `policy baseline --confirm`만 현재 설정 또는 설정 없는 기본 off 상태를 사람이 고정하는 고위험 쓰기 명령이며 자동 생성·갱신하지 않음. 한글: `정책 단계`·`정책 위험도`·`정책 보기`·`정책 검사`·`정책 기준선` |
-
-> `policy-baseline`은 위 `policy baseline` 하위 명령의 구현 모듈명이며 별도 최상위 명령이 아닙니다.
+| `vhk policy` | 자율 실행 권한 정책. `level`·`risk`·`show`·`check -- <실행파일 argv...>`은 읽기 전용(원장 기록·대상 실행 없음, allow 0·require-human 2·deny 1). `check`에는 파이프·연쇄·치환을 붙이지 않고 각 명령을 따로 전달. `policy baseline --confirm`만 현재 설정 또는 설정 없는 기본 off 상태를 사람이 고정하는 고위험 쓰기 명령이며 자동 생성·갱신하지 않음. 한글: `정책 단계`·`정책 위험도`·`정책 보기`·`정책 검사`·`정책 기준선` |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |
 | `vhk cloud` | .vhk 비공개 Gist 백업·복원 (push/pull). 공개 Gist·링크 경계·비호환/충돌 파일명·부분 fetch는 쓰기 전에 실패 폐쇄 |
 | `vhk ship` | 배포 체크리스트 + 회고 |
@@ -297,6 +297,8 @@ vhk doctor
 | `vhk evolve` | 패턴 → 룰 후보 제안·반영·undo |
 | `vhk seo` | SEO·수익 대시보드 (init: 사이트 등록 + 자격증명 보관) |
 | `vhk help` | 기본 명령 도움말 (`--all` = 전체 명령) |
+
+> `policy-baseline`은 위 `policy baseline` 하위 명령의 구현 모듈명이며 별도 최상위 명령이 아닙니다.
 
 > 내부 구현 파일(verify-report·memory-eval)은 독립 명령이 아님 — 각각 `vhk verify --report`,
 > `vhk memory eval` 로 노출됩니다.

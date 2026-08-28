@@ -21,7 +21,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![MCP](https://img.shields.io/badge/MCP-35_tools-8A2BE2)
 
-**[30초 시작](#30초-시작) · [VHK vs 맨 에이전트](#vhk-vs-맨-에이전트) · [핵심 루프](#핵심-루프) · [명령 전체](#명령-전체)**
+**[v2.15 핵심](#v215-핵심) · [30초 시작](#30초-시작) · [VHK vs 맨 에이전트](#vhk-vs-맨-에이전트) · [핵심 루프](#핵심-루프) · [명령 전체](#명령-전체)**
 
 </div>
 
@@ -56,9 +56,18 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
   vhk work
 ```
 
+## v2.15 핵심
+
+- **기본-off 안전 정책** — `vhk policy level/risk/show/check`로 권한 단계·위험도·허용목록·호출 수·시간 한도를 조회하고 판정합니다. 대상 명령을 실행하거나 자동 집행을 켜지는 않습니다.
+- **증거 기준선 분리** — `vhk receipt --mark-start`는 intent/forbidden 대조용 변경 범위의 시작 SHA만 기록합니다. `receipt`는 발행 중 새 검증을 실행하고, 검증 시작 HEAD·dirty와 게이트 종료 후 상태를 비교해 stale 여부를 판정합니다.
+- **안정적인 마감** — `vhk goal next`는 BLOCKED·DEFERRED·OBSERVING을 완료로 오인하지 않고, 미해결 Goal 없이 DONE/CANCELED만 남은 종결 상태를 반복 조회해도 완료 시각이나 백업을 다시 만들지 않습니다. 생성되는 gate skill은 모든 Goal이 정상 DONE인 branch closeout을 `review N/A`와 branch receipt 경로로 안내합니다.
+
+자동 집행과 `enforce` 활성화는 2.15 범위가 아닙니다. 관찰 게이트를 충족하고 사람이 계속을 결정한 뒤 2.16에서 다룹니다.
+
 <details>
 <summary>목차</summary>
 
+- [v2.15 핵심](#v215-핵심)
 - [왜 VHK인가](#왜-vhk인가)
 - [30초 시작](#30초-시작)
 - [VHK vs 맨 에이전트](#vhk-vs-맨-에이전트)
@@ -179,7 +188,7 @@ vhk check --json   # declaredRules·checkedRules·uncheckedRules·coveragePercen
 
 Goal은 `goals/*.md`와 `scripts/check-goal-<id>.mjs`를 연결합니다. `vhk goal done`은 게이트를 다시 돌려 통과할 때만 DONE으로 전이합니다. 선택 필드 `depends_on: 1,2`를 쓰면 두 Goal이 모두 DONE이 되기 전에는 다음 작업이나 완료 대상으로 선택되지 않습니다. 블로커가 반복되면(3건 누적) `.vhk/HARD_STOP`으로 진행을 멈춥니다.
 
-`vhk goal next`는 BLOCKED·DEFERRED·OBSERVING을 완료로 오인하지 않으며 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각만 갱신해 무효화합니다. 실제 모든 Goal 완료 스냅샷은 한 번만 기록해 반복 조회가 시각과 백업을 늘리지 않습니다.
+`vhk goal next`는 선택 가능한 Goal 없이 BLOCKED·DEFERRED·OBSERVING만 남으면 완료로 오인하지 않고 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각을 함께 무효화합니다. 미해결 Goal 없이 DONE/CANCELED만 남은 종결 상태에서는 기존 `next-task.md`가 있을 때만 백업 후 완료 스냅샷으로 갱신하며, 파일이 없으면 새로 만들지 않습니다. 이미 완료 스냅샷이면 아무것도 쓰지 않아 시각과 백업이 늘지 않습니다.
 
 ```powershell
 vhk goal next
@@ -274,8 +283,7 @@ vhk policy check -- pnpm typecheck
 vhk 정책 검사 -- pnpm typecheck
 ```
 
-단순 질문은 `vhk pnpm typecheck 실행 가능해?`처럼 자연어로도 검사할 수 있습니다. 따옴표·파이프·연쇄
-명령처럼 셸 해석이 필요한 입력은 일부만 낙관 판정하지 않고 거부하므로 위 명시형을 사용하세요.
+단순 질문은 `vhk pnpm typecheck 실행 가능해?`처럼 자연어로도 검사할 수 있습니다. 명시형도 **단일 실행 파일과 argv만** 지원합니다. 파이프·연쇄(`&&`, `;`)·명령 치환을 붙이면 셸이 VHK 밖에서 실제 명령을 실행할 수 있으므로 절대 붙이지 말고, 각 명령을 따로 검사하세요.
 
 활성화 설정이 없으면 조회 표면은 판정만 하고 실행 집행이나 정책 원장 기록을 시작하지 않습니다.
 
@@ -285,7 +293,7 @@ vhk 정책 검사 -- pnpm typecheck
 vhk verify     # 게이트 실행 → 확인이 필요한 항목의 경과 시간·숨긴 횟수 표시 + .vhk/reports/latest.json
 vhk verify --dismiss lint-gate  # 현재 알림 숨기기(같은 문제가 다시 발생하면 다시 표시)
 vhk review     # 최신 증거와 goal 완료조건 교차검증
-vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·verify SHA 신선도·diff-cover)로 완료 보고 검증 (LLM 0)
+vhk receipt    # 4대 기계증거(verify 5개 게이트·git dirty·verify SHA 신선도·diff-cover)로 완료 보고 검증 (LLM 0)
 vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
 ```
 
@@ -309,7 +317,7 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 ```
 
 30초 재현: 아무 프로젝트에서 `vhk receipt --mark-start` → 코드 수정(커밋 X, 테스트 깨진 채) → `vhk receipt`.
-`--mark-start`는 변경·의도 대조의 시작점을 고정하고, stale은 최신 verify SHA·dirty와 현재 HEAD·dirty를 비교합니다.
+`--mark-start`는 intent/forbidden 대조용 변경 범위의 시작 SHA만 기록합니다. `receipt`는 발행 중 `verify`를 새로 실행해 검증 시작 HEAD·dirty와 게이트 종료 후 현재 상태를 비교합니다. 어느 한쪽 커밋을 식별할 수 없어 stale 여부가 미상이면 CAUTION(exit 0), 식별된 상태가 실제로 어긋날 때만 BLOCK(exit 1)입니다.
 판정은 종료코드·git dirty·SHA 같은 기계증거 기반이며 LLM 추론이 아닙니다 — 그래서 "그럴듯한 말"에 안 속습니다.
 (한계도 정직하게: 게으른 허위 완료 보고를 잡는 도구지, 그럴듯하게 틀린 코드까지 잡지는 못합니다.)
 
@@ -345,7 +353,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | 그룹 | 도구 |
 | --- | --- |
 | Git/세션 | `save`, `undo`, `status`, `diff`, `ship`, `recap` |
-| 진단/품질 | `doctor`, `check`, `secure`, `audit`, `harness`, `policy` |
+| 진단/품질 | `doctor`, `check`, `secure`, `audit`, `harness` |
 | 환경/규칙 | `env`, `env-check`, `sync`, `mcp-init` |
 | 컨텍스트/기억 | `context`, `context-show`, `brief`, `loop-brief`, `remind`, `memory-list`, `learn` |
 | 풀사이클 뒷단 | `content`, `launch`, `ops`, `sell` |
@@ -367,7 +375,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | 풀사이클 뒷단 | `vhk content`, `vhk launch`, `vhk ops`, `vhk sell` | 콘텐츠/런칭/운영/판매 초안 프롬프트 생성 (초안만, 게시·발송·결제는 사람이) · RULES.md 치명 규칙 자동 상속 · 과거 교훈(`.vhk/memory`) ≤3 자동 회상 주입 — 다음 사이클로 복리 |
 | Goal | `vhk goal init/list/next/check/done/sync/drift` | 단계별 목표, 게이트, 상태 불일치(drift) 관리 |
 | Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 완료 보고 검증, 검증 리포트, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
-| 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan` | HARD_STOP, safety mode, 시크릿 스캔 |
+| 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan`, `vhk policy level/risk/show/check/baseline` | HARD_STOP, safety mode, 시크릿 스캔, 기본-off 실행 정책 조회·판정·기준선 |
 | Git | `vhk status`, `vhk diff`, `vhk save`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인(아직 시작하지 않은 작업 수·가장 오래된 작업 포함), 커밋/푸시, 되돌리기, 세션 로그 |
 | 환경/품질 | `vhk doctor`, `vhk check`, `vhk env`, `vhk env-check`, `vhk harness`, `vhk audit`, `vhk worktree check/add` | 개발환경, RULES 린트, env, 통합 품질, 보안 감사, worktree 가드 |
 | 배포/패키지 | `vhk ship`, `vhk deploy`, `vhk publish`, `vhk update`, `vhk migrate` | 배포 체크, 배포 실행, npm 릴리스 자동화, 셀프 업데이트, 패키지 매니저 전환 |
