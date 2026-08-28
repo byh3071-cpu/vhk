@@ -35,7 +35,7 @@ export interface ReceiptLogEntry {
   gateStatus: ReportStatus
   /** git dirty(자기파일 제외 후). */
   dirty: boolean
-  /** stale. staleKnown=false(기준선 미기록)면 null — 모름을 false 로 위장하지 않음. */
+  /** stale. staleKnown=false(검증 SHA 또는 현재 HEAD 미상)면 null — 모름을 false 로 위장하지 않음. */
   stale: boolean | null
   /** 변경라인 커버율. diff-cover 미측정 → null. */
   diffCoverRatio: number | null

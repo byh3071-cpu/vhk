@@ -650,8 +650,8 @@ program
   .command('receipt')
   .alias('증거영수증')
   .option('--json', '영수증 JSON 을 stdout 으로 출력 (CI/기계용 — block 이면 exit 1)')
-  .option('--mark-start', '현재 HEAD 를 작업시작 기준선으로 기록 (이후 stale 비교 기준)')
-  .option('--since <sha>', 'stale 비교 기준 SHA 를 명시 (.base-sha 무시)')
+  .option('--mark-start', '현재 HEAD 를 작업시작 기준선으로 기록 (이후 변경·의도 대조 기준)')
+  .option('--since <sha>', '변경·의도 대조 기준 SHA 를 명시 (.base-sha 무시)')
   .description('증거 영수증 — 4대 기계증거(종료코드·dirty·stale·diff-cover)로 거짓완료 판정 (.vhk/receipts/)')
   .action(async (opts: { json?: boolean; markStart?: boolean; since?: string }) => { await receipt(opts) })
 

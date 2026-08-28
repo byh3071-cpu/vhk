@@ -96,9 +96,13 @@ VHK가 파는 것은 "코드 생성"도 "더 똑똑한 리뷰"도 아니다. **"
 ## §6. 90일 첫 쐐기 — 명령 하나 `vhk receipt`
 
 어느 에이전트가 "완료"라 말하든, 그 순간:
-- ① tsc/test/build 실종료코드 ② git dirty ③ stale(작업시작 SHA ≠ 현재 HEAD) ④ 변경라인 diff-cover
+- ① tsc/test/build 실종료코드 ② git dirty ③ stale(verify SHA 불일치 또는 어느 한쪽 dirty) ④ 변경라인 diff-cover
 
 를 수집해 `.vhk/receipts/<날짜-슬러그>.{json,md}` 영수증 1장으로 굳히고, 기계증거가 모순이면(dirty/stale/red) **decision=block을 LLM 판단 0으로** 낸다.
+
+> **2026-08-28 개정(Goal 137 · TS-007):** 작업시작 SHA는 intent의 커밋된 변경 범위 기준으로만
+> 유지한다. ③ stale은 verify 리포트 SHA·dirty와 현재 HEAD·dirty를 대조한다. 정상적인 A→B
+> 작업 커밋 자체를 stale로 보지 않으며, stale 복구는 `vhk verify` 재실행이다.
 
 > **정직 경계(2026-06-23 적대검증 반영 · §11):** ④ diff-cover는 advisory 약신호다 — "테스트 실행 도달"이지 "정확성"이 아니라, 그럴듯하게 틀린 코드(assertion 0·틀린 assert)는 구조적으로 못 잡는다(`diff-coverage.ts:42`·`diff-cover.ts:69`). 따라서 receipt가 실제로 잡는 것은 **"게으른 거짓완료"(빌드 깨짐·미커밋·stale)에 한정**되며, 이는 정밀화로 넓혀지지 않는다(한계가 정밀도가 아니라 "커버리지=실행도달" 정의). 그러므로 4대 증거를 "거짓완료를 전부 잡는다"로 팔지 않고, 산출물 .md 정직성 1줄에 경계를 박는다 — *"이 영수증은 게으른 거짓완료를 잡지, 미묘한 오류는 못 잡는다."*
 

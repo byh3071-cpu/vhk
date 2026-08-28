@@ -115,10 +115,10 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
 | 영수증 떼기 (4대 기계증거) | `vhk receipt` | "증거 영수증 떼줘" |
-| 작업시작 기준선 기록 | `vhk receipt --mark-start` | "작업 시작점 찍어줘" |
+| 변경·의도 대조 기준선 기록 | `vhk receipt --mark-start` | "작업 시작점 찍어줘" |
 | 기계용 JSON 출력 | `vhk receipt --json` | — |
 
-> `receipt` 는 에이전트가 "됐어요"라고 한 순간, **4대 기계증거**(① tsc/test/build 실종료코드 ② git dirty ③ 작업시작 SHA≠HEAD stale ④ 변경라인 diff-cover)를 모아 `.vhk/receipts/<날짜-decision-시각>.{json,md}` 영수증 1장으로 굳힙니다. `decision = block|caution|pass` 는 **기계증거로만(LLM 추론 0)** — 실차단(red·dirty·stale·mission forbidden 위반) 중 하나라도면 block, ④ diff-cover 는 advisory(약신호)라 차단시키지 못합니다. block 이면 exit 1. **이 영수증은 게으른 거짓완료(빌드 깨짐·미커밋·낡은 증거)를 잡지, 미묘한 오류(그럴듯하게 틀린 코드)는 못 잡습니다.**
+> `receipt` 는 에이전트가 "됐어요"라고 한 순간, **4대 기계증거**(① tsc/test/build 실종료코드 ② git dirty ③ verify SHA·dirty와 현재 HEAD·dirty의 stale 대조 ④ 변경라인 diff-cover)를 모아 `.vhk/receipts/<날짜-decision-시각>.{json,md}` 영수증 1장으로 굳힙니다. `--mark-start` 기준선은 stale 판정이 아니라 작업 이후의 커밋된 변경까지 intent/forbidden 검사에 포함하는 데 씁니다. `decision = block|caution|pass` 는 **기계증거로만(LLM 추론 0)** — 실차단(red·dirty·stale·mission forbidden 위반) 중 하나라도면 block, ④ diff-cover 는 advisory(약신호)라 차단시키지 못합니다. block 이면 exit 1. **이 영수증은 게으른 거짓완료(빌드 깨짐·미커밋·낡은 증거)를 잡지, 미묘한 오류(그럴듯하게 틀린 코드)는 못 잡습니다.**
 
 ## 미션 계약 (mission)
 

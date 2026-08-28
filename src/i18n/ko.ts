@@ -402,7 +402,7 @@ export const ko = {
   receipt: {
     title: '검증 리포트',
     noCommit: 'git 커밋을 찾을 수 없습니다 — 작업시작 기준선을 기록하려면 커밋이 1개 이상 필요합니다.',
-    markStartDone: '작업시작 기준선 SHA 기록 완료 (이후 stale 비교 기준):',
+    markStartDone: '작업시작 기준선 SHA 기록 완료 (이후 변경·의도 대조 기준):',
     nextBlockMessage: '🔴 기계증거가 "됐어요"와 모순 — 아직 완료 아님. 막힌 증거(red/dirty/stale/forbidden)부터 고치세요:',
     learnBlockHint: 'receipt BLOCK — 막힌 증거 원인과 재발방지',
     nextCautionMessage: '🟡 실차단은 없으나 약신호 있음(수동 확인 권장). 보강 후 다시 떼세요:',
@@ -410,9 +410,9 @@ export const ko = {
     // Goal 87 방향 2-1: glob 미지원 문법 경고 — 거짓 안전을 caution 으로 드러냄.
     unsupportedForbiddenGlob: (n: number) =>
       `forbidden 패턴 ${n}개에 미지원 glob 문법(!, {}, [], 후행 /) — 해당 forbidden 검증 무효. 지원: *, **, ?`,
-    // Goal 87 방향 3-④: 작업시작 기준선 SHA 가 실제 커밋이 아님(위조·오타·다른 레포) — 무효 처리(거짓 stale 방지).
+    // Goal 87 방향 3-④: 작업시작 기준선 SHA 가 실제 커밋이 아님(위조·오타·다른 레포) — intent 기준에서 제외.
     invalidBaseSha: (sha: string) =>
-      `작업시작 기준선 SHA(${sha})가 이 레포의 커밋이 아닙니다 — 무효 처리(stale 판정 제외). vhk receipt --mark-start 로 다시 고정하세요.`,
+      `작업시작 기준선 SHA(${sha})가 이 레포의 커밋이 아닙니다 — 변경·의도 대조에서 제외합니다. vhk receipt --mark-start 로 다시 고정하세요.`,
   },
   worktree: {
     checkTitle: '🌳 Worktree env 점검',

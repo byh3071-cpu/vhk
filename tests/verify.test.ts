@@ -9,6 +9,7 @@ import {
   buildReport,
   buildNextActions,
   buildVerifyAdvisories,
+  checkEvidenceFreshness,
   dismissVerifyAdvisory,
   formatVerifyAdvisory,
   detectPm,
@@ -28,6 +29,8 @@ import {
 } from '../src/lib/gates-config.js'
 import { collectReceipt } from '../src/commands/receipt.js'
 import { readActionLedger } from '../src/lib/action-ledger.js'
+import { getCommitInfo } from '../src/lib/git-repo.js'
+import { removeDirSync } from '../src/lib/fs-remove.js'
 
 function gate(id: GateResult['id'], status: GateResult['status'], exitCode: number | null = 0): GateResult {
   return { id, label: id, status, exitCode, skipped: status === 'skip' }
@@ -222,6 +225,44 @@ describe('gates-config — 검사 도입 의도 reader', () => {
 })
 
 describe('verify — verifyEvidence (실제 게이트 + 증거 기록)', () => {
+  it('게이트 실행 중 HEAD가 이동하면 시작 커밋에 증거를 묶어 stale로 판정한다', () => {
+    const d = tmp()
+    try {
+      execFileSync('git', ['init'], { cwd: d, stdio: 'pipe' })
+      execFileSync('git', ['config', 'user.name', 'VHK Test'], { cwd: d, stdio: 'pipe' })
+      execFileSync('git', ['config', 'user.email', 'vhk-test@users.noreply.github.com'], { cwd: d, stdio: 'pipe' })
+      fs.writeFileSync(
+        path.join(d, 'advance.cjs'),
+        [
+          "const { writeFileSync } = require('node:fs')",
+          "const { execFileSync } = require('node:child_process')",
+          "writeFileSync('during-gate.txt', 'advanced\\n')",
+          "execFileSync('git', ['add', 'during-gate.txt'])",
+          "execFileSync('git', ['commit', '-m', 'advance during gate'])",
+        ].join('\n'),
+        'utf-8',
+      )
+      fs.writeFileSync(
+        path.join(d, 'package.json'),
+        JSON.stringify({ name: 'moving-head', version: '0.0.0', scripts: { 'test:run': 'node advance.cjs' } }),
+        'utf-8',
+      )
+      execFileSync('git', ['add', '.'], { cwd: d, stdio: 'pipe' })
+      execFileSync('git', ['commit', '-m', 'verified baseline'], { cwd: d, stdio: 'pipe' })
+      const before = getCommitInfo(d)
+
+      const { report } = verifyEvidence(d)
+      const after = getCommitInfo(d)
+
+      expect(before).not.toBeNull()
+      expect(after?.sha).not.toBe(before?.sha)
+      expect(report.commit?.sha).toBe(before?.sha)
+      expect(checkEvidenceFreshness(report, after).stale).toBe(true)
+    } finally {
+      removeDirSync(d)
+    }
+  }, 30_000)
+
   it('scripts 없으면 외부 게이트 skip → WARN, latest.json 항상 생성 + 스키마 통과', () => {
     const d = tmp()
     fs.writeFileSync(path.join(d, 'package.json'), JSON.stringify({ name: 'tp', version: '0.0.0' }), 'utf-8')
@@ -530,7 +571,7 @@ describe('verify — Goal 59: 스캔 불완전 → secure WARN (거짓 PASS 차�
 })
 
 // 멀티PC dirty-block(B축) — verify 가 events/ledger append 로 만든 dirty 를 저소음 단일 커밋으로
-// 정리한다. 단, 커밋은 verify 명령 본체에만(verifyEvidence 본체는 HEAD 불변 — receipt stale 보호).
+// 정리한다. 단, 커밋은 verify 명령 본체에만(verifyEvidence 본체는 HEAD 불변 — report/HEAD 바인딩 보호).
 describe('verify — 증거 원장 저소음 커밋 (멀티PC dirty-block B축)', () => {
   let origCwd: string
 
@@ -613,9 +654,8 @@ describe('verify — 증거 원장 저소음 커밋 (멀티PC dirty-block B축)'
   }, 30_000)
 
   // ★receipt 무회귀(치명)★ — verifyEvidence 본체는 HEAD 를 움직이지 않는다.
-  // (커밋은 verify 명령 본체에만. verifyEvidence 가 HEAD 를 옮기면 collectReceipt 가
-  //  verifyEvidence 직후 읽는 stale 판정이 거짓 true 가 됨 → 거짓 CAUTION/BLOCK.)
-  it('verifyEvidence 는 HEAD 를 이동시키지 않는다 (receipt stale 보호)', () => {
+  // 수집 중 HEAD가 이동하면 report.commit과 collectReceipt가 직후 읽는 HEAD가 어긋나 stale이 된다.
+  it('verifyEvidence 는 HEAD 를 이동시키지 않는다 (report/HEAD 바인딩 보호)', () => {
     const d = makeRepo()
     const before = headSha(d)
     verifyEvidence(d) // 게이트+증거기록만 — 커밋 없음

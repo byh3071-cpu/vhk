@@ -281,7 +281,7 @@ vhk 정책 검사 -- pnpm typecheck
 vhk verify     # 게이트 실행 → 확인이 필요한 항목의 경과 시간·숨긴 횟수 표시 + .vhk/reports/latest.json
 vhk verify --dismiss lint-gate  # 현재 알림 숨기기(같은 문제가 다시 발생하면 다시 표시)
 vhk review     # 최신 증거와 goal 완료조건 교차검증
-vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·stale SHA·diff-cover)로 완료 보고 검증 (LLM 0)
+vhk receipt    # 4대 기계증거(tsc/test/build 종료코드·git dirty·verify SHA 신선도·diff-cover)로 완료 보고 검증 (LLM 0)
 vhk preflight  # 2FA·shim·env·lint·type·test·git·branch·docs freshness 출고 전 점검
 ```
 
@@ -294,7 +294,7 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 🧾 검증 리포트 (receipt)
 ────────────────────────────────────────────
   판정: 🔴 BLOCK
-  HEAD: adb79f9  ·  작업시작: adb79f9  ·  게이트: FAIL
+  HEAD: adb79f9  ·  작업기준: adb79f9  ·  게이트: FAIL
 
    • 게이트 실패(실종료코드 ≠ 0): test — red
    • working tree 가 dirty — 미커밋/untracked 변경 있음(자기파일 제외 후에도)
@@ -305,6 +305,7 @@ AI가 "구현 완료했습니다!"라고 말했지만 실제로는 테스트가 
 ```
 
 30초 재현: 아무 프로젝트에서 `vhk receipt --mark-start` → 코드 수정(커밋 X, 테스트 깨진 채) → `vhk receipt`.
+`--mark-start`는 변경·의도 대조의 시작점을 고정하고, stale은 최신 verify SHA·dirty와 현재 HEAD·dirty를 비교합니다.
 판정은 종료코드·git dirty·SHA 같은 기계증거 기반이며 LLM 추론이 아닙니다 — 그래서 "그럴듯한 말"에 안 속습니다.
 (한계도 정직하게: 게으른 허위 완료 보고를 잡는 도구지, 그럴듯하게 틀린 코드까지 잡지는 못합니다.)
 

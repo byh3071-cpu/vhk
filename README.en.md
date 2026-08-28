@@ -138,7 +138,7 @@ personal repository names, and real external-service object IDs. Rejected raw in
 **3. Trust / evidence gates**
 - `vhk verify` — runs 5 gates, shows advisory age/dismiss count, and writes `.vhk/reports/latest.json`
 - `vhk review` — cross-checks the latest evidence against the goal's done-conditions
-- `vhk receipt` — 4 machine proofs (tsc/test/build exit codes, git dirty, stale SHA, diff-cover) to catch false "done", **zero LLM**
+- `vhk receipt` — 4 machine proofs (tsc/test/build exit codes, git dirty, verify-SHA freshness, diff-cover) to catch false "done", **zero LLM**
 - `vhk preflight` — pre-ship checks (2FA / shim / env / lint / type / test / git / branch)
 
 ## MCP — 35 tools
