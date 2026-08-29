@@ -19,8 +19,12 @@ vi.mock('../src/lib/config.js', async () => {
 describe('guardCli 프롬프트 오류 신호', () => {
   let stdinTtyDescriptor: PropertyDescriptor | undefined
   let originalArgv: string[]
+  let stdoutErrorListeners: ReturnType<typeof process.stdout.listeners>
+  let stderrErrorListeners: ReturnType<typeof process.stderr.listeners>
 
   beforeEach(() => {
+    stdoutErrorListeners = process.stdout.listeners('error')
+    stderrErrorListeners = process.stderr.listeners('error')
     stdinTtyDescriptor = Object.getOwnPropertyDescriptor(process.stdin, 'isTTY')
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
     originalArgv = process.argv
@@ -30,6 +34,12 @@ describe('guardCli 프롬프트 오류 신호', () => {
   })
 
   afterEach(() => {
+    for (const listener of process.stdout.listeners('error')) {
+      if (!stdoutErrorListeners.includes(listener)) process.stdout.removeListener('error', listener)
+    }
+    for (const listener of process.stderr.listeners('error')) {
+      if (!stderrErrorListeners.includes(listener)) process.stderr.removeListener('error', listener)
+    }
     if (stdinTtyDescriptor) {
       Object.defineProperty(process.stdin, 'isTTY', stdinTtyDescriptor)
     } else {
