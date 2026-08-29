@@ -779,7 +779,7 @@ export async function verify(
             : '검증 통과(일부 게이트 skip). 저장하려면:'
           : '검증 통과! 저장하려면:',
       command: 'vhk save',
-      cursorHint: '저장해줘',
+      cursorHint: 'vhk save --no-push로 로컬 저장해줘',
     })
   }
 }

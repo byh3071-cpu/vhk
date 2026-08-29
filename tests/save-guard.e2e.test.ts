@@ -76,6 +76,8 @@ describe('save 가드 실배선 (#611/ADR-021 e2e)', () => {
     const r = runCli(dir, ['save'])
     expect(r.status, r.output).toBe(1)
     expect(r.output).toContain('실행하지 않았습니다')
+    expect(r.output).toContain('--yes')
+    expect(r.output).toContain('--no-push')
     expect(headOf(dir)).toBe(before)
     expect(bareHead(bare)).toBe(before)
   })
@@ -87,6 +89,16 @@ describe('save 가드 실배선 (#611/ADR-021 e2e)', () => {
     const r = runCli(dir, ['save', '--no-push', '-m', 'test: no-push'])
     expect(r.status, r.output).toBe(0)
     expect(headOf(dir)).not.toBe(before) // commander --no-push → opts.push===false 환원 검증
+    expect(bareHead(bare)).toBe(before)
+  })
+
+  it('정확한 한글 Commander 별칭 `vhk 저장 --no-push`도 로컬 커밋만 수행', () => {
+    const { dir, bare } = makeRepo()
+    const before = headOf(dir)
+    touch(dir)
+    const r = runCli(dir, ['저장', '--no-push', '-m', 'test: korean alias'])
+    expect(r.status, r.output).toBe(0)
+    expect(headOf(dir)).not.toBe(before)
     expect(bareHead(bare)).toBe(before)
   })
 
@@ -108,6 +120,8 @@ describe('save 가드 실배선 (#611/ADR-021 e2e)', () => {
     const r = runCli(dir, ['저장해줘'])
     expect(r.status, r.output).toBe(1)
     expect(r.output).toContain('미리보기')
+    expect(r.output).toContain('vhk save --yes')
+    expect(r.output).toContain('vhk save --no-push')
     expect(headOf(dir)).toBe(before)
     expect(bareHead(bare)).toBe(before)
   })
@@ -130,6 +144,8 @@ describe('save 가드 실배선 (#611/ADR-021 e2e)', () => {
     touch(dir)
     const r = runCli(dir, ['save', '-m', 'test: strict unapproved'])
     expect(r.status, r.output).toBe(1)
+    expect(r.output).toContain('--yes')
+    expect(r.output).toContain('--no-push')
     expect(headOf(dir)).toBe(before)
     expect(bareHead(bare)).toBe(before)
   })

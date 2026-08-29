@@ -81,6 +81,7 @@ async function guardCli(
   run: () => Promise<void> | void,
   target?: string, // Goal 57: 위험 대상(파일/경로) — risk-policy 글롭 차원 + 행동원장 target 기록.
   isTTY?: boolean, // #611 P2-i: 대화형이 경험적으로 증명된 경로(메뉴 — inquirer 응답을 이미 받음)만 true 주입.
+  approvalHint?: string,
 ): Promise<boolean> {
   // VHK-020: HARD_STOP 활성 시 high-risk CLI 작업(save/deploy/publish/sync/migrate/cloud-pull/env-write) 차단.
   if (!ensureNotHardStopped(action)) return false
@@ -91,21 +92,17 @@ async function guardCli(
       approved,
       target,
       isTTY,
+      approvalHint,
       confirm: async () => {
-        try {
-          const { ok } = await prompt<{ ok: boolean }>([{
-            type: 'confirm',
-            name: 'ok',
-            message: `⚠️ 위험 작업(${action})을 실행할까요?`,
-            default: false,
-          }])
-          return ok
-        } catch (err) {
-          // #153: Ctrl+C/ESC 중단 신호는 삼키지 않고 전파(top-level 핸들러가 exit 2 처리).
-          // 그 외 프롬프트 실패만 "승인 없음"으로 처리한다(#611 P2-j).
-          if (isPromptAbortError(err)) throw err
-          return false
-        }
+        // 프롬프트가 답을 반환한 `false`만 사람의 거절이다. 예외는 상위 처리기로 전파해
+        // abort는 exit 2, 그 밖의 오류는 exit 1로 끝내며 성공으로 위장하지 않는다.
+        const { ok } = await prompt<{ ok: boolean }>([{
+          type: 'confirm',
+          name: 'ok',
+          message: `⚠️ 위험 작업(${action})을 실행할까요?`,
+          default: false,
+        }])
+        return ok
       },
       log: (m) => console.log(chalk.yellow(`  ${m}`)),
     },
@@ -166,10 +163,17 @@ async function guardSave(
   // 증명됐다(에이전트 파이프는 list 프롬프트를 통과하지 못함). 이 경로만 isTTY 를 주입해
   // MinTTY(stdin.isTTY=false) 메뉴 저장이 플래그를 줄 수 없는 막다른 길이 되는 것을 막는다.
   const isTTY = ctx.menu ? true : undefined
+  const approvalHint = '--yes(원격 push 포함) 또는 --no-push(로컬 커밋만)'
   // #611: 하위 폴더에서도 루트 strict 설정을 잃지 않는다(runGuarded 와 동일 해석).
   const ran = readConfigFromProjectRoot().safetyMode === 'strict'
-    ? await guardCli('save', approved, runSave, undefined, isTTY)
-    : await guardCliDefer('save', approved, runSave, '--yes', isTTY)
+    ? await guardCli('save', approved, runSave, undefined, isTTY, approvalHint)
+    : await guardCliDefer(
+        'save',
+        approved,
+        runSave,
+        approvalHint,
+        isTTY,
+      )
   if (!ran) process.exitCode = 1
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
@@ -396,9 +400,9 @@ program
 program
   .command('save')
   .alias('저장')
-  .option('--yes', '확인 없이 실행 (비-TTY/에이전트 필수 — 위험 작업 명시 승인)')
+  .option('--yes', '원격 push 포함 실행을 명시 승인 (비-TTY/에이전트)')
   .option('-m, --message <msg>', '커밋 메시지 직접 지정 (비-TTY/에이전트용 — 프롬프트 생략)')
-  .option('--no-push', '커밋만 하고 원격 push 생략 (에이전트 권장 — 반출은 사람이)')
+  .option('--no-push', '로컬 커밋만 실행하고 원격 push 생략 (--yes 대신 사용 가능)')
   .description('변경사항 저장 (git add → commit → push)')
   // #611/ADR-021: save 는 high-risk(push=원격 반출) — 채널별 적용은 guardSave 한 곳.
   .action(async (opts: { yes?: boolean; message?: string; push?: boolean }) => { await guardSave(opts) })
@@ -1295,32 +1299,22 @@ const isMainModule =
 const isEpipeError = (err: unknown): boolean =>
   err instanceof Error && (err as NodeJS.ErrnoException).code === 'EPIPE'
 
-if (isMainModule) {
-  // POSIX 는 파이프 write 가 비동기 → EPIPE 가 'error' 이벤트로 온다(여기서 흡수). Windows 는 동기 →
-  // throw 되어 아래 try/catch 로 잡힌다. 양쪽 모두 0 종료. (isMainModule 안에서만 등록 = 테스트 격리.)
-  const swallowEpipe = (stream: NodeJS.WriteStream): void => {
-    stream.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code === 'EPIPE') process.exit(0)
-      throw err
-    })
-  }
-  swallowEpipe(process.stdout)
-  swallowEpipe(process.stderr)
+async function runCliMain(argv: string[] = process.argv): Promise<void> {
   // VHK-014: parseAsync 를 try/catch 로 감싸 unsettled top-level await 경고 제거 +
   // 비-TTY/EOF 프롬프트 크래시(ERR_USE_AFTER_CLOSE)를 friendly 종료로 처리.
   try {
     // 드리프트 3종(#314·#344·#345): 등록 명령에 잘못된 인자 조합 → raw 영어 에러/cross-misroute 대신
     // 한국어 친절 안내 + exit 1(미인식과 동일 실패 신호 — 조용한 성공 위장 차단).
-    const usageMsg = detectInvalidCommandUsage(process.argv)
+    const usageMsg = detectInvalidCommandUsage(argv)
     if (usageMsg !== null) {
       console.error(chalk.yellow(`\n  ❓ ${usageMsg}\n`))
       process.exitCode = 1
     } else {
-      const nlInput = detectNaturalLanguageInput(process.argv)
+      const nlInput = detectNaturalLanguageInput(argv)
       if (nlInput !== null) {
         await runNaturalLanguageRoute(nlInput)
       } else {
-        await program.parseAsync(process.argv)
+        await program.parseAsync(argv)
       }
     }
   } catch (err) {
@@ -1340,4 +1334,18 @@ if (isMainModule) {
   }
 }
 
-export { program }
+if (isMainModule) {
+  // POSIX 는 파이프 write 가 비동기 → EPIPE 가 'error' 이벤트로 온다(여기서 흡수). Windows 는 동기 →
+  // throw 되어 runCliMain 의 try/catch 로 잡힌다. 양쪽 모두 0 종료. (직접 실행 때만 등록 = 테스트 격리.)
+  const swallowEpipe = (stream: NodeJS.WriteStream): void => {
+    stream.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EPIPE') process.exit(0)
+      throw err
+    })
+  }
+  swallowEpipe(process.stdout)
+  swallowEpipe(process.stderr)
+  await runCliMain(process.argv)
+}
+
+export { program, runCliMain }

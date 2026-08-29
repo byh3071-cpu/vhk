@@ -240,7 +240,13 @@ export async function runNaturalLanguageRoute(input: string): Promise<void> {
     )
     // #611 P1-5: 가드가 실행을 막았는데 exit 0 이면 스크립트 체인(`vhk 저장해줘 && …`)이
     // 성공으로 오판 — 미인식(#346)·TTY_REQUIRED 와 같은 원칙으로 비-0 종료.
-    if (!outcome.ran) process.exitCode = 1
+    if (!outcome.ran) {
+      process.exitCode = 1
+      if (riskAction === 'save') {
+        console.log(chalk.yellow('  실행: vhk save --yes -m "메시지" (commit+push)'))
+        console.log(chalk.yellow('  로컬만: vhk save --no-push -m "메시지"'))
+      }
+    }
     return
   }
 

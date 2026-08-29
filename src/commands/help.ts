@@ -54,7 +54,7 @@ export function formatRootHelp(
 export const QUICK_ACTIONS: ReadonlyArray<{ say: string; does: string }> = [
   { say: '상태 알려줘', does: 'vhk status' },
   { say: '뭐 바뀌었어?', does: 'vhk diff' },
-  { say: '저장해줘', does: 'vhk save' },
+  { say: '저장해줘', does: '모드에 따라 미리보기·차단·경고 후 실행 — 명시 경로: vhk save --yes 또는 vhk save --no-push' },
   { say: '오늘 한 일 정리해줘', does: 'vhk recap' },
   { say: '다음에 뭐 하면 돼?', does: 'vhk goal next' },
   { say: '규칙 동기화해줘', does: 'vhk sync' },
