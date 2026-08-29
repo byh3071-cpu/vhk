@@ -64,7 +64,7 @@ export const ko = {
     successWithPush: '저장 + 원격 업로드 완료!',
     successLocal: '로컬 저장 완료!',
     successNoPush: '로컬 저장 완료! (--no-push — 원격 업로드 생략)',
-    noPushHint: '원격에 올리려면: git push (또는 vhk save --yes 로 push 포함 재실행 — 비-TTY 는 --yes 필수)',
+    noPushHint: '원격에 올리려면 내용 확인 후: git push (vhk save 재실행은 변경사항이 없어 push 되지 않음)',
     noRemote: '원격 저장소가 설정되지 않아 push를 건너뛰었습니다.',
     failed: '저장 실패',
     stagedAfterFail:

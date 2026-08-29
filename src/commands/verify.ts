@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import chalk from 'chalk'
-import { readConfig } from '../lib/config.js'
+import { readConfigFromProjectRoot } from '../lib/config.js'
 import { SAFETY_MODE_DESC } from '../lib/safety-mode.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
@@ -719,7 +719,8 @@ export async function verify(
 
   console.log(chalk.bold('\n🔎 검증 묶음 (verify)'))
   console.log(chalk.gray('─'.repeat(40)))
-  const mode = readConfig().safetyMode
+  // #611: 배너 표시도 가드와 같은 git 루트 해석 — 하위 폴더에서 strict 인데 standard 로 보이면 오신뢰.
+  const mode = readConfigFromProjectRoot().safetyMode
   console.log(chalk.dim(`  현재 Safety Mode: ${mode} — ${SAFETY_MODE_DESC[mode]}`))
 
   // 게이트별 한 줄

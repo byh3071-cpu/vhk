@@ -12,7 +12,8 @@ import {
   isHighRisk,
   resolveGuard,
 } from '../src/lib/risk-policy.js'
-import { readConfig, writeConfig, DEFAULT_CONFIG, CONFIG_PATH } from '../src/lib/config.js'
+import { spawnSync } from 'node:child_process'
+import { readConfig, readConfigFromProjectRoot, writeConfig, DEFAULT_CONFIG, CONFIG_PATH } from '../src/lib/config.js'
 
 function tmp(label: string): string {
   const dir = join(tmpdir(), `vhk-safety-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
@@ -105,5 +106,22 @@ describe('config — .vhk/config.json 읽기/쓰기', () => {
     writeConfig({ safetyMode: 'lite' })
     const parsed = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'))
     expect(parsed.safetyMode).toBe('lite')
+  })
+
+  it('#611: 하위 폴더 실행에서도 git 루트의 strict 를 잃지 않는다 (가드 우회 방지)', () => {
+    // 비-git 임시 디렉터리에선 cwd 폴백으로 동작
+    expect(readConfigFromProjectRoot().safetyMode).toBe('standard')
+    // git 저장소 루트에 strict 설정 → 하위 폴더로 이동해도 루트 설정을 읽어야 한다
+    const git = (args: string[]) => {
+      const r = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' })
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`)
+    }
+    git(['init'])
+    writeConfig({ safetyMode: 'strict' }, dir)
+    const sub = join(dir, 'src', 'deep')
+    mkdirSync(sub, { recursive: true })
+    process.chdir(sub)
+    expect(readConfig().safetyMode).toBe('standard') // cwd 기준(구 동작)은 strict 를 놓친다
+    expect(readConfigFromProjectRoot().safetyMode).toBe('strict') // 가드가 쓰는 해석
   })
 })

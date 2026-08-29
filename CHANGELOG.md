@@ -14,6 +14,14 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   stdin TTY 단일 축이라 `vhk save | tee` 오판이 없고, `VHK_FORCE_INTERACTIVE` 환경변수는 가드
   승인을 대신하지 못한다(Git Bash/MinTTY는 `--yes`로 승인 — 이후 save 자체 프롬프트는 탈출구가
   정상 동작). strict의 y/N에서 No를 답하면 이제 exit 1로 끝난다.
+- 가드의 safetyMode를 cwd가 아니라 git 루트의 `.vhk/config.json`으로 해석한다 — 저장소 하위
+  폴더에서 실행할 때 strict가 조용히 standard로 떨어져 확인 없이 push되던 우회를 봉인.
+- 종료 코드 범위 주의: 자연어 가드 차단 시 exit 1은 save 전용이 아니라 자연어로 부른 위험 작업
+  전체(undo·deploy·publish·sync 등)에 적용된다(이전 exit 0).
+- **마이그레이션**: 비-TTY/에이전트에서 `vhk save`를 호출하던 자동화는 `vhk save --yes -m "메시지"`
+  (권장: `--no-push` 추가 후 push는 사람이)로 바꿔야 한다. 바꾸지 않으면 조용한 push 대신
+  차단 안내 + exit 1로 끝난다. 이 변경을 싣는 버전(2.15.x 보안 복구 예외 vs major)은 발행 시점에
+  사람이 확정한다.
 
 ### Changed
 

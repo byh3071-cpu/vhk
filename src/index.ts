@@ -68,7 +68,7 @@ import { missionSet, missionShow, missionCheck, missionClear } from './commands/
 import { runGuarded } from './lib/safety-guard.js'
 import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
 import { isPromptAbortError, isInteractive, TTY_REQUIRED_EXIT_CODE } from './lib/interactive.js'
-import { readConfig } from './lib/config.js'
+import { readConfigFromProjectRoot } from './lib/config.js'
 
 /**
  * CLI high-risk 작업 가드 — 단일 chokepoint(runGuarded) 경유.
@@ -166,7 +166,8 @@ async function guardSave(
   // 증명됐다(에이전트 파이프는 list 프롬프트를 통과하지 못함). 이 경로만 isTTY 를 주입해
   // MinTTY(stdin.isTTY=false) 메뉴 저장이 플래그를 줄 수 없는 막다른 길이 되는 것을 막는다.
   const isTTY = ctx.menu ? true : undefined
-  const ran = readConfig().safetyMode === 'strict'
+  // #611: 하위 폴더에서도 루트 strict 설정을 잃지 않는다(runGuarded 와 동일 해석).
+  const ran = readConfigFromProjectRoot().safetyMode === 'strict'
     ? await guardCli('save', approved, runSave, undefined, isTTY)
     : await guardCliDefer('save', approved, runSave, '--yes', isTTY)
   if (!ran) process.exitCode = 1

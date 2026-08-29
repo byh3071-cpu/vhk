@@ -1,4 +1,4 @@
-import { readConfig } from './config.js'
+import { readConfigFromProjectRoot } from './config.js'
 import { resolveGuard, type Channel, type Guard } from './risk-policy.js'
 import type { SafetyMode } from './safety-mode.js'
 import { readMemory, recallForAction } from '../commands/memory.js'
@@ -78,7 +78,8 @@ async function runGuardedInner<T>(
   deps: GuardDeps,
   run: () => Promise<T> | T
 ): Promise<{ outcome: GuardedOutcome; result?: T }> {
-  const mode: SafetyMode = deps.mode ?? readConfig().safetyMode
+  // #611: 하위 폴더 실행에서 strict 가 standard 로 떨어지지 않게 git 루트 기준으로 읽는다.
+  const mode: SafetyMode = deps.mode ?? readConfigFromProjectRoot().safetyMode
   const log = deps.log ?? (() => {})
   const approvalHint = deps.approvalHint ?? '--yes'
   // Goal 57: deps.target 이 있으면 글롭 위험 차원도 함께 평가(하위호환 — 미지정 시 기존 동작).

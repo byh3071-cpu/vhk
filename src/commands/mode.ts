@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { readConfig, writeConfig } from '../lib/config.js'
+import { readConfig, writeConfig, resolveConfigRoot } from '../lib/config.js'
 import { SAFETY_MODES, SAFETY_MODE_DESC, isSafetyMode } from '../lib/safety-mode.js'
 import { printNextStep } from '../lib/next-step.js'
 
@@ -11,7 +11,9 @@ export async function mode(target?: string): Promise<void> {
   console.log(chalk.bold('\n🛡️  Safety Mode'))
   console.log(chalk.gray('─'.repeat(40)))
 
-  const current = readConfig().safetyMode
+  // #611: 조회·기록 모두 git 루트 기준 — 가드(runGuarded)와 같은 해석이라 하위 폴더에서도 일치.
+  const root = resolveConfigRoot()
+  const current = readConfig(root).safetyMode
 
   if (!target) {
     console.log(chalk.cyan(`\n  현재 모드: ${chalk.bold(current)}`))
@@ -36,7 +38,7 @@ export async function mode(target?: string): Promise<void> {
     return
   }
 
-  writeConfig({ ...readConfig(), safetyMode: target })
+  writeConfig({ ...readConfig(root), safetyMode: target }, root)
   console.log(chalk.green(`\n  ✅ Safety Mode → ${chalk.bold(target)}`))
   console.log(chalk.dim(`  ${SAFETY_MODE_DESC[target]}`))
 }
