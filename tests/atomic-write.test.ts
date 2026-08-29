@@ -3,7 +3,15 @@ import { chmodSync, mkdtempSync, writeFileSync, readFileSync, readdirSync, exist
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { removeDirSync } from '../src/lib/fs-remove.js'
-import { atomicWriteFile } from '../src/lib/atomic-write.js'
+import {
+  AtomicCreateCleanupError,
+  atomicCreateFile,
+  atomicWriteFile,
+} from '../src/lib/atomic-write.js'
+import {
+  AGENT_SKILL_MANIFEST,
+  installAgentSkills,
+} from '../src/lib/agent-skill-templates.js'
 
 const renameState = vi.hoisted(() => ({
   calls: 0,
@@ -11,6 +19,10 @@ const renameState = vi.hoisted(() => ({
   seedExclusiveCollision: false,
   exclusivePath: null as string | null,
   exclusiveWriteFailure: null as NodeJS.ErrnoException | null,
+  linkFailures: [] as NodeJS.ErrnoException[],
+  unlinkFailures: [] as NodeJS.ErrnoException[],
+  unlinkFailurePattern: null as string | null,
+  seedTargetBeforeLink: false,
 }))
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -43,6 +55,22 @@ vi.mock('node:fs', async (importOriginal) => {
       if (failure) throw failure
       actual.renameSync(...args)
     },
+    linkSync: (...args: Parameters<typeof actual.linkSync>): void => {
+      if (renameState.seedTargetBeforeLink) {
+        renameState.seedTargetBeforeLink = false
+        actual.writeFileSync(args[1], 'concurrent user file', 'utf-8')
+      }
+      const failure = renameState.linkFailures.shift()
+      if (failure) throw failure
+      actual.linkSync(...args)
+    },
+    unlinkSync: (...args: Parameters<typeof actual.unlinkSync>): void => {
+      const matches = renameState.unlinkFailurePattern === null
+        || String(args[0]).includes(renameState.unlinkFailurePattern)
+      const failure = matches ? renameState.unlinkFailures.shift() : undefined
+      if (failure) throw failure
+      actual.unlinkSync(...args)
+    },
   }
 })
 
@@ -54,6 +82,10 @@ describe('atomicWriteFile (Goal 37)', () => {
     renameState.seedExclusiveCollision = false
     renameState.exclusivePath = null
     renameState.exclusiveWriteFailure = null
+    renameState.linkFailures = []
+    renameState.unlinkFailures = []
+    renameState.unlinkFailurePattern = null
+    renameState.seedTargetBeforeLink = false
     dir = mkdtempSync(join(tmpdir(), 'vhk-atomic-'))
   })
   afterEach(() => {
@@ -166,5 +198,76 @@ describe('atomicWriteFile (Goal 37)', () => {
     expect(renameState.exclusivePath).not.toBeNull()
     expect(existsSync(renameState.exclusivePath!)).toBe(false)
     expect(existsSync(p)).toBe(false)
+  })
+
+  it('신규 파일은 완성본만 만들고 기존 파일은 덮어쓰지 않는다', () => {
+    const created = join(dir, 'created.txt')
+    const existing = join(dir, 'existing.txt')
+    writeFileSync(existing, 'user content', 'utf-8')
+
+    expect(atomicCreateFile(created, 'complete')).toBe(true)
+    expect(atomicCreateFile(existing, 'ours')).toBe(false)
+
+    expect(readFileSync(created, 'utf-8')).toBe('complete')
+    expect(readFileSync(existing, 'utf-8')).toBe('user content')
+    expect(readdirSync(dir).filter((f) => f.includes('.tmp-'))).toHaveLength(0)
+  })
+
+  it('존재 확인 뒤 다른 프로세스가 파일을 만들면 그 파일을 보존한다', () => {
+    const p = join(dir, 'raced.txt')
+    renameState.seedTargetBeforeLink = true
+
+    expect(atomicCreateFile(p, 'ours')).toBe(false)
+
+    expect(readFileSync(p, 'utf-8')).toBe('concurrent user file')
+    expect(readdirSync(dir).filter((f) => f.includes('.tmp-'))).toHaveLength(0)
+  })
+
+  it('hard-link 미지원 파일시스템에서는 부분 파일을 만들지 않고 실패한다', () => {
+    const p = join(dir, 'fallback.txt')
+    const unsupported = Object.assign(new Error('links unsupported'), { code: 'ENOTSUP' })
+    renameState.linkFailures = [unsupported]
+
+    expect(() => atomicCreateFile(p, 'fallback payload')).toThrow(unsupported)
+
+    expect(existsSync(p)).toBe(false)
+    expect(readdirSync(dir).filter((f) => f.includes('.tmp-'))).toHaveLength(0)
+  })
+
+  it('hard-link 성공 뒤 temp 정리 실패는 생성된 대상과 temp 경로를 식별해 던진다', () => {
+    const p = join(dir, 'cleanup-failed.txt')
+    const locked = Object.assign(new Error('fixture temp locked'), { code: 'EPERM' })
+    renameState.unlinkFailurePattern = '.cleanup-failed.txt.tmp-'
+    renameState.unlinkFailures = [locked, locked, locked]
+
+    let thrown: unknown
+    try {
+      atomicCreateFile(p, 'complete payload')
+    } catch (error) {
+      thrown = error
+    }
+
+    expect(thrown).toBeInstanceOf(AtomicCreateCleanupError)
+    expect((thrown as AtomicCreateCleanupError).targetPath).toBe(p)
+    expect(readFileSync(p, 'utf-8')).toBe('complete payload')
+    expect(existsSync((thrown as AtomicCreateCleanupError).tempPath)).toBe(true)
+  })
+
+  it('관리본 신규 대상의 temp 정리 실패면 새 대상을 거두고 이전 활성본을 복구한다', () => {
+    installAgentSkills(dir)
+    const target = join(dir, '.agents', 'skills', 'vhk-gate', 'SKILL.md')
+    const currentVersion = AGENT_SKILL_MANIFEST.bundleVersion
+    const previous = readFileSync(target, 'utf-8').replace(
+      `vhk-gate@${currentVersion}`,
+      `vhk-gate@${currentVersion - 1}`,
+    )
+    writeFileSync(target, previous, 'utf-8')
+    const locked = Object.assign(new Error('fixture temp locked'), { code: 'EPERM' })
+    renameState.unlinkFailurePattern = '.SKILL.md.tmp-'
+    renameState.unlinkFailures = [locked, locked, locked]
+
+    expect(() => installAgentSkills(dir)).toThrow('활성 경로 복구됨')
+
+    expect(readFileSync(target, 'utf-8')).toBe(previous)
   })
 })

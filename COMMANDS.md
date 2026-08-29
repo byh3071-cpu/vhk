@@ -42,7 +42,9 @@ Cursor에게 한국어로 말해도 됩니다.
 
 > `vhk sync` 대상(7): `.cursorrules` · `.windsurfrules` · `.github/copilot-instructions.md` · `.agents/rules/vhk-rules.md` · `AGENTS.md` · `GEMINI.md`(Gemini CLI) · `.clinerules/vhk-rules.md`(Cline) + `CLAUDE.md`(하이브리드). 모두 RULES.md 단일소스에서 생성.
 >
-> `vhk sync --check`가 미연결 섹션을 찾으면 실제 섹션명, 인식하는 표준 제목, 두 해결 방법을 함께 보여줍니다. 제목에 맞는 표준 말을 넣거나 제목 뒤에 `<!-- vhk:sync=all -->`을 붙이세요. 미연결 경고만으로는 기존 종료 코드를 실패로 바꾸지 않습니다.
+> Agent Skills는 `.agents/skills`를 정본으로 사용합니다. Antigravity·Codex·Cursor는 이 경로를 직접 읽고 Claude Code는 같은 정본에서 만든 `.claude/skills` 관리 사본을 읽습니다.
+>
+> `vhk sync --check`가 미연결 섹션을 찾으면 실제 섹션명, 인식하는 표준 제목, 두 해결 방법을 함께 보여줍니다. 제목에 맞는 표준 말을 넣거나 제목 뒤에 `<!-- vhk:sync=all -->`을 붙이세요. 미연결 경고만으로는 기존 종료 코드를 실패로 바꾸지 않습니다. Agent Skill 누락·버전/해시 drift·사용자 충돌은 쓰기 없이 검사하고 문제 시 종료 코드 1을 냅니다.
 
 ## Cursor bootstrap (#467)
 
@@ -50,7 +52,7 @@ Cursor에게 한국어로 말해도 됩니다.
 |-------------|-----------|------------------|
 | Cursor 독푸딩 (설치+배선) | `vhk bootstrap cursor` (`-y`, `--skip-verify`) | "VHK 독푸딩 해줘" |
 
-> doctor → goal migrate --dry-run → inject-bootstrap → mcp-init → sync → `.cursor/skills/vhk-*` 5종 → verify(선택). brownfield Cursor 마이그레이션용. VHK가 그대로 생성했던 구형 skill은 버전 확인 후 안전하게 갱신하고, 사용자가 고친 구형 skill은 덮어쓰지 않은 채 수동 병합 경고를 냅니다. 검증 skill은 프로젝트별 패키지 명령을 추측하지 않고 `vhk verify`에 위임합니다.
+> doctor → goal migrate --dry-run → inject-bootstrap → mcp-init → sync → `.agents/skills` 공통 5종 + `.claude/skills` 관리 투영 → verify(선택). 관리 표식의 본문 해시가 맞는 구형본만 안전하게 갱신하고, 사용자가 고친 파일과 기존 `.cursor/skills`는 그대로 보존해 수동 병합을 안내합니다. 검증 Skill은 프로젝트별 패키지 명령을 추측하지 않고 `vhk verify`에 위임합니다.
 
 | 빌드+테스트 | `pnpm build; pnpm test --run` | "빌드하고 테스트 돌려" |
 | 배포 | `vhk 배포` | "배포해" |
@@ -232,7 +234,7 @@ vhk doctor
 | `vhk bootstrap` | Cursor/에이전트 배선 bootstrap (서브: `cursor`) |
 | `vhk init` | 하네스 파일 생성 + 기록 집행 커밋훅 배선. `--ci`를 붙이면 GitHub PR 필수 검사 워크플로 생성(기존 워크플로 보존) |
 | `vhk recap` | 오늘 한 일 정리 + ADR 분리 (비-TTY/헤드리스: `--summary/--next/--decisions/--blockers/--yes`) |
-| `vhk sync` | RULES.md → 규칙 파일 동기화. `<!-- vhk:sync=all -->` 절은 8개 타겟 필수. `--check`는 재생성 결과 불일치와 필수 섹션 누락을 별도 집계하고, 문서-실측 drift는 경고로 표시 |
+| `vhk sync` | RULES.md → 규칙 파일 동기화 + `.agents/skills` → `.claude/skills` 관리 투영. `<!-- vhk:sync=all -->` 절은 8개 규칙 타겟 필수. `--check`는 규칙·Skill의 누락·불일치·사용자 충돌을 쓰기 없이 집계하고, 문서-실측 drift는 경고로 표시 |
 | `vhk check` | RULES.md 규칙 점검. 규칙 줄의 `<!-- vhk:check=no-exec-sync -->`를 `scripts/check-rule-no-exec-sync.mjs`에 연결하며 검사 비율 출력 (`--json` = 선언·검사·미검사 수와 비율 포함) |
 | `vhk policy` | 자율 실행 권한 정책. `level`·`risk`·`show`·`check -- <실행파일 argv...>`은 읽기 전용(원장 기록·대상 실행 없음, allow 0·require-human 2·deny 1). `check`에는 파이프·연쇄·치환을 붙이지 않고 각 명령을 따로 전달. `policy baseline --confirm`만 현재 설정 또는 설정 없는 기본 off 상태를 사람이 고정하는 고위험 쓰기 명령이며 자동 생성·갱신하지 않음. 한글: `정책 단계`·`정책 위험도`·`정책 보기`·`정책 검사`·`정책 기준선` |
 | `vhk secure` | 보안 스캔 (시크릿 유출 검사). `secure scan <파일...>` = 발행물 초안 등 특정 파일만(.md 포함) — 게시 전 게이트(#457), CRITICAL/HIGH 시 exit 1 |

@@ -4,6 +4,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+> **발행 목표: v2.15.1 (2026-08-30 릴리스 후보).** npm latest는 실제 publish 전까지 v2.15.0이다.
+
 ### Security
 
 - `vhk save`를 high-risk로 승격했다(ADR-021, #611). 비-TTY/에이전트 Commander 실행은
@@ -23,16 +25,25 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   전체(undo·deploy·publish·sync 등)에 적용된다(이전 exit 0).
 - **마이그레이션**: 비-TTY/에이전트 자동화는 원격 push까지 필요하면
   `vhk save --yes -m "메시지"`, 로컬 commit만 필요하면 `vhk save --no-push -m "메시지"`로 바꿔야
-  한다. 바꾸지 않으면 조용한 push 대신 차단 안내 + exit 1로 끝난다. 발행 버전은 아직 정하지 않았다.
-  이 변경은 공개 CLI 비호환이므로 현 전역 규칙 아래에서는 major에서만 허용되며, 2.15.x 배치를
-  검토하려면 발행 전에 전역 규칙을 별도의 사람 결정으로 정식 개정해야 한다.
+  한다. 바꾸지 않으면 조용한 push 대신 차단 안내 + exit 1로 끝난다. TTY Commander 사용 흐름은
+  기존과 같다. 무승인 외부 반출을 먼저 봉인하기 위해 2026-08-30 오너 승인으로 v2.15.1에 배치하며,
+  이는 ADR-021/#611에만 적용되는 1회성 보안 패치 예외다.
 
 ### Changed
 
+- Agent Skills의 공통 정본을 `.agents/skills`로 통합했다. Google Antigravity·Codex·Cursor는 같은
+  경로를 직접 읽고 Claude Code는 해시가 붙은 `.claude/skills` 관리 사본을 사용한다. `vhk sync`는
+  새 프로젝트에 두 경로를 만들며, `sync --check`는 정본·npm 번들·투영 drift와 사용자 충돌을 쓰기
+  없이 검사한다. 기존 `.cursor/skills`와 사용자 수정본은 자동으로 덮거나 옮기거나 지우지 않는다.
+  정본 필수 파일 누락·정본/번들 불일치·실행 시 발견한 symlink/junction·디스크 쓰기 실패는
+  fail-closed로 끝낸다. 관리본 갱신 전 원본을 `.vhk/backups`로 원자 이동하고 새 경로를 배타 생성하며,
+  실패하면 이전 관리본을 활성 경로로 복구한다. 비원자 copy fallback은 사용하지 않는다. 자율 Skill은
+  단일 writer의 깨끗한 비보호 작업 브랜치와 Goal 범위 안 변경을 확인한 뒤에만
+  로컬 commit한다.
 - README·COMMANDS·2.x 원본 문서를 실제 2.15 동작에 맞췄다. MCP 35개 목록에서 CLI 전용 `policy`를
   제외하고, `policy check`의 셸 경계, receipt의 자체 5-gate 검증·stale 미상 CAUTION,
-  DONE/CANCELED 종결 스냅샷 계약을 명시했다. 이 수정은 GitHub 문서부터 적용되며 이미 발행된 npm
-  2.15.0의 내장 README는 불변인 릴리스 시점 스냅샷으로 남는다.
+  DONE/CANCELED 종결 스냅샷 계약을 명시했다. 이미 발행된 npm 2.15.0의 내장 README는 불변인 릴리스
+  시점 스냅샷으로 남고, v2.15.1 publish부터 이 문서를 패키지에 포함한다.
 
 ### Internal
 

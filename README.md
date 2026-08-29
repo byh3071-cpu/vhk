@@ -1,14 +1,14 @@
 ---
 id: vhk-readme
 date: 2026-06-08
-tags: [vhk, cli, readme, v2.15.0, mcp, proof, ai-coding]
+tags: [vhk, cli, readme, v2.15.1, mcp, proof, ai-coding]
 ---
 
 <div align="center">
 
 # VHK — Vibe Harness Kit
 
-**v2.15.0**
+**v2.15.1**
 
 **모델·에이전트를 뭘로 바꿔도 안 무너지는 풀사이클 AI 코딩 하네스.**
 
@@ -26,7 +26,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 </div>
 
 > [!IMPORTANT]
-> npm latest는 v2.15.0입니다. 아래 ADR-021의 save 가드와 `--no-push`는 현재 **Unreleased**이며 발행 버전은 아직 정하지 않았습니다.
+> 이 저장소는 **v2.15.1 릴리스 후보**입니다. ADR-021의 save 가드·`--no-push`와 ADR-020의 공통 Agent Skills 정본·투영을 포함합니다. 실제 npm latest는 publish 전까지 v2.15.0입니다.
 
 > [!NOTE]
 > VHK는 새 코딩 에이전트가 **아닙니다.** 이미 쓰는 에이전트를 감싸 "무엇을 하기로 했는지 · 정말 끝났는지 · 다음 세션이 어디서 이어질지"를 repo 안의 파일과 CLI 게이트로 고정하는 하네스입니다. 모델이 바뀌어도 규칙·기억·게이트는 repo에 남습니다.
@@ -43,7 +43,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
   🟢 Node     v24.13.0 (shim-safe)
   🟢 pnpm     11.17.0
   🟢 git      2.53.0 (user configured)
-  🟢 VHK      v2.15.0
+  🟢 VHK      v2.15.1
   🟢 MCP      35 tools 등록
 
   📁 프로젝트 파일 확인:
@@ -61,6 +61,8 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 
 ## v2.15 핵심
 
+- **무승인 push 봉인** — 비-TTY `vhk save`는 `--yes`(commit+push) 또는 `--no-push`(로컬 commit만)를 명시해야 합니다. 사람의 TTY 사용 흐름은 그대로입니다.
+- **도구 독립 Agent Skills** — `.agents/skills`를 공통 정본으로 삼고 Claude Code용 관리 사본과 npm 번들을 안전하게 투영합니다. 누락·drift·사용자 충돌은 `sync --check`가 쓰기 없이 잡습니다.
 - **기본-off 안전 정책** — `vhk policy level/risk/show/check`로 권한 단계·위험도·허용목록·호출 수·시간 한도를 조회하고 판정합니다. 대상 명령을 실행하거나 자동 집행을 켜지는 않습니다.
 - **증거 기준선 분리** — `vhk receipt --mark-start`는 intent/forbidden 대조용 변경 범위의 시작 SHA만 기록합니다. `receipt`는 발행 중 새 검증을 실행하고, 검증 시작 HEAD·dirty와 게이트 종료 후 상태를 비교해 stale 여부를 판정합니다.
 - **안정적인 마감** — `vhk goal next`는 BLOCKED·DEFERRED·OBSERVING을 완료로 오인하지 않고, 미해결 Goal 없이 DONE/CANCELED만 남은 종결 상태를 반복 조회해도 완료 시각이나 백업을 다시 만들지 않습니다. 생성되는 gate skill은 모든 Goal이 정상 DONE인 branch closeout을 `review N/A`와 branch receipt 경로로 안내합니다.
@@ -127,7 +129,15 @@ Node.js 22 이상이 필요합니다. `vhk start --stack "..."`은 지정한 기
 
 설치가 끝나면 규칙 파일 연결 수와 함께 핵심 규칙의 출처·버전을 따로 보여줍니다. `VHK 내장 기본 규칙`으로 대신한 경우에는 사용자 규칙 파일이 연결된 상태가 아님을 마지막 설치 점검에서 다시 경고합니다.
 
-Cursor 기존 프로젝트는 `vhk bootstrap cursor`로 VHK 관리 skill을 설치할 수 있습니다. 수정되지 않은 구형 관리본은 안전하게 최신화하고, 사용자가 손댄 구형본은 덮어쓰지 않고 수동 병합을 안내합니다. 생성되는 검증 skill은 특정 `pnpm` 스크립트를 가정하지 않고 `vhk verify`가 프로젝트의 실제 스크립트를 판별하게 합니다.
+Cursor 기존 프로젝트는 `vhk bootstrap cursor`로 VHK 관리 Skill을 설치할 수 있습니다. 신규 설치는
+Google Antigravity·Codex·Cursor가 함께 읽는 `.agents/skills`를 만들고, 같은 정본에서 Claude Code용
+`.claude/skills` 관리 사본을 생성합니다. 관리 표식과 본문 해시가 일치하는 구버전만 안전하게 갱신하며,
+사용자가 손댄 파일과 기존 `.cursor/skills`는 덮어쓰기·삭제·이동하지 않고 수동 병합을 안내합니다.
+정본 필수 파일 누락, 실행 때 발견한 외부 링크, 실제 쓰기 실패는 성공으로 넘기지 않습니다. 관리본 갱신은
+기존 파일을 먼저 `.vhk/backups`로 이동하고 새 파일을 배타 생성합니다. 실패하면 이전 관리본을 활성 경로로
+복구하며, 완성본을 원자 생성할 수 없는 파일시스템에서는 부분 사본을 남기는 방식으로 낮추지 않습니다.
+생성되는 검증 Skill은 특정 `pnpm` 스크립트를 가정하지 않고 `vhk verify`가 프로젝트의 실제 스크립트를
+판별하게 합니다.
 
 ### 선택: 사용자 규칙 YAML 연결
 
@@ -159,7 +169,7 @@ VHK는 에이전트를 **대체하지 않습니다** — 에이전트가 못 하
 
 ```powershell
 vhk sync
-vhk sync --check   # 검사만 — 재생성 결과 차이와 필수 섹션 누락을 따로 확인 (문제 시 exit 1, 쓰기 0)
+vhk sync --check   # 검사만 — 규칙·Agent Skill의 누락/불일치/사용자 충돌 확인 (문제 시 exit 1, 쓰기 0)
 ```
 
 모든 도구가 반드시 읽어야 하는 안전 절은 제목에 표시합니다. 목록은 코드에 따로 적지 않고
@@ -170,6 +180,10 @@ vhk sync --check   # 검사만 — 재생성 결과 차이와 필수 섹션 누�
 ```
 
 `vhk sync --check`에서 미연결 섹션이 나오면 출력에 표시된 표준 말을 제목에 넣거나, 위처럼 제목 뒤에 `<!-- vhk:sync=all -->`을 붙이세요. 검사 결과가 실제 미연결 섹션명과 VHK가 인식하는 표준 제목을 함께 보여줍니다.
+
+VHK 소유 공통 Skill은 `.agents/skills`에서만 편집합니다. `vhk sync`는 프로젝트 범위의 관리본과
+Claude Code 투영을 맞추고, `vhk sync --check`는 정본·npm 번들·투영의 버전과 해시 차이를 쓰기 없이
+검사합니다. `auto-merge`처럼 특정 호스트에만 속한 Skill은 공통 manifest 밖에 둡니다.
 
 규칙 줄에 짧은 검사 ID를 붙이면 `vhk check`가 대응하는 스크립트를 실행하고 검사 비율을 보여줍니다.
 ID는 영문 소문자·숫자·하이픈만 사용합니다. `.mjs`가 있으면 먼저 실행하고, 없을 때 `.sh`를 찾습니다.

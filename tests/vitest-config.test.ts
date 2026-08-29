@@ -7,4 +7,10 @@ describe('vitest 작업공간 경계', () => {
 
     expect(exclude).toContain('**/.vhk/**')
   })
+
+  it('Git e2e와 저장소 self-scan이 서로 굶지 않도록 worker 수를 제한한다', () => {
+    expect(config.test?.maxWorkers).toBeTypeOf('number')
+    expect(config.test?.maxWorkers as number).toBeGreaterThan(0)
+    expect(config.test?.maxWorkers as number).toBeLessThanOrEqual(4)
+  })
 })

@@ -77,11 +77,16 @@ describe('공용 에이전트 자동화 설정', () => {
 
   it('vhk-auto는 비추적 devlog를 기록하고 스테이지하지 않는다', () => {
     const content = readFileSync('.agents/skills/vhk-auto/SKILL.md', 'utf8')
+    const adapters = readFileSync(
+      '.agents/skills/vhk-auto/references/review-adapters.md',
+      'utf8',
+    )
 
     expect(content).toContain('docs/devlog/<오늘날짜>-autopilot.md')
     expect(content).toContain('이 경로는 **비추적**이라 `git add` 하지 않는다')
-    expect(content).toContain('codex.cmd review --uncommitted')
-    expect(content).toContain('POSIX에서는 `codex review --uncommitted`')
+    expect(content).toContain('references/review-adapters.md')
+    expect(adapters).toContain('codex.cmd review --uncommitted')
+    expect(adapters).toContain('codex review --uncommitted')
     expect(content).not.toContain('docs/log/<오늘날짜>-autopilot.md')
     expect(content.match(/vhk autonomy-log --event blocked/g)).toHaveLength(2)
     expect(content).toContain('같은 호출에서 실패 원인을 수정하고 `vhk verify`를 한 번 다시 실행')

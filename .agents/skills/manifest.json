@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "bundleVersion": 5,
+  "skills": [
+    {
+      "name": "vhk-auto",
+      "distribution": "repository",
+      "platforms": ["google-antigravity", "claude-code", "openai-codex", "cursor"],
+      "files": ["SKILL.md", "references/review-adapters.md"]
+    },
+    {
+      "name": "overnight-vhk-auto",
+      "distribution": "repository",
+      "platforms": ["google-antigravity", "claude-code", "openai-codex", "cursor"],
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "vhk-gate",
+      "distribution": "project",
+      "platforms": ["google-antigravity", "claude-code", "openai-codex", "cursor"],
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "vhk-evolve-loop",
+      "distribution": "project",
+      "platforms": ["google-antigravity", "claude-code", "openai-codex", "cursor"],
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "vhk-dogfood-issue",
+      "distribution": "project",
+      "platforms": ["google-antigravity", "claude-code", "openai-codex", "cursor"],
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "vhk-goal-health",
+      "distribution": "project",
+      "platforms": ["google-antigravity", "claude-code", "openai-codex", "cursor"],
+      "files": ["SKILL.md"]
+    },
+    {
+      "name": "vhk-bootstrap-cursor",
+      "distribution": "project",
+      "platforms": ["google-antigravity", "claude-code", "openai-codex", "cursor"],
+      "files": ["SKILL.md"]
+    }
+  ]
+}

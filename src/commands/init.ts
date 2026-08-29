@@ -412,22 +412,43 @@ export async function init(options: InitOptions = {}) {
   // 규칙 파일을 즉시 파생(Codex·Zed 등이 첫 세션부터 규칙을 본다). syncCore 가 덮기 전 자동 백업하고,
   // 신규 파일은 항상 쓰되 drift 파일만 confirmOverwrite 로 확인한다(여기선 게이트 통과 → 허용).
   // 실패해도 init 산출물은 보존하고 경고만 — 사용자는 vhk sync 로 수동 복구 가능.
+  let autoSyncFailed = false
   if (allowAutoSync) {
     try {
-      await syncCore(cwd, { yes: true }, async () => true)
-      log.success('규칙 파생 완료 — AGENTS.md 등 도구별 규칙 파일 생성')
+      const syncResult = await syncCore(cwd, { yes: true }, async () => true)
+      for (const conflict of syncResult.agentSkills.conflicts) {
+        log.warn(ko.sync.skillConflict(conflict))
+      }
+      if (syncResult.agentSkills.conflicts.length === 0) {
+        log.success('규칙 파생 완료 — AGENTS.md 등 도구별 규칙 파일 생성')
+      } else {
+        log.warn('규칙 파생 완료 — Agent Skill 보존 충돌은 위 경로를 정본과 수동 병합하세요.')
+      }
     } catch (e) {
       log.warn(`규칙 파생(sync) 실패 — 산출물은 보존됨. 수동 실행: vhk sync (${e instanceof Error ? e.message : String(e)})`)
+      process.exitCode = 1
+      autoSyncFailed = true
     }
   }
 
-  console.log(chalk.bold.green(`\n${ko.init.done}`))
+  console.log(autoSyncFailed
+    ? chalk.bold.yellow(`\n${ko.init.partial}`)
+    : chalk.bold.green(`\n${ko.init.done}`))
   // RFC 0060 T3: 설치 점검 영수증 — "썼다"가 아니라 디스크에서 읽어 확인한 현황(거짓완료 금지).
   const receiptCoreRules = {
     source: coreRulesCheck.source,
     ...(coreRulesCheck.version === 'unknown' ? {} : { version: coreRulesCheck.version }),
   }
   console.log('\n' + formatInstallReceipt(collectInstallReceipt(cwd, receiptCoreRules)))
+  if (autoSyncFailed) {
+    printNextStep({
+      message: ko.init.syncRecovery,
+      command: 'vhk sync',
+      cursorHint: 'vhk sync 실패 원인을 해결하고 설치 상태를 다시 확인해줘',
+      alternative: '오류를 고친 뒤 vhk init을 다시 실행해도 됩니다',
+    })
+    return
+  }
   console.log(chalk.dim(`\n${ko.init.nextSteps}`))
   if (options.fromNotion) {
     console.log(`  1. ${ko.init.notionReviewHint}`)

@@ -211,7 +211,7 @@
 
 | 항목 | 요구 |
 |---|---|
-| 호환성 | 명령어 이름·기존 CLI 인자·`.vhk` 포맷·MCP 도구 시그니처 breaking 금지. `context --json`만 additive, 신규 필드는 optional |
+| 호환성 | 명령어 이름·기존 CLI 인자·`.vhk` 포맷·MCP 도구 시그니처 breaking 금지. `context --json`만 additive, 신규 필드는 optional. 단, ADR-021/#611의 무승인 외부 반출 차단은 TTY 흐름 유지·명시 플래그 마이그레이션을 조건으로 v2.15.1에만 허용한 1회성 보안 예외 |
 | 플랫폼 | Windows/PowerShell 1급. 경로 구분자·줄바꿈(CRLF) 처리 필수 |
 | 코드 규약 | TypeScript strict(any 금지) · 빈 catch 금지 · `execSync` 신규 사용 금지 |
 | MCP | 핸들러 내 프로세스 종료 금지 · 대화형 프롬프트 호출 금지(TTY 없음) |

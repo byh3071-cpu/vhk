@@ -79,6 +79,7 @@
 
 - `node_modules/` 직접 수정 금지
 - 공개 API breaking change는 major 버전에서만 허용
+- 단, 무승인 외부 반출을 막는 ADR-021/#611의 비-TTY `save` 계약 변경은 2026-08-30 오너 승인에 따라 **v2.15.1 보안 패치에 한해** 허용한다. TTY 사용자 흐름을 유지하고 CHANGELOG에 마이그레이션을 고지하며, 이 1회성 예외를 다른 비호환 변경에 일반화하지 않는다.
 - `execSync` 신규 사용 금지 → `safeExecFile`
 - MCP 모드에서 inquirer 프롬프트 호출 금지 (TTY 없음)
 - 토큰/시크릿 코드·커밋 평문 노출 금지 (`.env` + `.gitignore`)

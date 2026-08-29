@@ -24,13 +24,18 @@ import { runDocDriftChecks, type DriftFinding } from '../lib/drift-pairs.js'
 import { appendDriftLog } from '../lib/drift-log.js'
 import { getMcpToolCount } from '../mcp/server.js'
 import { log } from '../utils/logger.js'
+import {
+  checkAgentSkillSync,
+  installAgentSkills,
+  type InstallAgentSkillsResult,
+} from '../lib/agent-skill-templates.js'
 
 /**
  * RFC 0062 — 문서-실측 드리프트 warn 리포트(차단 0, exitCode 불변).
  * fail 승격은 warn 실측(drift-log 원장) 누적 후 사람이 판정 — measure-first.
  * 검사 자체 오류는 fail-open(경고만) — 검사기가 sync --check 를 죽이면 본말전도.
  */
-function reportDocDrift(cwd: string): void {
+function reportDocDrift(cwd: string, record: boolean): void {
   let findings: DriftFinding[]
   try {
     findings = runDocDriftChecks(cwd, { mcpToolCount: getMcpToolCount() })
@@ -47,7 +52,7 @@ function reportDocDrift(cwd: string): void {
     console.log(chalk.dim(`  ${ko.sync.driftDocsWarnNote}`))
   }
 
-  if (fs.existsSync(path.join(cwd, '.vhk'))) {
+  if (record && fs.existsSync(path.join(cwd, '.vhk'))) {
     try {
       appendDriftLog(cwd, {
         numeric: findings.filter((f) => f.series === 'numeric').length,
@@ -704,6 +709,8 @@ export interface SyncCheckResult {
   requiredSections: string[]
   /** 생성 설계 또는 디스크 파생본에서 빠진 필수 섹션. */
   missingSections: SyncSectionOmission[]
+  /** 사용자 수정·읽기 실패 가능성이 있어 자동 갱신하지 않는 Agent Skill 파일. */
+  skillConflicts: string[]
   ok: boolean
 }
 
@@ -789,13 +796,23 @@ export function syncCheck(rootDir: string): SyncCheckResult {
     }
   }
 
+  const agentSkills = checkAgentSkillSync(rootDir)
+  drifted.push(...agentSkills.drifted, ...agentSkills.bundleDrift)
+  missing.push(...agentSkills.missing)
+  const uniqueDrifted = [...new Set(drifted)]
+  const uniqueMissing = [...new Set(missing)]
+
   return {
-    drifted,
-    missing,
+    drifted: uniqueDrifted,
+    missing: uniqueMissing,
     requiredSections,
     missingSections,
+    skillConflicts: agentSkills.conflicts,
     unmapped: findUnmappedSections(sections),
-    ok: drifted.length === 0 && missing.length === 0 && missingSections.length === 0,
+    ok: uniqueDrifted.length === 0
+      && uniqueMissing.length === 0
+      && missingSections.length === 0
+      && agentSkills.conflicts.length === 0,
   }
 }
 
@@ -831,6 +848,8 @@ export interface SyncResult {
   unmapped: string[]
   /** CLAUDE.md 마커 마이그레이션 집계 — migrated=true 면 호출자가 보존/제거 섹션 경고를 출력. */
   claudeMigration?: ClaudeMdMigration
+  /** 공통 Agent Skill 정본에서 프로젝트 관리본·Claude 투영을 설치한 결과. */
+  agentSkills: InstallAgentSkillsResult
   /**
    * #556: 지정한 규칙 원본을 못 읽어 내장 기본 규칙으로 대체됐을 때의 사유.
    * 대체 자체는 막지 않되(작업 중단이 더 나쁘다) 조용히 넘어가지 않는다 —
@@ -917,6 +936,7 @@ export async function syncCore(
 
   // --dry-run — 어떤 디스크 변경도 하지 않는다(백업·쓰기·마커 전부 생략)
   if (opts.dryRun) {
+    const skillCheck = checkAgentSkillSync(rootDir)
     return {
       dryRun: true,
       firstSync,
@@ -928,6 +948,13 @@ export async function syncCore(
       plan,
       unmapped,
       claudeMigration,
+      agentSkills: {
+        created: skillCheck.missing,
+        updated: skillCheck.drifted,
+        unchanged: [],
+        conflicts: [...skillCheck.conflicts, ...skillCheck.bundleDrift],
+        backups: [],
+      },
       coreRulesWarning,
       coreRulesFallback,
     }
@@ -989,6 +1016,10 @@ export async function syncCore(
     fs.writeFileSync(agentsPath, refreshed, 'utf-8')
   }
 
+  // ADR-020: 프로젝트 범위 관리본과 Claude 투영만 쓴다. 관리 표식이 없거나 표식의
+  // 해시와 본문이 다르면 사용자 수정본으로 보고 보존한다.
+  const agentSkills = installAgentSkills(rootDir)
+
   return {
     dryRun: false,
     firstSync,
@@ -1000,6 +1031,7 @@ export async function syncCore(
     plan,
     unmapped,
     claudeMigration,
+    agentSkills,
     coreRulesWarning,
     coreRulesFallback,
   }
@@ -1014,7 +1046,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   if (opts.check) {
     if (!fs.existsSync(rulesPath)) {
       console.log(chalk.yellow(ko.sync.checkNoRules))
-      reportDocDrift(cwd)
+      reportDocDrift(cwd, false)
       return
     }
     const r = syncCheck(cwd)
@@ -1023,6 +1055,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
     for (const omission of r.missingSections) {
       log.plain(chalk.yellow(`  ${ko.sync.checkSectionMissing(omission.target, omission.section)}`))
     }
+    for (const p of r.skillConflicts) log.plain(chalk.yellow(`  ${ko.sync.skillConflict(p)}`))
     log.plain((r.drifted.length === 0 ? chalk.green : chalk.red)(
       ko.sync.checkDriftSummary(r.drifted.length)
     ))
@@ -1032,8 +1065,14 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
     log.plain((r.missingSections.length === 0 ? chalk.green : chalk.red)(
       ko.sync.checkSectionMissingSummary(r.missingSections.length)
     ))
+    log.plain((r.skillConflicts.length === 0 ? chalk.green : chalk.red)(
+      ko.sync.skillConflictSummary(r.skillConflicts.length)
+    ))
     if (!r.ok) {
-      const problemCount = r.drifted.length + r.missing.length + r.missingSections.length
+      const problemCount = r.drifted.length
+        + r.missing.length
+        + r.missingSections.length
+        + r.skillConflicts.length
       log.plain(chalk.red(ko.sync.checkFail(problemCount)))
       process.exitCode = 1
     }
@@ -1046,7 +1085,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
           : `  ${ko.sync.checkUnmapped(r.unmapped, SYNC_STANDARD_SECTION_KEYS)}`,
       ),
     )
-    reportDocDrift(cwd)
+    reportDocDrift(cwd, false)
     return
   }
 
@@ -1130,6 +1169,9 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
     for (const item of result.plan) {
       log.plain(ko.sync.itemState(item.path, syncItemState(item)))
     }
+    for (const p of result.agentSkills.created) log.plain(ko.sync.itemState(p, 'created'))
+    for (const p of result.agentSkills.updated) log.plain(ko.sync.itemState(p, 'updated'))
+    for (const p of result.agentSkills.conflicts) log.plain(chalk.yellow(ko.sync.skillConflict(p)))
     const wouldBackup = result.plan
       .filter((p) => p.exists && (p.drift || result.firstSync))
       .map((p) => p.path)
@@ -1157,10 +1199,20 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   for (const p of result.skipped) {
     console.log(chalk.gray(`  ${ko.sync.skipped(p)}`))
   }
+  for (const p of result.agentSkills.created) log.plain(chalk.green(ko.sync.skillCreated(p)))
+  for (const p of result.agentSkills.updated) log.plain(chalk.green(ko.sync.skillUpdated(p)))
+  for (const p of result.agentSkills.conflicts) log.plain(chalk.yellow(ko.sync.skillConflict(p)))
+  if (result.agentSkills.backups.length > 0) {
+    console.log(chalk.dim(`  Agent Skill 이전 관리본 백업: ${result.agentSkills.backups.join(', ')}`))
+  }
+
+  // `sync --check`는 무쓰기 계약을 지킨다. 관찰용 drift 원장은 실제 sync 실행에서만 기록한다.
+  reportDocDrift(cwd, true)
 
   console.log(chalk.bold.green(`\n${ko.sync.done}`))
   console.log(chalk.dim('  RULES.md (원본) → .cursorrules + CLAUDE.md + .windsurfrules'))
   console.log(chalk.dim('             + .github/copilot-instructions.md + .agents/rules/vhk-rules.md (자동 생성)'))
+  console.log(chalk.dim('  Agent Skills 정본 → .agents/skills + .claude/skills 관리 투영'))
   console.log(chalk.dim('  규칙 변경은 항상 RULES.md에서만 하세요.'))
 
   printNextStep({

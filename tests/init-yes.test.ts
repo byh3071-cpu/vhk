@@ -35,7 +35,51 @@ describe('vhk init -y 비대화형 (goal 8)', () => {
     await init({ yes: true })
     expect(fs.existsSync(path.join(dir, 'CLAUDE.md'))).toBe(true)
     expect(fs.existsSync(path.join(dir, 'RULES.md'))).toBe(true)
+    expect(fs.existsSync(path.join(dir, '.agents', 'skills', 'vhk-gate', 'SKILL.md'))).toBe(true)
+    expect(fs.existsSync(path.join(dir, '.claude', 'skills', 'vhk-gate', 'SKILL.md'))).toBe(true)
+    expect(fs.existsSync(path.join(dir, '.cursor', 'skills'))).toBe(false)
     expect(fs.readFileSync(path.join(dir, 'RULES.md'), 'utf-8')).toContain('후보, 첫 세션에서 확정')
+  })
+
+  it('기존 Cursor Skill 충돌을 보존하고 수동 병합 경고를 출력한다', async () => {
+    const legacy = path.join(dir, '.cursor', 'skills', 'vhk-gate', 'SKILL.md')
+    fs.mkdirSync(path.dirname(legacy), { recursive: true })
+    fs.writeFileSync(legacy, '# 사용자 Cursor Gate\n', 'utf-8')
+    const logSpy = vi.mocked(console.log)
+    const { init } = await import('../src/commands/init.js')
+
+    await init({ yes: true })
+
+    expect(fs.readFileSync(legacy, 'utf-8')).toBe('# 사용자 Cursor Gate\n')
+    expect(logSpy.mock.calls.flat().join('\n')).toContain('.cursor/skills/vhk-gate')
+    expect(logSpy.mock.calls.flat().join('\n')).toContain('수동 병합')
+  })
+
+  it('자동 sync 실패 시 개발 시작을 안내하지 않고 복구 명령과 실패 신호를 남긴다', async () => {
+    const originalExitCode = process.exitCode
+    process.exitCode = 0
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      `${JSON.stringify({ name: '@byh3071/vhk' }, null, 2)}\n`,
+      'utf-8',
+    )
+    try {
+      const { init } = await import('../src/commands/init.js')
+      await init({ yes: true, name: 'damaged-source', type: 'cli' })
+      const output = [
+        ...vi.mocked(console.log).mock.calls.flat(),
+        ...vi.mocked(console.error).mock.calls.flat(),
+      ].join('\n')
+
+      expect(process.exitCode).toBe(1)
+      expect(output).toContain('규칙 파생이 끝나지 않았어요')
+      expect(output).toContain('vhk sync')
+      expect(output).not.toContain('프로젝트 뼈대가 준비됐어요')
+      expect(output).not.toContain('이제 개발해 보세요')
+      expect(output).not.toContain('프로젝트 뼈대 완성! 이제 개발을 시작하세요')
+    } finally {
+      process.exitCode = originalExitCode
+    }
   })
 
   it('--type 미지정 -y 라도 type 프롬프트에서 멈추지 않음 (핵심 회귀)', async () => {
