@@ -21,10 +21,13 @@ Rules compound as you go, so the project doesn't collapse when a better model re
 
 </div>
 
+> [!IMPORTANT]
+> npm latest is v2.15.0. The ADR-021 save guard and `--no-push` contract documented below are currently **Unreleased**, with no release version chosen yet.
+
 > [!NOTE]
 > VHK is **not** a coding agent. It wraps the ones you already use and pins "what we agreed to do · is it actually done · where the next session resumes" as files + CLI gates. Swap the model — the rules, memory, and gates stay in your repo.
 
-Run `vhk` for a menu, or natural language: `vhk save`, `vhk goal next`, `vhk preflight`. Korean-first (`vhk 저장해줘`); the Korean [README.md](README.md) is the fullest reference. Since ADR-021, `vhk save` is a high-risk action: non-TTY/agent runs require explicit `--yes`, natural-language save only previews, and `--no-push` commits without uploading.
+Run `vhk` for the menu, or use explicit CLI commands such as `vhk save`, `vhk goal next`, and `vhk preflight`. The exact Korean alias `vhk 저장` is a Commander command; `vhk 저장해줘` is natural language. Under ADR-021, standard/strict natural-language save requests preview and exit 1; lite executes only with a TTY and otherwise blocks. Non-TTY Commander runs require either `--yes` (commit and push) or `--no-push` (local commit only).
 
 ## What's new in v2.15.0
 
@@ -107,7 +110,8 @@ vhk verify --dismiss lint-gate  # dismiss a current advisory; repeated dismissal
 vhk review
 vhk preflight --pr
 vhk goal done
-vhk save -m "fix checkout bug"           # agents (non-TTY): add --yes; --no-push commits without pushing
+vhk save --yes -m "fix checkout bug"     # non-TTY: commit and push
+vhk save --no-push -m "fix checkout bug" # non-TTY: local commit only
 vhk work handoff
 ```
 

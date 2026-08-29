@@ -99,11 +99,11 @@
 
 ## 4. 범위 IN — 릴리스별 요구
 
-작업 단위 30개. 상세 티켓은 [로드맵](roadmap/2.x-roadmap.md) §5.
+작업 단위 31개. 상세 티켓은 [로드맵](roadmap/2.x-roadmap.md) §5.
 
 | 릴리스 | 요구 | 작업 단위 |
 |---|---|---|
-| **긴급 안정화** | 저장소 로컬 Codex 훅의 비적용 경계 보존 · receipt 작업 기준선과 검증 신선도 분리 · Goal/패턴/병렬 테스트 릴리스 게이트 신뢰 복구 | 136 · 137 · 138 |
+| **긴급 안정화** | 저장소 로컬 Codex 훅의 비적용 경계 보존 · receipt 작업 기준선과 검증 신선도 분리 · Goal/패턴/병렬 테스트 릴리스 게이트 신뢰 복구 · 비-TTY/자연어 save의 무확인 원격 push 차단 | 136 · 137 · 138 · 140 |
 | **2.15.x 기반** | Agent Skills 공통 정본 · Claude Code 관리 투영 · Antigravity/Codex/Cursor 공통 발견 · 사용자 수정본 보존 | 139 |
 | (완료 선행, 2.13에 포함) | 작업 관리 체계 복구 · 릴리스 위생 · 용어 정비 | 112 · 113 · 114 |
 | **2.13.0** | 미발행 작업 통합 · Goal 순서 집행 · 첫 실행 정직성 · 규칙 검사·CI·권고 영속화 | 115 ~ 123 · 130 · 131 · 132 · 133 |
@@ -132,13 +132,14 @@
 
 각 항목은 **검증 가능한 명제**로 쓴다. 애매하면 요구가 아니다.
 
-### 6-0. 긴급 안정화 (136 ~ 138)
+### 6-0. 긴급 안정화 (136 ~ 138 · 140)
 
 | # | 수용 기준 |
 |---|---|
 | 136 | PreToolUse와 Stop 훅은 비 Git 디렉터리에서 종료 코드 0·stdout/stderr 무출력으로 끝난다 · Git 저장소라도 각 훅의 VHK 실행기 파일이 없으면 종료 코드 0·stdout/stderr 무출력으로 끝난다 · POSIX는 Git 루트 조회 실패 또는 실행기 파일 부재를 비적용으로 처리하고 Windows는 Git 조회 실패·빈 루트·`Leaf` 파일 확인 실패를 비적용으로 처리한다 · 실행기가 있으면 Git 루트로 이동하고 stdin과 자식 Node 프로세스 종료 코드를 보존한다 · 기존 VHK 루트 실행, 하위 디렉터리 HARD_STOP 차단, Stop 기록 알림, 당일 devlog 무출력은 유지된다 · 검증 fixture는 성공·실패와 무관하게 정리된다 |
 | 137 | 작업 시작 SHA A와 최종 HEAD B가 달라도 receipt가 B에서 시작한 자체 verify가 clean이고 게이트 종료 상태도 B이면 stale=false다 · 작업 시작 SHA A 기준 intent 검사는 B에 커밋된 forbidden/scope 변경을 계속 본다 · 검증 시작 SHA와 게이트 종료 후 HEAD가 다르거나 어느 한쪽이 dirty면 stale=true다 · 어느 한쪽 커밋이 미상이면 caution이다 · 기존 receipt JSON 필드와 CLI 인자는 깨지지 않는다 · 생성 gate 스킬은 Goal 스키마 오류와 정상 전체-DONE closeout을 구분하고 후자는 review `N/A`로 안내한다 |
 | 138 | BLOCKED가 남은 Goal 집합을 모두 완료로 보고하거나 사람의 인수인계를 덮어쓰지 않고, 거짓이 된 VHK 완료 스냅샷은 완료 표시와 시각을 함께 무효화하며, 미해결 Goal 없이 DONE/CANCELED만 남은 종결 스냅샷은 시각·백업을 다시 만들지 않는다 · 빈 패턴 ID와 패턴 문서 내부의 깨진 PAT 참조를 검사한다 · 중첩 `.vhk` worktree 테스트는 수집되지 않는다 · Windows 기본 병렬 전체 스위트와 `npm publish --dry-run`이 우회 환경변수 없이 반복 통과한다 |
+| 140 | `save`는 모든 모드에서 high-risk이며 strict-extra에는 남지 않는다 · CLI 비-TTY에서는 `--yes` 또는 `--no-push`가 없으면 commit·push 없이 exit 1로 끝난다 · `--no-push`는 로컬 commit만 수행하고 원격 조회·push를 생략한다 · standard TTY는 기존 save 자체 흐름을, strict TTY는 기존 y/N 확인을 유지한다 · standard·strict 자연어 save는 미리보기 후 실행하지 않고, lite는 실제 stdin TTY에서만 경고 후 진행하며 비-TTY 미승인은 차단한다 · 자연어 가드가 실행을 막은 모든 action은 exit 1로 끝난다 · `VHK_FORCE_INTERACTIVE`는 승인으로 인정하지 않고 이미 대화형 응답을 받은 메뉴만 TTY를 명시 주입할 수 있다 · 확인 프롬프트 오류는 사용자 거절로 위장하지 않고 실패로 끝난다 · safetyMode 조회·변경·가드는 저장소 하위 폴더에서도 Git 루트의 `.vhk/config.json`을 사용한다 · 실제 CLI 회귀 테스트가 차단·승인·`--no-push`·환경변수 우회 방지·strict 동작을 검증한다 |
 
 ### 6-0a. 교차 도구 기반 (139)
 

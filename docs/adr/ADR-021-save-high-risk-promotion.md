@@ -22,11 +22,11 @@ Goal 12/S5(2026-06)는 save 를 high-risk 로 승격하지 않고 strict-extra �
 | CLI + TTY (standard) | **기존 흐름 그대로** — defer 가 통과시키고 save 자체 프롬프트(파일 목록 + 메시지 입력)가 확인 역할. `-m` 지정 시 프롬프트가 없는 것도 승격 전과 동일 |
 | CLI + TTY (strict) | **기존 y/N 확인 유지**(guardCli) — 승격 전 strict 사용자가 갖던 push 방어를 잃지 않는다 |
 | CLI + 비-TTY | `--yes` 또는 `--no-push` 없으면 차단 + 안내 + **exit 1** (에이전트 성공 오판 방지) |
-| 자연어 ("저장해줘") | 미리보기만, 기본 비실행 + **exit 1** (ADR-005 의 MCP 동작과 동일 등급). **주의 — 이 exit 1 은 save 전용이 아니라 자연어 가드 차단 공통**: undo·deploy·publish·sync 등 NL_GUARDED_ACTIONS 전체가 차단 시 exit 1 로 바뀐다(이전 exit 0, #346 원칙 정합) |
+| 자연어 ("저장해줘") + standard/strict | 미리보기만, 기본 비실행 + **exit 1** (ADR-005 의 MCP 동작과 동일 등급). **주의 — 이 exit 1 은 save 전용이 아니라 자연어 가드 차단 공통**: undo·deploy·publish·sync 등 NL_GUARDED_ACTIONS 전체가 차단 시 exit 1 로 바뀐다(이전 exit 0, #346 원칙 정합) |
 | MCP | 변화 없음 (ADR-005 그대로 — 네이티브 핸들러의 confirm:true 옵트인이 집행 지점) |
 | lite 모드 | warn — 대화형은 경고 후 진행, 비대화형 미승인은 차단(R13) |
 
-추가로 **`--no-push` 옵션**을 신설해 기록(커밋)과 반출(push)을 분리한다 — 에이전트 권장 경로는 `vhk save --yes -m "메시지" --no-push`. **반출이 없는 `--no-push` 는 가드 승인으로 인정한다** — 로컬 커밋은 undo 로 되돌릴 수 있어 Goal 12/S5 의 원 논거가 그대로 유효한 부분이고, HARD_STOP 차단은 여전히 적용된다.
+추가로 **`--no-push` 옵션**을 신설해 기록(커밋)과 반출(push)을 분리한다 — 원격까지 저장하려면 `vhk save --yes -m "메시지"`, 에이전트 권장 로컬 경로는 `vhk save --no-push -m "메시지"`다. 두 플래그는 대체 관계이며 함께 쓸 필요가 없다. **반출이 없는 `--no-push` 는 가드 승인으로 인정한다** — 로컬 커밋은 undo 로 되돌릴 수 있어 Goal 12/S5 의 원 논거가 그대로 유효한 부분이고, HARD_STOP 차단은 여전히 적용된다.
 
 **대화형 판정 축 (env ≠ consent)**: 가드의 대화형 판정은 **stdin TTY 단일 축**이다 — stdout 축을 섞으면 `vhk save | tee` 가 "취소됨"으로 오판된다(cost.ts 가 이미 제거한 비대칭). `VHK_FORCE_INTERACTIVE` 탈출구는 **가드 게이트에 반영하지 않는다**: 승인 축에 넣으면 환경변수 한 줄이 y 응답을 대신해 #611 이 재발하고, 탈출구 경로에서 프롬프트를 시도하면 stdin 파이프 에이전트에서 행(unsettled await, exit 13)이 된다 — 둘 다 실측. Git Bash/MinTTY 사용자는 차단 안내가 알려주는 명시 플래그(`vhk save --yes`)로 승인하며, 그 뒤의 save 자체 프롬프트는 탈출구가 정상 적용되는 promptOrDefault 경로라 그대로 동작한다. warn(lite) 분기도 같은 이유로 stdin TTY 만 인정한다(R13 유지).
 
@@ -46,8 +46,8 @@ Goal 12/S5(2026-06)는 save 를 high-risk 로 승격하지 않고 strict-extra �
 
 ## 결과
 
-- 행동 변화(의도된 것): 비-TTY save 는 `--yes` 또는 `--no-push` 필수(차단 시 exit 1), 자연어 "저장해줘" 는 미리보기 + exit 1. TTY 는 standard·strict 모두 승격 전과 동일한 확인 경험(standard=자체 프롬프트, strict=y/N).
-- **버전 배치 — 오너 발행 게이트 필요(미확정)**: 비-TTY `vhk save` 는 과거 의도적으로 지원한 공개 동작(#154)이라 "성공 → 차단" 은 엄격한 SemVer 기준 incompatible 변경(major 대상)으로 볼 여지가 크다. 이 ADR 은 "무확인 외부 반출을 봉인하는 보안 복구 예외" 로 minor(2.15.x) 배치를 **제안**하며(선례: ADR-005 도 MCP save 기본값을 즉시실행→미리보기로 minor 에서 변경, 저장소 자체 규칙 "질문 필요한 명령은 비-TTY 면 안내 후 실패" 의 복구), 근거만으로 확정하지 않는다 — **어느 버전에 싣는지는 발행 시점에 오너가 명시 승인**하고, CHANGELOG 의 마이그레이션 고지를 함께 싣는다.
-- **하위 폴더 strict 소실 봉인**: 가드(runGuarded·guardSave)의 safetyMode 는 cwd 가 아니라 **git 루트의 `.vhk/config.json`** 로 해석한다(`readConfigFromProjectRoot`) — 하위 폴더 실행에서 strict 가 조용히 standard 로 떨어져 y/N 없이 push 되던 우회 봉인. 알려진 잔여: `vhk mode` 조회/변경 표시는 여전히 cwd 기준(후속 정리 대상, 가드 판정과 무관).
-- 기존 자동화 영향: 비-TTY 로 `vhk save` 를 호출하던 에이전트 스크립트는 `--yes` (권장: `--yes -m "메시지" --no-push`) 로 갱신 필요. vhk-auto/overnight 스킬 문서의 권장 경로 갱신은 이 PR 머지 직후 후속으로 진행한다(스킬 파일은 동시 진행 중인 Agent Skills 정비(139)와 충돌 회피 — 그때까지 해당 스킬의 비-TTY save 는 차단+안내로 동작하며 조용히 push 하지 않는다).
-- 회귀 가드: `tests/safety-guard.test.ts` 의 새 계약 블록("ADR-021 / #611")과 `tests/save-guard.e2e.test.ts`(실 CLI 배선 — 차단 exit·`--no-push` 환원)가 승격을 잠근다. 되돌리려면 이 ADR 을 supersede 하는 새 ADR 필요.
+- 행동 변화(의도된 것): 비-TTY save는 `--yes` 또는 `--no-push`가 필수다(차단 시 exit 1). standard·strict 자연어 "저장해줘"는 미리보기 + exit 1이고, lite는 실제 TTY에서만 경고 후 실행하며 비-TTY에서는 차단된다. TTY Commander는 standard·strict 모두 승격 전과 동일한 확인 경험을 유지한다(standard=자체 프롬프트, strict=y/N).
+- **버전 배치 — 사람 발행 게이트(미확정)**: 비-TTY `vhk save`의 성공→차단과 자연어 가드의 종료 코드 변화는 공개 CLI 계약의 비호환 변경이다. 현재 전역 규칙인 “공개 API breaking change는 major 버전에서만 허용”에 따라, 규칙이 그대로인 동안에는 major에서만 발행할 수 있다. 이 ADR은 2.15.x 예외를 승인하지 않으며 발행 버전도 정하지 않는다. 더 이른 배치를 검토하려면 발행 전에 전역 규칙 자체를 별도의 사람 결정으로 정식 개정하고 CHANGELOG의 마이그레이션 고지를 함께 확정해야 한다. 그 결정 전에는 tag·publish하지 않는다.
+- **하위 폴더 strict 소실 봉인**: 가드(`runGuarded`·`guardSave`), `vhk mode` 조회·변경, `vhk verify`의 safetyMode 해석은 모두 Git 루트의 `.vhk/config.json`을 기준으로 한다(`resolveConfigRoot`·`readConfigFromProjectRoot`). Git 저장소가 아닐 때만 현재 작업 디렉터리로 폴백한다.
+- 기존 자동화 영향: 비-TTY에서 원격 push까지 포함하려면 `vhk save --yes -m "메시지"`, 로컬 commit만 하려면 `vhk save --no-push -m "메시지"`로 갱신해야 한다. vhk-auto/overnight 스킬 문서의 권장 경로 갱신은 이 PR 머지 직후 후속으로 진행한다(스킬 파일은 동시 진행 중인 Agent Skills 정비(139)와 충돌 회피 — 그때까지 해당 스킬의 비-TTY save는 차단+안내로 동작하며 조용히 push하지 않는다).
+- 회귀 가드: `tests/safety-guard.test.ts`의 새 계약 블록("ADR-021 / #611"), `tests/save-guard.e2e.test.ts`(실 CLI 배선 — 차단 exit·`--no-push` 환원), `tests/guard-cli-prompt-error.test.ts`(프롬프트 장애의 실패 전파)가 승격을 잠근다. 되돌리려면 이 ADR을 supersede 하는 새 ADR이 필요하다.
