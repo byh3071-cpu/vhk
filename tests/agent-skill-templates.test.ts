@@ -12,6 +12,7 @@ import {
   projectSkillTemplates,
 } from '../src/lib/agent-skill-templates.js'
 import { removeDirSync, removeFileSync } from '../src/lib/fs-remove.js'
+import { MAX_LINE_CHARS } from '../src/lib/scan-secrets.js'
 
 const dirs: string[] = []
 
@@ -88,6 +89,9 @@ describe('Agent Skill 공통 정본과 투영', () => {
 
     expect(result.status, result.stderr).toBe(0)
     expect(fs.readFileSync(output, 'utf-8')).toBe(source)
+    expect(Math.max(...source.split(/\r?\n/).map((line) => line.length))).toBeLessThanOrEqual(
+      MAX_LINE_CHARS,
+    )
   })
 
   it('공통 manifest의 일부 플랫폼 선언을 거부한다', () => {

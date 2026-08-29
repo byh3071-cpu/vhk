@@ -83,16 +83,21 @@ const skills = manifest.skills.map((entry) => {
   }
 })
 
-const bundle = {
+const sourceBundle = {
   schemaVersion: manifest.schemaVersion,
   bundleVersion: manifest.bundleVersion,
-  skills,
+  skills: skills.map((skill) => ({
+    ...skill,
+    files: Object.fromEntries(
+      Object.entries(skill.files).map(([fileName, content]) => [fileName, content.split('\n')]),
+    ),
+  })),
 }
 const source = fs.readFileSync(outputPath, 'utf-8')
 const eol = source.includes('\r\n') ? '\r\n' : '\n'
 const generatedLf = [
   blockStart,
-  `const GENERATED_AGENT_SKILL_BUNDLE: AgentSkillBundleData = ${JSON.stringify(bundle, null, 2)}`,
+  `const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = ${JSON.stringify(sourceBundle, null, 2)}`,
   blockEnd,
 ].join('\n')
 const generated = eol === '\n' ? generatedLf : generatedLf.replace(/\n/g, '\r\n')
