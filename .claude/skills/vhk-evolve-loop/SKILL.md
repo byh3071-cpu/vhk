@@ -28,4 +28,4 @@ vhk evolve list
 - 같은 교훈이 둘 이상의 VHK 프로젝트에서 확인되면 공개 템플릿 개선 후보로 검토한다.
 
 CLI 결함을 learn만으로 끝내거나, 로컬 memory만 바꾸고 공유할 `RULES.md`를 갱신한 것처럼 말하지 않는다.
-<!-- vhk-agent-skill: vhk-evolve-loop@2 source=.agents/skills sha256=b43f5a3ff58436cb5b4a5e1bb2be047263d3501b4f527274b0c3bdbfcb1556a0 -->
+<!-- vhk-agent-skill: vhk-evolve-loop@5 source=.agents/skills sha256=b43f5a3ff58436cb5b4a5e1bb2be047263d3501b4f527274b0c3bdbfcb1556a0 -->

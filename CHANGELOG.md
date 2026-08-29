@@ -33,6 +33,11 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
   경로를 직접 읽고 Claude Code는 해시가 붙은 `.claude/skills` 관리 사본을 사용한다. `vhk sync`는
   새 프로젝트에 두 경로를 만들며, `sync --check`는 정본·npm 번들·투영 drift와 사용자 충돌을 쓰기
   없이 검사한다. 기존 `.cursor/skills`와 사용자 수정본은 자동으로 덮거나 옮기거나 지우지 않는다.
+  정본 필수 파일 누락·정본/번들 불일치·실행 시 발견한 symlink/junction·디스크 쓰기 실패는
+  fail-closed로 끝낸다. 관리본 갱신 전 원본을 `.vhk/backups`로 원자 이동하고 새 경로를 배타 생성하며,
+  실패하면 이전 관리본을 활성 경로로 복구한다. 비원자 copy fallback은 사용하지 않는다. 자율 Skill은
+  단일 writer의 깨끗한 비보호 작업 브랜치와 Goal 범위 안 변경을 확인한 뒤에만
+  로컬 commit한다.
 - README·COMMANDS·2.x 원본 문서를 실제 2.15 동작에 맞췄다. MCP 35개 목록에서 CLI 전용 `policy`를
   제외하고, `policy check`의 셸 경계, receipt의 자체 5-gate 검증·stale 미상 CAUTION,
   DONE/CANCELED 종결 스냅샷 계약을 명시했다. 이 수정은 GitHub 문서부터 적용되며 이미 발행된 npm

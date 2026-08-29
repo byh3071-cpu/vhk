@@ -31,4 +31,4 @@ VHK CLI 자체의 버그나 크래시는 **vhk-dogfood-issue**, 프로젝트의 
 
 완료 조건은 verify exit 0, receipt pass/caution, active Goal의 review pass 또는 모든 Goal 정상 DONE
 종료의 review `N/A`다. 그 전에는 완료를 선언하지 않는다.
-<!-- vhk-agent-skill: vhk-gate@2 source=.agents/skills sha256=6fa1ed84aaff2c935266459d1b046cd5350b911da361f2b395944f17bb8111fc -->
+<!-- vhk-agent-skill: vhk-gate@5 source=.agents/skills sha256=6fa1ed84aaff2c935266459d1b046cd5350b911da361f2b395944f17bb8111fc -->

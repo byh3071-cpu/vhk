@@ -19,10 +19,8 @@ status: IN_PROGRESS
 ---
 ```
 
-상태는 `NOT_STARTED`, `IN_PROGRESS`, `DONE`, `BLOCKED`, `CANCELED`, `DEFERRED`, `OBSERVING`
-중 프로젝트 계약이 허용하는 값을 쓴다.
+상태는 `NOT_STARTED`, `IN_PROGRESS`, `DONE`, `BLOCKED` 중 프로젝트 계약이 허용하는 값을 쓴다.
 레거시는 `active` → `IN_PROGRESS`, `done` → `DONE`, `pending` → `NOT_STARTED`로 옮긴다.
 검증은 `vhk goal list`, `vhk goal peek`, `vhk review` 순서로 한다.
 
 도구가 유효한 레거시 상태를 경고 없이 무시한다면 Goal 파일을 계속 바꾸지 말고 VHK 제품 결함으로 분류한다.
-<!-- vhk-agent-skill: vhk-goal-health@5 source=.agents/skills sha256=aebbd3863086200cb83d2d0459dfeb0bb17cf14bd4fb973aa37bac3c52d0c653 -->

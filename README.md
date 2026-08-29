@@ -26,7 +26,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 </div>
 
 > [!IMPORTANT]
-> npm latest는 v2.15.0입니다. 아래 ADR-021의 save 가드와 `--no-push`는 현재 **Unreleased**이며 발행 버전은 아직 정하지 않았습니다.
+> npm latest는 v2.15.0입니다. 아래 ADR-021의 save 가드·`--no-push`와 ADR-020의 공통 Agent Skills 정본·투영은 현재 **Unreleased**이며 발행 버전은 아직 정하지 않았습니다.
 
 > [!NOTE]
 > VHK는 새 코딩 에이전트가 **아닙니다.** 이미 쓰는 에이전트를 감싸 "무엇을 하기로 했는지 · 정말 끝났는지 · 다음 세션이 어디서 이어질지"를 repo 안의 파일과 CLI 게이트로 고정하는 하네스입니다. 모델이 바뀌어도 규칙·기억·게이트는 repo에 남습니다.
@@ -131,6 +131,9 @@ Cursor 기존 프로젝트는 `vhk bootstrap cursor`로 VHK 관리 Skill을 설�
 Google Antigravity·Codex·Cursor가 함께 읽는 `.agents/skills`를 만들고, 같은 정본에서 Claude Code용
 `.claude/skills` 관리 사본을 생성합니다. 관리 표식과 본문 해시가 일치하는 구버전만 안전하게 갱신하며,
 사용자가 손댄 파일과 기존 `.cursor/skills`는 덮어쓰기·삭제·이동하지 않고 수동 병합을 안내합니다.
+정본 필수 파일 누락, 실행 때 발견한 외부 링크, 실제 쓰기 실패는 성공으로 넘기지 않습니다. 관리본 갱신은
+기존 파일을 먼저 `.vhk/backups`로 이동하고 새 파일을 배타 생성합니다. 실패하면 이전 관리본을 활성 경로로
+복구하며, 완성본을 원자 생성할 수 없는 파일시스템에서는 부분 사본을 남기는 방식으로 낮추지 않습니다.
 생성되는 검증 Skill은 특정 `pnpm` 스크립트를 가정하지 않고 `vhk verify`가 프로젝트의 실제 스크립트를
 판별하게 합니다.
 

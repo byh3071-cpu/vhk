@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { checkAgentSkillSync, type AgentSkillSyncCheckResult } from './agent-skill-templates.js'
 
 // RFC 0060 T3: init 자동 sync 후 "다 준비됐나"를 디스크 실측(읽기검증)으로 보고한다.
 // "썼다"고 믿지 않고 실제 파일 존재를 확인 — 거짓완료(RFC 0056) 금지. 실무/조립설명서 톤.
@@ -34,6 +35,7 @@ export interface InstallReceipt {
   recordDirsPresent: number
   recordDirsTotal: number
   interviewPending: boolean
+  agentSkills: AgentSkillSyncCheckResult
   coreRules?: InstallReceiptCoreRules
 }
 
@@ -60,6 +62,7 @@ export function collectInstallReceipt(
     recordDirsPresent,
     recordDirsTotal: RECORD_DIRS.length,
     interviewPending,
+    agentSkills: checkAgentSkillSync(rootDir),
     ...(coreRules ? { coreRules } : {}),
   }
 }
@@ -99,11 +102,19 @@ export function formatInstallReceipt(r: InstallReceipt): string {
     }
   }
   lines.push(`  기록 폴더    ${r.recordDirsPresent}/${r.recordDirsTotal}종 만들어짐 ${dirsOk ? '✅' : '⚠️'}`)
+  lines.push(`  Agent Skills ${r.agentSkills.ok ? '정본·투영 일치 ✅' : '누락·불일치 있음 ⚠️'}`)
   if (r.interviewPending) {
     lines.push('  첫 인터뷰    다음 세션 시작 때 자동으로 시작돼요 (도메인 규칙 + 기획 슬롯)')
   }
   if (!rulesOk) {
     lines.push(`  ⚠️ 누락: ${r.rulesMissing.join(', ')} → 복구: vhk sync`)
+  }
+  if (!r.agentSkills.ok) {
+    const count = r.agentSkills.missing.length
+      + r.agentSkills.drifted.length
+      + r.agentSkills.conflicts.length
+      + r.agentSkills.bundleDrift.length
+    lines.push(`  ⚠️ Agent Skill 문제 ${count}건 → 복구·확인: vhk sync`)
   }
   return lines.join('\n')
 }

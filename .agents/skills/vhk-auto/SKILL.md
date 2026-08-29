@@ -33,16 +33,29 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
   receipt** 를 요구하는데(`isVerifiedComplete`), `vhk verify` 는 그 원장을 쓰지 않는다.
   빠지면 런이 기록돼도 `verified=false` 로 떨어져 관찰 게이트의 유효 실행에 들어가지 않고,
   자기 보고 격차로 잡혀 권한 승급까지 영구 차단된다. 커밋 직후에 불러야 SHA 가 일치한다.
+- **INV-11** 자동 commit은 다른 writer가 없는 격리된 작업 브랜치에서만 한다. 병렬 에이전트·사람
+  편집 세션이 같은 worktree를 쓸 수 있으면 시작하지 말고 각자 별도 worktree를 사용한다. 시작 전에
+  `git -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all`의 출력이 비어 있어야 하고
+  `git branch --show-current`가 비어 있거나 `main`·`master`이면 시작하지 않는다.
+  기존 변경을 stage·stash·reset·삭제해 기준선을 만들지 않는다. commit 직전 다시 상태를 읽어
+  현재 브랜치와 Goal 범위를 다시 확인하며, 보호 브랜치이거나 범위 밖 경로가 하나라도 있으면
+  `vhk save`를 호출하지 않고 blocked로 끝낸다. `vhk verify`도 증거 원장을 경로 한정 commit할 수
+  있으므로 매 verify 직전에 같은 브랜치 검사를 한다. 이 검사를 생략할 수 없다.
 
 ## 루프 (1회 호출 = active goal 카드 1개)
-0. **안전 확인**: `.vhk/HARD_STOP` 존재? → 있으면 즉시 중단, 사유 보고하고 종료. (INV-6)
+0. **안전 확인**: `.vhk/HARD_STOP` 존재? → 있으면 즉시 중단, 사유 보고하고 종료. 이어서
+   `git -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all`의 출력이 비어 있고
+   `git branch --show-current`가 비어 있지 않은 작업 브랜치인지 확인한다. 단일 writer를 보장할 수
+   없거나 dirty·detached HEAD·`main`·`master`면 어떤 파일도 바꾸기 전에 사유를 보고하고 종료한다.
+   (INV-6·INV-11)
 1. **앵커 재주입**: `vhk loop-brief` 와 `vhk remind` 실행 → 산출 파일
    (`.vhk/loop-brief.md`·`.vhk/remind.md`) 를 Read 해서 의도·치명규칙을 컨텍스트에 넣는다.
 2. **상태 파악**: `vhk work`(또는 `vhk goal next`) 실행 → 지금의 active goal 카드 1개를 식별한다.
    **런 시작 기록**(INV-9): `vhk autonomy-log --event start [--goal <n>]` 실행 → 발급된
    runId 를 루프 끝까지 들고 있는다(6번 종결 분기에서 그대로 쓴다).
 3. **개발**: 그 카드의 미션을 구현한다. test-first(실패 테스트 먼저 → 통과 구현) + 기존 코딩 규칙 준수.
-4. **결정론 게이트**: `vhk verify` 실행 → `.vhk/reports/latest.json` 을 읽는다.
+4. **결정론 게이트**: `git branch --show-current`가 여전히 이름 있는 비보호 작업 브랜치인지 먼저
+   재확인한 뒤 `vhk verify` 실행 → `.vhk/reports/latest.json` 을 읽는다.
    green(typecheck/test/build/secure 통과) = 진행 허가 / red = 게이트 실패 카운트 +1. (INV-1·INV-4)
    첫 red이면 적대 검증이나 commit으로 진행하지 않는다. 같은 호출에서 실패 원인을 수정하고 `vhk verify`를 한 번 다시 실행한다.
    두 번째 red이면 hardstop 분기로 이동한다. 안전하게 수정할 수 없거나 재검증 전에 호출을 끝내야 하면 blocked 종결 분기로 이동한다.
@@ -54,12 +67,17 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
 6. **종결 분기**:
    - **합격**(verify green AND 적대 치명 0):
      1) `docs/devlog/<오늘날짜>-autopilot.md` 에 "무엇을 했고 검증 결과" 1줄 append. (INV-5)
-     2) `vhk save --no-push -m "<검증된 변경 요약>"`으로 작은 commit 1개. `--no-push`는
+     2) `git branch --show-current`가 여전히 이름 있는 비보호 작업 브랜치인지 확인하고,
+        `git -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all`의 NUL 구분 레코드를
+        전부 읽어 rename/copy의 원본·대상과 새 디렉터리 내부 파일까지 이번 Goal의 선언 범위인지 대조한다.
+        보호 브랜치·detached HEAD·Goal 범위 밖 경로·출처를 확인할 수 없는 동시 변경이 있으면 기존
+        변경을 건드리지 말고 blocked 분기로 닫는다. 모두 범위 안일 때만 다음 단계로 간다. (INV-11)
+     3) `vhk save --no-push -m "<검증된 변경 요약>"`으로 작은 commit 1개. `--no-push`는
         로컬 commit만 명시 승인하는 경로다. 평범한 `vhk save`나 push를 포함하는 `--yes`는 쓰지
         않으며, 저장 실패는 성공으로 우회하지 말고 blocked 분기로 닫는다. (INV-7)
-     3) `vhk receipt` 실행 — **커밋 직후, 종결 기록 직전**. (INV-10)
-     4) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)
-     5) goal 완주 → 정지 + 핵심 보고 → 종료.
+     4) `vhk receipt` 실행 — **커밋 직후, 종결 기록 직전**. (INV-10)
+     5) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)
+     6) goal 완주 → 정지 + 핵심 보고 → 종료.
    - **critical 발견 또는 verify 연속 2회 red**:
      1) `.vhk/HARD_STOP` 파일을 사유와 함께 생성. (INV-6)
      2) `vhk autonomy-log --event hardstop --run-id <runId> [...] [--review-rejected]`

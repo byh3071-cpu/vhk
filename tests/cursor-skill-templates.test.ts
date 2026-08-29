@@ -6,6 +6,7 @@ import {
   CURSOR_SKILL_TEMPLATES,
   installCursorSkills,
 } from '../src/lib/cursor-skill-templates.js'
+import { AGENT_SKILL_MANIFEST } from '../src/lib/agent-skill-templates.js'
 
 const dirs: string[] = []
 
@@ -28,7 +29,9 @@ describe('cursor-skill-templates 호환 표면', () => {
       'vhk-gate',
       'vhk-goal-health',
     ])
-    expect(CURSOR_SKILL_TEMPLATES['vhk-gate']).toContain('vhk-agent-skill: vhk-gate@2')
+    expect(CURSOR_SKILL_TEMPLATES['vhk-gate']).toContain(
+      `vhk-agent-skill: vhk-gate@${AGENT_SKILL_MANIFEST.bundleVersion}`,
+    )
   })
 
   it('호환 설치 함수도 .cursor가 아니라 공통 발견 경로를 쓴다', () => {

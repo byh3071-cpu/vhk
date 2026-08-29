@@ -1,4 +1,11 @@
-import { closeSync, lstatSync, openSync, writeFileSync, renameSync } from 'node:fs'
+import {
+  closeSync,
+  linkSync,
+  lstatSync,
+  openSync,
+  writeFileSync,
+  renameSync,
+} from 'node:fs'
 import { join, dirname, basename } from 'node:path'
 import { removeFileSync } from './fs-remove.js'
 
@@ -14,10 +21,14 @@ function isTransientRenameError(error: unknown): boolean {
   return error instanceof Error && (error as NodeJS.ErrnoException).code === 'EPERM'
 }
 
-function renameWithRetry(tmp: string, filePath: string): void {
+export function renameFileWithRetry(
+  tmp: string,
+  filePath: string,
+  renameFile: typeof renameSync = renameSync,
+): void {
   for (let retry = 0; ; retry += 1) {
     try {
-      renameSync(tmp, filePath)
+      renameFile(tmp, filePath)
       return
     } catch (error) {
       if (!isTransientRenameError(error) || retry >= RENAME_MAX_RETRIES) throw error
@@ -43,6 +54,18 @@ export interface AtomicWriteOptions {
   mode?: number
 }
 
+export class AtomicCreateCleanupError extends Error {
+  readonly targetPath: string
+  readonly tempPath: string
+
+  constructor(targetPath: string, tempPath: string, cause: unknown) {
+    super(`파일은 생성됐지만 임시 파일을 정리하지 못했습니다: ${tempPath}`, { cause })
+    this.name = 'AtomicCreateCleanupError'
+    this.targetPath = targetPath
+    this.tempPath = tempPath
+  }
+}
+
 export function atomicWriteFile(
   filePath: string,
   data: string,
@@ -63,7 +86,7 @@ export function atomicWriteFile(
     } finally {
       closeSync(fd)
     }
-    renameWithRetry(tmp, filePath)
+    renameFileWithRetry(tmp, filePath)
     ownsTemp = false
   } catch (err) {
     if (ownsTemp) {
@@ -74,5 +97,55 @@ export function atomicWriteFile(
       }
     }
     throw err
+  }
+}
+
+// 완성된 temp 파일을 hard-link해, 이미 생긴 대상은 절대 덮어쓰지 않는 원자적 신규 생성.
+export function atomicCreateFile(
+  filePath: string,
+  data: string,
+  options: AtomicWriteOptions = {},
+): boolean {
+  if (lstatSync(filePath, { throwIfNoEntry: false }) !== undefined) return false
+  const tmp = join(dirname(filePath), `.${basename(filePath)}.tmp-${process.pid}-${writeCounter++}`)
+  let ownsTemp = false
+  try {
+    const fd = openSync(tmp, 'wx', options.mode ?? 0o666)
+    ownsTemp = true
+    try {
+      writeFileSync(fd, data, { encoding: 'utf-8' })
+    } finally {
+      closeSync(fd)
+    }
+    try {
+      linkSync(tmp, filePath)
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code
+      if (code === 'EEXIST') return false
+      // copyFile(EXCL)은 덮어쓰기는 막지만 프로세스 중단 시 부분 target을 남길 수 있다.
+      // 완성본만 보이게 하는 계약을 지키기 위해 hard-link 미지원 파일시스템은 fail-closed한다.
+      throw error
+    }
+    let cleanupError: unknown
+    for (let retry = 0; retry < 3; retry += 1) {
+      try {
+        removeFileSync(tmp)
+        ownsTemp = false
+        return true
+      } catch (error) {
+        cleanupError = error
+      }
+    }
+    // 대상 생성은 끝났지만 temp 잔재까지 남았으면 성공으로 숨기지 않는다.
+    ownsTemp = false
+    throw new AtomicCreateCleanupError(filePath, tmp, cleanupError)
+  } finally {
+    if (ownsTemp) {
+      try {
+        removeFileSync(tmp)
+      } catch {
+        /* 원래 생성 결과나 오류를 보존한다. */
+      }
+    }
   }
 }

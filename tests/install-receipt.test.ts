@@ -16,6 +16,7 @@ describe('install-receipt (RFC 0060 T3)', () => {
       expect(r.rulesPresent).toHaveLength(0)
       expect(r.rulesMissing.length).toBe(r.ruleTargets.length)
       expect(r.recordDirsPresent).toBe(0)
+      expect(r.agentSkills.ok).toBe(false)
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })
     }
@@ -88,6 +89,7 @@ describe('install-receipt (RFC 0060 T3)', () => {
       const out = formatInstallReceipt(collectInstallReceipt(dir))
       expect(out).toContain('설치 점검')
       expect(out).toContain('규칙 파일')
+      expect(out).toContain('Agent Skills')
       expect(out).toContain('vhk sync') // 누락(빈 디렉토리)이라 복구 명령
     } finally {
       fs.rmSync(dir, { recursive: true, force: true })

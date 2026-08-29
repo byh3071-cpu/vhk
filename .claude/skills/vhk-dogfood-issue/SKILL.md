@@ -22,4 +22,4 @@ description: VHK CLI나 하네스 결함을 재현·분류하고 승인된 경�
 5. 필요한 경우 `vhk learn "dogfood: ..."`로 로컬 교훈을 남긴다.
 
 사용자 승인 없이 외부 이슈를 만들거나 현재 프로젝트 버그를 VHK 저장소에 등록하지 않는다.
-<!-- vhk-agent-skill: vhk-dogfood-issue@2 source=.agents/skills sha256=5db4532a3825298d6a8dc83d05550d56b7c559d2371ed07b8d83cd584249c929 -->
+<!-- vhk-agent-skill: vhk-dogfood-issue@5 source=.agents/skills sha256=5db4532a3825298d6a8dc83d05550d56b7c559d2371ed07b8d83cd584249c929 -->

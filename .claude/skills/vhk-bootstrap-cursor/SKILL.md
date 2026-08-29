@@ -44,4 +44,4 @@ vhk review
 
 review exit 1이면 `vhk goal list`로 원인을 나눈다. 스키마 오류만 goal-health로 복구하고, 모든 Goal이
 정상 DONE인 종료는 review `N/A`로 처리한다. bootstrap 중 VHK CLI 결함은 **vhk-dogfood-issue**로 보낸다.
-<!-- vhk-agent-skill: vhk-bootstrap-cursor@2 source=.agents/skills sha256=6823dc503625787aafe36daf30338d68c49c4dac3b78ad74c900ec58c6ed036f -->
+<!-- vhk-agent-skill: vhk-bootstrap-cursor@5 source=.agents/skills sha256=6823dc503625787aafe36daf30338d68c49c4dac3b78ad74c900ec58c6ed036f -->

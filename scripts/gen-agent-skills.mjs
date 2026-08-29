@@ -7,8 +7,44 @@ const positional = args.filter((arg) => arg !== '--check')
 const skillsRoot = path.resolve(positional[0] ?? '.agents/skills')
 const outputPath = path.resolve(positional[1] ?? 'src/lib/agent-skill-templates.ts')
 const manifestPath = path.join(skillsRoot, 'manifest.json')
+const ownerRoot = path.resolve(skillsRoot, '..', '..')
 const blockStart = '// VHK-GENERATED-AGENT-SKILLS:BEGIN'
 const blockEnd = '// VHK-GENERATED-AGENT-SKILLS:END'
+
+function isInside(root, target) {
+  const relative = path.relative(root, target)
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))
+}
+
+function assertSafeRegularFile(filePath, label) {
+  const absolute = path.resolve(filePath)
+  if (!isInside(ownerRoot, absolute)) {
+    throw new Error(`${label} 경로가 프로젝트 밖입니다: ${absolute}`)
+  }
+
+  const relative = path.relative(ownerRoot, absolute)
+  let current = ownerRoot
+  for (const segment of relative.split(path.sep)) {
+    if (segment === '') continue
+    current = path.join(current, segment)
+    const stat = fs.lstatSync(current, { throwIfNoEntry: false })
+    if (stat === undefined) throw new Error(`${label} 파일이 없습니다: ${absolute}`)
+    if (stat.isSymbolicLink()) {
+      throw new Error(`${label} 경로의 symlink/junction을 따라가지 않습니다: ${current}`)
+    }
+  }
+
+  const stat = fs.lstatSync(absolute)
+  if (!stat.isFile()) throw new Error(`${label}는 일반 파일이어야 합니다: ${absolute}`)
+  const realOwner = fs.realpathSync(ownerRoot)
+  const realFile = fs.realpathSync(absolute)
+  if (!isInside(realOwner, realFile)) {
+    throw new Error(`${label} 실제 경로가 프로젝트 밖입니다: ${realFile}`)
+  }
+}
+
+assertSafeRegularFile(manifestPath, 'Agent Skill manifest')
+assertSafeRegularFile(outputPath, 'Agent Skill 생성 번들')
 
 function frontmatterValue(content, field, skillName) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(content)
@@ -20,6 +56,30 @@ function frontmatterValue(content, field, skillName) {
     throw new Error(`SKILL.md frontmatter ${field}가 없거나 중복입니다: ${skillName}`)
   }
   return values[0]
+}
+
+const windowsReservedName = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i
+
+function portableSkillFileName(fileName, skillName) {
+  if (typeof fileName !== 'string' || path.isAbsolute(fileName)) {
+    throw new Error(`안전하지 않은 skill 파일 경로: ${skillName}/${String(fileName)}`)
+  }
+  const segments = fileName.split(/[\\/]/)
+  if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
+    throw new Error(`안전하지 않은 skill 파일 경로: ${skillName}/${fileName}`)
+  }
+  for (const segment of segments) {
+    if (segment !== segment.normalize('NFC')) {
+      throw new Error(`NFC가 아닌 skill 파일 이름: ${skillName}/${fileName}`)
+    }
+    if (/[<>:"|?*\u0000-\u001f]/.test(segment) || /[. ]$/.test(segment)) {
+      throw new Error(`이식 불가능한 skill 파일 이름: ${skillName}/${fileName}`)
+    }
+    if (windowsReservedName.test(segment)) {
+      throw new Error(`Windows 예약어 skill 파일 이름: ${skillName}/${fileName}`)
+    }
+  }
+  return segments.join('/')
 }
 
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
@@ -34,6 +94,9 @@ const skills = manifest.skills.map((entry) => {
   if (!entry || typeof entry !== 'object') throw new Error('잘못된 skill 항목')
   if (typeof entry.name !== 'string' || !/^[a-z0-9-]+$/.test(entry.name)) {
     throw new Error(`잘못된 skill 이름: ${String(entry.name)}`)
+  }
+  if (windowsReservedName.test(entry.name)) {
+    throw new Error(`Windows 예약어 skill 이름: ${entry.name}`)
   }
   if (names.has(entry.name)) throw new Error(`중복 skill 이름: ${entry.name}`)
   names.add(entry.name)
@@ -59,15 +122,16 @@ const skills = manifest.skills.map((entry) => {
   }
 
   const files = {}
+  const portableFileKeys = new Set()
   for (const fileName of entry.files) {
-    if (typeof fileName !== 'string' || path.isAbsolute(fileName) || fileName.split(/[\\/]/).includes('..')) {
-      throw new Error(`안전하지 않은 skill 파일 경로: ${entry.name}/${String(fileName)}`)
+    const normalizedFileName = portableSkillFileName(fileName, entry.name)
+    const portableKey = normalizedFileName.toLowerCase()
+    if (portableFileKeys.has(portableKey)) {
+      throw new Error(`플랫폼 간 충돌 skill 파일: ${entry.name}/${normalizedFileName}`)
     }
-    const normalizedFileName = fileName.replace(/\\/g, '/')
-    if (Object.hasOwn(files, normalizedFileName)) {
-      throw new Error(`중복 skill 파일: ${entry.name}/${normalizedFileName}`)
-    }
-    const fullPath = path.join(skillsRoot, entry.name, fileName)
+    portableFileKeys.add(portableKey)
+    const fullPath = path.join(skillsRoot, entry.name, ...normalizedFileName.split('/'))
+    assertSafeRegularFile(fullPath, `Agent Skill 정본 ${entry.name}/${normalizedFileName}`)
     files[normalizedFileName] = fs.readFileSync(fullPath, 'utf-8').replace(/\r\n/g, '\n')
   }
   const declaredName = frontmatterValue(files['SKILL.md'], 'name', entry.name)
@@ -102,7 +166,36 @@ const generatedLf = [
 ].join('\n')
 const generated = eol === '\n' ? generatedLf : generatedLf.replace(/\n/g, '\r\n')
 const pattern = /\/\/ VHK-GENERATED-AGENT-SKILLS:BEGIN[\s\S]*?\/\/ VHK-GENERATED-AGENT-SKILLS:END/
-if (!pattern.test(source)) throw new Error(`생성 본문 표식이 없습니다: ${outputPath}`)
+const currentBlock = pattern.exec(source)?.[0]
+if (currentBlock === undefined) throw new Error(`생성 본문 표식이 없습니다: ${outputPath}`)
+const currentBundleMatch = /const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = ([\s\S]*?)\r?\n\/\/ VHK-GENERATED-AGENT-SKILLS:END$/.exec(currentBlock)
+if (currentBundleMatch === null) throw new Error(`기존 Agent Skill 생성 번들을 읽을 수 없습니다: ${outputPath}`)
+let currentBundle
+try {
+  currentBundle = JSON.parse(currentBundleMatch[1])
+} catch (error) {
+  throw new Error(`기존 Agent Skill 생성 번들이 올바른 JSON이 아닙니다: ${outputPath}`, {
+    cause: error,
+  })
+}
+if (!Number.isInteger(currentBundle.bundleVersion)) {
+  throw new Error(`기존 Agent Skill 생성 번들 버전이 올바르지 않습니다: ${outputPath}`)
+}
+const bundlePayload = (bundle) => JSON.stringify({
+  schemaVersion: bundle.schemaVersion,
+  skills: bundle.skills,
+})
+const contentChanged = bundlePayload(currentBundle) !== bundlePayload(sourceBundle)
+if (manifest.bundleVersion < currentBundle.bundleVersion) {
+  throw new Error(
+    `Agent Skill bundleVersion을 낮출 수 없습니다: ${currentBundle.bundleVersion} -> ${manifest.bundleVersion}`,
+  )
+}
+if (contentChanged && manifest.bundleVersion <= currentBundle.bundleVersion) {
+  throw new Error(
+    `Agent Skill 정본 본문을 바꾸려면 bundleVersion을 ${currentBundle.bundleVersion + 1} 이상으로 올려야 합니다.`,
+  )
+}
 const next = source.replace(pattern, generated)
 
 if (check) {

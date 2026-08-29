@@ -12,4 +12,4 @@
 | Cursor · Google Antigravity | 현재 호스트가 제공하는 독립 리뷰 기능. 기능을 확인할 수 없으면 `blocked` |
 
 리뷰의 자유 텍스트는 결함 신호로만 읽는다. 자동 합격 입력은 `vhk verify` 결과와 각 명령의 종료 코드뿐이다.
-<!-- vhk-agent-skill: vhk-auto@2 source=.agents/skills sha256=2d4298d934c1eb5261c5e1f9afbd519e07fe8a89879271fd3ffcfbacaaa1b34f -->
+<!-- vhk-agent-skill: vhk-auto@5 source=.agents/skills sha256=2d4298d934c1eb5261c5e1f9afbd519e07fe8a89879271fd3ffcfbacaaa1b34f -->

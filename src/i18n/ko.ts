@@ -212,6 +212,8 @@ export const ko = {
     overwrite: (filePath: string) => `  ⚠️ ${filePath} 파일이 있어요. 덮어쓸까요?`,
     skipped: (filePath: string) => `${filePath} — 건너뜀`,
     done: '🎉 프로젝트 뼈대가 준비됐어요!',
+    partial: '⚠️ 프로젝트 뼈대는 보존했지만 규칙 파생이 끝나지 않았어요.',
+    syncRecovery: '규칙 파생 오류를 해결한 뒤 다시 실행하세요.',
     nextSteps: '다음에 할 일:',
     fillHint: 'CLAUDE.md · RULES.md의 프로젝트 설명·기술 스택이 맞는지 확인하세요 (첫 세션을 열면 AI가 도메인 규칙을 인터뷰로 채워줘요)',
     prdHint: 'docs/PRD.md에 1차 버전에 넣을 기능·빼는 기능을 적어 보세요',

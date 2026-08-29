@@ -1,7 +1,14 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { atomicWriteFile } from './atomic-write.js'
+import {
+  AtomicCreateCleanupError,
+  atomicCreateFile,
+  renameFileWithRetry,
+} from './atomic-write.js'
+import { ensureVhkIgnored, fsSafeStamp } from './backup.js'
+import { removeFileSync } from './fs-remove.js'
+import { readJsonFile } from './read-json.js'
 
 export type AgentSkillPlatform =
   | 'google-antigravity'
@@ -37,7 +44,7 @@ interface AgentSkillSourceBundleData {
 // VHK-GENERATED-AGENT-SKILLS:BEGIN
 const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
   "schemaVersion": 1,
-  "bundleVersion": 2,
+  "bundleVersion": 5,
   "skills": [
     {
       "name": "vhk-auto",
@@ -85,16 +92,29 @@ const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
           "  receipt** 를 요구하는데(`isVerifiedComplete`), `vhk verify` 는 그 원장을 쓰지 않는다.",
           "  빠지면 런이 기록돼도 `verified=false` 로 떨어져 관찰 게이트의 유효 실행에 들어가지 않고,",
           "  자기 보고 격차로 잡혀 권한 승급까지 영구 차단된다. 커밋 직후에 불러야 SHA 가 일치한다.",
+          "- **INV-11** 자동 commit은 다른 writer가 없는 격리된 작업 브랜치에서만 한다. 병렬 에이전트·사람",
+          "  편집 세션이 같은 worktree를 쓸 수 있으면 시작하지 말고 각자 별도 worktree를 사용한다. 시작 전에",
+          "  `git -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all`의 출력이 비어 있어야 하고",
+          "  `git branch --show-current`가 비어 있거나 `main`·`master`이면 시작하지 않는다.",
+          "  기존 변경을 stage·stash·reset·삭제해 기준선을 만들지 않는다. commit 직전 다시 상태를 읽어",
+          "  현재 브랜치와 Goal 범위를 다시 확인하며, 보호 브랜치이거나 범위 밖 경로가 하나라도 있으면",
+          "  `vhk save`를 호출하지 않고 blocked로 끝낸다. `vhk verify`도 증거 원장을 경로 한정 commit할 수",
+          "  있으므로 매 verify 직전에 같은 브랜치 검사를 한다. 이 검사를 생략할 수 없다.",
           "",
           "## 루프 (1회 호출 = active goal 카드 1개)",
-          "0. **안전 확인**: `.vhk/HARD_STOP` 존재? → 있으면 즉시 중단, 사유 보고하고 종료. (INV-6)",
+          "0. **안전 확인**: `.vhk/HARD_STOP` 존재? → 있으면 즉시 중단, 사유 보고하고 종료. 이어서",
+          "   `git -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all`의 출력이 비어 있고",
+          "   `git branch --show-current`가 비어 있지 않은 작업 브랜치인지 확인한다. 단일 writer를 보장할 수",
+          "   없거나 dirty·detached HEAD·`main`·`master`면 어떤 파일도 바꾸기 전에 사유를 보고하고 종료한다.",
+          "   (INV-6·INV-11)",
           "1. **앵커 재주입**: `vhk loop-brief` 와 `vhk remind` 실행 → 산출 파일",
           "   (`.vhk/loop-brief.md`·`.vhk/remind.md`) 를 Read 해서 의도·치명규칙을 컨텍스트에 넣는다.",
           "2. **상태 파악**: `vhk work`(또는 `vhk goal next`) 실행 → 지금의 active goal 카드 1개를 식별한다.",
           "   **런 시작 기록**(INV-9): `vhk autonomy-log --event start [--goal <n>]` 실행 → 발급된",
           "   runId 를 루프 끝까지 들고 있는다(6번 종결 분기에서 그대로 쓴다).",
           "3. **개발**: 그 카드의 미션을 구현한다. test-first(실패 테스트 먼저 → 통과 구현) + 기존 코딩 규칙 준수.",
-          "4. **결정론 게이트**: `vhk verify` 실행 → `.vhk/reports/latest.json` 을 읽는다.",
+          "4. **결정론 게이트**: `git branch --show-current`가 여전히 이름 있는 비보호 작업 브랜치인지 먼저",
+          "   재확인한 뒤 `vhk verify` 실행 → `.vhk/reports/latest.json` 을 읽는다.",
           "   green(typecheck/test/build/secure 통과) = 진행 허가 / red = 게이트 실패 카운트 +1. (INV-1·INV-4)",
           "   첫 red이면 적대 검증이나 commit으로 진행하지 않는다. 같은 호출에서 실패 원인을 수정하고 `vhk verify`를 한 번 다시 실행한다.",
           "   두 번째 red이면 hardstop 분기로 이동한다. 안전하게 수정할 수 없거나 재검증 전에 호출을 끝내야 하면 blocked 종결 분기로 이동한다.",
@@ -106,12 +126,17 @@ const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
           "6. **종결 분기**:",
           "   - **합격**(verify green AND 적대 치명 0):",
           "     1) `docs/devlog/<오늘날짜>-autopilot.md` 에 \"무엇을 했고 검증 결과\" 1줄 append. (INV-5)",
-          "     2) `vhk save --no-push -m \"<검증된 변경 요약>\"`으로 작은 commit 1개. `--no-push`는",
+          "     2) `git branch --show-current`가 여전히 이름 있는 비보호 작업 브랜치인지 확인하고,",
+          "        `git -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all`의 NUL 구분 레코드를",
+          "        전부 읽어 rename/copy의 원본·대상과 새 디렉터리 내부 파일까지 이번 Goal의 선언 범위인지 대조한다.",
+          "        보호 브랜치·detached HEAD·Goal 범위 밖 경로·출처를 확인할 수 없는 동시 변경이 있으면 기존",
+          "        변경을 건드리지 말고 blocked 분기로 닫는다. 모두 범위 안일 때만 다음 단계로 간다. (INV-11)",
+          "     3) `vhk save --no-push -m \"<검증된 변경 요약>\"`으로 작은 commit 1개. `--no-push`는",
           "        로컬 commit만 명시 승인하는 경로다. 평범한 `vhk save`나 push를 포함하는 `--yes`는 쓰지",
           "        않으며, 저장 실패는 성공으로 우회하지 말고 blocked 분기로 닫는다. (INV-7)",
-          "     3) `vhk receipt` 실행 — **커밋 직후, 종결 기록 직전**. (INV-10)",
-          "     4) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)",
-          "     5) goal 완주 → 정지 + 핵심 보고 → 종료.",
+          "     4) `vhk receipt` 실행 — **커밋 직후, 종결 기록 직전**. (INV-10)",
+          "     5) `vhk autonomy-log --event complete --run-id <runId> [--goal <n>] [--ticks <n>] [--interventions <n>]`. (INV-9)",
+          "     6) goal 완주 → 정지 + 핵심 보고 → 종료.",
           "   - **critical 발견 또는 verify 연속 2회 red**:",
           "     1) `.vhk/HARD_STOP` 파일을 사유와 함께 생성. (INV-6)",
           "     2) `vhk autonomy-log --event hardstop --run-id <runId> [...] [--review-rejected]`",
@@ -191,7 +216,7 @@ const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
           "Prepare a temporary PR body file that follows `AGENTS.md` and includes the morning review questions. Do not commit that file.",
           "",
           "## Invariants",
-          "- **INV-A** Follow `.agents/skills/vhk-auto/SKILL.md` INV-1..INV-10 for the implement loop. Commit only inside that loop (INV-7).",
+          "- **INV-A** Follow `.agents/skills/vhk-auto/SKILL.md` INV-1..INV-11 for the implement loop. Commit only inside that loop (INV-7).",
           "- **INV-B** After green verify + commit, call `scripts/auto_pr_goal.ps1`. The wrapper supports a clean worktree with an unpushed commit; do not require dirty porcelain. **Merge = 0.** Never push `main`, force-push, publish, or change branch protection.",
           "- **INV-B2** The `autonomous` label is attached idempotently by that script on both create and reuse paths (Goal 111 cohort secondary signal). Never add or remove it by hand — the primary signal is the terminal-SHA join, and signal mismatch is quarantined as `unknown`.",
           "- **INV-C** If autonomy-log start or terminal event is missing → write `.vhk/HARD_STOP` and stop.",
@@ -201,7 +226,9 @@ const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
           "- **INV-E** Stop on HARD_STOP, verify 2× red, or open PR reported.",
           "",
           "## Loop",
-          "0. If `.vhk/HARD_STOP` exists → report and exit.",
+          "0. If `.vhk/HARD_STOP` exists → report and exit. Before any mutation, apply vhk-auto INV-11: require",
+          "   empty output from `git -c core.quotepath=false status --porcelain=v1 -z --untracked-files=all`",
+          "   and a named branch other than `main` or `master`; otherwise report and stop.",
           "1. Run `vhk goal next` and select only the Goal it reports. If none is available or dependencies block it, report and stop. Preserve its local state as `IN_PROGRESS`; do not invent an order from old Goal numbers.",
           "2. Run **vhk-auto** loop for that card (including INV-9 autonomy-log).",
           "3. On success, require a clean worktree and a current branch other than `main`.",
@@ -503,6 +530,12 @@ const LEGACY_MANAGED_HASHES: Readonly<
   },
   '.claude/skills/vhk-auto/SKILL.md': {
     1: ['4a5d60709dda0375234deb4426ee523143cbf70c604f66deb5bc430bf5f50532'],
+    2: ['370579087d2505742753e07043b9c1d866d881c2adcfda80a1b72a59e6cda8b7'],
+    3: ['ed38c38511b0981d3c54a5be7e8de98467861224df0276034b99d4e1aaa21ff1'],
+  },
+  '.claude/skills/overnight-vhk-auto/SKILL.md': {
+    2: ['7decf6ef274439677028b5684c90064a2e872cef82d457a722026ce20dcd7fde'],
+    3: ['2918e66c87a861da3fdf2880520638565ed6ea7a2f37ee7668ef47bade94c4c7'],
   },
 })
 
@@ -570,9 +603,75 @@ function comparableJson(content: string): string | null {
   }
 }
 
+function hasVhkSourcePackageIdentity(rootDir: string): boolean {
+  try {
+    const parsed = readJsonFile<unknown>(path.join(rootDir, 'package.json'))
+    return typeof parsed === 'object'
+      && parsed !== null
+      && 'name' in parsed
+      && parsed.name === '@byh3071/vhk'
+  } catch {
+    return false
+  }
+}
+
+function sourceIntegrityIssues(rootDir: string): string[] {
+  if (!isSourceRepository(rootDir)) return []
+  const issues = [SOURCE_MANIFEST_REL, GENERATED_BUNDLE_REL].filter((relativePath) => {
+    if (hasUnsafeLink(rootDir, relativePath)) return true
+    const stat = fs.lstatSync(
+      path.join(rootDir, ...relativePath.split('/')),
+      { throwIfNoEntry: false },
+    )
+    return stat === undefined || !stat.isFile() || stat.isSymbolicLink()
+  })
+
+  if (!issues.includes(SOURCE_MANIFEST_REL)) {
+    try {
+      const manifest = fs.readFileSync(
+        path.join(rootDir, ...SOURCE_MANIFEST_REL.split('/')),
+        'utf-8',
+      )
+      if (comparableJson(manifest) !== comparableJson(sourceManifestContent())) {
+        issues.push(SOURCE_MANIFEST_REL)
+      }
+    } catch {
+      issues.push(SOURCE_MANIFEST_REL)
+    }
+  }
+
+  for (const skill of GENERATED_AGENT_SKILL_BUNDLE.skills) {
+    for (const [fileName, canonical] of Object.entries(skill.files)) {
+      const relativePath = `.agents/skills/${skill.name}/${fileName}`
+      const fullPath = path.join(rootDir, ...relativePath.split('/'))
+      if (hasUnsafeLink(rootDir, relativePath)) {
+        issues.push(relativePath)
+        continue
+      }
+      const stat = fs.lstatSync(fullPath, { throwIfNoEntry: false })
+      if (stat === undefined || !stat.isFile() || stat.isSymbolicLink()) {
+        issues.push(relativePath)
+        continue
+      }
+      try {
+        if (normalizeContent(fs.readFileSync(fullPath, 'utf-8'))
+          !== normalizeContent(canonicalContent(canonical))) {
+          issues.push(relativePath)
+        }
+      } catch {
+        issues.push(relativePath)
+      }
+    }
+  }
+
+  return [...new Set(issues)]
+}
+
 function isSourceRepository(rootDir: string): boolean {
-  return fs.existsSync(path.join(rootDir, ...GENERATED_BUNDLE_REL.split('/')))
-    && fs.existsSync(path.join(rootDir, ...SOURCE_MANIFEST_REL.split('/')))
+  if (hasVhkSourcePackageIdentity(rootDir)) return true
+  // manifest는 소비자 설치에 만들지 않는 정본 전용 sentinel이다. 생성 번들 경로 하나만 우연히
+  // 같은 일반 프로젝트는 정본으로 오인하지 않되, package 이름을 바꾼 fork는 manifest로 식별한다.
+  return fs.existsSync(path.join(rootDir, ...SOURCE_MANIFEST_REL.split('/')))
 }
 
 function hasUnsafeLink(rootDir: string, relativePath: string): boolean {
@@ -632,9 +731,11 @@ function classifyManagedFile(
 interface AgentSkillFilePlan {
   skill: AgentSkillDefinition
   relativePath: string
+  canonical: string
   content: string
   sourceCanonical: boolean
   exists: boolean
+  existingContent?: string
   state: 'missing' | ManagedState
 }
 
@@ -691,6 +792,7 @@ function buildAgentSkillPlan(rootDir: string): AgentSkillFilePlan[] {
           plan.push({
             skill,
             relativePath,
+            canonical,
             content: target.sourceCanonical ? canonicalContent(canonical) : managedContent(skill, canonical),
             sourceCanonical: target.sourceCanonical,
             exists: true,
@@ -703,6 +805,7 @@ function buildAgentSkillPlan(rootDir: string): AgentSkillFilePlan[] {
           plan.push({
             skill,
             relativePath,
+            canonical,
             content: target.sourceCanonical ? canonicalContent(canonical) : managedContent(skill, canonical),
             sourceCanonical: target.sourceCanonical,
             exists: false,
@@ -718,6 +821,7 @@ function buildAgentSkillPlan(rootDir: string): AgentSkillFilePlan[] {
           plan.push({
             skill,
             relativePath,
+            canonical,
             content: target.sourceCanonical ? canonicalContent(canonical) : managedContent(skill, canonical),
             sourceCanonical: target.sourceCanonical,
             exists: true,
@@ -735,15 +839,37 @@ function buildAgentSkillPlan(rootDir: string): AgentSkillFilePlan[] {
         plan.push({
           skill,
           relativePath,
+          canonical,
           content: target.sourceCanonical ? canonicalContent(canonical) : managedContent(skill, canonical),
           sourceCanonical: target.sourceCanonical,
           exists: true,
+          existingContent: existing,
           state,
         })
       }
     }
   }
   return plan
+}
+
+function refreshAgentSkillFilePlan(rootDir: string, item: AgentSkillFilePlan): AgentSkillFilePlan {
+  if (hasUnsafeLink(rootDir, item.relativePath)) {
+    return { ...item, exists: true, existingContent: undefined, state: 'conflict' }
+  }
+  const fullPath = path.join(rootDir, ...item.relativePath.split('/'))
+  const exists = fs.existsSync(fullPath)
+  if (!exists) return { ...item, exists: false, existingContent: undefined, state: 'missing' }
+  try {
+    const existing = fs.readFileSync(fullPath, 'utf-8')
+    const state = item.sourceCanonical
+      ? normalizeContent(existing) === normalizeContent(canonicalContent(item.canonical))
+        ? 'current'
+        : 'conflict'
+      : classifyManagedFile(item.relativePath, item.skill, item.canonical, existing)
+    return { ...item, exists: true, existingContent: existing, state }
+  } catch {
+    return { ...item, exists: true, existingContent: undefined, state: 'conflict' }
+  }
 }
 
 export interface AgentSkillSyncCheckResult {
@@ -765,6 +891,7 @@ export function checkAgentSkillSync(rootDir: string): AgentSkillSyncCheckResult 
   const bundleDrift: string[] = []
 
   if (isSourceRepository(rootDir)) {
+    bundleDrift.push(...sourceIntegrityIssues(rootDir))
     const manifestPath = path.join(rootDir, ...SOURCE_MANIFEST_REL.split('/'))
     try {
       const manifest = fs.readFileSync(manifestPath, 'utf-8')
@@ -793,13 +920,133 @@ export interface InstallAgentSkillsResult {
   updated: string[]
   unchanged: string[]
   conflicts: string[]
+  // 갱신 전 관리본을 이동해 둔 vhk restore 호환 상대경로.
+  backups: string[]
 }
 
 export function installAgentSkills(rootDir: string = process.cwd()): InstallAgentSkillsResult {
+  const assertSourceIntegrity = (): void => {
+    const integrityIssues = sourceIntegrityIssues(rootDir)
+    if (integrityIssues.length > 0) {
+      throw new Error(`VHK Agent Skill 정본 저장소 무결성 실패: ${integrityIssues.join(', ')}`)
+    }
+  }
+  assertSourceIntegrity()
   const created: string[] = []
   const updated: string[] = []
   const unchanged: string[] = []
   const conflicts: string[] = []
+  const backups: string[] = []
+  let backupRootRelative: string | undefined
+
+  interface RestoreOutcome {
+    activeRestored: boolean
+    backupAvailable: boolean
+  }
+
+  const restoreBackupAtTarget = (
+    backupRelative: string,
+    backupPath: string,
+    fullPath: string,
+  ): RestoreOutcome => {
+    if (fs.existsSync(fullPath)) return { activeRestored: false, backupAvailable: true }
+    let linked = false
+    try {
+      // 같은 파일시스템의 hard link로 경로를 배타 복구한 직후 백업 이름을 지운다. 두 경로를
+      // 같은 inode로 남기면 이후 편집이 백업까지 바꾸므로 독립 백업인 것처럼 유지하지 않는다.
+      fs.linkSync(backupPath, fullPath)
+      linked = true
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST' || fs.existsSync(fullPath)) {
+        return { activeRestored: false, backupAvailable: true }
+      }
+    }
+
+    if (linked) {
+      let cleanupError: unknown
+      for (let retry = 0; retry < 3; retry += 1) {
+        try {
+          removeFileSync(backupPath)
+          const backupIndex = backups.lastIndexOf(backupRelative)
+          if (backupIndex >= 0) backups.splice(backupIndex, 1)
+          return { activeRestored: true, backupAvailable: false }
+        } catch (error) {
+          cleanupError = error
+        }
+      }
+      throw new Error(
+        `Agent Skill 활성 경로는 복구했지만 같은 inode의 백업 별칭을 제거하지 못했습니다: ${backupRelative}`,
+        { cause: cleanupError },
+      )
+    }
+
+    // hard link를 지원하지 않는 파일시스템에서는 같은 볼륨 rename으로 활성 경로부터 복구한다.
+    // 저장소를 동시에 다시 쓰는 악성 로컬 writer는 ADR-020의 위협 모델 밖이며, 일반 동시 편집은
+    // 위 EEXIST 경로에서 보존한다.
+    renameFileWithRetry(backupPath, fullPath, fs.renameSync)
+    const backupIndex = backups.lastIndexOf(backupRelative)
+    if (backupIndex >= 0) backups.splice(backupIndex, 1)
+    return { activeRestored: true, backupAvailable: false }
+  }
+
+  const recoveryDescription = (
+    outcome: RestoreOutcome,
+    backupRelative: string,
+    targetRelative: string,
+  ): string => outcome.backupAvailable
+    ? `백업 유지: ${backupRelative}`
+    : `활성 경로 복구됨: ${targetRelative}`
+
+  const removeOwnIncompleteCreate = (
+    error: unknown,
+    fullPath: string,
+    expectedContent: string,
+  ): void => {
+    if (!(error instanceof AtomicCreateCleanupError)) return
+    if (path.resolve(error.targetPath) !== path.resolve(fullPath)) return
+    const targetStat = fs.lstatSync(fullPath, { throwIfNoEntry: false })
+    const tempStat = fs.lstatSync(error.tempPath, { throwIfNoEntry: false })
+    if (
+      targetStat === undefined
+      || tempStat === undefined
+      || !targetStat.isFile()
+      || !tempStat.isFile()
+      || targetStat.isSymbolicLink()
+      || tempStat.isSymbolicLink()
+      || targetStat.dev !== tempStat.dev
+      || targetStat.ino !== tempStat.ino
+    ) {
+      return
+    }
+    if (normalizeContent(fs.readFileSync(fullPath, 'utf-8')) !== normalizeContent(expectedContent)) {
+      return
+    }
+    removeFileSync(fullPath)
+  }
+
+  const ensureBackupRoot = (): string => {
+    if (backupRootRelative !== undefined) return backupRootRelative
+    ensureVhkIgnored(rootDir, 'backups/')
+    const base = `${fsSafeStamp(new Date())}-agent-skills-${process.pid}`
+    let candidate = path.posix.join('.vhk', 'backups', base)
+    let suffix = 1
+    while (fs.existsSync(path.join(rootDir, ...candidate.split('/')))) {
+      candidate = path.posix.join(
+        '.vhk',
+        'backups',
+        `${base}-${String(suffix++).padStart(3, '0')}`,
+      )
+    }
+    if (hasUnsafeLink(rootDir, candidate)) {
+      throw new Error(`Agent Skill 백업 경로가 안전하지 않습니다: ${candidate}`)
+    }
+    fs.mkdirSync(path.join(rootDir, ...candidate.split('/')), { recursive: true })
+    if (hasUnsafeLink(rootDir, candidate)) {
+      throw new Error(`Agent Skill 백업 경로가 링크로 바뀌었습니다: ${candidate}`)
+    }
+    backupRootRelative = candidate
+    return candidate
+  }
 
   const plan = buildAgentSkillPlan(rootDir)
   const sourceConflictSkills = new Set(
@@ -813,7 +1060,8 @@ export function installAgentSkills(rootDir: string = process.cwd()): InstallAgen
       .map((item) => item.relativePath.split('/').slice(0, 3).join('/')),
   )
 
-  for (const item of plan) {
+  for (const planned of plan) {
+    let item = refreshAgentSkillFilePlan(rootDir, planned)
     const scope = item.relativePath.split('/').slice(0, 3).join('/')
     if (sourceConflictSkills.has(item.skill.name)) {
       if (item.state !== 'current') conflicts.push(item.relativePath)
@@ -826,7 +1074,11 @@ export function installAgentSkills(rootDir: string = process.cwd()): InstallAgen
     }
     if (item.sourceCanonical) {
       if (item.state === 'current') unchanged.push(item.relativePath)
-      else conflicts.push(item.relativePath)
+      else {
+        conflicts.push(item.relativePath)
+        sourceConflictSkills.add(item.skill.name)
+        conflictScopes.add(scope)
+      }
       continue
     }
     if (item.state === 'current') {
@@ -835,22 +1087,117 @@ export function installAgentSkills(rootDir: string = process.cwd()): InstallAgen
     }
     if (item.state === 'conflict') {
       conflicts.push(item.relativePath)
+      conflictScopes.add(scope)
       continue
     }
+    assertSourceIntegrity()
     const fullPath = path.join(rootDir, ...item.relativePath.split('/'))
-    try {
-      fs.mkdirSync(path.dirname(fullPath), { recursive: true })
-      atomicWriteFile(fullPath, item.content)
-      if (item.exists) updated.push(item.relativePath)
-      else created.push(item.relativePath)
-    } catch {
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true })
+    item = refreshAgentSkillFilePlan(rootDir, item)
+    if (item.sourceCanonical || item.state === 'conflict') {
+      if (item.sourceCanonical) sourceConflictSkills.add(item.skill.name)
       conflicts.push(item.relativePath)
+      conflictScopes.add(scope)
+      continue
+    }
+    if (item.state === 'current') {
+      unchanged.push(item.relativePath)
+      continue
+    }
+    if (item.state === 'missing') {
+      if (atomicCreateFile(fullPath, item.content)) created.push(item.relativePath)
+      else {
+        conflicts.push(item.relativePath)
+        conflictScopes.add(scope)
+      }
+      continue
+    }
+    if (item.existingContent === undefined) {
+      conflicts.push(item.relativePath)
+      conflictScopes.add(scope)
+      continue
+    }
+    const sourceStat = fs.lstatSync(fullPath, { throwIfNoEntry: false })
+    if (sourceStat === undefined || !sourceStat.isFile() || sourceStat.isSymbolicLink()) {
+      conflicts.push(item.relativePath)
+      conflictScopes.add(scope)
+      continue
+    }
+    const backupRelative = path.posix.join(ensureBackupRoot(), item.relativePath)
+    const backupPath = path.join(rootDir, ...backupRelative.split('/'))
+    if (hasUnsafeLink(rootDir, item.relativePath) || hasUnsafeLink(rootDir, backupRelative)) {
+      conflicts.push(item.relativePath)
+      conflictScopes.add(scope)
+      continue
+    }
+    fs.mkdirSync(path.dirname(backupPath), { recursive: true })
+    if (hasUnsafeLink(rootDir, item.relativePath) || hasUnsafeLink(rootDir, backupRelative)) {
+      conflicts.push(item.relativePath)
+      conflictScopes.add(scope)
+      continue
+    }
+
+    // 기존 경로를 덮지 않고 먼저 로컬 백업으로 원자 이동한다. 이동 직전 사용자 편집도 같은
+    // inode와 함께 보존되므로, 이후 신규 파일 배타 생성이 실패해도 원문은 백업에 남는다.
+    renameFileWithRetry(fullPath, backupPath, fs.renameSync)
+    backups.push(backupRelative)
+    let movedContent: string
+    try {
+      const movedStat = fs.lstatSync(backupPath)
+      if (!movedStat.isFile() || movedStat.isSymbolicLink()) {
+        throw new Error(`Agent Skill 백업이 일반 파일이 아닙니다: ${backupRelative}`)
+      }
+      movedContent = fs.readFileSync(backupPath, 'utf-8')
+    } catch (error) {
+      let recovery: RestoreOutcome
+      try {
+        recovery = restoreBackupAtTarget(backupRelative, backupPath, fullPath)
+      } catch (restoreError) {
+        throw new AggregateError(
+          [error, restoreError],
+          `Agent Skill 이전 관리본 백업을 읽거나 복구하지 못했습니다: ${backupRelative}`,
+        )
+      }
+      throw new Error(
+        `Agent Skill 이전 관리본을 읽지 못했습니다 — ${recoveryDescription(recovery, backupRelative, item.relativePath)}`,
+        { cause: error },
+      )
+    }
+
+    if (movedContent !== item.existingContent) {
+      restoreBackupAtTarget(backupRelative, backupPath, fullPath)
+      conflicts.push(item.relativePath)
+      conflictScopes.add(scope)
+      continue
+    }
+    try {
+      if (!atomicCreateFile(fullPath, item.content, { mode: sourceStat.mode & 0o777 })) {
+        restoreBackupAtTarget(backupRelative, backupPath, fullPath)
+        conflicts.push(item.relativePath)
+        conflictScopes.add(scope)
+        continue
+      }
+      updated.push(item.relativePath)
+    } catch (error) {
+      try {
+        removeOwnIncompleteCreate(error, fullPath, item.content)
+      } catch (cleanupError) {
+        throw new AggregateError(
+          [error, cleanupError],
+          `Agent Skill 갱신과 신규 대상 정리에 실패했습니다 — 이전 관리본 백업: ${backupRelative}`,
+        )
+      }
+      const recovery = restoreBackupAtTarget(backupRelative, backupPath, fullPath)
+      throw new Error(
+        `Agent Skill 갱신 실패 — ${recoveryDescription(recovery, backupRelative, item.relativePath)}`,
+        { cause: error },
+      )
     }
   }
 
   conflicts.push(...legacyCursorConflicts(rootDir))
 
-  return { created, updated, unchanged, conflicts: [...new Set(conflicts)] }
+  return { created, updated, unchanged, conflicts: [...new Set(conflicts)], backups }
 }
 
 export function projectSkillTemplates(): Readonly<Record<string, string>> {

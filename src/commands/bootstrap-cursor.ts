@@ -62,6 +62,9 @@ export async function bootstrapCursor(options: BootstrapCursorOptions = {}): Pro
   if (skills.conflicts.length > 0) {
     console.log(chalk.yellow(`  ${ko.bootstrapCursor.skillsOutdated(skills.conflicts)}`))
   }
+  if (skills.backups.length > 0) {
+    console.log(chalk.dim(`  Agent Skill 이전 관리본 백업: ${skills.backups.join(', ')}`))
+  }
 
   if (!options.skipVerify) {
     log.step(ko.bootstrapCursor.stepVerify)

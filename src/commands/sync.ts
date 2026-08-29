@@ -953,6 +953,7 @@ export async function syncCore(
         updated: skillCheck.drifted,
         unchanged: [],
         conflicts: [...skillCheck.conflicts, ...skillCheck.bundleDrift],
+        backups: [],
       },
       coreRulesWarning,
       coreRulesFallback,
@@ -1201,6 +1202,9 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
   for (const p of result.agentSkills.created) log.plain(chalk.green(ko.sync.skillCreated(p)))
   for (const p of result.agentSkills.updated) log.plain(chalk.green(ko.sync.skillUpdated(p)))
   for (const p of result.agentSkills.conflicts) log.plain(chalk.yellow(ko.sync.skillConflict(p)))
+  if (result.agentSkills.backups.length > 0) {
+    console.log(chalk.dim(`  Agent Skill 이전 관리본 백업: ${result.agentSkills.backups.join(', ')}`))
+  }
 
   // `sync --check`는 무쓰기 계약을 지킨다. 관찰용 drift 원장은 실제 sync 실행에서만 기록한다.
   reportDocDrift(cwd, true)

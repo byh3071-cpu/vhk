@@ -22,7 +22,7 @@ Rules compound as you go, so the project doesn't collapse when a better model re
 </div>
 
 > [!IMPORTANT]
-> npm latest is v2.15.0. The ADR-021 save guard and `--no-push` contract documented below are currently **Unreleased**, with no release version chosen yet.
+> npm latest is v2.15.0. The ADR-021 save guard and `--no-push` contract, plus ADR-020's shared Agent Skills source and projections, are currently **Unreleased**, with no release version chosen yet.
 
 > [!NOTE]
 > VHK is **not** a coding agent. It wraps the ones you already use and pins "what we agreed to do · is it actually done · where the next session resumes" as files + CLI gates. Swap the model — the rules, memory, and gates stay in your repo.
@@ -97,7 +97,7 @@ vhk context
 vhk mcp-init     # let MCP clients (Cursor / Claude Desktop, …) call VHK
 ```
 
-For an existing Cursor project, `vhk bootstrap cursor` installs VHK-managed workflow skills. New installs use `.agents/skills`, the shared project path for Google Antigravity, Codex, and Cursor, and generate `.claude/skills` as a managed Claude Code projection from the same source. VHK updates only copies whose marker and content hash prove they are unmodified; customized files and existing `.cursor/skills` are preserved with a manual-merge warning. Project-specific test-script detection remains delegated to `vhk verify`.
+For an existing Cursor project, `vhk bootstrap cursor` installs VHK-managed workflow skills. New installs use `.agents/skills`, the shared project path for Google Antigravity, Codex, and Cursor, and generate `.claude/skills` as a managed Claude Code projection from the same source. VHK updates only copies whose marker and content hash prove they are unmodified; customized files and existing `.cursor/skills` are preserved with a manual-merge warning. Missing or inconsistent source files, links detected at execution time, and real write failures fail closed. Before updating a managed copy, VHK moves the old file into `.vhk/backups` and creates the replacement exclusively. A failed replacement restores the active copy; filesystems that cannot atomically expose a complete new file fail instead of falling back to a partial copy. Project-specific test-script detection remains delegated to `vhk verify`.
 
 **Daily loop**
 ```bash
