@@ -12,6 +12,9 @@ export default defineConfig({
     // (실측: 30s 면 전건 green. CLI 콜드스타트+spawn 지연이지 코드 결함 아님 — 매 머지 재실행 세금 제거.)
     testTimeout: 30_000,
     hookTimeout: 30_000,
+    // 생성기·Git e2e·저장소 self-scan을 CPU 수만큼 동시에 띄우면 각 테스트는 정상이어도
+    // 프로세스/디스크 경합으로 30초를 넘는다. 실측 green 상한으로 worker를 제한한다.
+    maxWorkers: Math.min(4, os.availableParallelism()),
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
