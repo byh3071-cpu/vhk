@@ -6,6 +6,10 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Changed
 
+- Agent Skills의 공통 정본을 `.agents/skills`로 통합했다. Google Antigravity·Codex·Cursor는 같은
+  경로를 직접 읽고 Claude Code는 해시가 붙은 `.claude/skills` 관리 사본을 사용한다. `vhk sync`는
+  새 프로젝트에 두 경로를 만들며, `sync --check`는 정본·npm 번들·투영 drift와 사용자 충돌을 쓰기
+  없이 검사한다. 기존 `.cursor/skills`와 사용자 수정본은 자동으로 덮거나 옮기거나 지우지 않는다.
 - README·COMMANDS·2.x 원본 문서를 실제 2.15 동작에 맞췄다. MCP 35개 목록에서 CLI 전용 `policy`를
   제외하고, `policy check`의 셸 경계, receipt의 자체 5-gate 검증·stale 미상 CAUTION,
   DONE/CANCELED 종결 스냅샷 계약을 명시했다. 이 수정은 GitHub 문서부터 적용되며 이미 발행된 npm

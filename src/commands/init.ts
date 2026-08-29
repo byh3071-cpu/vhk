@@ -414,8 +414,15 @@ export async function init(options: InitOptions = {}) {
   // 실패해도 init 산출물은 보존하고 경고만 — 사용자는 vhk sync 로 수동 복구 가능.
   if (allowAutoSync) {
     try {
-      await syncCore(cwd, { yes: true }, async () => true)
-      log.success('규칙 파생 완료 — AGENTS.md 등 도구별 규칙 파일 생성')
+      const syncResult = await syncCore(cwd, { yes: true }, async () => true)
+      for (const conflict of syncResult.agentSkills.conflicts) {
+        log.warn(ko.sync.skillConflict(conflict))
+      }
+      if (syncResult.agentSkills.conflicts.length === 0) {
+        log.success('규칙 파생 완료 — AGENTS.md 등 도구별 규칙 파일 생성')
+      } else {
+        log.warn('규칙 파생 완료 — Agent Skill 보존 충돌은 위 경로를 정본과 수동 병합하세요.')
+      }
     } catch (e) {
       log.warn(`규칙 파생(sync) 실패 — 산출물은 보존됨. 수동 실행: vhk sync (${e instanceof Error ? e.message : String(e)})`)
     }

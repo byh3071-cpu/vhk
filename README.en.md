@@ -94,7 +94,7 @@ vhk context
 vhk mcp-init     # let MCP clients (Cursor / Claude Desktop, …) call VHK
 ```
 
-For an existing Cursor project, `vhk bootstrap cursor` installs VHK-managed workflow skills. It safely upgrades an unchanged legacy template, preserves customized legacy copies with a manual-merge warning, and delegates project-specific test-script detection to `vhk verify` instead of assuming a pnpm script name.
+For an existing Cursor project, `vhk bootstrap cursor` installs VHK-managed workflow skills. New installs use `.agents/skills`, the shared project path for Google Antigravity, Codex, and Cursor, and generate `.claude/skills` as a managed Claude Code projection from the same source. VHK updates only copies whose marker and content hash prove they are unmodified; customized files and existing `.cursor/skills` are preserved with a manual-merge warning. Project-specific test-script detection remains delegated to `vhk verify`.
 
 **Daily loop**
 ```bash
@@ -115,7 +115,7 @@ vhk work handoff
 
 ## Core loops
 
-**1. Rules portability** — `RULES.md` is the source; VHK generates/updates 8 targets: `.cursorrules`, `CLAUDE.md`, `.windsurfrules`, `.github/copilot-instructions.md`, `.agents/rules/vhk-rules.md`, `AGENTS.md`, `GEMINI.md`, `.clinerules/vhk-rules.md`. `vhk sync --check` fails (exit 1) on drift — CI-friendly.
+**1. Rules and skills portability** — `RULES.md` is the rules source; VHK generates/updates 8 targets: `.cursorrules`, `CLAUDE.md`, `.windsurfrules`, `.github/copilot-instructions.md`, `.agents/rules/vhk-rules.md`, `AGENTS.md`, `GEMINI.md`, `.clinerules/vhk-rules.md`. Portable VHK skills use `.agents/skills` as their source and `.claude/skills` as a managed projection. `vhk sync --check` fails (exit 1) on missing files, drift, or preserved user conflicts without writing anything — CI-friendly.
 
 **2. Goals & HARD_STOP** — Goals link `goals/*.md` to `scripts/check-goal-<id>.mjs`. `vhk goal done` only transitions to DONE when the gate re-passes. Repeated blockers halt progress.
 

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { removeFileSync } from '../src/lib/fs-remove.js'
 import {
   getRequiredSectionTitles,
   parseRulesMd,
@@ -215,5 +216,42 @@ describe('syncCheck — sync 산출 전체 drift 검사 (Goal 63)', () => {
 
     expect(fs.existsSync(path.join(dir, MCP_JSON_EXAMPLE_REL))).toBe(true)
     expect(syncCheck(dir).ok).toBe(true)
+  })
+
+  it('공통 Agent Skill 누락을 sync --check가 쓰기 없이 탐지한다', () => {
+    const target = path.join(dir, '.claude', 'skills', 'vhk-gate', 'SKILL.md')
+    removeFileSync(target)
+
+    const r = syncCheck(dir)
+
+    expect(r.ok).toBe(false)
+    expect(r.missing).toContain('.claude/skills/vhk-gate/SKILL.md')
+    expect(fs.existsSync(target)).toBe(false)
+  })
+
+  it('사용자가 고친 Agent Skill은 충돌로 판정하고 보존한다', async () => {
+    const target = path.join(dir, '.agents', 'skills', 'vhk-gate', 'SKILL.md')
+    const modified = fs.readFileSync(target, 'utf-8').replace('# VHK Gate', '# 사용자 Gate')
+    fs.writeFileSync(target, modified, 'utf-8')
+
+    const checked = syncCheck(dir)
+    expect(checked.ok).toBe(false)
+    expect(checked.skillConflicts).toContain('.agents/skills/vhk-gate/SKILL.md')
+
+    const synced = await syncCore(dir, { yes: true }, async () => true)
+    expect(synced.agentSkills.conflicts).toContain('.agents/skills/vhk-gate/SKILL.md')
+    expect(fs.readFileSync(target, 'utf-8')).toBe(modified)
+  })
+
+  it('기존 Cursor Skill 중복을 쓰지 않고 보존 충돌로 판정한다', () => {
+    const target = path.join(dir, '.cursor', 'skills', 'vhk-gate', 'SKILL.md')
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, '# 사용자 Cursor Gate\n', 'utf-8')
+
+    const checked = syncCheck(dir)
+
+    expect(checked.ok).toBe(false)
+    expect(checked.skillConflicts).toContain('.cursor/skills/vhk-gate')
+    expect(fs.readFileSync(target, 'utf-8')).toBe('# 사용자 Cursor Gate\n')
   })
 })

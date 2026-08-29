@@ -9,7 +9,7 @@ import { ko } from '../i18n/ko.js'
 import { log } from '../utils/logger.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
-import { installCursorSkills } from '../lib/cursor-skill-templates.js'
+import { installAgentSkills } from '../lib/agent-skill-templates.js'
 
 export type BootstrapCursorOptions = {
   yes?: boolean
@@ -49,18 +49,18 @@ export async function bootstrapCursor(options: BootstrapCursorOptions = {}): Pro
   await runStep(ko.bootstrapCursor.stepSync, () => sync({ yes }))
 
   log.step(ko.bootstrapCursor.stepSkills)
-  const skills = installCursorSkills()
+  const skills = installAgentSkills()
   if (skills.created.length > 0) {
     console.log(chalk.green(`  ${ko.bootstrapCursor.skillsCreated(skills.created)}`))
   }
   if (skills.updated.length > 0) {
     console.log(chalk.green(`  ${ko.bootstrapCursor.skillsUpdated(skills.updated)}`))
   }
-  if (skills.skipped.length > 0) {
-    console.log(chalk.dim(`  ${ko.bootstrapCursor.skillsSkipped(skills.skipped)}`))
+  if (skills.unchanged.length > 0) {
+    console.log(chalk.dim(`  ${ko.bootstrapCursor.skillsSkipped(skills.unchanged)}`))
   }
-  if (skills.outdated.length > 0) {
-    console.log(chalk.yellow(`  ${ko.bootstrapCursor.skillsOutdated(skills.outdated)}`))
+  if (skills.conflicts.length > 0) {
+    console.log(chalk.yellow(`  ${ko.bootstrapCursor.skillsOutdated(skills.conflicts)}`))
   }
 
   if (!options.skipVerify) {

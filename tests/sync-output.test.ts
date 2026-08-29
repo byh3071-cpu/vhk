@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { sync, syncCore } from '../src/commands/sync.js'
+import { DRIFT_LOG_REL } from '../src/lib/drift-log.js'
 
 const RULES = [
   '# 데모 — 테스트',
@@ -64,6 +65,16 @@ describe('sync 실행·미리보기 출력 어휘', () => {
     expect(output).toContain('필수 섹션 누락 1건')
     expect(output).toContain('.cursorrules — 필수 섹션 「안전 약속」 누락')
     expect(process.exitCode).toBe(1)
+  })
+
+  it('sync --check는 관찰 원장도 쓰지 않는다', async () => {
+    const driftLog = path.join(dir, DRIFT_LOG_REL)
+    expect(fs.existsSync(driftLog)).toBe(false)
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await sync({ check: true })
+
+    expect(fs.existsSync(driftLog)).toBe(false)
   })
 
   it('#546: 미연결 섹션은 표준 제목과 sync=all 해결 방법을 보여주되 실패로 바꾸지 않는다', async () => {
