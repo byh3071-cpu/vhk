@@ -1299,22 +1299,32 @@ const isMainModule =
 const isEpipeError = (err: unknown): boolean =>
   err instanceof Error && (err as NodeJS.ErrnoException).code === 'EPIPE'
 
-async function runCliMain(argv: string[] = process.argv): Promise<void> {
+if (isMainModule) {
+  // POSIX 는 파이프 write 가 비동기 → EPIPE 가 'error' 이벤트로 온다(여기서 흡수). Windows 는 동기 →
+  // throw 되어 아래 try/catch 로 잡힌다. 양쪽 모두 0 종료. (직접 실행 때만 등록 = 테스트 격리.)
+  const swallowEpipe = (stream: NodeJS.WriteStream): void => {
+    stream.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EPIPE') process.exit(0)
+      throw err
+    })
+  }
+  swallowEpipe(process.stdout)
+  swallowEpipe(process.stderr)
   // VHK-014: parseAsync 를 try/catch 로 감싸 unsettled top-level await 경고 제거 +
   // 비-TTY/EOF 프롬프트 크래시(ERR_USE_AFTER_CLOSE)를 friendly 종료로 처리.
   try {
     // 드리프트 3종(#314·#344·#345): 등록 명령에 잘못된 인자 조합 → raw 영어 에러/cross-misroute 대신
     // 한국어 친절 안내 + exit 1(미인식과 동일 실패 신호 — 조용한 성공 위장 차단).
-    const usageMsg = detectInvalidCommandUsage(argv)
+    const usageMsg = detectInvalidCommandUsage(process.argv)
     if (usageMsg !== null) {
       console.error(chalk.yellow(`\n  ❓ ${usageMsg}\n`))
       process.exitCode = 1
     } else {
-      const nlInput = detectNaturalLanguageInput(argv)
+      const nlInput = detectNaturalLanguageInput(process.argv)
       if (nlInput !== null) {
         await runNaturalLanguageRoute(nlInput)
       } else {
-        await program.parseAsync(argv)
+        await program.parseAsync(process.argv)
       }
     }
   } catch (err) {
@@ -1334,18 +1344,4 @@ async function runCliMain(argv: string[] = process.argv): Promise<void> {
   }
 }
 
-if (isMainModule) {
-  // POSIX 는 파이프 write 가 비동기 → EPIPE 가 'error' 이벤트로 온다(여기서 흡수). Windows 는 동기 →
-  // throw 되어 runCliMain 의 try/catch 로 잡힌다. 양쪽 모두 0 종료. (직접 실행 때만 등록 = 테스트 격리.)
-  const swallowEpipe = (stream: NodeJS.WriteStream): void => {
-    stream.on('error', (err: NodeJS.ErrnoException) => {
-      if (err.code === 'EPIPE') process.exit(0)
-      throw err
-    })
-  }
-  swallowEpipe(process.stdout)
-  swallowEpipe(process.stderr)
-  await runCliMain(process.argv)
-}
-
-export { program, runCliMain }
+export { program }
