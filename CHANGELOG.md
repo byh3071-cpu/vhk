@@ -4,7 +4,7 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
-> **발행 목표: v2.15.1 (2026-08-30 릴리스 후보).** npm latest는 실제 publish 전까지 v2.15.0이다.
+## [2.15.1] - 2026-08-30
 
 ### Security
 
@@ -1139,7 +1139,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v2.15.0...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v2.15.1...HEAD
+[2.15.1]: https://github.com/byh3071-cpu/vhk/compare/v2.15.0...v2.15.1
 [2.15.0]: https://github.com/byh3071-cpu/vhk/compare/v2.14.1...v2.15.0
 [2.14.1]: https://github.com/byh3071-cpu/vhk/compare/v2.14.0...v2.14.1
 [2.14.0]: https://github.com/byh3071-cpu/vhk/compare/v2.13.0...v2.14.0

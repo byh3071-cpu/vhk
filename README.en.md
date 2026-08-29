@@ -17,12 +17,12 @@ Rules compound as you go, so the project doesn't collapse when a better model re
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![MCP](https://img.shields.io/badge/MCP-35_tools-8A2BE2)
 
-**[What's new in v2.15](#whats-new-in-v2150) · [Quick Start](#install) · [VHK vs. a bare agent](#vhk-vs-a-bare-agent) · [Core loops](#core-loops)**
+**[What's new in v2.15](#whats-new-in-v2151) · [Quick Start](#install) · [VHK vs. a bare agent](#vhk-vs-a-bare-agent) · [Core loops](#core-loops)**
 
 </div>
 
 > [!IMPORTANT]
-> This repository is a **v2.15.1 release candidate**. It includes ADR-021's save guard and `--no-push` contract plus ADR-020's shared Agent Skills source and projections. npm latest remains v2.15.0 until publish.
+> npm latest is **v2.15.1**. It includes ADR-021's save guard and `--no-push` contract plus ADR-020's shared Agent Skills source and projections.
 
 > [!NOTE]
 > VHK is **not** a coding agent. It wraps the ones you already use and pins "what we agreed to do · is it actually done · where the next session resumes" as files + CLI gates. Swap the model — the rules, memory, and gates stay in your repo.

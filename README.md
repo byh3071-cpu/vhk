@@ -26,7 +26,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 </div>
 
 > [!IMPORTANT]
-> 이 저장소는 **v2.15.1 릴리스 후보**입니다. ADR-021의 save 가드·`--no-push`와 ADR-020의 공통 Agent Skills 정본·투영을 포함합니다. 실제 npm latest는 publish 전까지 v2.15.0입니다.
+> npm latest는 **v2.15.1**입니다. ADR-021의 save 가드·`--no-push`와 ADR-020의 공통 Agent Skills 정본·투영을 포함합니다.
 
 > [!NOTE]
 > VHK는 새 코딩 에이전트가 **아닙니다.** 이미 쓰는 에이전트를 감싸 "무엇을 하기로 했는지 · 정말 끝났는지 · 다음 세션이 어디서 이어질지"를 repo 안의 파일과 CLI 게이트로 고정하는 하네스입니다. 모델이 바뀌어도 규칙·기억·게이트는 repo에 남습니다.
