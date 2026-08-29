@@ -23,6 +23,7 @@ describe('quick actions (자연어 도움말 — 읽기전용)', () => {
     expect(says).toContain('상태 알려줘')
     expect(says).toContain('뭐 바뀌었어?')
     expect(says).toContain('저장해줘')
+    expect(QUICK_ACTIONS.find((a) => a.say === '저장해줘')?.does).toContain('vhk save --no-push')
     expect(QUICK_ACTIONS.at(-1)?.does).toBe('vhk help --all')
   })
 

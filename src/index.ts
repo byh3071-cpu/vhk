@@ -68,6 +68,7 @@ import { missionSet, missionShow, missionCheck, missionClear } from './commands/
 import { runGuarded } from './lib/safety-guard.js'
 import { ensureNotHardStopped } from './lib/hard-stop-guard.js'
 import { isPromptAbortError, isInteractive, TTY_REQUIRED_EXIT_CODE } from './lib/interactive.js'
+import { readConfigFromProjectRoot } from './lib/config.js'
 
 /**
  * CLI high-risk 작업 가드 — 단일 chokepoint(runGuarded) 경유.
@@ -79,16 +80,22 @@ async function guardCli(
   approved: boolean,
   run: () => Promise<void> | void,
   target?: string, // Goal 57: 위험 대상(파일/경로) — risk-policy 글롭 차원 + 행동원장 target 기록.
-): Promise<void> {
+  isTTY?: boolean, // #611 P2-i: 대화형이 경험적으로 증명된 경로(메뉴 — inquirer 응답을 이미 받음)만 true 주입.
+  approvalHint?: string,
+): Promise<boolean> {
   // VHK-020: HARD_STOP 활성 시 high-risk CLI 작업(save/deploy/publish/sync/migrate/cloud-pull/env-write) 차단.
-  if (!ensureNotHardStopped(action)) return
-  await runGuarded(
+  if (!ensureNotHardStopped(action)) return false
+  const { outcome } = await runGuarded(
     action,
     {
       channel: 'cli',
       approved,
       target,
+      isTTY,
+      approvalHint,
       confirm: async () => {
+        // 프롬프트가 답을 반환한 `false`만 사람의 거절이다. 예외는 상위 처리기로 전파해
+        // abort는 exit 2, 그 밖의 오류는 exit 1로 끝내며 성공으로 위장하지 않는다.
         const { ok } = await prompt<{ ok: boolean }>([{
           type: 'confirm',
           name: 'ok',
@@ -101,6 +108,7 @@ async function guardCli(
     },
     run,
   )
+  return outcome.ran
 }
 
 /**
@@ -114,6 +122,7 @@ async function guardCliDefer(
   approved: boolean,
   run: () => Promise<void> | void,
   approvalHint: string = '--yes',
+  isTTY?: boolean, // #611 P2-i: 대화형이 경험적으로 증명된 경로(메뉴)만 true 주입.
 ): Promise<boolean> {
   // #338: undo 등 high-risk 는 HARD_STOP 활성 시 차단. resume 만 예외 — resume 은 HARD_STOP
   // *해제* 명령이라 가드하면 자기 자신을 막는 역설(resume --confirm 이 유일한 트립와이어 해제 통로).
@@ -124,13 +133,48 @@ async function guardCliDefer(
       channel: 'cli',
       approved,
       approvalHint,
-      // TTY 면 통과(명령이 자체 확인), 비대화형은 confirm 불가 → 가드가 차단.
-      confirm: async () => !!process.stdout.isTTY,
+      isTTY,
+      // #611: 게이트(runGuarded)가 stdin TTY 를 이미 확인했으므로 여기선 통과만 — 실제 확인은
+      // 명령 자체 프롬프트에 위임(이중 프롬프트 없음). stdin TTY 축이라 `| tee` 오판도 없다.
+      // VHK_FORCE_INTERACTIVE 는 가드 게이트에 반영하지 않는다(P1-NEW: env ≠ consent) —
+      // MinTTY 는 차단 안내의 명시 플래그 경로로 승인한다.
+      confirm: async () => true,
       log: (m) => console.log(chalk.yellow(`  ${m}`)),
     },
     run,
   )
   return outcome.ran
+}
+
+/**
+ * #611/ADR-021: save 전용 가드 배선 — 정책은 risk-policy(save=high-risk), 채널 적용만 여기서.
+ * - strict: 기존 y/N 확인(guardCli) 유지 — 승격 전 strict 사용자가 갖던 보호를 잃지 않는다(P1-3).
+ * - 그 외: guardCliDefer — TTY 는 save 자체 프롬프트가 확인 역할(이중 프롬프트 없음), 비대화형 미승인 차단.
+ * - --no-push(반출 0)는 로컬 커밋뿐이라 승인으로 인정(P1-4) — undo 로 되돌릴 수 있고 HARD_STOP 은 여전히 차단.
+ * - 차단이 exit 0 이면 에이전트가 성공으로 오판 → 실패 코드 명시.
+ */
+async function guardSave(
+  opts: { yes?: boolean; message?: string; push?: boolean } = {},
+  ctx: { menu?: boolean } = {},
+): Promise<void> {
+  const approved = opts.yes === true || opts.push === false
+  const runSave = () => save({ message: opts.message, noPush: opts.push === false })
+  // P2-i: 메뉴는 inquirer list 응답을 이미 받아낸 상태 — stdin 대화형이 env 가 아니라 경험으로
+  // 증명됐다(에이전트 파이프는 list 프롬프트를 통과하지 못함). 이 경로만 isTTY 를 주입해
+  // MinTTY(stdin.isTTY=false) 메뉴 저장이 플래그를 줄 수 없는 막다른 길이 되는 것을 막는다.
+  const isTTY = ctx.menu ? true : undefined
+  const approvalHint = '--yes(원격 push 포함) 또는 --no-push(로컬 커밋만)'
+  // #611: 하위 폴더에서도 루트 strict 설정을 잃지 않는다(runGuarded 와 동일 해석).
+  const ran = readConfigFromProjectRoot().safetyMode === 'strict'
+    ? await guardCli('save', approved, runSave, undefined, isTTY, approvalHint)
+    : await guardCliDefer(
+        'save',
+        approved,
+        runSave,
+        approvalHint,
+        isTTY,
+      )
+  if (!ran) process.exitCode = 1
 }
 import { cloudPush, cloudPull } from './commands/cloud.js'
 import { goalCheck, goalDone, goalDrift, goalInit, goalList, goalMigrate, goalNext, goalPeek, goalSync } from './commands/goal.js'
@@ -356,10 +400,12 @@ program
 program
   .command('save')
   .alias('저장')
-  .option('--yes', '확인 없이 실행 (strict 모드 가드 명시 승인)')
+  .option('--yes', '원격 push 포함 실행을 명시 승인 (비-TTY/에이전트)')
   .option('-m, --message <msg>', '커밋 메시지 직접 지정 (비-TTY/에이전트용 — 프롬프트 생략)')
+  .option('--no-push', '로컬 커밋만 실행하고 원격 push 생략 (--yes 대신 사용 가능)')
   .description('변경사항 저장 (git add → commit → push)')
-  .action(async (opts: { yes?: boolean; message?: string }) => { await guardCli('save', opts?.yes === true, () => save({ message: opts?.message })) })
+  // #611/ADR-021: save 는 high-risk(push=원격 반출) — 채널별 적용은 guardSave 한 곳.
+  .action(async (opts: { yes?: boolean; message?: string; push?: boolean }) => { await guardSave(opts) })
 
 program
   .command('undo')
@@ -1210,13 +1256,17 @@ program.action(async () => {
     case 'secure':
       return secure()
     case 'sync':
-      return guardCli('sync', false, () => sync())
+      await guardCli('sync', false, () => sync())
+      return
     case 'doctor':
       return doctor()
     case 'ship':
       return ship()
     case 'save':
-      return guardCli('save', false, () => save())
+      // #611/ADR-021: 메뉴는 list 응답으로 대화형이 증명된 경로 — guardSave 가 isTTY 를 주입해
+      // MinTTY 에서도 막히지 않는다. strict 는 y/N 확인 유지.
+      await guardSave({}, { menu: true })
+      return
     case 'undo':
       await guardCliDefer('undo', false, () => undo())
       return
@@ -1251,7 +1301,7 @@ const isEpipeError = (err: unknown): boolean =>
 
 if (isMainModule) {
   // POSIX 는 파이프 write 가 비동기 → EPIPE 가 'error' 이벤트로 온다(여기서 흡수). Windows 는 동기 →
-  // throw 되어 아래 try/catch 로 잡힌다. 양쪽 모두 0 종료. (isMainModule 안에서만 등록 = 테스트 격리.)
+  // throw 되어 아래 try/catch 로 잡힌다. 양쪽 모두 0 종료. (직접 실행 때만 등록 = 테스트 격리.)
   const swallowEpipe = (stream: NodeJS.WriteStream): void => {
     stream.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EPIPE') process.exit(0)

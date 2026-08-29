@@ -64,7 +64,7 @@ describe('risk-policy — resolveGuard(target?) 4번째 인자', () => {
     expect(resolveGuard('publish', 'standard', 'mcp')).toBe('preview')
     expect(resolveGuard('publish', 'lite', 'cli')).toBe('warn')
     expect(resolveGuard('status', 'standard', 'cli')).toBe('allow')
-    expect(resolveGuard('save', 'standard', 'cli')).toBe('allow') // strict-extra: standard 에선 allow
+    expect(resolveGuard('save', 'standard', 'cli')).toBe('confirm') // ADR-021/#611: save high-risk 승격
     expect(resolveGuard('save', 'strict', 'cli')).toBe('confirm')
   })
 })

@@ -215,7 +215,7 @@ export async function recap(options: RecapOptions = {}) {
     printNextStep({
       message: '오늘 기록 완료! 저장하고 싶으면:',
       command: gitSaveCmd,
-      cursorHint: '저장해줘',
+      cursorHint: 'vhk save --no-push로 로컬 저장해줘',
     })
     return
   }
@@ -347,6 +347,6 @@ export async function recap(options: RecapOptions = {}) {
   printNextStep({
     message: '오늘 기록 완료! 저장하고 싶으면:',
     command: gitSaveCmd,
-    cursorHint: '저장해줘',
+    cursorHint: 'vhk save --no-push로 로컬 저장해줘',
   })
 }
