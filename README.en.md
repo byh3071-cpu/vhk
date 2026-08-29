@@ -4,7 +4,7 @@
 
 # VHK — Vibe Harness Kit
 
-**v2.15.0**
+**v2.15.1**
 
 **A full-cycle, agent-agnostic coding harness that survives swapping the model underneath.**
 
@@ -22,15 +22,17 @@ Rules compound as you go, so the project doesn't collapse when a better model re
 </div>
 
 > [!IMPORTANT]
-> npm latest is v2.15.0. The ADR-021 save guard and `--no-push` contract, plus ADR-020's shared Agent Skills source and projections, are currently **Unreleased**, with no release version chosen yet.
+> This repository is a **v2.15.1 release candidate**. It includes ADR-021's save guard and `--no-push` contract plus ADR-020's shared Agent Skills source and projections. npm latest remains v2.15.0 until publish.
 
 > [!NOTE]
 > VHK is **not** a coding agent. It wraps the ones you already use and pins "what we agreed to do · is it actually done · where the next session resumes" as files + CLI gates. Swap the model — the rules, memory, and gates stay in your repo.
 
 Run `vhk` for the menu, or use explicit CLI commands such as `vhk save`, `vhk goal next`, and `vhk preflight`. The exact Korean alias `vhk 저장` is a Commander command; `vhk 저장해줘` is natural language. Under ADR-021, standard/strict natural-language save requests preview and exit 1; lite executes only with a TTY and otherwise blocks. Non-TTY Commander runs require either `--yes` (commit and push) or `--no-push` (local commit only).
 
-## What's new in v2.15.0
+## What's new in v2.15.1
 
+- **No unapproved pushes** — non-TTY `vhk save` requires either `--yes` (commit and push) or `--no-push` (local commit only). Human TTY flows remain unchanged.
+- **Agent Skills across tools** — `.agents/skills` is the shared source of truth, with safe projections for Claude Code and the npm bundle. `sync --check` detects missing files, drift, and user conflicts without writing.
 - **Default-off safety policy** — `vhk policy level/risk/show/check` evaluates permission, risk, allowlist, call-count, and time limits without executing the target command or enabling enforcement.
 - **Separate intent and proof baselines** — `vhk receipt --mark-start` records only the starting SHA for intent/forbidden change scope. A receipt runs a fresh verification and compares its starting HEAD/dirty state with the state after the gates finish.
 - **Stable closeout** — `vhk goal next` no longer mistakes blocked/deferred/observing Goals for completion or rewrites a terminal DONE/CANCELED snapshot. Generated gate skills route a normal all-DONE branch closeout to `review N/A` plus a branch receipt.

@@ -1,14 +1,14 @@
 ---
 id: vhk-readme
 date: 2026-06-08
-tags: [vhk, cli, readme, v2.15.0, mcp, proof, ai-coding]
+tags: [vhk, cli, readme, v2.15.1, mcp, proof, ai-coding]
 ---
 
 <div align="center">
 
 # VHK — Vibe Harness Kit
 
-**v2.15.0**
+**v2.15.1**
 
 **모델·에이전트를 뭘로 바꿔도 안 무너지는 풀사이클 AI 코딩 하네스.**
 
@@ -26,7 +26,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 </div>
 
 > [!IMPORTANT]
-> npm latest는 v2.15.0입니다. 아래 ADR-021의 save 가드·`--no-push`와 ADR-020의 공통 Agent Skills 정본·투영은 현재 **Unreleased**이며 발행 버전은 아직 정하지 않았습니다.
+> 이 저장소는 **v2.15.1 릴리스 후보**입니다. ADR-021의 save 가드·`--no-push`와 ADR-020의 공통 Agent Skills 정본·투영을 포함합니다. 실제 npm latest는 publish 전까지 v2.15.0입니다.
 
 > [!NOTE]
 > VHK는 새 코딩 에이전트가 **아닙니다.** 이미 쓰는 에이전트를 감싸 "무엇을 하기로 했는지 · 정말 끝났는지 · 다음 세션이 어디서 이어질지"를 repo 안의 파일과 CLI 게이트로 고정하는 하네스입니다. 모델이 바뀌어도 규칙·기억·게이트는 repo에 남습니다.
@@ -43,7 +43,7 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
   🟢 Node     v24.13.0 (shim-safe)
   🟢 pnpm     11.17.0
   🟢 git      2.53.0 (user configured)
-  🟢 VHK      v2.15.0
+  🟢 VHK      v2.15.1
   🟢 MCP      35 tools 등록
 
   📁 프로젝트 파일 확인:
@@ -61,6 +61,8 @@ Claude Code든 Cursor든 그 위에 얹어 리뷰·검증·기억을 한 루프�
 
 ## v2.15 핵심
 
+- **무승인 push 봉인** — 비-TTY `vhk save`는 `--yes`(commit+push) 또는 `--no-push`(로컬 commit만)를 명시해야 합니다. 사람의 TTY 사용 흐름은 그대로입니다.
+- **도구 독립 Agent Skills** — `.agents/skills`를 공통 정본으로 삼고 Claude Code용 관리 사본과 npm 번들을 안전하게 투영합니다. 누락·drift·사용자 충돌은 `sync --check`가 쓰기 없이 잡습니다.
 - **기본-off 안전 정책** — `vhk policy level/risk/show/check`로 권한 단계·위험도·허용목록·호출 수·시간 한도를 조회하고 판정합니다. 대상 명령을 실행하거나 자동 집행을 켜지는 않습니다.
 - **증거 기준선 분리** — `vhk receipt --mark-start`는 intent/forbidden 대조용 변경 범위의 시작 SHA만 기록합니다. `receipt`는 발행 중 새 검증을 실행하고, 검증 시작 HEAD·dirty와 게이트 종료 후 상태를 비교해 stale 여부를 판정합니다.
 - **안정적인 마감** — `vhk goal next`는 BLOCKED·DEFERRED·OBSERVING을 완료로 오인하지 않고, 미해결 Goal 없이 DONE/CANCELED만 남은 종결 상태를 반복 조회해도 완료 시각이나 백업을 다시 만들지 않습니다. 생성되는 gate skill은 모든 Goal이 정상 DONE인 branch closeout을 `review N/A`와 branch receipt 경로로 안내합니다.
