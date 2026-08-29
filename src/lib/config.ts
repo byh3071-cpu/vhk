@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { getGitRoot } from './git-repo.js'
 import { readJsonFile } from './read-json.js'
 import { atomicWriteFile } from './atomic-write.js'
 import { type SafetyMode, DEFAULT_SAFETY_MODE, isSafetyMode } from './safety-mode.js'
@@ -26,6 +27,24 @@ export interface VhkConfig {
 }
 
 export const DEFAULT_CONFIG: VhkConfig = { safetyMode: DEFAULT_SAFETY_MODE }
+
+/**
+ * #611(감사 후속): 가드가 쓰는 safetyMode 는 실행 위치가 저장소 하위 폴더여도 같아야 한다 —
+ * cwd 기준으로만 읽으면 루트 .vhk/config.json 을 놓쳐 strict 가 조용히 standard 로 떨어진다
+ * (= 가드 우회). git 루트를 우선 찾고, git 저장소가 아니면 cwd 폴백. 읽기는 절대 throw 안 함.
+ * 조회(mode)·기록(writeConfig)도 같은 루트를 써야 "하위 폴더에서 바꿨는데 안 바뀜"이 안 생긴다.
+ */
+export function resolveConfigRoot(): string {
+  try {
+    return getGitRoot()
+  } catch {
+    return process.cwd()
+  }
+}
+
+export function readConfigFromProjectRoot(): VhkConfig {
+  return readConfig(resolveConfigRoot())
+}
 
 export function readConfig(rootDir: string = process.cwd()): VhkConfig {
   const full = join(rootDir, CONFIG_PATH)

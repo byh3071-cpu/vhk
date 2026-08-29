@@ -46,7 +46,7 @@ export const ko = {
     unknownBranch: '(알 수 없음)',
     nextWithChangesMessage: '변경사항이 있어요. 먼저 무엇이 바뀌었는지 확인하세요.',
     nextWithChangesCursor: '뭐 바뀌었어?',
-    nextWithChangesAlt: '확인했으면 vhk save 로 저장하세요',
+    nextWithChangesAlt: '확인했으면 원격까지: vhk save --yes, 로컬 커밋만: vhk save --no-push',
     nextCleanMessage: '클린 상태! 다음 미션으로 넘어가세요.',
     nextCleanCursor: '다음 목표 알려줘',
     // Goal 84: 신규(초기) 레포 — 활성 레포의 "다음 미션" 대신 온보딩 안내.
@@ -63,6 +63,8 @@ export const ko = {
     pushing: '원격 저장소에 올리는 중...',
     successWithPush: '저장 + 원격 업로드 완료!',
     successLocal: '로컬 저장 완료!',
+    successNoPush: '로컬 저장 완료! (--no-push — 원격 업로드 생략)',
+    noPushHint: '원격에 올리려면 내용 확인 후: git push (vhk save 재실행은 변경사항이 없어 push 되지 않음)',
     noRemote: '원격 저장소가 설정되지 않아 push를 건너뛰었습니다.',
     failed: '저장 실패',
     stagedAfterFail:
@@ -101,7 +103,7 @@ export const ko = {
       '원격과 맞추려면: git push --force-with-lease (혼자 작업한 브랜치에서만, 팀과 합의 후)',
     failed: '되돌리기 실패',
     nextMessage: '변경사항이 스테이징 영역에 남았어요. 메시지 고쳐서 다시 저장하세요.',
-    nextCursor: '커밋 메시지 바꿔서 저장해줘',
+    nextCursor: 'vhk save --no-push -m "새 커밋 메시지"로 로컬 저장해줘',
   },
   diff: {
     title: '변경사항 확인',

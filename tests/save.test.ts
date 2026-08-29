@@ -82,6 +82,19 @@ describe('save', () => {
     expect(mockPush).not.toHaveBeenCalled()
   })
 
+  it('#611: --no-push 면 remote 가 있어도 push 하지 않는다 (커밋/반출 분리)', async () => {
+    vi.mocked(execFileSync).mockImplementation((_file, args) => {
+      if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'
+      return ''
+    })
+    mockHasGitRemote.mockReturnValue(true)
+    vi.mocked(inquirer.prompt).mockResolvedValueOnce({ message: 'test' })
+    const { save } = await import('../src/commands/save.js')
+    await save({ noPush: true })
+    expect(mockCommit).toHaveBeenCalled()
+    expect(mockPush).not.toHaveBeenCalled()
+  })
+
   it('push 실패 시 exitCode 1', async () => {
     vi.mocked(execFileSync).mockImplementation((_file, args) => {
       if (Array.isArray(args) && args[0] === 'rev-parse') return 'true'

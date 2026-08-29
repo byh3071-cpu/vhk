@@ -157,31 +157,61 @@ describe('runGuarded — lite 비대화형 destructive 중단 (R13)', () => {
   })
 })
 
-// Goal 12 / S5: save push 정책 결정 = "strict-extra 유지"(high-risk 승격 안 함).
-// 근거: commit 은 로컬·되돌리기 가능(undo 존재), push 는 사용자 자기 remote 대상이라
-// deploy/publish(외부 배포=high-risk)와 등급이 다름. spec 의 ③ destructive 버킷도
-// save 를 "strict 일 때만" 분류함. 가장 빈번한 명령을 standard 에서 막으면 UX 파괴.
-// strict 모드 = push 를 막고 싶은 사용자용 탈출구(이미 동작). 이 테스트가 그 계약을 잠근다.
-describe('Goal 12 / S5 — save push 정책 (strict-extra 유지)', () => {
-  it('standard 모드: save 는 가드 없이 allow (push 자동진행 — 회귀 가드)', () => {
-    expect(resolveGuard('save', 'standard', 'cli')).toBe('allow')
+// ADR-021 / #611: Goal 12/S5(save=strict-extra 유지) 를 번복 — save 를 high-risk 로 승격.
+// 번복 근거: ① MCP 채널은 goal 70 이 이미 고위험 옵트인(confirm:true 미리보기)으로 승격 —
+//   같은 에이전트 채널인 NL/비-TTY CLI 만 allow 는 채널 자기모순 ② 실측(#611): 비-TTY 자연어
+//   "저장해줘" 한 마디로 공개 remote 에 무확인 push 완주 ③ 당시 "빈번 명령 UX 파괴" 논거는
+//   guardCli(y/N 이중 프롬프트) 전제 — index.ts 는 guardCliDefer 로 배선해 TTY 흐름 무변
+//   (save 자체 메시지 프롬프트가 확인 역할). 이 테스트가 새 계약을 잠근다.
+describe('ADR-021 / #611 — save high-risk 승격 (Goal 12/S5 supersede)', () => {
+  it('standard CLI: confirm 등급 (TTY 는 defer 로 자체 프롬프트 위임)', () => {
+    expect(resolveGuard('save', 'standard', 'cli')).toBe('confirm')
   })
-  it('strict 모드: save 는 confirm 으로 승격(push 막을 사용자용 탈출구)', () => {
-    expect(resolveGuard('save', 'strict', 'cli')).toBe('confirm')
+  it('standard NL/MCP: preview — 자연어 "저장해줘" 는 기본 비실행', () => {
+    expect(resolveGuard('save', 'standard', 'nl')).toBe('preview')
+    expect(resolveGuard('save', 'standard', 'mcp')).toBe('preview')
   })
-  it('strict + 비대화형(isTTY:false) + 미승인 → save 차단(commit/push 둘 다 미실행)', async () => {
+  it('비대화형(isTTY:false) + 미승인 → save 차단(commit/push 둘 다 미실행)', async () => {
     const run = vi.fn(async () => 'ran')
-    const { outcome } = await runGuarded('save', { channel: 'cli', mode: 'strict', isTTY: false, approved: false }, run)
+    const { outcome } = await runGuarded('save', { channel: 'cli', mode: 'standard', isTTY: false, approved: false }, run)
     expect(run).not.toHaveBeenCalled()
     expect(outcome.ran).toBe(false)
   })
-  it('strict + --yes 승인 → save 실행 허용', async () => {
+  it('--yes 승인 → save 실행 허용 (에이전트 명시 스위치)', async () => {
     const run = vi.fn(async () => 'ran')
-    const { outcome } = await runGuarded('save', { channel: 'cli', mode: 'strict', isTTY: false, approved: true }, run)
+    const { outcome } = await runGuarded('save', { channel: 'cli', mode: 'standard', isTTY: false, approved: true }, run)
     expect(outcome.ran).toBe(true)
   })
-  it('save 는 HIGH_RISK 로 승격되지 않음 — lite 에선 가드 없이 allow', () => {
-    // high-risk 였다면 lite 에서 warn(비대화형 차단)이 됐을 것. allow 여야 결정 유지.
-    expect(resolveGuard('save', 'lite', 'cli')).toBe('allow')
+  it('lite: warn 등급 — TTY 는 경고 후 진행, 비대화형 미승인은 차단(R13)', async () => {
+    expect(resolveGuard('save', 'lite', 'cli')).toBe('warn')
+    const run = vi.fn(async () => 'ran')
+    const { outcome } = await runGuarded('save', { channel: 'cli', mode: 'lite', isTTY: false, approved: false }, run)
+    expect(run).not.toHaveBeenCalled()
+    expect(outcome.ran).toBe(false)
+  })
+
+  it('VHK_FORCE_INTERACTIVE=1 은 승인이 아니다 — 가드 게이트(warn·confirm 모두)에 미반영 (P1-NEW)', async () => {
+    // 의도적으로 isTTY 미주입 — 이 테스트의 대상이 바로 "기본 축(stdin)이 env 를 무시한다"는
+    // 계약이라, isTTY:false 를 주입하면 검증이 공회전한다. (러너 stdin 비-TTY 전제는 e2e 가 보강)
+    const envBefore = process.env.VHK_FORCE_INTERACTIVE
+    process.env.VHK_FORCE_INTERACTIVE = '1'
+    try {
+      // lite/warn: 탈출구가 켜져 있어도 stdin 비-TTY + 미승인이면 차단(R13) — env 는 "사람이 본다"의 증거가 아님
+      const run1 = vi.fn(async () => 'ran')
+      const r1 = await runGuarded('save', { channel: 'cli', mode: 'lite', approved: false }, run1)
+      expect(run1).not.toHaveBeenCalled()
+      expect(r1.outcome.ran).toBe(false)
+      // standard/confirm: 탈출구는 confirm 게이트도 열지 못한다 — 콜백 호출조차 없이 차단
+      // (env 가 y 응답을 대신하면 #611 이 환경변수 한 줄로 재발한다)
+      const confirm = vi.fn(async () => true)
+      const run2 = vi.fn(async () => 'ran')
+      const r2 = await runGuarded('save', { channel: 'cli', mode: 'standard', approved: false, confirm }, run2)
+      expect(confirm).not.toHaveBeenCalled()
+      expect(run2).not.toHaveBeenCalled()
+      expect(r2.outcome.ran).toBe(false)
+    } finally {
+      if (envBefore === undefined) delete process.env.VHK_FORCE_INTERACTIVE
+      else process.env.VHK_FORCE_INTERACTIVE = envBefore
+    }
   })
 })

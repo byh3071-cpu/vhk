@@ -4,6 +4,29 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Security
+
+- `vhk save`를 high-risk로 승격했다(ADR-021, #611). 비-TTY/에이전트 Commander 실행은
+  `--yes`(commit+push) 또는 `--no-push`(로컬 commit만) 중 하나가 없으면 차단되고 exit 1로 끝난다.
+  standard·strict 자연어 "저장해줘"는 미리보기만 하고 exit 1로 끝나며, lite는 TTY에서만 경고 후
+  실행하고 비-TTY에서는 차단한다. TTY Commander 흐름은 승격 전과 동일하다 — standard는 save 자체
+  프롬프트가 확인 역할(이중 프롬프트 없음), strict는 기존 y/N 확인 유지. 두 플래그는 대체 관계이며
+  에이전트 권장 로컬 경로는 `vhk save --no-push -m "메시지"`다. 가드의 대화형 판정은
+  stdin TTY 단일 축이라 `vhk save | tee` 오판이 없고, `VHK_FORCE_INTERACTIVE` 환경변수는 가드
+  승인을 대신하지 못한다(Git Bash/MinTTY는 `--yes`로 승인 — 이후 save 자체 프롬프트는 탈출구가
+  정상 동작). strict의 y/N에서 No를 답하면 이제 exit 1로 끝난다.
+- 가드의 safetyMode를 cwd가 아니라 git 루트의 `.vhk/config.json`으로 해석한다 — 저장소 하위
+  폴더에서 실행할 때 strict가 조용히 standard로 떨어져 확인 없이 push되던 우회를 봉인.
+- CLI 위험 작업의 확인 프롬프트가 실패하면 사용자 거절로 삼키지 않고 오류를 전파해 exit 1로 끝낸다.
+  작업이 실행되지 않았는데 자동화가 성공으로 오판하던 경로를 막았다.
+- 종료 코드 범위 주의: 자연어 가드 차단 시 exit 1은 save 전용이 아니라 자연어로 부른 위험 작업
+  전체(undo·deploy·publish·sync 등)에 적용된다(이전 exit 0).
+- **마이그레이션**: 비-TTY/에이전트 자동화는 원격 push까지 필요하면
+  `vhk save --yes -m "메시지"`, 로컬 commit만 필요하면 `vhk save --no-push -m "메시지"`로 바꿔야
+  한다. 바꾸지 않으면 조용한 push 대신 차단 안내 + exit 1로 끝난다. 발행 버전은 아직 정하지 않았다.
+  이 변경은 공개 CLI 비호환이므로 현 전역 규칙 아래에서는 major에서만 허용되며, 2.15.x 배치를
+  검토하려면 발행 전에 전역 규칙을 별도의 사람 결정으로 정식 개정해야 한다.
+
 ### Changed
 
 - Agent Skills의 공통 정본을 `.agents/skills`로 통합했다. Google Antigravity·Codex·Cursor는 같은

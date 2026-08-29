@@ -241,7 +241,7 @@ vhk doctor
 | `vhk cloud` | .vhk 비공개 Gist 백업·복원 (push/pull). 공개 Gist·링크 경계·비호환/충돌 파일명·부분 fetch는 쓰기 전에 실패 폐쇄 |
 | `vhk ship` | 배포 체크리스트 + 회고 |
 | `vhk doctor` | 개발 환경 점검 + 최신 변경사항이 빠진 안내·아직 시작하지 않은 작업 알림 (`--strict` 설정 불일치 검사 포함) |
-| `vhk save` | git 저장 (add → commit → push) · 커밋 메시지 미지정 시 변경 파일 기반 자동 생성, `-m "메시지"` 로 직접 지정 |
+| `vhk save` / `vhk 저장` | git add → commit → push. TTY: lite=경고 후 실행, standard=직접 실행(`-m` 없으면 메시지 입력), strict=y/N. 비-TTY Commander는 `--yes`(commit+push) 또는 `--no-push`(로컬 commit만) 중 하나가 없으면 차단·exit 1. 자연어 "저장해줘"는 standard/strict=미리보기+exit 1, lite+TTY=경고 후 실행, lite+비-TTY=차단+exit 1. |
 | `vhk undo` | 최근 커밋 되돌리기 |
 | `vhk restore` | sync 백업 복원 |
 | `vhk status` | 프로젝트 상태 대시보드 |

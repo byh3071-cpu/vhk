@@ -12,7 +12,8 @@ import {
   isHighRisk,
   resolveGuard,
 } from '../src/lib/risk-policy.js'
-import { readConfig, writeConfig, DEFAULT_CONFIG, CONFIG_PATH } from '../src/lib/config.js'
+import { spawnSync } from 'node:child_process'
+import { readConfig, readConfigFromProjectRoot, writeConfig, DEFAULT_CONFIG, CONFIG_PATH } from '../src/lib/config.js'
 
 function tmp(label: string): string {
   const dir = join(tmpdir(), `vhk-safety-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
@@ -34,12 +35,12 @@ describe('safety-mode — 모드 정의', () => {
   })
 })
 
-describe('risk-policy — high-risk 10종 + 채널/모드 정책', () => {
-  it('high-risk 10종 포함', () => {
-    for (const a of ['undo', 'deploy', 'publish', 'migrate', 'cloud-pull', 'resume', 'env-write', 'delete', 'restore', 'policy-baseline']) {
+describe('risk-policy — high-risk 11종 + 채널/모드 정책', () => {
+  it('high-risk 11종 포함 (save 는 ADR-021/#611 승격)', () => {
+    for (const a of ['undo', 'deploy', 'publish', 'migrate', 'cloud-pull', 'resume', 'env-write', 'delete', 'restore', 'policy-baseline', 'save']) {
       expect(HIGH_RISK_ACTIONS).toContain(a)
     }
-    expect(HIGH_RISK_ACTIONS.length).toBe(10)
+    expect(HIGH_RISK_ACTIONS.length).toBe(11)
   })
 
   it('isHighRisk 판정', () => {
@@ -58,9 +59,10 @@ describe('risk-policy — high-risk 10종 + 채널/모드 정책', () => {
     expect(resolveGuard('deploy', 'lite', 'mcp')).toBe('warn')
   })
 
-  it('strict: 더 많은 작업(save/sync)도 confirm', () => {
-    expect(resolveGuard('save', 'standard', 'cli')).toBe('allow')
+  it('strict: 추가 작업(sync)도 가드 — save 는 이제 모드 무관 high-risk (ADR-021)', () => {
+    expect(resolveGuard('save', 'standard', 'cli')).toBe('confirm')
     expect(resolveGuard('save', 'strict', 'cli')).toBe('confirm')
+    expect(resolveGuard('sync', 'standard', 'cli')).toBe('allow')
     expect(resolveGuard('sync', 'strict', 'mcp')).toBe('preview')
   })
 
@@ -104,5 +106,22 @@ describe('config — .vhk/config.json 읽기/쓰기', () => {
     writeConfig({ safetyMode: 'lite' })
     const parsed = JSON.parse(readFileSync(CONFIG_PATH, 'utf-8'))
     expect(parsed.safetyMode).toBe('lite')
+  })
+
+  it('#611: 하위 폴더 실행에서도 git 루트의 strict 를 잃지 않는다 (가드 우회 방지)', () => {
+    // 비-git 임시 디렉터리에선 cwd 폴백으로 동작
+    expect(readConfigFromProjectRoot().safetyMode).toBe('standard')
+    // git 저장소 루트에 strict 설정 → 하위 폴더로 이동해도 루트 설정을 읽어야 한다
+    const git = (args: string[]) => {
+      const r = spawnSync('git', args, { cwd: dir, encoding: 'utf-8' })
+      if (r.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${r.stderr}`)
+    }
+    git(['init'])
+    writeConfig({ safetyMode: 'strict' }, dir)
+    const sub = join(dir, 'src', 'deep')
+    mkdirSync(sub, { recursive: true })
+    process.chdir(sub)
+    expect(readConfig().safetyMode).toBe('standard') // cwd 기준(구 동작)은 strict 를 놓친다
+    expect(readConfigFromProjectRoot().safetyMode).toBe('strict') // 가드가 쓰는 해석
   })
 })
