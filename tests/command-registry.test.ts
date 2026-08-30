@@ -40,6 +40,15 @@ describe('R1 드리프트 가드 — command-registry 단일 소스', () => {
 
   // #327: `vhk mission show` 가 commander 서브커맨드로 등록돼야 함.
   // 미등록이면 'show' 가 mission(0-arity) 위치인자로 처리돼 'too many arguments' cryptic 에러.
+  it('#613 memory add 에 한글 별칭 추가가 등록됨', () => {
+    const memory = program.commands.find((c) => c.name() === 'memory')
+    expect(memory, 'memory 컨테이너 명령이 commander 에 없음').toBeDefined()
+    const add = memory!.commands.find((c) => c.name() === 'add')
+    expect(add, 'memory add 가 commander 에 없음').toBeDefined()
+    expect(add!.aliases()).toContain('추가')
+    expect(resolveSubcommandAlias('memory', '추가')).toBe('add')
+  })
+
   it('#327 mission 에 show 서브커맨드가 등록돼 있음 (set/check/clear 와 대칭)', () => {
     const mission = program.commands.find((c) => c.name() === 'mission')
     expect(mission, 'mission 컨테이너 명령이 commander 에 없음').toBeDefined()

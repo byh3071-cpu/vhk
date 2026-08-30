@@ -220,6 +220,12 @@ describe('detectNaturalLanguageInput — 한글 서브별칭 경로 가드 (R1 �
   it('vhk 기억 목록 → null (commander 가 memory list 실행)', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '기억', '목록'])).toBeNull()
   })
+  it('vhk 기억 추가 <본문> --type decision → null (commander 가 memory add 실행, #613)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', '기억', '추가', '결정 내용', '--type', 'decision'])).toBeNull()
+  })
+  it('vhk memory 추가 <본문> --type success → null (영문 컨테이너 + 한글 서브, #613)', () => {
+    expect(detectNaturalLanguageInput(['node', 'vhk', 'memory', '추가', '성공 내용', '--type', 'success'])).toBeNull()
+  })
   it('vhk 진화 반영 <id> → null (인자 보존)', () => {
     expect(detectNaturalLanguageInput(['node', 'vhk', '진화', '반영', 'r1'])).toBeNull()
   })

@@ -46,6 +46,7 @@ export const CONTAINER_SUBCOMMAND_ALIASES: Record<string, Record<string, string>
   ref: { 목록: 'list', 열기: 'open' },
   worktree: { 점검: 'check', 추가: 'add' },
   memory: {
+    추가: 'add',
     목록: 'list',
     삭제: 'remove',
     보관: 'archive',

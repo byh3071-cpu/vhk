@@ -4,6 +4,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 import os from 'node:os'
 import { readJsonFile } from '../src/lib/read-json.js'
+import { removeDirSync } from '../src/lib/fs-remove.js'
 
 // 실제 빌드된 CLI 를 spawn 해서 commander 인자 파싱을 검증한다(#148/#151 은 파싱 레이어 결함이라
 // 함수 단위 mock 으론 재현 불가 — dist 필요).
@@ -40,6 +41,47 @@ describe('ref add --title 별칭 (#151)', () => {
       expect(refs[0].memo).toBe('메모값')
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('memory add 한글 별칭 추가 (#613)', () => {
+  it('vhk 기억 추가 "본문" --type decision 이 저장되고 unknown option 이 없다', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mem-ko-add-'))
+    try {
+      const r = runCli(['기억', '추가', '한글별칭 결정', '--type', 'decision'], tmp)
+      expect(String(r.stderr ?? '')).not.toMatch(/unknown option/i)
+      expect(r.status).toBe(0)
+      expect(String(r.stdout ?? '')).toMatch(/기억 저장됨/)
+      const raw = fs.readFileSync(path.join(tmp, '.vhk', 'memory.json'), 'utf-8')
+      expect(raw).toContain('한글별칭 결정')
+    } finally {
+      removeDirSync(tmp)
+    }
+  })
+
+  it('vhk memory 추가 "본문" --type success 도 동일 (영문 컨테이너 + 한글 서브)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mem-ko-sub-'))
+    try {
+      const r = runCli(['memory', '추가', '한글서브 성공', '--type', 'success'], tmp)
+      expect(String(r.stderr ?? '')).not.toMatch(/unknown option/i)
+      expect(r.status).toBe(0)
+      expect(String(r.stdout ?? '')).toMatch(/기억 저장됨/)
+    } finally {
+      removeDirSync(tmp)
+    }
+  })
+
+  it('무효 서브 + 옵션은 unknown option 대신 친절 가드 (exit 1)', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vhk-mem-bad-sub-'))
+    try {
+      const r = runCli(['memory', '없는서브', '--type', 'decision'], tmp)
+      const err = `${r.stdout ?? ''}\n${r.stderr ?? ''}`
+      expect(err).not.toMatch(/unknown option/i)
+      expect(err).toMatch(/서브커맨드가 아니에요/)
+      expect(r.status).not.toBe(0)
+    } finally {
+      removeDirSync(tmp)
     }
   })
 })

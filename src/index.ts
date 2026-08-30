@@ -752,6 +752,7 @@ const memoryCmd = program
 
 memoryCmd
   .command('add [content]')
+  .alias('추가')
   // #148: 대시(--)로 시작하는 본문은 positional 로 못 넘긴다(commander 가 옵션으로 파싱) →
   //       `--content=<본문>` 폴백 제공. 예: vhk memory add --content=--on-accent ... --type decision
   .option('--content <text>', '본문 (대시 시작 등 positional 불가 시) — 예: --content=--on-accent ...')
