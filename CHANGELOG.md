@@ -4,6 +4,11 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Fixed
+
+- `vhk 기억 추가`가 `memory add`로 연결되지 않아 `--type`이 unknown option으로 나오던 문제를 고친다.
+  무효 서브커맨드에 옵션이 붙어도 영어 raw 에러 대신 유효 서브 목록을 안내한다 (#613).
+
 ## [2.15.1] - 2026-08-30
 
 ### Security

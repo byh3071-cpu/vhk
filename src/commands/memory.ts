@@ -382,8 +382,8 @@ export async function memoryList(opts: { type?: MemBucket; all?: boolean } = {})
 
   if (visible.length === 0) {
     console.log(chalk.yellow('\n📭 표시할 기억이 없습니다.'))
-    console.log(chalk.gray('   vhk memory add "내용" --type decision|failure|success'))
-    console.log(chalk.gray('   vhk 기억 추가 "내용" --type decision|failure|success'))
+    console.log(chalk.gray('   vhk memory add "내용" --type decision'))
+    console.log(chalk.gray('   vhk 기억 추가 "내용" --type decision'))
     return
   }
   console.log(chalk.cyan(`\n${visible.length}개${opts.all ? ' (보관 포함)' : ' (활성)'}:\n`))
