@@ -20,11 +20,11 @@ function tmpProject(label: string): string {
   return dir
 }
 
-function makeGoalFile(dir: string, id: number, status: string, dependsOn?: string): void {
+function makeGoalFile(dir: string, id: number, status: string, dependsOn?: string, body = 'body'): void {
   mkdirSync(join(dir, 'goals'), { recursive: true })
   writeFileSync(
     join(dir, 'goals', `${id}-test.md`),
-    `---\nvhk_format: 1\ntype: goal\nid: ${id}\ntitle: Goal ${id}\nstatus: ${status}\npriority: P0\nversion: v0.${id}\n${dependsOn === undefined ? '' : `depends_on: ${dependsOn}\n`}---\nbody\n`,
+    `---\nvhk_format: 1\ntype: goal\nid: ${id}\ntitle: Goal ${id}\nstatus: ${status}\npriority: P0\nversion: v0.${id}\n${dependsOn === undefined ? '' : `depends_on: ${dependsOn}\n`}---\n${body}\n`,
     'utf-8'
   )
 }
@@ -578,6 +578,31 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
       expect(after).toContain('status: DONE')
       expect(after).not.toContain('status: IN_PROGRESS')
       expect(after).toMatch(/completed: \d{4}-\d{2}-\d{2}/)
+    } finally {
+      process.chdir(origCwd)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('#612 미완 Task가 있어도 DONE 전이하고 advisory 경고만 낸다', async () => {
+    const dir = tmpProject('done-pending-task')
+    const body = ['### Phase 10', '- [x] **Task 100** 끝', '- [ ] **Task 110** 남음'].join('\n')
+    makeGoalFile(dir, 5, 'IN_PROGRESS', undefined, body)
+    mkdirSync(join(dir, 'scripts'), { recursive: true })
+    writeFileSync(join(dir, 'scripts/check-goal-5.sh'), '#!/usr/bin/env bash\nexit 0\n', 'utf-8')
+    mockSafeExecFile.mockReturnValue({ ok: true, out: 'all good', err: '' })
+    process.chdir(dir)
+    process.exitCode = 0
+    try {
+      const { goalDone } = await import('../src/commands/goal.js')
+      const logSpy = vi.spyOn(console, 'log')
+      await goalDone({ id: '5' })
+      const after = readFileSync(join(dir, 'goals/5-test.md'), 'utf-8')
+      expect(after).toContain('status: DONE')
+      expect(process.exitCode === 1).toBe(false)
+      const logs = logSpy.mock.calls.map((c) => String(c[0])).join('\n')
+      expect(logs).toMatch(/미완 Task 1개\(110\)/)
+      expect(logs).toMatch(/그래도 DONE 처리했습니다/)
     } finally {
       process.chdir(origCwd)
       rmSync(dir, { recursive: true, force: true })
