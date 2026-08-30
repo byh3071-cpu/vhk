@@ -4,6 +4,12 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Fixed
+
+- `vhk goal done`이 134 문법(`### Phase N` · `- [ ] **Task N**`) 미완 Task를 침묵하고 DONE 하던 구멍을 막는다.
+  게이트는 통과시키고 경고 한 줄만 낸다. `vhk goal drift`는 같은 어긋남을 역방향으로 표시한다.
+  일반 `- [ ]` 체크박스와 review 신뢰도는 보지 않는다 (#612).
+
 ## [2.15.1] - 2026-08-30
 
 ### Security

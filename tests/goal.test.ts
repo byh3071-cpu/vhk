@@ -605,7 +605,7 @@ describe('goalDone — Forbidden: 게이트 실패 시 frontmatter 변경 금지
       expect(logs).toMatch(/그래도 DONE 처리했습니다/)
     } finally {
       process.chdir(origCwd)
-      rmSync(dir, { recursive: true, force: true })
+      removeDirSync(dir)
     }
   })
 })
