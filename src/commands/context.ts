@@ -29,6 +29,7 @@ import {
 import { getActiveBlockers, isHardStopActive } from '../lib/state-files.js'
 import { gitOut } from '../lib/git-repo.js'
 import { CONTEXT_GIT_MARKER } from '../lib/drift.js'
+import { shouldRewriteContext } from '../lib/context-stamp.js'
 import { TOP_LEVEL_COMMANDS } from '../lib/command-registry.js'
 import { loadCoreRuleset } from '../lib/core-rules.js'
 import {
@@ -461,8 +462,27 @@ export async function context(opts: { compact?: boolean } = {}): Promise<void> {
   }
   lines.push('')
 
+  const next = lines.join('\n')
+  let existing: string | null = null
+  if (existsSync(CONTEXT_PATH)) {
+    try {
+      existing = readFileSync(CONTEXT_PATH, 'utf-8')
+    } catch {
+      existing = null
+    }
+  }
+  if (!shouldRewriteContext(existing, next)) {
+    console.log(chalk.green(`\n✅ ${t('context.unchanged')}`))
+    printNextStep({
+      message: '컨텍스트 파일이 이미 최신입니다.',
+      command: 'vhk context-show',
+      cursorHint: '컨텍스트 보여줘',
+    })
+    return
+  }
+
   mkdirSync('.vhk', { recursive: true })
-  atomicWriteFile(CONTEXT_PATH, lines.join('\n'))
+  atomicWriteFile(CONTEXT_PATH, next)
 
   console.log(chalk.green(`\n✅ ${CONTEXT_PATH} 생성 완료!`))
   console.log(chalk.gray(`   기술 스택 ${Object.keys(detectedStack).length}개 감지`))

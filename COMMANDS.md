@@ -269,7 +269,7 @@ vhk doctor
 | `vhk audit` | 보안 취약점 감사 (npm audit) |
 | `vhk migrate` | 패키지 매니저 전환 (npm/yarn/pnpm) |
 | `vhk update` | VHK CLI 셀프 업데이트 |
-| `vhk context` | 프로젝트 맥락 파일 생성 (.vhk/context.md) · `--json`은 Goal Phase/Task 읽기 전용 투영 |
+| `vhk context` | 프로젝트 맥락 파일 생성 (.vhk/context.md). 본문이 같으면 `_생성:` 시각만 바뀌어도 다시 쓰지 않음. `--json`은 Goal Phase/Task 읽기 전용 투영 |
 | `vhk mode` | Safety Mode 조회/변경 (lite\|standard\|strict) |
 | `vhk verify` | 검증 실행 + 확인이 필요한 항목의 경과 시간·숨긴 횟수 + 증거·행동 기록 (`--dismiss <id>`) |
 | `vhk cost` | 비용·예산 가드 — add/check/budget (자문형) |

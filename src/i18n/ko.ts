@@ -789,6 +789,7 @@ export const ko = {
     resumeMissing: '🧭 AI 세션 복원 컨텍스트 없음 → 생성: vhk context',
     resumeExists: '🧭 새 세션이면 AI 컨텍스트 복원: vhk context-show (갱신: vhk context)',
     resumeStale: '🧭 컨텍스트가 오래됨(코드 변경 이후) → 갱신: vhk context',
+    unchanged: '내용이 같아 다시 쓰지 않았습니다 (생성 시각만 달랐음)',
   },
   brief: {
     title: '프로젝트 브리핑',
