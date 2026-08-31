@@ -50,6 +50,19 @@ export function readExtraConfigs(sourceDir: string): string[] {
   return []
 }
 
+export function readWorktreeRoot(sourceDir: string): string | null {
+  const p = join(sourceDir, '.vhk', 'config.json')
+  if (!existsSync(p)) return null
+  try {
+    const cfg = readJsonFile<{ worktreeRoot?: unknown }>(p)
+    return typeof cfg.worktreeRoot === 'string' && cfg.worktreeRoot.trim() !== ''
+      ? cfg.worktreeRoot.trim()
+      : null
+  } catch {
+    return null
+  }
+}
+
 // IO 수집: sourceDir 스캔(.env*) + .vhk/config.json 추가 설정 → CopyItem[].
 export function collectCopyItems(sourceDir: string, targetDir: string): CopyItem[] {
   let names: string[] = []

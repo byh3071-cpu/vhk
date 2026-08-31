@@ -667,8 +667,13 @@ worktreeCmd
   .command('add <branch>')
   .alias('추가')
   .option('--install', 'worktree 생성 후 pnpm install 자동 실행')
+  .option('--path <target>', '생성 경로 (상대면 git 루트 기준). 없으면 worktreeRoot 설정, 아니면 형제 디렉터리')
+  .option('--dry-run', '생성·복사·install 없이 대상만 출력')
+  .option('--yes', '비-TTY에서 미리보기 후 생성 승인')
   .description('worktree 생성 + 필수 env/설정 자동 복사 (파일 복사·심볼릭 X, 비밀값 미노출)')
-  .action(async (branch: string, opts: { install?: boolean }) => { await worktreeAdd(branch, opts) })
+  .action(async (branch: string, opts: { install?: boolean; path?: string; dryRun?: boolean; yes?: boolean }) => {
+    await worktreeAdd(branch, opts)
+  })
 
 program
   .command('standup')

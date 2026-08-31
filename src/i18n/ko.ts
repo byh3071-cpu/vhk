@@ -429,6 +429,9 @@ export const ko = {
     abortedExists: (p: string) => `🛑 이미 존재 — 중단(덮어쓰기 안 함): ${p}`,
     gitFailed: (d: string) => `❌ git worktree add 실패: ${d}`,
     installSkipped: 'node_modules 없음 → pnpm install (또는 --install 로 자동)',
+    noGitRoot: 'git 저장소가 아닙니다 — worktree 는 저장소 루트에서 만듭니다',
+    dryRunDone: '미리보기만 했습니다 — Git·복사·install 없음',
+    needYes: '비-TTY에서는 --yes 없이 worktree 를 만들지 않습니다. 먼저 --dry-run 으로 경로를 확인하세요',
   },
   nlp: {
     matched: '이게 맞나요?',
