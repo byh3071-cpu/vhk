@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { removeDirSync } from '../src/lib/fs-remove.js'
 import {
   hasCustomGateAssertions,
   findStatusDriftCandidates,
@@ -231,6 +232,23 @@ describe('findStatusDriftCandidates', () => {
     const { root, gdir, sdir } = setup({ '13-ok.md': goalCard(13, 'DONE', body) }, {})
     expect(findStatusDriftCandidates(gdir, sdir, root)).toEqual([])
     fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  it('#612 DONE + 134 문법 미완 Task → 역방향 드리프트', () => {
+    const body = '### Phase 10\n- [x] **Task 100** 끝\n- [ ] **Task 110** 남음\n'
+    const { root, gdir, sdir } = setup({ '14-pending.md': goalCard(14, 'DONE', body) }, {})
+    const hits = findStatusDriftCandidates(gdir, sdir, root)
+    expect(hits.map((x) => x.id)).toEqual([14])
+    expect(hits[0].kind).toBe('done-pending-tasks')
+    expect(hits[0].reason).toContain('110')
+    removeDirSync(root)
+  })
+
+  it('#612 DONE + 일반 미완 체크박스(T1) → 통과(134 문법만 본다)', () => {
+    const body = '## 티켓\n- [ ] **T1** 하나\n'
+    const { root, gdir, sdir } = setup({ '15-legacy.md': goalCard(15, 'DONE', body) }, {})
+    expect(findStatusDriftCandidates(gdir, sdir, root)).toEqual([])
+    removeDirSync(root)
   })
 
   // 112-T7(b): goals/ 가 비추적이라 CI 에는 없다 → 빈 배열끼리 비교하며 무조건 통과하던 가드.

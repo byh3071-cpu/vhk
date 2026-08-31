@@ -255,6 +255,7 @@ export function detectNaturalLanguageInput(argv: string[]): string | null {
  * 잡는 케이스(드리프트 3종):
  *  - #344 leaf+추가인자: env check → "env-check 명령을 쓰세요" (정답 형제 명령 유도)
  *  - #314 컨테이너+무효서브: memory 왜안되나 → 유효 서브커맨드 목록 안내(엉뚱한 doctor 실행 금지)
+ *  - #613 컨테이너+무효서브+옵션: memory 없는서브 --type … → unknown option 오진 대신 같은 안내
  */
 export function detectInvalidCommandUsage(argv: string[]): string | null {
   const rest = argv.slice(2)
@@ -262,8 +263,9 @@ export function detectInvalidCommandUsage(argv: string[]): string | null {
 
   const first = rest[0]
   if (isOptionToken(first)) return null
-  // 옵션이 섞이면 commander 가 정상 파싱 — 손대지 않는다.
-  if (rest.some(isOptionToken)) return null
+  // 둘째 토큰이 옵션이면 서브커맨드 시도가 아님 — commander 파싱에 맡긴다.
+  // 예전엔 옵션이 하나라도 있으면 전부 건너뛰어, 무효 서브+옵션이 raw unknown option 으로 샜다(#613).
+  if (isOptionToken(rest[1])) return null
 
   // #344: leaf 명령 + 정답이 형제 top-level 명령인 경우 → 형제 명령으로 유도.
   const leaf = LEAF_ARG_SUGGEST[first]

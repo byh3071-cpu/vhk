@@ -840,11 +840,15 @@ export const ko = {
       `Goal ${id}가 시작됐지만 선행 작업 ${waiting}이 완료되지 않았습니다. 상태와 로드맵을 먼저 맞추세요.`,
     dependencyDoneBlocked: (id: number, waiting: string) =>
       `Goal ${id} 완료 처리 거부 — 먼저 끝내야 할 Goal: ${waiting}`,
+    donePendingTasks: (count: number, ids: string) =>
+      `미완 Task ${count}개(${ids}) 남음 — 그래도 DONE 처리했습니다`,
     // 여기의 "불일치(drift)"는 설정이 아니라 goal 상태 ↔ 코드 현실의 어긋남이다 (ADR-011 대응표 적용 시 의미 보존).
     driftTitle: '🔍 Goal 상태↔코드 불일치(drift) 점검',
-    driftClean: 'goal 상태 불일치(drift) 없음 (구현 흔적 있는데 NOT_STARTED 인 goal 0건)',
-    driftFound: (n: number) =>
-      `상태 불일치(drift) 의심 ${n}건 — check-goal 게이트에 goal 고유 검증이 있는데 status: NOT_STARTED:`,
+    driftClean: 'goal 상태 불일치(drift) 없음',
+    driftFound: (n: number) => `상태 불일치(drift) 의심 ${n}건:`,
+    driftForwardHint:
+      '구현됐다면 `vhk goal done --id <n>` 로 DONE 전환, 아니라면 게이트의 goal 고유 검증을 제거하세요.',
+    driftReverseHint: 'DONE인데 미완 Task가 있으면 카드를 고치거나, 완료가 아니면 status를 되돌리세요.',
     stateDirAbsent: (dir: string) =>
       `${dir}/ 가 없어 상태 문서를 쓰지 않고 조회만 했습니다 — 이 프로젝트는 작업 상태를 다른 곳에서 관리합니다.`,
     stateDirAbsentHint: (dir: string) =>

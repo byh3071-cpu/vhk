@@ -70,6 +70,8 @@ Cursor에게 한국어로 말해도 됩니다.
 | 게이트 검증 | `vhk goal check --id 0` 또는 `vhk check --goal 0` | "목표 점검" |
 | 완료 처리 | `vhk goal done --id 0` | "목표 완료" |
 
+`goal done`은 게이트를 통과하면 DONE으로 옮깁니다. Goal 본문에 134 문법(`### Phase N` · `- [ ] **Task N**`) 미완 Task가 있으면 경고 한 줄을 내고 전이는 막지 않습니다. `goal drift`는 같은 어긋남을 역방향으로도 표시합니다.
+
 Goal frontmatter에 `depends_on: 1,2`를 선택적으로 쓰면 선행 Goal이 모두 `DONE`일 때만 `next/peek/done` 대상이 됩니다. 잘못된 ID·자기 참조·순환 참조는 설정 오류로 표시됩니다.
 
 `goal next`는 선택 가능한 Goal 없이 BLOCKED·DEFERRED·OBSERVING만 남으면 “모두 완료”로 쓰지 않고 사람이 쓴 `next-task.md`를 보존합니다. VHK가 만든 과거 완료 스냅샷이 거짓 상태가 되면 완료 표시와 시각을 함께 무효화합니다. 미해결 Goal 없이 DONE/CANCELED만 남으면 기존 `next-task.md`가 있을 때만 백업 후 완료 스냅샷으로 갱신하고, 파일이 없으면 만들지 않습니다. 이미 완료 스냅샷이면 시각·백업을 다시 만들지 않습니다.
@@ -152,7 +154,7 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
-| 결정 기록 | `vhk memory add "tRPC 채택" --type decision` | "이거 기억해" |
+| 결정 기록 | `vhk memory add "tRPC 채택" --type decision` · `vhk 기억 추가 "tRPC 채택" --type decision` | "이거 기억해" |
 | 실패+교훈 기록 | `vhk memory add "테스트 미커버" --type failure --why "..." --lesson "회귀 가드 먼저"` | "이 실수 기억해" |
 | 성공 기록 | `vhk memory add "롤백 빨랐다" --type success --why "백업 먼저"` | "이 성공 기억해" |
 | 교훈만 빠르게 | `vhk learn "PowerShell 은 && 미지원"` | "교훈 남겨" |

@@ -327,6 +327,7 @@ export async function memoryAdd(
   if (!content || !content.trim()) {
     console.log(chalk.red('❌ 기억할 내용을 입력해주세요.'))
     console.log(chalk.gray('   예: vhk memory add "API는 tRPC 사용" --type decision'))
+    console.log(chalk.gray('       vhk 기억 추가 "API는 tRPC 사용" --type decision'))
     process.exitCode = 1
     return
   }
@@ -381,7 +382,8 @@ export async function memoryList(opts: { type?: MemBucket; all?: boolean } = {})
 
   if (visible.length === 0) {
     console.log(chalk.yellow('\n📭 표시할 기억이 없습니다.'))
-    console.log(chalk.gray('   vhk memory add "내용" --type decision|failure|success'))
+    console.log(chalk.gray('   vhk memory add "내용" --type decision'))
+    console.log(chalk.gray('   vhk 기억 추가 "내용" --type decision'))
     return
   }
   console.log(chalk.cyan(`\n${visible.length}개${opts.all ? ' (보관 포함)' : ' (활성)'}:\n`))
