@@ -181,4 +181,33 @@ describe('context — 헌법(core-rules) 소스 표기 (goal 91)', () => {
     const md = String(call![1])
     expect(md).toContain('VHK 기본 규칙 스냅샷')
   })
+
+  it('#603 본문이 같으면 _생성: 만 달라도 context.md를 다시 쓰지 않는다', async () => {
+    const pkg = JSON.stringify({
+      name: 'test-pkg',
+      version: '1.2.3',
+      dependencies: { next: '15.0.0', typescript: '5.5.0' },
+      devDependencies: { vitest: '2.0.0' },
+    })
+    let stored = ''
+    mockExistsSync.mockImplementation((p: unknown) => {
+      const s = String(p)
+      if (s.includes('context.md')) return stored !== ''
+      return s.includes('package.json')
+    })
+    mockReadFileSync.mockImplementation((p: unknown) => {
+      if (String(p).includes('context.md')) return stored.replace(/_생성: .+_/, '_생성: 어제_')
+      return pkg
+    })
+    mockReaddirSync.mockReturnValue([])
+    mockStatSync.mockReturnValue({ isDirectory: () => false })
+
+    const { context } = await import('../src/commands/context.js')
+    await context()
+    expect(mockWriteFileSync.mock.calls.some((c) => String(c[0]).includes('context.md'))).toBe(true)
+    stored = String(mockWriteFileSync.mock.calls.find((c) => String(c[0]).includes('context.md'))![1])
+    mockWriteFileSync.mockClear()
+    await context()
+    expect(mockWriteFileSync.mock.calls.some((c) => String(c[0]).includes('context.md'))).toBe(false)
+  })
 })
