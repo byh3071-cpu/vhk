@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  listPendingProjectedTaskNumbers,
   parseGoalPhaseTasks,
   type GoalTaskProjectionInput,
   type WorkContextV1,
@@ -776,5 +777,33 @@ describe('Goal projection 공개 경계', () => {
     expect(result.valid).toBe(false)
     expect(result.activeGoal).toBeNull()
     expect(result.errors).toEqual([{ code: 'PUBLIC_BOUNDARY_VIOLATION' }])
+  })
+})
+
+describe('listPendingProjectedTaskNumbers', () => {
+  const phaseTasks = [
+    '### Phase 10',
+    '- [x] **Task 100** 끝난 일',
+    '- [ ] **Task 110** 남은 일',
+  ].join('\n')
+
+  it('미완 Task 번호만 반환한다', () => {
+    expect(
+      listPendingProjectedTaskNumbers({ ...DEFAULT_INPUT, markdown: phaseTasks }),
+    ).toEqual([110])
+  })
+
+  it('Phase가 없으면 빈 배열이다', () => {
+    expect(listPendingProjectedTaskNumbers({ ...DEFAULT_INPUT, markdown: '본문만' })).toEqual([])
+  })
+
+  it('파싱 실패는 null이다', () => {
+    expect(
+      listPendingProjectedTaskNumbers({
+        ...DEFAULT_INPUT,
+        sourceRef: 'goals/sample-goal.md',
+        markdown: phaseTasks,
+      }),
+    ).toBeNull()
   })
 })

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, dirname, join, relative, sep } from 'node:path'
 import { listGoals, type GoalStatus } from './goal-frontmatter.js'
+import { listPendingProjectedTaskNumbers } from './goal-task-projection.js'
 
 // Goal 43: goal 상태 ↔ 코드 현실 드리프트 게이트.
 //
@@ -87,6 +88,8 @@ export function countMustAssertions(content: string): number {
   return count
 }
 
+export type DriftKind = 'not-started-implemented' | 'done-pending-tasks'
+
 export interface DriftCandidate {
   id: number
   title: string
@@ -94,6 +97,7 @@ export interface DriftCandidate {
   goalFile: string
   scriptFile: string
   reason: string
+  kind?: DriftKind
 }
 
 /** 카드 본문의 마크다운 체크박스 집계. */
@@ -356,6 +360,32 @@ export function findStatusDriftCandidates(
         reason: `status: NOT_STARTED 인데 goals 본문 경로 증거 ${pathHits.length}건 존재(${pathHits.slice(0, 3).join(', ')}${pathHits.length > 3 ? '…' : ''}) — 구현됐는데 status 만 안 바뀐 드리프트 의심`,
       })
     }
+  }
+
+  // #612: DONE 인데 134 문법 미완 Task 가 남은 역방향. 일반 `- [ ]` 체크박스는 안 본다
+  // (112-T7 계획 카드 오탐과 같은 함정). 파싱 실패는 건너뛴다.
+  for (const g of listGoals(goalsDir)) {
+    const status = g.frontmatter.status ?? 'NOT_STARTED'
+    if (status !== 'DONE') continue
+    const id = g.frontmatter.id
+    if (typeof id !== 'number') continue
+    const pending = listPendingProjectedTaskNumbers({
+      goalId: id,
+      goalTitle: g.frontmatter.title ?? null,
+      goalStatus: status,
+      sourceRef: basename(g.filePath),
+      markdown: g.body,
+    })
+    if (pending === null || pending.length === 0) continue
+    out.push({
+      id,
+      title: g.frontmatter.title ?? '',
+      status,
+      goalFile: g.filePath,
+      scriptFile: '(projected tasks)',
+      kind: 'done-pending-tasks',
+      reason: `status: DONE 인데 미완 Task ${pending.length}개(${pending.join(', ')}) — 완료 표시와 작업 목록이 어긋남`,
+    })
   }
   return out
 }
