@@ -4,6 +4,12 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+### Added
+
+- `vhk worktree add`가 생성 전에 source·branch·target·copy·install을 보여준다. `--path`와
+  `.vhk/config.json`의 `worktreeRoot`로 대상을 고를 수 있고, `--dry-run`은 Git·복사·install을
+  하지 않는다. 비-TTY는 `--yes` 없이 만들지 않는다. source는 git 루트다 (#604).
+
 ## [2.15.1] - 2026-08-30
 
 ### Security

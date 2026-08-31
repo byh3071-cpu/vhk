@@ -2,6 +2,11 @@
 
 export interface WorktreeOptions {
   install?: boolean // --install: worktree 생성 후 pnpm install 실행
+  path?: string
+  dryRun?: boolean
+  yes?: boolean
+  /** 테스트 주입. 없으면 process.stdin.isTTY */
+  stdinTty?: boolean
 }
 
 export type CopyKind = 'env' | 'config'

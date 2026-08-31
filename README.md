@@ -394,7 +394,7 @@ VHK 프로젝트에서 **active goal 1개를 혼자 한 바퀴 돌리고 멈춰 
 | Trust | `vhk verify`, `vhk review`, `vhk receipt`, `vhk preflight`, `vhk testmap`, `vhk mission set/show/check/clear` | 증거 생성, 완료 보고 검증, 검증 리포트, 출고 전 점검, 테스트 매핑, 작업 범위 계약 |
 | 안전 | `vhk blocker`, `vhk resume --confirm`, `vhk mode`, `vhk secure scan`, `vhk policy level/risk/show/check/baseline` | HARD_STOP, safety mode, 시크릿 스캔, 기본-off 실행 정책 조회·판정·기준선 |
 | Git | `vhk status`, `vhk diff`, `vhk save`, `vhk 저장`, `vhk undo`, `vhk restore`, `vhk recap` | 상태/변경 확인, 커밋/푸시(save는 high-risk — 비-TTY Commander는 `--yes`로 commit+push하거나 그 대신 `--no-push`로 로컬 commit만 수행), 되돌리기, 세션 로그 |
-| 환경/품질 | `vhk doctor`, `vhk check`, `vhk env`, `vhk env-check`, `vhk harness`, `vhk audit`, `vhk worktree check/add` | 개발환경, RULES 린트, env, 통합 품질, 보안 감사, worktree 가드 |
+| 환경/품질 | `vhk doctor`, `vhk check`, `vhk env`, `vhk env-check`, `vhk harness`, `vhk audit`, `vhk worktree check/add` | 개발환경, RULES 린트, env, 통합 품질, 보안 감사, worktree 가드(`add`는 `--path`/`--dry-run`/`--yes`) |
 | 배포/패키지 | `vhk ship`, `vhk deploy`, `vhk publish`, `vhk update`, `vhk migrate` | 배포 체크, 배포 실행, npm 릴리스 자동화, 셀프 업데이트, 패키지 매니저 전환 |
 | MCP/클라우드 | `vhk mcp`, `vhk mcp-init`, `vhk cloud push/pull` | MCP stdio 서버, 클라이언트 설정, `.vhk/` secret gist 백업/복원 |
 | 기억/학습 | `vhk memory`, `vhk learn`, `vhk pattern`, `vhk evolve`, `vhk stats`, `vhk loop` | 결정/실패/성공 기억, 교훈, 반복 패턴, 룰 후보, 통계, 자가진화 조율 |

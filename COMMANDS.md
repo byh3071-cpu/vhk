@@ -181,10 +181,12 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
 | 새 worktree 생성 + env 복사 | `vhk worktree add feat/login` | "worktree 만들어줘" |
+| 경로 지정 | `vhk worktree add feat/login --path .worktrees/feat-login` | "worktree 여기 만들어줘" |
+| 생성 전 미리보기 | `vhk worktree add feat/login --dry-run` | "worktree 경로만 보여줘" |
 | 생성 + pnpm install까지 | `vhk worktree add feat/login --install` | "worktree 만들고 설치까지" |
 | 현재 worktree env 점검 | `vhk worktree check` | "worktree env 점검해" |
 
-> `worktree add` 는 `git worktree add` 로 새 worktree를 만들고 필수 env/설정(`.env*` + `.vhk/config.json`의 `worktreeCopy`)을 **파일 복사**(심볼릭 링크 X — Windows 안정)로 채웁니다. 비밀값은 **절대 출력 안 함**(env는 키 개수만). 대상 경로가 이미 있으면 덮어쓰지 않고 중단. git 훅은 건드리지 않습니다. `worktree check` 는 현재 worktree의 필수 env 누락을 개수로 점검(Goal 29 `worktree-env` 모듈 재사용).
+> `worktree add` 는 만들기 전에 source·branch·target·copy·install 을 보여줍니다. 기본 target은 **형제 디렉터리**(`../<repo>-<branch>`)입니다. `--path`가 있으면 그걸 쓰고, 없으면 `.vhk/config.json`의 `worktreeRoot`, 그것도 없으면 형제 기본값입니다. 상대 `--path`와 `worktreeRoot`는 git 루트 기준입니다. 비-TTY는 `--yes` 없이 만들지 않습니다. `--dry-run`은 Git·복사·install을 하지 않습니다. 필수 env/설정(`.env*` + `worktreeCopy`)은 **파일 복사**(심볼릭 링크 X). 비밀값은 **절대 출력 안 함**. 대상이 이미 있으면 덮어쓰지 않고 중단. `worktree check` 는 필수 env 누락을 개수로 점검합니다.
 
 ## 패턴 → 진화 (pattern / evolve)
 

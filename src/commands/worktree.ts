@@ -1,16 +1,18 @@
 import chalk from 'chalk'
 import { existsSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename } from 'node:path'
 import { ko } from '../i18n/ko.js'
 import { printNextStep } from '../lib/next-step.js'
 import { ensureNotHardStopped } from '../lib/hard-stop-guard.js'
 import { safeExecFile } from '../lib/exec.js'
 import type { Runner } from '../lib/preflight.js'
 import { runWorktreeCheck } from '../worktree/check.js'
-import { collectCopyItems } from '../worktree/configList.js'
+import { collectCopyItems, readWorktreeRoot } from '../worktree/configList.js'
 import { copyAll, realCopyDeps } from '../worktree/copy.js'
-import { addWorktree, sanitizeBranchToDir } from '../worktree/add.js'
+import { addWorktree } from '../worktree/add.js'
+import { copyPreviewNames, decideWorktreeMutation, resolveWorktreeTarget } from '../worktree/plan.js'
 import { detectPM, installCommandFor } from '../worktree/pm.js'
+import { getGitRoot } from '../lib/git-repo.js'
 import type { CopyResult, WorktreeOptions } from '../worktree/types.js'
 
 // safeExecFile → Runner 어댑터(외부 명령 단일 경로 — execSync 금지).
@@ -50,6 +52,20 @@ export async function worktreeCheck(): Promise<void> {
   }
 }
 
+function printAddPreview(plan: {
+  source: string
+  branch: string
+  target: string
+  copy: string
+  install: boolean
+}): void {
+  console.log(chalk.dim(`  source: ${plan.source}`))
+  console.log(chalk.dim(`  branch: ${plan.branch}`))
+  console.log(chalk.dim(`  target: ${plan.target}`))
+  console.log(chalk.dim(`  copy: ${plan.copy}`))
+  console.log(chalk.dim(`  install: ${plan.install ? 'yes' : 'no'}`))
+}
+
 // vhk worktree add <branch> — worktree 생성 + 필수 env/설정 자동 복사(+ --install).
 export async function worktreeAdd(branch: string | undefined, opts: WorktreeOptions = {}): Promise<void> {
   if (!ensureNotHardStopped('worktree add')) return // VHK-020
@@ -60,19 +76,66 @@ export async function worktreeAdd(branch: string | undefined, opts: WorktreeOpti
   }
   console.log(chalk.bold(`\n${ko.worktree.addTitle(branch)}\n`))
 
-  const cwd = process.cwd()
+  let repoRoot: string
+  try {
+    repoRoot = getGitRoot(process.cwd())
+  } catch {
+    console.log(chalk.red(`  ${ko.worktree.noGitRoot}`))
+    process.exitCode = 1
+    return
+  }
+
+  const targetPath = resolveWorktreeTarget({
+    repoRoot,
+    branch,
+    pathOpt: opts.path,
+    worktreeRoot: readWorktreeRoot(repoRoot),
+  })
+  const previewItems = collectCopyItems(repoRoot, targetPath)
+  printAddPreview({
+    source: repoRoot,
+    branch,
+    target: targetPath,
+    copy: copyPreviewNames(previewItems.map((item) => basename(item.target))),
+    install: opts.install === true,
+  })
+
+  const gate = decideWorktreeMutation({
+    dryRun: opts.dryRun,
+    yes: opts.yes,
+    stdinTty: opts.stdinTty ?? !!process.stdin.isTTY,
+  })
+  if (gate === 'dry-run') {
+    console.log(chalk.green(`  ${ko.worktree.dryRunDone}`))
+    printNextStep({
+      message: '미리보기만 했습니다. 생성하려면:',
+      command: `vhk worktree add ${branch}${opts.path ? ` --path ${opts.path}` : ''}${opts.install ? ' --install' : ''}`,
+      cursorHint: 'worktree 만들어줘',
+    })
+    return
+  }
+  if (gate === 'need-yes') {
+    console.log(chalk.yellow(`  ${ko.worktree.needYes}`))
+    process.exitCode = 1
+    printNextStep({
+      message: '비-TTY에서는 --yes 또는 --dry-run 을 주세요.',
+      command: `vhk worktree add ${branch} --yes`,
+      cursorHint: 'worktree 만들어줘',
+    })
+    return
+  }
+
   const copyDeps = realCopyDeps()
   const run = realRunner()
-  const pm = detectPM(cwd) // 범용: pnpm 고정 X — lockfile 로 yarn/npm 자동 감지
+  const pm = detectPM(repoRoot)
   const result = addWorktree(
     branch,
     { install: opts.install },
     {
-      sourceDir: cwd,
+      sourceDir: repoRoot,
       run,
       exists: (p) => existsSync(p),
-      // 형제 디렉터리: ../<repoName>-<branch>
-      resolveTargetPath: (b) => join(dirname(cwd), sanitizeBranchToDir(basename(cwd), b)),
+      resolveTargetPath: () => targetPath,
       collectItems: (s, t) => collectCopyItems(s, t),
       copyAll: (items) => copyAll(items, copyDeps),
       installRun: (tp) => {

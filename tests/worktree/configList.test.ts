@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { isCopyableEnvFile, listEnvFiles, buildCopyList } from '../../src/worktree/configList.js'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { tmpdir } from 'node:os'
+import { removeDirSync } from '../../src/lib/fs-remove.js'
+import {
+  isCopyableEnvFile,
+  listEnvFiles,
+  buildCopyList,
+  readWorktreeRoot,
+} from '../../src/worktree/configList.js'
 
 describe('isCopyableEnvFile', () => {
   it('.env / .env.local / .env.production 은 복사 대상', () => {
@@ -42,5 +51,21 @@ describe('buildCopyList', () => {
   })
   it('빈 목록이면 빈 배열', () => {
     expect(buildCopyList({ sourceDir: '/s', targetDir: '/t', envFiles: [], extraConfigs: [] })).toEqual([])
+  })
+})
+
+describe('readWorktreeRoot', () => {
+  it('문자열 worktreeRoot 만 읽고 손상 파일은 null', () => {
+    const dir = join(tmpdir(), `vhk-wt-root-${Date.now()}`)
+    mkdirSync(join(dir, '.vhk'), { recursive: true })
+    try {
+      expect(readWorktreeRoot(dir)).toBeNull()
+      writeFileSync(join(dir, '.vhk', 'config.json'), '{"worktreeRoot":".worktrees"}', 'utf-8')
+      expect(readWorktreeRoot(dir)).toBe('.worktrees')
+      writeFileSync(join(dir, '.vhk', 'config.json'), '{', 'utf-8')
+      expect(readWorktreeRoot(dir)).toBeNull()
+    } finally {
+      removeDirSync(dir)
+    }
   })
 })
