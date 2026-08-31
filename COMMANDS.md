@@ -154,7 +154,7 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 
 | 하고 싶은 것 | 터미널 명령 | Cursor에게 말하기 |
 |-------------|-----------|------------------|
-| 결정 기록 | `vhk memory add "tRPC 채택" --type decision` | "이거 기억해" |
+| 결정 기록 | `vhk memory add "tRPC 채택" --type decision` · `vhk 기억 추가 "tRPC 채택" --type decision` | "이거 기억해" |
 | 실패+교훈 기록 | `vhk memory add "테스트 미커버" --type failure --why "..." --lesson "회귀 가드 먼저"` | "이 실수 기억해" |
 | 성공 기록 | `vhk memory add "롤백 빨랐다" --type success --why "백업 먼저"` | "이 성공 기억해" |
 | 교훈만 빠르게 | `vhk learn "PowerShell 은 && 미지원"` | "교훈 남겨" |

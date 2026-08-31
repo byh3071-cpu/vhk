@@ -111,6 +111,18 @@ describe('#314 컨테이너 무효 서브 + 트리거 단어 → cross-misroute 
     expect(msg).toMatch(/list/)
   })
 
+  it('#613 무효 서브 + 옵션도 unknown option 이 아니라 같은 친절 안내', () => {
+    const msg = detectInvalidCommandUsage(['node', 'vhk', 'memory', '없는서브', '--type', 'decision'])
+    expect(msg).not.toBeNull()
+    expect(msg).toMatch(/서브커맨드가 아니에요/)
+    expect(msg).toMatch(/add/)
+  })
+
+  it('#613 회귀: 유효 서브 + 옵션은 친절안내 대상 아님(commander 파싱)', () => {
+    expect(detectInvalidCommandUsage(['node', 'vhk', 'memory', 'add', '내용', '--type', 'decision'])).toBeNull()
+    expect(detectInvalidCommandUsage(['node', 'vhk', '기억', '추가', '내용', '--type', 'decision'])).toBeNull()
+  })
+
   it('회귀: 보안 확인 → 여전히 자연어 (secure 자기 명령으로의 라우팅은 허용)', () => {
     // 보안(secure) 컨테이너 + 확인 → NL 이 secure(=같은 명령)로 라우팅 → 가로채기 허용 유지.
     expect(detectNaturalLanguageInput(['node', 'vhk', '보안', '확인'])).toBe('보안 확인')
