@@ -414,3 +414,20 @@ export function parseGoalPhaseTasks(input: GoalTaskProjectionInput): WorkContext
     errors: [],
   }
 }
+
+// toActiveGoal 이 쓰는 `goal:<id>/task:<n>` 과 같아야 한다. 접두를 빼면 미완 목록이 전부 null 이 된다.
+const PROJECTED_TASK_ID = /^goal:(\d+)\/task:([1-9][0-9]*)$/u
+
+/** 파싱 실패는 null(호출측은 경고를 생략). Phase 없는 카드는 빈 배열. */
+export function listPendingProjectedTaskNumbers(input: GoalTaskProjectionInput): number[] | null {
+  const parsed = parseGoalPhaseTasks(input)
+  if (!parsed.valid || parsed.activeGoal === null) return null
+  const pending: number[] = []
+  for (const task of parsed.activeGoal.tasks) {
+    if (task.sourceStatus !== 'pending') continue
+    const match = PROJECTED_TASK_ID.exec(task.id)
+    if (!match) return null
+    pending.push(Number(match[2]))
+  }
+  return pending
+}

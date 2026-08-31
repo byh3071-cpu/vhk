@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import chalk from 'chalk'
 import { ko } from '../i18n/ko.js'
 import { localDate } from '../lib/date.js'
@@ -20,6 +20,7 @@ import {
   type ParsedGoal,
 } from '../lib/goal-frontmatter.js'
 import { findStatusDriftCandidates } from '../lib/goal-drift.js'
+import { listPendingProjectedTaskNumbers } from '../lib/goal-task-projection.js'
 import {
   analyzeGoalDependencies,
   dependencyIssuesForGoal,
@@ -637,11 +638,11 @@ export async function goalDrift(): Promise<void> {
     console.log(chalk.dim(`      ${c.reason}`))
     console.log(chalk.dim(`      ${c.goalFile} · ${c.scriptFile}`))
   }
-  console.log(
-    chalk.dim(
-      '\n  → 구현됐다면 `vhk goal done --id <n>` 로 DONE 전환, 아니라면 게이트의 goal 고유 검증을 제거하세요.'
-    )
-  )
+  const hasForward = candidates.some((c) => c.kind !== 'done-pending-tasks')
+  const hasReverse = candidates.some((c) => c.kind === 'done-pending-tasks')
+  console.log('')
+  if (hasForward) console.log(chalk.dim(`  → ${ko.goal.driftForwardHint}`))
+  if (hasReverse) console.log(chalk.dim(`  → ${ko.goal.driftReverseHint}`))
   process.exitCode = 1
 }
 
@@ -731,6 +732,17 @@ export async function goalDone(opts: { id?: string }): Promise<void> {
   atomicWriteFile(target.filePath, updated) // Goal 40: frontmatter 갱신 중 kill 시 goal 파일 손상 방지
   showGateOutput()
   console.log(chalk.green(`\n  ✅ Goal ${id} → DONE (completed: ${today})`))
+  // #612: 차단이 아니라 advisory. 게이트 통과 후에도 134 문법 미완 Task 가 있으면 한 줄만 남긴다.
+  const pendingTasks = listPendingProjectedTaskNumbers({
+    goalId: id,
+    goalTitle: target.frontmatter.title ?? null,
+    goalStatus: 'DONE',
+    sourceRef: basename(target.filePath),
+    markdown: target.body,
+  })
+  if (pendingTasks && pendingTasks.length > 0) {
+    console.log(chalk.yellow(`  ⚠ ${ko.goal.donePendingTasks(pendingTasks.length, pendingTasks.join(', '))}`))
+  }
   printNextStep({
     message: `Goal ${id} 완료! 다음 goal 로:`,
     command: 'vhk goal next',
