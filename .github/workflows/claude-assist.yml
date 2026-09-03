@@ -30,7 +30,7 @@ jobs:
           # action이 git 인증을 자체 구성(configureGitAuth)하므로 checkout 인증정보 잔류 불필요
           persist-credentials: false
 
-      - uses: anthropics/claude-code-action@be7b93b1907a4abad570368f3c74b6fe3807510b # v1
+      - uses: anthropics/claude-code-action@833fb0f8c9f6686b33d963a8bae0a94f4936ab2a # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # 폭주 방지(크레딧 보호) — 리뷰 반영은 30턴이면 충분, 초과는 비정상
