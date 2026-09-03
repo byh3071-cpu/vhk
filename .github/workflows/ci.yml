@@ -28,7 +28,7 @@ jobs:
       # pnpm 버전은 package.json "packageManager"(pnpm@11.17.0) 단일 소스에서 읽음.
       # (pnpm 9 는 workspace overrides 거부 → 11.x 고정. Dependabot/corepack 도 동일 버전 사용.)
       - name: pnpm 설치
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
       - name: Node ${{ matrix.node }} + pnpm 캐시
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -104,7 +104,7 @@ jobs:
 
       # pnpm 버전은 package.json "packageManager" 단일 소스에서 읽음.
       - name: pnpm 설치
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
       - name: Node 24 + pnpm 캐시
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
