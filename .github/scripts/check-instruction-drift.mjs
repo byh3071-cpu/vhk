@@ -5,6 +5,15 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
+// A standalone @AGENTS.md line outside code fences (examples inside fences are not imports).
+export function hasAgentsImport(text) {
+  let fenced = false;
+  for (const line of text.replace(/^﻿/, '').split(/\r?\n/)) {
+    if (/^\s*(?:```|~~~)/.test(line)) { fenced = !fenced; continue; }
+    if (!fenced && /^\s*@(?:\.\/)?AGENTS\.md\s*$/.test(line)) return true;
+  }
+  return false;
+}
 export function digest(text) {
   return createHash('sha256').update(text.replace(/\r\n/g, '\n').trim()).digest('hex');
 }
@@ -14,6 +23,7 @@ export function checkInstructions(root, config, inventory) {
   const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
   const fail = (file, reason) => errors.push(`${file}: ${reason}`);
   for (const file of config.roster_files ?? []) {
+    if (file === 'CLAUDE.md') { fail('.github/instruction-drift.json', 'CLAUDE.md must not be a roster file'); continue; }
     if (!exists(file)) { fail(file, 'required roster file missing'); continue; }
     const content = read(file);
     const blocks = [...content.matchAll(/<!-- YOHAN-ROSTER-CARD:BEGIN[^>]*-->\s*([\s\S]*?)\s*<!-- YOHAN-ROSTER-CARD:END -->/g)];
@@ -35,10 +45,14 @@ export function checkInstructions(root, config, inventory) {
     }
   }
   if (exists('CLAUDE.md')) {
+    const claude = read('CLAUDE.md');
     // Inspect live status lines only; examples and historical TODO lists are not completion claims.
-    for (const line of read('CLAUDE.md').split(/\r?\n/)) {
+    for (const line of claude.split(/\r?\n/)) {
       if (/^\s*[-*]\s.*(?:Phase|다음 액션|블로커)/.test(line) && /\bFILL\b/.test(line)) fail('CLAUDE.md', 'unresolved live status placeholder');
     }
+    // AGENTS.md is the single instruction source; CLAUDE.md imports it instead of carrying copies.
+    if (claude.includes('YOHAN-ROSTER-CARD:BEGIN')) fail('CLAUDE.md', 'roster card belongs in AGENTS.md only');
+    if (exists('AGENTS.md') && !hasAgentsImport(claude)) fail('CLAUDE.md', 'missing @AGENTS.md import');
   }
   for (const file of config.link_files ?? []) {
     if (!exists(file)) { fail(file, 'required entrypoint missing'); continue; }
