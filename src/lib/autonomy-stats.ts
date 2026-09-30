@@ -241,6 +241,8 @@ export function isVerifiedComplete(end: AutonomyRunEntry, receiptBySha: Map<stri
   if (!end.sha) return false // 조인 불가 — 기계 증거 없음
   const r = receiptBySha.get(end.sha)
   if (!r) return false // 그 시점 receipt 가 아예 없다 → 검증되지 않은 완료 주장
+  // 실험용 재사용 증거는 공식 완주·권한 승격 근거로 집계하지 않는다.
+  if (r.verificationSource === 'reused') return false
   if (r.decision === 'block' || r.red) return false // ①
   return !r.dirty && r.stale !== true // ②
 }

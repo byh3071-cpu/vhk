@@ -430,6 +430,7 @@ export function checkEvidenceFreshness(
   current: CommitInfo | null
 ): FreshnessResult {
   const reasons: string[] = []
+  if (report.reuseUnavailable === VERIFICATION_INCOMPLETE_REASON) reasons.push('검증이 완료되지 않았습니다 — vhk verify 로 재검증 필요')
   if (!report.commit) reasons.push('증거에 커밋 SHA 없음 (구버전 리포트 — vhk verify 로 재검증 필요)')
   if (!current) reasons.push('현재 git 커밋을 알 수 없음 (git 레포 아님 또는 커밋 0개)')
   if (report.commit && current && report.commit.sha !== current.sha) {
@@ -455,16 +456,22 @@ export function verifyEvidence(cwd: string = process.cwd(), prepareReuse = false
   const dir = join(cwd, REPORT_DIR_REL)
   mkdirSync(dir, { recursive: true })
   const path = join(cwd, REPORT_PATH_REL)
-  // Invalidate before any gate or input scan: an interrupted run must not leave
-  // the previous sealed PASS available. Use the existing report schema/fields.
-  const pending = buildReport([], new Date().toISOString(), localDate(), commit)
-  pending.status = 'WARN'
+  // 중단된 새 검증을 통과로 읽거나 이전 봉인을 재사용하지 못하게 한다.
+  // 직전 실패 게이트와 그 커밋은 보존해 미완료 상태가 실패 근거를 지우지 않는다.
+  let pending = buildReport([], new Date().toISOString(), localDate(), commit)
+  try {
+    const previous = readJsonFile<VerifyReport>(path)
+    if (Array.isArray(previous?.gates)) {
+      pending = buildReport(previous.gates, previous.generatedAt ?? pending.generatedAt, previous.date ?? pending.date, previous.commit ?? null)
+    }
+  } catch { /* 이전 증거가 없거나 손상됐어도 미완료 검증은 FAIL로 남긴다. */ }
+  pending.status = 'FAIL'
   pending.reuseUnavailable = VERIFICATION_INCOMPLETE_REASON
   pending.nextActions = [ko.receipt.previousVerificationBlocked]
   atomicWriteFile(path, JSON.stringify(pending, null, 2) + '\n')
   let before: ReturnType<typeof captureVerificationInputs> | undefined
   if (prepareReuse) {
-    try { before = captureVerificationInputs(cwd) } catch { /* Fresh gates still run; no reuse seal is issued. */ }
+    try { before = captureVerificationInputs(cwd) } catch { /* 실제 검사는 실행하되 봉인은 발급하지 않는다. */ }
   }
   const gates = runGates(cwd)
   const report = buildReport(gates, new Date().toISOString(), localDate(), commit)
@@ -477,8 +484,8 @@ export function verifyEvidence(cwd: string = process.cwd(), prepareReuse = false
   if (prepareReuse) {
     try {
       if (before) sealVerification(cwd, report, before)
-    } catch { /* Unreadable or changed inputs cannot become reusable evidence. */ }
-    if (!report.reuse) report.reuseUnavailable = 'Inputs were not clean, stable and completely readable; run fresh verification.'
+    } catch { /* 읽기 실패·변경된 입력에는 재사용 증거를 발급하지 않는다. */ }
+    if (!report.reuse) report.reuseUnavailable = '입력이 깨끗하고 안정적이며 모두 읽을 수 있는 상태가 아닙니다. 새 검증을 실행하세요.'
   }
 
   atomicWriteFile(path, JSON.stringify(report, null, 2) + '\n')
@@ -729,8 +736,8 @@ export async function verify(
   // 커밋으로 정리한다. 멀티PC 에서 미커밋 증거가 외부 pull 의 fast-forward 를 막던 문제 해소.
   // ★커밋은 반드시 verifyEvidence 밖(여기 명령 본체)에 둔다★ — 수집 함수 내부에서 HEAD가 이동하면
   // report.commit과 호출자가 직후 읽는 HEAD가 어긋난다. 비치명: 실패해도 증거는 이미 기록됐다.
-  // Experimental reuse keeps the verified HEAD. Ledger writes remain on disk;
-  // a later commit changes HEAD and deliberately invalidates this short window.
+  // 재사용 실험에서는 검증한 HEAD를 유지하고 원장만 디스크에 남긴다.
+  // 이후 커밋은 HEAD를 바꾸므로 이 짧은 재사용 구간을 무효화한다.
   if (!opts.prepareReuse) try {
     commitPaths(
       'chore(vhk): evidence ledger [skip ci]',

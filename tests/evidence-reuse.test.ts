@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from 'node:fs'
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gitRun, getCommitInfo } from '../src/lib/git-repo.js'
 import { removeDirSync } from '../src/lib/fs-remove.js'
-import { buildReport, verifyEvidence } from '../src/commands/verify.js'
+import { buildReport, verifyEvidence, checkEvidenceFreshness } from '../src/commands/verify.js'
 import { collectReceipt } from '../src/commands/receipt.js'
 import { renderReceiptMarkdown } from '../src/lib/receipt.js'
 import { buildReceiptLogEntry } from '../src/lib/receipt-log.js'
@@ -53,7 +53,7 @@ function realGateFixture(program: string) {
 }
 
 describe('opt-in verification reuse', () => {
-  it.each([false, true])('failed verify cannot become receipt PASS through an implicit retry (reuse=%s)', reuse => {
+  it('failed verify cannot become receipt PASS through an implicit retry (reuse=true)', () => {
     const { root } = realGateFixture(`
       const fs = require('node:fs');
       const file = '.vhk/phase2/count';
@@ -65,13 +65,12 @@ describe('opt-in verification reuse', () => {
     expect(failed.report.status).toBe('FAIL')
     expect(failed.report.reuse).toBeUndefined()
     expect(readReusableVerification(root).report).toBeNull()
-    const receipt = collectReceipt(root, null, reuse)
+    const receipt = collectReceipt(root, null, true)
     expect(receipt.decision).toBe('block')
-    if (!reuse) expect(receipt.evidence.stale).toBe(false)
     const count = () => readFileSync(join(root, '.vhk', 'phase2', 'count'), 'utf8').trim().split('\n').length
     expect(count()).toBe(4)
-    // Recovery fixes the flaky gate before explicitly verifying it again. Its
-    // passing variant only writes an output, so the reuse input contract is valid.
+    // 복구는 flaky 입력을 먼저 고친 뒤 명시적으로 검증한다. 통과 변형은
+    // 산출물만 기록하므로 로컬 입력 계약이 유효하다.
     writeFileSync(join(root, 'gate.cjs'), "require('node:fs').appendFileSync('.vhk/phase2/count', 'run\\n')")
     gitRun(['add', 'gate.cjs'], root)
     gitRun(['-c', 'user.name=sample', '-c', 'user.email=sample@example.invalid', 'commit', '-m', 'fixed gate'], root)
@@ -80,12 +79,41 @@ describe('opt-in verification reuse', () => {
     expect(count()).toBe(8)
   }, 30_000)
 
-  it('interrupted verify invalidates the previous seal before gates and blocks receipt recovery', async () => {
-    const { root } = realGateFixture(`
+  it('default receipt runs fresh gates after an earlier FAIL and a fixed commit', () => {
+    const { root } = realGateFixture("require('node:fs').appendFileSync('.vhk/phase2/count', 'run\\n'); process.exit(1)")
+    const failed = collectReceipt(root)
+    expect(failed.decision).toBe('block')
+    const count = () => readFileSync(join(root, '.vhk', 'phase2', 'count'), 'utf8').trim().split('\n').length
+    expect(count()).toBe(4)
+    writeFileSync(join(root, 'gate.cjs'), "require('node:fs').appendFileSync('.vhk/phase2/count', 'run\\n')")
+    gitRun(['add', 'gate.cjs'], root)
+    gitRun(['-c', 'user.name=sample', '-c', 'user.email=sample@example.invalid', 'commit', '-m', 'fixed gate'], root)
+    const recovered = collectReceipt(root)
+    expect(count()).toBe(8)
+    expect(recovered.decision).toBe('pass')
+    expect(recovered.head.sha).not.toBe(failed.head.sha)
+    expect(recovered.evidence.gates.red).toBe(false)
+    expect(recovered.evidence.stale).toBe(false)
+  })
+
+  it('default receipt runs real gates instead of crashing on a malformed FAIL report', () => {
+    const { root } = realGateFixture("require('node:fs').appendFileSync('.vhk/phase2/count', 'run\\n')")
+    writeFileSync(join(root, '.vhk', 'reports', 'latest.json'), JSON.stringify({ status: 'FAIL' }))
+    expect(collectReceipt(root).decision).toBe('pass')
+    expect(readFileSync(join(root, '.vhk', 'phase2', 'count'), 'utf8').trim().split('\n')).toHaveLength(4)
+  })
+
+  it.each(['PASS', 'FAIL'] as const)('interrupted verify remains failed and invalidates reuse after prior %s', async prior => {
+    const { root, report } = realGateFixture(`
       require('node:fs').appendFileSync('.vhk/phase2/gate-started', 'run\\n');
       setTimeout(() => process.exit(0), 1000);
     `)
-    expect(readReusableVerification(root).report).not.toBeNull()
+    if (prior === 'FAIL') {
+      report.status = 'FAIL'
+      report.gates[0].status = 'fail'
+      delete report.reuse
+      writeFileSync(join(root, '.vhk', 'reports', 'latest.json'), JSON.stringify(report))
+    } else expect(readReusableVerification(root).report).not.toBeNull()
     const child = spawn(process.execPath, [
       fileURLToPath(new URL('../node_modules/tsx/dist/cli.mjs', import.meta.url)),
       fileURLToPath(new URL('../src/index.ts', import.meta.url)), 'verify', '--json',
@@ -95,22 +123,31 @@ describe('opt-in verification reuse', () => {
     try {
       const deadline = Date.now() + 12_000
       while (!existsSync(join(root, '.vhk', 'phase2', 'gate-started'))) {
-        if (child.exitCode !== null || Date.now() >= deadline) throw new Error('Owned verification did not reach its gate')
+        if (child.exitCode !== null || Date.now() >= deadline) throw new Error('소유한 검증 프로세스가 게이트에 도달하지 못했습니다')
         await new Promise(resolve => setTimeout(resolve, 25))
       }
       during = readReusableVerification(root)
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
       await exited
-      // Its one owned gate has a bounded timer and exits without its killed parent.
+      // 소유한 게이트는 제한된 타이머로 부모 종료 뒤에도 스스로 끝난다.
       await new Promise(resolve => setTimeout(resolve, 1200))
     }
     expect(during?.report).toBeNull()
     expect(readReusableVerification(root).report).toBeNull()
     expect(collectReceipt(root, null, true).decision).toBe('block')
-    const defaultReceipt = collectReceipt(root, null, false)
-    expect(defaultReceipt.decision).toBe('block')
-    expect(defaultReceipt.evidence.stale).toBe(false)
+    const interrupted = JSON.parse(readFileSync(join(root, '.vhk', 'reports', 'latest.json'), 'utf8'))
+    expect(interrupted.status).toBe('FAIL')
+    if (prior === 'FAIL') expect(interrupted.gates[0].status).toBe('fail')
+    expect(checkEvidenceFreshness(interrupted, getCommitInfo(root)).stale).toBe(true)
+    for (const option of ['--report', '--check-fresh']) {
+      const result = spawnSync(process.execPath, [
+        fileURLToPath(new URL('../node_modules/tsx/dist/cli.mjs', import.meta.url)),
+        fileURLToPath(new URL('../src/index.ts', import.meta.url)), 'verify', option,
+      ], { cwd: root, env: { ...process.env }, encoding: 'utf8', windowsHide: true })
+      expect(result.error).toBeUndefined()
+      expect(result.status).toBe(1)
+    }
     expect(readFileSync(join(root, '.vhk', 'phase2', 'gate-started'), 'utf8').trim().split('\n')).toHaveLength(1)
   }, 30_000)
 

@@ -68,6 +68,14 @@ describe('autonomy-stats 이관 (RFC 0066 §2.1)', () => {
     expect(lib.calcAutonomyStats(entries, [receipt({ dirty: true })]).verifiedComplete).toBe(0)
   })
 
+  it('실험용 재사용 영수증은 공식 완주로 세지 않는다', () => {
+    const entries = [run(), run({ event: 'complete', interventions: 0 })]
+    const stats = lib.calcAutonomyStats(entries, [receipt({ verificationSource: 'reused' })])
+    expect(stats.verifiedComplete).toBe(0)
+    expect(stats.selfReportedOnly).toBe(1)
+    expect(lib.calcAutonomyStats(entries, [receipt()]).verifiedComplete).toBe(1)
+  })
+
   // lib → commands 역방향 의존이 생기면 이관 목적이 무너진다.
   it('lib 모듈이 commands 를 import 하지 않는다', () => {
     const source = readFileSync(join(process.cwd(), 'src', 'lib', 'autonomy-stats.ts'), 'utf-8')

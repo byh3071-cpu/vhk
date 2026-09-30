@@ -7,10 +7,10 @@ import { ensureVhkIgnored } from '../lib/backup.js'
 import { printNextStep } from '../lib/next-step.js'
 import { atomicWriteFile } from '../lib/atomic-write.js'
 import { localDate } from '../lib/date.js'
-import { readJsonFile, stripBom } from '../lib/read-json.js'
+import { stripBom } from '../lib/read-json.js'
 import { ko } from '../i18n/ko.js'
 import { getCommitInfo, gitOut, type CommitInfo } from '../lib/git-repo.js'
-import { buildReport, checkEvidenceFreshness, isGateWarning, verifyEvidence, REPORT_PATH_REL, VERIFICATION_INCOMPLETE_REASON, type VerifyReport } from './verify.js'
+import { buildReport, checkEvidenceFreshness, isGateWarning, verifyEvidence, type VerifyReport } from './verify.js'
 import { readReusableVerification } from '../lib/evidence-reuse.js'
 import { diffUnified0 } from '../lib/git-session.js'
 import { addedLinesByFile } from '../lib/diff-hunks.js'
@@ -265,17 +265,6 @@ export function receiptFreshness(report: VerifyReport, current: CommitInfo | nul
   }
 }
 
-function previousBlockedVerification(cwd: string): VerifyReport | null {
-  try {
-    const report = readJsonFile<VerifyReport>(join(cwd, REPORT_PATH_REL))
-    return report?.status === 'FAIL' || report?.reuseUnavailable === VERIFICATION_INCOMPLETE_REASON ||
-      (Array.isArray(report?.gates) && report.gates.some(gate => gate.status === 'fail')) ? report : null
-  } catch {
-    // No readable previous failure: default receipt still runs fresh real gates.
-    return null
-  }
-}
-
 /**
  * 4대 기계증거를 수집해 영수증 객체를 만든다(경계). LLM 0.
  * @param baseShaOverride --since <sha> 로 명시 기준선 지정 시. 없으면 .base-sha 파일.
@@ -283,13 +272,13 @@ function previousBlockedVerification(cwd: string): VerifyReport | null {
 export function collectReceipt(cwd: string, baseShaOverride?: string | null, reuseVerified = false): Receipt {
   // ① 게이트(tsc/test/build/secure) 실종료코드 — 자기보고 거부, 실제 프로세스만(verify.ts 가 보장).
   const cached = reuseVerified ? readReusableVerification(cwd) : null
-  const previousBlocked = reuseVerified ? null : previousBlockedVerification(cwd)
-  const unavailable = Boolean(previousBlocked || (cached && !cached.report))
-  // A miss is an explicit BLOCK, never an implicit expensive refresh or fake PASS.
-  const report = cached ? cached.report ?? buildReport([], new Date().toISOString(), localDate(), getCommitInfo(cwd)) : previousBlocked ?? verifyEvidence(cwd).report
+  const unavailable = Boolean(cached && !cached.report)
+  // 재검사 없는 BLOCK은 재사용을 명시한 경우만 적용한다. 기본 경로는 항상 실제 검사한다.
+  const report = cached ? cached.report ?? buildReport([], new Date().toISOString(), localDate(), getCommitInfo(cwd)) : verifyEvidence(cwd).report
   if (cached && !cached.report) report.status = 'WARN'
-  const failedGateIds = report.gates.filter((g) => g.status === 'fail').map((g) => g.id)
-  const hasSoftWarning = unavailable || report.gates.some(isGateWarning)
+  const gates = Array.isArray(report.gates) ? report.gates : []
+  const failedGateIds = gates.filter((g) => g.status === 'fail').map((g) => g.id)
+  const hasSoftWarning = unavailable || gates.some(isGateWarning)
 
   // ② git dirty — Goal 85 자기파일 제외가 getCommitInfo 안에 이미 적용됨.
   const commit = getCommitInfo(cwd)
@@ -317,7 +306,7 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null, reu
     {
       gates: {
         red: failedGateIds.length > 0, status: report.status, failedGateIds, hasSoftWarning,
-        ...(cached || previousBlocked ? { source: cached?.report ? 'reused' as const : 'unavailable' as const, ...(cached?.report ? { verifiedAt: report.generatedAt } : {}) } : {}),
+        ...(cached ? { source: cached.report ? 'reused' as const : 'unavailable' as const, ...(cached.report ? { verifiedAt: report.generatedAt } : {}) } : {}),
       },
       dirty,
       stale,
@@ -337,7 +326,6 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null, reu
     }
   )
   if (cached && !cached.report) result.reasons.push(ko.receipt.reuseBlocked(cached.reason))
-  if (previousBlocked) result.reasons.push(ko.receipt.previousVerificationBlocked)
   return result
 }
 
