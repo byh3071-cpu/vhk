@@ -4,7 +4,7 @@
 
 # VHK — Vibe Harness Kit
 
-**v2.15.1**
+**v2.15.2**
 
 **A full-cycle, agent-agnostic coding harness that survives swapping the model underneath.**
 

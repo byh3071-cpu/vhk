@@ -3,7 +3,7 @@
 # 기록 규칙 (vhk)
 
 ## 현재 상태
-- **버전:** v2.15.1 (2026-08-30 발행 완료). npm latest 2.15.1 · Git tag/GitHub Release v2.15.1
+- **버전:** v2.15.2 (릴리스 후보, 미발행). npm latest 2.15.1 · Git tag/GitHub Release v2.15.1
 - **Phase:** **집행 활성화 관찰 게이트 진행 중 — 유효 실행 7/10, 관측 15/28일**. Goal 139·140 완료·공개. `enforce` 활성화와 125b·126은 게이트 통과 후
 - **블로커:** 없음
 - **다음 액션:** 유효 실행 3회와 관측 13일을 더 채운 뒤 사람이 자동 집행 활성화와 2.16 진행 여부를 결정한다. 정의 원본은 [docs/roadmap/2.x-roadmap.md](docs/roadmap/2.x-roadmap.md)
