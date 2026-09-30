@@ -1,14 +1,14 @@
 ---
 id: vhk-readme
 date: 2026-06-08
-tags: [vhk, cli, readme, v2.15.1, mcp, proof, ai-coding]
+tags: [vhk, cli, readme, v2.15.2, mcp, proof, ai-coding]
 ---
 
 <div align="center">
 
 # VHK — Vibe Harness Kit
 
-**v2.15.1**
+**v2.15.2**
 
 **모델·에이전트를 뭘로 바꿔도 안 무너지는 풀사이클 AI 코딩 하네스.**
 

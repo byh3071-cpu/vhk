@@ -4,6 +4,12 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ## [Unreleased]
 
+## [2.15.2] — 2026-10-01
+
+### Security
+
+- 이미 머지된 의존성 보안 패치와 overrides 업데이트를 함께 배포한다 (#626, #628).
+
 ### Added
 
 - 로컬 입력 계약을 선언한 프로젝트에서만 `verify --prepare-reuse` → `receipt --reuse-verified`를
@@ -1183,7 +1189,8 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 - **`vhk gate`** — 아이디어 검증 (퀵 5문항 / 풀 13문항 / 스킵)
 - **`vhk init`** — 프로젝트 시작. 하네스 파일 생성 (`CLAUDE.md`, `.cursorrules`, `docs/PRD.md`, `docs/ARCHITECTURE.md`, ADR/log 폴더)
 
-[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v2.15.1...HEAD
+[Unreleased]: https://github.com/byh3071-cpu/vhk/compare/v2.15.2...HEAD
+[2.15.2]: https://github.com/byh3071-cpu/vhk/compare/v2.15.1...v2.15.2
 [2.15.1]: https://github.com/byh3071-cpu/vhk/compare/v2.15.0...v2.15.1
 [2.15.0]: https://github.com/byh3071-cpu/vhk/compare/v2.14.1...v2.15.0
 [2.14.1]: https://github.com/byh3071-cpu/vhk/compare/v2.14.0...v2.14.1
