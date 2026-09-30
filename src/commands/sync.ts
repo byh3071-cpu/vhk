@@ -550,8 +550,8 @@ export function scanRosterCard(existing: string): RosterCardScan {
  *  4. 블록 앞 비어 있지 않은 줄이 생성본에 정확히 한 번 나오면 그 줄 뒤.
  *  5. 그래도 못 찾으면 문서 끝.
  * 뒤 기준(2·3)을 앞 기준보다 먼저 쓰는 이유: 앞 줄 뒤에 붙이면 RULES.md 의 마지막 섹션에 규칙을
- * 추가할 때 새 규칙이 카드 아래로 밀려 들어가 그대로 굳는다. 어느 경우든 두 번째 sync 결과가
- * 같아(멱등) `sync --check` 가 보존된 블록을 불일치로 보지 않는다.
+ * 추가할 때 새 규칙이 카드 아래로 밀려 들어가 그대로 굳는다. 첫 sync 결과가 이미 안정 상태라
+ * (다시 sync 해도 같다) `sync --check` 가 보존된 블록을 불일치로 보지 않는다.
  */
 export function withRosterCard(generated: string, existing: string | null): string {
   if (existing === null) return generated
@@ -585,7 +585,8 @@ export function withRosterCard(generated: string, existing: string | null): stri
     while (head.length && head[head.length - 1].trim() === '') head.pop()
     const tail = lines.slice(index)
     while (tail.length && tail[0].trim() === '') tail.shift()
-    return [...head, '', ...blockLines, '', ...tail].join('\n')
+    // head 가 비면(카드가 생성본 첫 줄 앞) 맨 앞 빈 줄을 만들지 않는다 — 첫 sync 결과가 곧 안정 상태여야 한다.
+    return [...(head.length ? [...head, ''] : []), ...blockLines, '', ...tail].join('\n')
   }
 
   const nextLine = afterText.split('\n').find((line) => line.trim() !== '')

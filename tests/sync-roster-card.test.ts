@@ -171,9 +171,33 @@ describe('RULES.md 변경 후에도 카드 위치가 유지된다 (#627 적대�
     editRules('- A 규칙', '- A 규칙\n- 새 규칙 CCC')
     await run()
     const out = read()
+    expect(out.startsWith('﻿')).toBe(true)
     expect(out.replace(/^﻿/, '').startsWith(CARD)).toBe(true)
     expect(out).toContain('- 새 규칙 CCC')
     await expectStable()
+  })
+
+  it('(e) 머리말 -> 카드 -> 제목 구조: 첫 sync 결과가 빈 줄로 시작하지 않고 바로 안정', async () => {
+    fs.writeFileSync(agentsPath(), `머리말 한 줄\n\n${CARD}\n\n${read()}`, 'utf-8')
+    await run()
+    expect(read().startsWith(CARD)).toBe(true)
+    await expectStable()
+  })
+})
+
+describe('앵커 중복 처리', () => {
+  const CARD_LINES = '<!-- YOHAN-ROSTER-CARD:BEGIN -->\nX\n<!-- YOHAN-ROSTER-CARD:END -->'
+
+  it('뒤 줄이 두 번 나오면 앞 줄 뒤에 붙인다', () => {
+    const existing = `A\n\n${CARD_LINES}\n\nB\nC\n`
+    const out = withRosterCard('A\nX\nB\nC\nB\nD\n', existing)
+    expect(out).toBe(`A\n\n${CARD_LINES}\n\nX\nB\nC\nB\nD\n`)
+  })
+
+  it('앞 줄과 뒤 줄이 둘 다 두 번 나오면 문서 끝에 붙인다', () => {
+    const existing = `A\n\n${CARD_LINES}\n\nB\nC\n`
+    const out = withRosterCard('A\nB\nA\nB\n', existing)
+    expect(out).toBe(`A\nB\nA\nB\n\n${CARD_LINES}\n`)
   })
 })
 
