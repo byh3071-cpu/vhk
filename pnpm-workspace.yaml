@@ -4,14 +4,17 @@ minimumReleaseAgeExclude:
   - '@hono/node-server@2.0.12'
   - nanoid@3.3.18
 overrides:
+  body-parser: ^2.3.0
+  esbuild: ^0.28.1
+  qs: ^6.16.0
   vhk: 'link:'
   '@hono/node-server': 2.0.12
   'brace-expansion@<2.0.0': 1.1.16
   'brace-expansion@>=2.0.0 <3.0.0': 2.1.2
-  'brace-expansion@>=3.0.0': 5.0.9
+  'brace-expansion@>=3.0.0': ^5.0.12
   fast-uri: ^3.1.8
-  hono: 4.12.32
-  ip-address: 10.3.1
+  hono: ^4.13.5
+  ip-address: ^10.7.1
   nanoid: 3.3.18
-  postcss: 8.5.18
+  postcss: ^8.5.23
   vite: 8.0.16
