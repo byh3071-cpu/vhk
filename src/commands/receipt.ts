@@ -10,7 +10,8 @@ import { localDate } from '../lib/date.js'
 import { stripBom } from '../lib/read-json.js'
 import { ko } from '../i18n/ko.js'
 import { getCommitInfo, gitOut, type CommitInfo } from '../lib/git-repo.js'
-import { checkEvidenceFreshness, isGateWarning, verifyEvidence, type VerifyReport } from './verify.js'
+import { buildReport, checkEvidenceFreshness, isGateWarning, verifyEvidence, type VerifyReport } from './verify.js'
+import { readReusableVerification } from '../lib/evidence-reuse.js'
 import { diffUnified0 } from '../lib/git-session.js'
 import { addedLinesByFile } from '../lib/diff-hunks.js'
 import { fileCoverageByFile, COVERAGE_CORRUPT } from '../lib/coverage-parse.js'
@@ -267,11 +268,14 @@ export function receiptFreshness(report: VerifyReport, current: CommitInfo | nul
  * 4대 기계증거를 수집해 영수증 객체를 만든다(경계). LLM 0.
  * @param baseShaOverride --since <sha> 로 명시 기준선 지정 시. 없으면 .base-sha 파일.
  */
-export function collectReceipt(cwd: string, baseShaOverride?: string | null): Receipt {
+export function collectReceipt(cwd: string, baseShaOverride?: string | null, reuseVerified = false): Receipt {
   // ① 게이트(tsc/test/build/secure) 실종료코드 — 자기보고 거부, 실제 프로세스만(verify.ts 가 보장).
-  const { report } = verifyEvidence(cwd)
+  const cached = reuseVerified ? readReusableVerification(cwd) : null
+  // A miss is an explicit BLOCK, never an implicit expensive refresh or fake PASS.
+  const report = cached ? cached.report ?? buildReport([], new Date().toISOString(), localDate(), getCommitInfo(cwd)) : verifyEvidence(cwd).report
+  if (cached && !cached.report) report.status = 'WARN'
   const failedGateIds = report.gates.filter((g) => g.status === 'fail').map((g) => g.id)
-  const hasSoftWarning = report.gates.some(isGateWarning)
+  const hasSoftWarning = Boolean(cached && !cached.report) || report.gates.some(isGateWarning)
 
   // ② git dirty — Goal 85 자기파일 제외가 getCommitInfo 안에 이미 적용됨.
   const commit = getCommitInfo(cwd)
@@ -285,7 +289,9 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
   if (rawBaseSha !== null && baseSha === null) {
     console.error(chalk.yellow(`  ⚠️  ${ko.receipt.invalidBaseSha(rawBaseSha)}`))
   }
-  const { staleKnown, stale } = receiptFreshness(report, commit)
+  const freshness = receiptFreshness(report, commit)
+  const staleKnown = cached && !cached.report ? true : freshness.staleKnown
+  const stale = cached && !cached.report ? true : freshness.stale
 
   // ④ diff-cover — advisory(약신호).
   const diffCover = collectDiffCover(cwd)
@@ -293,9 +299,12 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
   // ⑤ intent — mission.json 있으면 scope/forbidden 대조(Goal 87). baseSha 전달 → 커밋된 변경도 포함.
   const intent = collectIntent(cwd, baseSha)
 
-  return buildReceipt(
+  const result = buildReceipt(
     {
-      gates: { red: failedGateIds.length > 0, status: report.status, failedGateIds, hasSoftWarning },
+      gates: {
+        red: failedGateIds.length > 0, status: report.status, failedGateIds, hasSoftWarning,
+        ...(cached ? { source: cached.report ? 'reused' as const : 'unavailable' as const, ...(cached.report ? { verifiedAt: report.generatedAt } : {}) } : {}),
+      },
       dirty,
       stale,
       staleKnown,
@@ -313,6 +322,8 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null): Re
       agent: detectAgent(),
     }
   )
+  if (cached && !cached.report) result.reasons.push(`Evidence reuse blocked: ${cached.reason}. Run vhk verify --prepare-reuse, then receipt --reuse-verified.`)
+  return result
 }
 
 /** 영수증을 .json + .md 로 디스크에 기록. receipts/ gitignore 보장. @returns 두 파일의 상대경로. */
@@ -338,6 +349,7 @@ const DECISION_BADGE: Record<ReceiptDecision, string> = {
 
 export interface ReceiptOptions {
   json?: boolean
+  reuseVerified?: boolean
   /** 현재 HEAD 를 작업시작 기준선으로 기록(이후 intent 변경 범위 기준). */
   markStart?: boolean
   /** intent 변경 범위 기준 SHA 를 명시(.base-sha 무시). */
@@ -363,7 +375,7 @@ export async function receipt(opts: ReceiptOptions = {}): Promise<void> {
     return
   }
 
-  const r = collectReceipt(cwd, opts.since ?? undefined)
+  const r = collectReceipt(cwd, opts.since ?? undefined, opts.reuseVerified)
   const { jsonPath, mdPath } = writeReceipt(cwd, r)
 
   // N7: 측정 엔트리 1줄을 .vhk/events/receipt-log.jsonl 에 append(decision 분포 추세 토대).

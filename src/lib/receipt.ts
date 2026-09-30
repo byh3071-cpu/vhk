@@ -22,6 +22,8 @@ export type ReceiptDecision = 'block' | 'caution' | 'pass'
 
 /** 게이트(verify) 증거 요약 — 실종료코드 출처(자기보고 거부, verify.ts 가 이미 강제). */
 export interface ReceiptGateEvidence {
+  source?: 'reused' | 'unavailable'
+  verifiedAt?: string
   /** 게이트 하나라도 실제 프로세스 종료코드로 fail 인가(=red). 실차단 사유 ①. */
   red: boolean
   /** verify 종합(PASS/WARN/FAIL). 사람 표시·요약용. */

@@ -29,6 +29,7 @@ import { appendActionEntry, readActionLedger } from '../lib/action-ledger.js'
 import { detectAgent } from '../lib/detect-agent.js'
 import { readGatesConfig, type GateId } from '../lib/gates-config.js'
 import { log } from '../utils/logger.js'
+import { captureVerificationInputs, sealVerification, type VerificationReuseSeal } from '../lib/evidence-reuse.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -100,6 +101,8 @@ export interface VerifyReport {
   advisories?: VerifyAdvisory[]
   /** Goal 44: 이 증거가 어느 코드(커밋)에서 나왔는지. git 레포 아님/커밋 0개 → null. v1 리포트엔 없음(undefined). */
   commit?: CommitInfo | null
+  reuse?: VerificationReuseSeal
+  reuseUnavailable?: string
 }
 
 export interface VerifyAdvisory extends LedgerAdvisory {
@@ -440,11 +443,15 @@ export function checkEvidenceFreshness(
  * reports/ 는 로컬 전용 산출물 → `.vhk/.gitignore` 에 등록(클라우드/추적 제외, RFC 0038).
  * @returns 리포트 객체 + 기록 경로
  */
-export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyReport; path: string } {
+export function verifyEvidence(cwd: string = process.cwd(), prepareReuse = false): { report: VerifyReport; path: string } {
   // 증거는 게이트가 시작된 코드에 묶는다. 긴 게이트 도중 다른 프로세스가 HEAD를 옮기면
   // 이후 현재 HEAD와의 신선도 대조가 반드시 stale로 잡아야 하며, 종료 뒤 SHA를 기록하면 C를
   // 검증한 것처럼 거짓 바인딩할 수 있다.
   const commit = getCommitInfo(cwd)
+  let before: ReturnType<typeof captureVerificationInputs> | undefined
+  if (prepareReuse) {
+    try { before = captureVerificationInputs(cwd) } catch { /* Fresh gates still run; no reuse seal is issued. */ }
+  }
   const gates = runGates(cwd)
   const report = buildReport(gates, new Date().toISOString(), localDate(), commit)
   report.advisories = trackAdvisories(
@@ -453,6 +460,12 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
     readActionLedger(cwd),
     report.generatedAt,
   )
+  if (prepareReuse) {
+    try {
+      if (before) sealVerification(cwd, report, before)
+    } catch { /* Unreadable or changed inputs cannot become reusable evidence. */ }
+    if (!report.reuse) report.reuseUnavailable = 'Inputs were not clean, stable and completely readable; run fresh verification.'
+  }
 
   const dir = join(cwd, REPORT_DIR_REL)
   mkdirSync(dir, { recursive: true })
@@ -654,7 +667,7 @@ async function checkFreshCommand(cwd: string): Promise<void> {
 }
 
 export async function verify(
-  opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string } = {}
+  opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string; prepareReuse?: boolean } = {}
 ): Promise<void> {
   // HARD_STOP 활성 → 게이트 실행 거부 + exit 1 (PRD §9).
   if (!ensureNotHardStopped('verify')) return
@@ -694,13 +707,15 @@ export async function verify(
     return
   }
 
-  const { report, path } = verifyEvidence(cwd)
+  const { report, path } = verifyEvidence(cwd, opts.prepareReuse)
 
   // 멀티PC dirty-block(B축): verify 가 방금 append 한 증거 원장(events·ledger)을 저소음 단일
   // 커밋으로 정리한다. 멀티PC 에서 미커밋 증거가 외부 pull 의 fast-forward 를 막던 문제 해소.
   // ★커밋은 반드시 verifyEvidence 밖(여기 명령 본체)에 둔다★ — 수집 함수 내부에서 HEAD가 이동하면
   // report.commit과 호출자가 직후 읽는 HEAD가 어긋난다. 비치명: 실패해도 증거는 이미 기록됐다.
-  try {
+  // Experimental reuse keeps the verified HEAD. Ledger writes remain on disk;
+  // a later commit changes HEAD and deliberately invalidates this short window.
+  if (!opts.prepareReuse) try {
     commitPaths(
       'chore(vhk): evidence ledger [skip ci]',
       [join('.vhk', 'events', 'ai-actions.jsonl'), LEDGER_PATH_REL],
