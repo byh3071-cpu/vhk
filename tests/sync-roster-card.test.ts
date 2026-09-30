@@ -129,6 +129,54 @@ describe('AGENTS.md 라우팅 카드 보존 (#627)', () => {
   })
 })
 
+describe('RULES.md 변경 후에도 카드 위치가 유지된다 (#627 적대검증)', () => {
+  const editRules = (from: string, to: string) => {
+    const rulesPath = path.join(dir, 'RULES.md')
+    fs.writeFileSync(rulesPath, fs.readFileSync(rulesPath, 'utf-8').replace(from, to), 'utf-8')
+  }
+  const expectStable = async () => {
+    const first = read()
+    expect(syncCheck(dir).ok).toBe(true)
+    await run()
+    expect(read()).toBe(first)
+    expect(syncCheck(dir).ok).toBe(true)
+  }
+
+  it('(a) 끝에 있는 카드 + 마지막 섹션에 규칙 추가 -> 카드는 끝, 새 규칙은 원래 섹션 안', async () => {
+    fs.appendFileSync(agentsPath(), `\n${CARD}\n`, 'utf-8')
+    await run()
+    editRules('- 로그 남기기', '- 로그 남기기\n- 새 규칙 AAA')
+    await run()
+    const out = read()
+    expect(out.trimEnd().endsWith(CARD)).toBe(true)
+    expect(out.indexOf('- 새 규칙 AAA')).toBeGreaterThan(out.indexOf('## 기록 규칙'))
+    expect(out.indexOf('- 새 규칙 AAA')).toBeLessThan(out.indexOf('YOHAN-ROSTER-CARD:BEGIN'))
+    await expectStable()
+  })
+
+  it('(b) 섹션 사이 카드 + 앞 섹션에 규칙 추가 -> 카드는 다음 제목 바로 앞', async () => {
+    fs.writeFileSync(agentsPath(), read().replace('## 기록 규칙', `${CARD}\n\n## 기록 규칙`), 'utf-8')
+    await run()
+    editRules('- A 규칙', '- A 규칙\n- 새 규칙 BBB')
+    await run()
+    const out = read()
+    expect(out).toContain(`${CARD}\n\n## 기록 규칙`)
+    expect(out.indexOf('- 새 규칙 BBB')).toBeLessThan(out.indexOf('YOHAN-ROSTER-CARD:BEGIN'))
+    await expectStable()
+  })
+
+  it('(c) 첫 줄 카드(BOM 포함) -> 첫 줄에 남는다', async () => {
+    fs.writeFileSync(agentsPath(), `﻿${CARD}\n\n${read()}`, 'utf-8')
+    await run()
+    editRules('- A 규칙', '- A 규칙\n- 새 규칙 CCC')
+    await run()
+    const out = read()
+    expect(out.replace(/^﻿/, '').startsWith(CARD)).toBe(true)
+    expect(out).toContain('- 새 규칙 CCC')
+    await expectStable()
+  })
+})
+
 describe('scanRosterCard / withRosterCard 순수 함수', () => {
   it('END 가 BEGIN 보다 앞이면 invalid', () => {
     expect(scanRosterCard('<!-- YOHAN-ROSTER-CARD:END -->\n<!-- YOHAN-ROSTER-CARD:BEGIN -->').status)

@@ -543,9 +543,15 @@ export function scanRosterCard(existing: string): RosterCardScan {
 }
 
 /**
- * 생성본에 카드 블록을 붙인다. 위치 규칙: 기존 파일에서 블록 바로 앞 비어 있지 않은 줄이
- * 생성본에 정확히 한 번 나오면 그 줄 뒤, 아니면 문서 끝. 두 번째 sync 도 같은 결과(멱등)라
- * `sync --check` 가 보존된 블록을 불일치로 보지 않는다.
+ * 생성본에 카드 블록을 붙인다. 위치 규칙(위에서부터 먼저 맞는 것):
+ *  1. 기존 파일에서 블록 앞이 공백·BOM 뿐이면(첫 줄 카드) 생성본 맨 앞에 둔다(BOM 유지).
+ *  2. 기존 파일에서 END 뒤가 공백 뿐이면 항상 문서 끝.
+ *  3. 블록 뒤 첫 비공백 줄(보통 다음 `##` 제목)이 생성본에 정확히 한 번 나오면 그 줄 앞.
+ *  4. 블록 앞 비어 있지 않은 줄이 생성본에 정확히 한 번 나오면 그 줄 뒤.
+ *  5. 그래도 못 찾으면 문서 끝.
+ * 뒤 기준(2·3)을 앞 기준보다 먼저 쓰는 이유: 앞 줄 뒤에 붙이면 RULES.md 의 마지막 섹션에 규칙을
+ * 추가할 때 새 규칙이 카드 아래로 밀려 들어가 그대로 굳는다. 어느 경우든 두 번째 sync 결과가
+ * 같아(멱등) `sync --check` 가 보존된 블록을 불일치로 보지 않는다.
  */
 export function withRosterCard(generated: string, existing: string | null): string {
   if (existing === null) return generated
@@ -555,26 +561,44 @@ export function withRosterCard(generated: string, existing: string | null): stri
   if (scanRosterCard(generated).status !== 'none') return generated
 
   const text = existing.replace(/\r\n/g, '\n')
-  const before = text.slice(0, text.indexOf(scan.block)).split('\n')
-  let anchor: string | undefined
-  for (let i = before.length - 1; i >= 0; i -= 1) {
-    if (before[i].trim() !== '') { anchor = before[i]; break }
+  const blockStart = text.indexOf(scan.block)
+  const beforeText = text.slice(0, blockStart)
+  const afterText = text.slice(blockStart + scan.block.length)
+  const blockLines = scan.block.split('\n')
+
+  const strippedBefore = beforeText.replace(/^﻿/, '')
+  if (strippedBefore.trim() === '') {
+    const bom = beforeText.startsWith('﻿') ? '﻿' : ''
+    return `${bom}${scan.block}\n\n${generated.replace(/^\n+/, '')}`
+  }
+  if (afterText.trim() === '') {
+    return `${generated.replace(/\n+$/, '')}\n\n${scan.block}\n`
   }
 
   const lines = generated.split('\n')
-  let insertAt = -1
-  if (anchor !== undefined) {
-    const hits = lines.flatMap((line, i) => (line === anchor ? [i] : []))
-    if (hits.length === 1) insertAt = hits[0] + 1
+  const onlyIndexOf = (target: string): number => {
+    const hits = lines.flatMap((line, i) => (line === target ? [i] : []))
+    return hits.length === 1 ? hits[0] : -1
   }
-  if (insertAt < 0) {
-    const trimmed = generated.replace(/\n+$/, '')
-    return `${trimmed}\n\n${scan.block}\n`
+  const insertAt = (index: number): string => {
+    const head = lines.slice(0, index)
+    while (head.length && head[head.length - 1].trim() === '') head.pop()
+    const tail = lines.slice(index)
+    while (tail.length && tail[0].trim() === '') tail.shift()
+    return [...head, '', ...blockLines, '', ...tail].join('\n')
   }
-  const head = lines.slice(0, insertAt)
-  const tail = lines.slice(insertAt)
-  while (tail.length && tail[0].trim() === '') tail.shift()
-  return [...head, '', ...scan.block.split('\n'), '', ...tail].join('\n')
+
+  const nextLine = afterText.split('\n').find((line) => line.trim() !== '')
+  if (nextLine !== undefined) {
+    const at = onlyIndexOf(nextLine)
+    if (at >= 0) return insertAt(at)
+  }
+  const prevLine = [...beforeText.split('\n')].reverse().find((line) => line.trim() !== '')
+  if (prevLine !== undefined) {
+    const at = onlyIndexOf(prevLine)
+    if (at >= 0) return insertAt(at + 1)
+  }
+  return `${generated.replace(/\n+$/, '')}\n\n${scan.block}\n`
 }
 
 /** rootDir 의 AGENTS.md 를 읽어(없거나 못 읽으면 null) 라우팅 카드를 보존한 AGENTS.md 를 만든다. */
