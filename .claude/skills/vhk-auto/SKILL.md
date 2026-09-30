@@ -1,6 +1,6 @@
 ---
 name: vhk-auto
-description: Use when one active VHK goal should run autonomously through implementation and verification without external publication or merge.
+description: Use when one active VHK goal should run autonomously through implementation and verification without external publication or merge. 한국어 트리거 - "오토파일럿", "자동으로 돌려", "혼자 한 바퀴", "vhk auto", "goal 자동 진행".
 ---
 
 # VHK Autopilot (1단계 MVP)
@@ -104,4 +104,4 @@ VHK로 개발 중인 프로젝트에서 **active goal 카드 1개**를 사람 �
 ## 보고 규약
 - 문제·정리는 **핵심 먼저(두괄식)**. 설계·이론·플랜 설명은 자세히 해도 됨.
 - 비개발자 대상 — 전문용어는 쉬운 말로 풀이.
-<!-- vhk-agent-skill: vhk-auto@5 source=.agents/skills sha256=6fef987dad87d3d704ed97f72d3843d589c7ef47aa0eb8aeb26c97d0db3f3297 -->
+<!-- vhk-agent-skill: vhk-auto@6 source=.agents/skills sha256=41b28baa366dc0c6cd2b52772ee03de868e8b883f4e032a832ccf361a179eff7 -->

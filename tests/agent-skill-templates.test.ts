@@ -47,7 +47,7 @@ function resignManagedContent(content: string): string {
 
 function legacyV2SkillBody(name: 'vhk-auto' | 'overnight-vhk-auto'): string {
   let body = fs.readFileSync(path.resolve('.agents', 'skills', name, 'SKILL.md'), 'utf-8')
-    .replace(/\r\n/g, '\n')
+    .replace(/\r\n/g, '\n').replace(/ 한국어 트리거 - .*$/m, '') // #627 트리거 추가 전 본문 재현
   if (name === 'vhk-auto') {
     body = body
       .replace(
@@ -83,7 +83,7 @@ function legacyV2SkillBody(name: 'vhk-auto' | 'overnight-vhk-auto'): string {
 
 function legacyV3AutoBody(): string {
   let body = fs.readFileSync(path.resolve('.agents', 'skills', 'vhk-auto', 'SKILL.md'), 'utf-8')
-    .replace(/\r\n/g, '\n')
+    .replace(/\r\n/g, '\n').replace(/ 한국어 트리거 - .*$/m, '') // #627
   body = body
     .replace(
       /- \*\*INV-11\*\*[\s\S]*?이 검사를 생략할 수 없다\.\n/,
@@ -117,7 +117,7 @@ function legacyV3OvernightBody(): string {
   let body = fs.readFileSync(
     path.resolve('.agents', 'skills', 'overnight-vhk-auto', 'SKILL.md'),
     'utf-8',
-  ).replace(/\r\n/g, '\n')
+  ).replace(/\r\n/g, '\n').replace(/ 한국어 트리거 - .*$/m, '') // #627
   body = body.replace(
     /0\. If `\.vhk\/HARD_STOP` exists → report and exit\.[\s\S]*?otherwise report and stop\.\n/,
     '0. If `.vhk/HARD_STOP` exists → report and exit. Before any mutation, apply vhk-auto INV-11: require\n'
@@ -533,6 +533,48 @@ describe('Agent Skill 공통 정본과 투영', () => {
     expect(fs.readFileSync(target, 'utf-8')).toContain(
       `overnight-vhk-auto@${AGENT_SKILL_MANIFEST.bundleVersion}`,
     )
+  })
+
+  const KOREAN_TRIGGERS: Record<string, string> = {
+    'vhk-auto': '한국어 트리거 - "오토파일럿", "자동으로 돌려", "혼자 한 바퀴", "vhk auto", "goal 자동 진행".',
+    'overnight-vhk-auto': '한국어 트리거 - "밤새 vhk-auto", "overnight vhk", "자율 overnight", "큐부터 한 장".',
+  }
+
+  it('자동 실행 스킬 description 끝에 한국어 트리거 문장이 글자 그대로 붙는다 (#627)', () => {
+    for (const [name, trigger] of Object.entries(KOREAN_TRIGGERS)) {
+      const skill = AGENT_SKILL_MANIFEST.skills.find((item) => item.name === name)
+      const description = /^description: (.+)$/m.exec(skill?.files['SKILL.md'] ?? '')?.[1].trim()
+      expect(description?.endsWith(` ${trigger}`)).toBe(true)
+    }
+  })
+
+  it('트리거 추가 전 v5 관리본은 현재 번들로 갱신한다 (#627)', () => {
+    const v5Hashes: Record<string, string> = {
+      'vhk-auto': '6fef987dad87d3d704ed97f72d3843d589c7ef47aa0eb8aeb26c97d0db3f3297',
+      'overnight-vhk-auto': '2e04ef5e4cb3ebed1f7729a74f4b9728de7a686a7824d877ae1715f1dd4160c6',
+    }
+    for (const [name, trigger] of Object.entries(KOREAN_TRIGGERS)) {
+      const dir = tmp(`vhk-agent-v5-${name}-`)
+      copyCanonicalSource(dir)
+      installAgentSkills(dir)
+      const canonical = fs.readFileSync(path.resolve('.agents', 'skills', name, 'SKILL.md'), 'utf-8')
+        .replace(/\r\n/g, '\n')
+      const legacy = canonical.replace(` ${trigger}`, '')
+      expect(legacy).not.toBe(canonical)
+      const hash = createHash('sha256').update(legacy, 'utf-8').digest('hex')
+      expect(hash).toBe(v5Hashes[name])
+      const target = path.join(dir, '.claude', 'skills', name, 'SKILL.md')
+      fs.writeFileSync(
+        target,
+        `${legacy}<!-- vhk-agent-skill: ${name}@5 source=.agents/skills sha256=${hash} -->\n`,
+        'utf-8',
+      )
+
+      const result = installAgentSkills(dir)
+
+      expect(result.updated).toContain(`.claude/skills/${name}/SKILL.md`)
+      expect(fs.readFileSync(target, 'utf-8')).toContain(trigger)
+    }
   })
 
   it('현재 번들보다 새 버전의 관리본은 다운그레이드하지 않는다', () => {

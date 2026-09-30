@@ -1,6 +1,6 @@
 ---
 name: overnight-vhk-auto
-description: Use when one VHK goal should run unattended overnight and stop after opening a pull request without merging.
+description: Use when one VHK goal should run unattended overnight and stop after opening a pull request without merging. 한국어 트리거 - "밤새 vhk-auto", "overnight vhk", "자율 overnight", "큐부터 한 장".
 ---
 
 # Overnight vhk-auto conductor
