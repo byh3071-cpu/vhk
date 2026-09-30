@@ -77,6 +77,32 @@ export interface GateResult {
   declaredOptional?: boolean
   /** 사람용 한 줄 사유 (시크릿 본문은 절대 넣지 않음 — count 등 메타만). */
   detail?: string
+  /** 외부 게이트 명령의 실제 소요 시간(ms). skip·in-process 게이트와 이전 리포트엔 없다. */
+  durationMs?: number
+  /** 외부 게이트가 실패한 종류. 판정(fail)은 그대로이고 원인만 가른다. */
+  failureKind?: GateFailureKind
+}
+
+/** 외부 게이트 명령 하나의 시간 한도(기존 값 유지). */
+export const GATE_TIMEOUT_MS = 600_000
+
+/**
+ * 외부 게이트 실패 종류 — exit: 0이 아닌 종료코드, timeout: 시간 한도로 중단,
+ * spawn: 명령을 시작하지 못함(설치·경로), signal: 신호로 강제 종료.
+ */
+export type GateFailureKind = 'exit' | 'timeout' | 'spawn' | 'signal'
+
+export interface GateExecResult {
+  exitCode: number
+  out: string
+  /** 명령 시작부터 종료(또는 중단)까지 실제 소요 시간(ms) */
+  durationMs: number
+  failureKind?: GateFailureKind
+  /** timeout 일 때 적용된 한도(ms) */
+  timeoutMs?: number
+  signal?: string
+  /** spawn 실패의 오류 코드 */
+  error?: string
 }
 
 export function isDeclaredOptionalSkip(gate: GateResult): boolean {
@@ -130,30 +156,71 @@ export function detectPm(cwd: string): 'pnpm' | 'yarn' | 'npm' {
  * 외부 게이트 1개 실행 + **실제 종료코드** 수집. 파이프로 exit code 를 가리지 않는다.
  * Windows: pnpm/npm/yarn 은 .cmd shim → cmd.exe 래핑(Node CVE-2024-27980 의 EINVAL 회피).
  * maxBuffer 상향(64MB): 큰 빌드/테스트 로그(>1MB)에서 성공해도 ENOBUFS 거짓실패 방지.
+ * 실제 소요 시간과 실패 종류(시간 초과·시작 실패·강제 종료·일반 종료코드)를 함께 돌려준다.
  */
-export function execGate(cmd: string, args: string[], cwd: string): { exitCode: number; out: string } {
+export function execGate(cmd: string, args: string[], cwd: string, timeoutMs = GATE_TIMEOUT_MS): GateExecResult {
   let bin = cmd
   let argv = args
   if (process.platform === 'win32' && SHIM.has(cmd)) {
     bin = 'cmd.exe'
     argv = ['/d', '/s', '/c', `${cmd}.cmd`, ...args]
   }
+  const started = performance.now()
+  const elapsed = () => Math.round(performance.now() - started)
   try {
     execFileSync(bin, argv, {
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
       encoding: 'utf-8',
       maxBuffer: 64 * 1024 * 1024,
-      timeout: 600_000,
+      timeout: timeoutMs,
       killSignal: 'SIGTERM',
     })
-    return { exitCode: 0, out: '' }
+    return { exitCode: 0, out: '', durationMs: elapsed() }
   } catch (e) {
-    const err = e as { status?: number; stdout?: Buffer | string; stderr?: Buffer | string; code?: string }
+    const durationMs = elapsed()
+    const err = e as { status?: number | null; signal?: string | null; stdout?: Buffer | string; stderr?: Buffer | string; code?: string; message?: string }
     // execFileSync 는 비-0 종료 시 err.status = 종료코드. ENOENT 등 실행 자체 실패는 status 없음 → 1 로 기록(추측 금지).
     const exitCode = typeof err.status === 'number' ? err.status : 1
     const out = ((err.stdout?.toString?.() ?? '') + (err.stderr?.toString?.() ?? '')).trim()
-    return { exitCode, out }
+    // spawnSync 는 한도 초과 때 code='ETIMEDOUT' 을 준다. 외부 신호(Ctrl+C 등)와 섞지 않으려고 code 만 믿는다.
+    if (err.code === 'ETIMEDOUT') return { exitCode: exitCode === 0 ? 1 : exitCode, out, durationMs, failureKind: 'timeout', timeoutMs }
+    if (typeof err.status === 'number') {
+      return err.status === 0 ? { exitCode: 0, out, durationMs } : { exitCode, out, durationMs, failureKind: 'exit' }
+    }
+    if (err.signal) return { exitCode, out, durationMs, failureKind: 'signal', signal: err.signal }
+    return { exitCode, out, durationMs, failureKind: 'spawn', error: err.code ?? err.message ?? 'unknown' }
+  }
+}
+
+function gateFailureDetail(exec: GateExecResult): string {
+  switch (exec.failureKind) {
+    case 'timeout':
+      return `시간 초과 — ${Math.round((exec.timeoutMs ?? GATE_TIMEOUT_MS) / 1000)}초 한도에서 중단(테스트 실패와 다름: 느려진 원인·멈춘 프로세스 확인)`
+    case 'spawn':
+      return `실행하지 못함(${exec.error ?? '원인 미상'}) — 명령·설치 상태 확인`
+    case 'signal':
+      return `강제 종료(${exec.signal ?? '신호 미상'})`
+    case 'exit':
+    case undefined:
+      return `종료코드 ${exec.exitCode}`
+  }
+}
+
+/**
+ * 외부 게이트 실행 결과 → GateResult. 통과는 종료코드 0이고 실패 종류가 없을 때뿐이다.
+ * 실패 종류는 사유(detail)만 바꾸며 fail 을 다른 상태로 바꾸지 않는다.
+ */
+export function gateResultFromExec(id: GateResult['id'], label: string, exec: GateExecResult): GateResult {
+  const passed = exec.exitCode === 0 && !exec.failureKind
+  return {
+    id,
+    label,
+    status: passed ? 'pass' : 'fail',
+    exitCode: exec.exitCode,
+    skipped: false,
+    durationMs: exec.durationMs,
+    ...(passed ? {} : { failureKind: exec.failureKind ?? 'exit', detail: gateFailureDetail(exec) }),
   }
 }
 
@@ -169,15 +236,7 @@ function runScriptGate(
   if (!argv) {
     return { id, label, status: 'skip', exitCode: null, skipped: true, detail: '해당 스크립트/설정 없음 — skip(WARN)' }
   }
-  const { exitCode } = execGate(pm, argv, cwd)
-  return {
-    id,
-    label,
-    status: exitCode === 0 ? 'pass' : 'fail',
-    exitCode,
-    skipped: false,
-    detail: exitCode === 0 ? undefined : `종료코드 ${exitCode}`,
-  }
+  return gateResultFromExec(id, label, execGate(pm, argv, cwd))
 }
 
 /**
@@ -775,7 +834,8 @@ export async function verify(
   // 게이트 행·미도입 요약은 출력 SoT(src/utils/logger.ts)를 거친다.
   for (const g of report.gates) {
     const tail = g.detail ? chalk.dim(` — ${g.detail}`) : ''
-    log.plain(`   ${icon(g)} ${g.label}${tail}`)
+    const took = typeof g.durationMs === 'number' ? chalk.dim(` (${(g.durationMs / 1000).toFixed(1)}초)`) : ''
+    log.plain(`   ${icon(g)} ${g.label}${took}${tail}`)
   }
 
   const visibleAdvisories = (report.advisories ?? []).filter((advisory) => !advisory.dismissed)
