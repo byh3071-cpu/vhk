@@ -17,7 +17,6 @@ export interface VerificationReuseSeal {
 const SELF_OUTPUTS = new Set(['.vhk/ledger.jsonl', '.vhk/events/ai-actions.jsonl'])
 const MAX_AGE_MS = 10 * 60_000
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
-const pathIdentity = (path: string) => process.platform === 'win32' ? path.toLowerCase() : path
 
 function declaredLocalInputs(root: string): string[] {
   const config = readJsonFile<{ reuse?: { localInputsOnly?: unknown; extraInputs?: unknown } }>(join(root, '.vhk', 'gates.json'))
@@ -59,7 +58,9 @@ function artifactsDigest(root: string): string {
 export function captureVerificationInputs(cwd: string): VerificationInputs {
   // #631: Windows의 짧은 이름·대소문자 표기가 달라도 같은 실제 폴더인지 비교한다.
   const root = realpathSync.native(cwd)
-  if (pathIdentity(realpathSync.native(getGitRoot(cwd))) !== pathIdentity(root)) throw new Error('재사용은 저장소 루트에서 실행해야 합니다')
+  const gitRoot = realpathSync.native(getGitRoot(cwd))
+  const sameRoot = process.platform === 'win32' ? gitRoot.toLowerCase() === root.toLowerCase() : gitRoot === root
+  if (!sameRoot) throw new Error('재사용은 저장소 루트에서 실행해야 합니다')
   const declaredInputs = declaredLocalInputs(root)
   const sha = gitOut(['rev-parse', 'HEAD'], cwd).trim()
   const changed = gitOut(['diff', '--name-only', '-z', 'HEAD'], cwd).split('\0').filter(Boolean)
@@ -67,7 +68,7 @@ export function captureVerificationInputs(cwd: string): VerificationInputs {
   const clean = [...changed, ...untracked].every(file => SELF_OUTPUTS.has(file))
   const files = new Set(gitOut(['ls-files', '--cached', '--others', '--exclude-standard', '-z'], cwd).split('\0').filter(Boolean))
   const hash = createHash('sha256')
-  hash.update(JSON.stringify({ root: pathIdentity(root), sha, node: process.version, platform: process.platform, arch: process.arch }))
+  hash.update(JSON.stringify({ root, sha, node: process.version, platform: process.platform, arch: process.arch }))
   hash.update(JSON.stringify(Object.entries(process.env).sort(([a], [b]) => a.localeCompare(b))))
   hash.update(JSON.stringify(loadCoreRuleset()))
   // 분할 패키지는 이 헬퍼가 그대로여도 검사 구현이 바뀔 수 있어 형제 ESM 청크도 포함한다.
@@ -87,14 +88,15 @@ export function captureVerificationInputs(cwd: string): VerificationInputs {
     hash.update(JSON.stringify(label))
     if (!existsSync(path)) { hash.update('missing'); return }
     const real = realpathSync.native(path)
-    const rel = relative(boundary, real)
-    if (isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`) || pathIdentity(resolve(boundary, rel)) !== pathIdentity(real)) throw new Error('입력이 봉인 대상 폴더를 벗어납니다')
+    // #631: win32 relative는 대소문자를 무시하므로 입력 경계에는 쓰지 않는다.
+    // native가 별칭을 펼친 뒤 구분자까지 정확히 비교해야 형제 폴더를 거절한다.
+    const prefix = boundary.endsWith(sep) ? boundary : `${boundary}${sep}`
+    if (real !== boundary && !real.startsWith(prefix)) throw new Error('입력이 봉인 대상 폴더를 벗어납니다')
     const stat = lstatSync(real)
-    const identity = pathIdentity(real)
-    hash.update(JSON.stringify({ real: identity, mode: stat.mode }))
+    hash.update(JSON.stringify({ real, mode: stat.mode }))
     if (stat.isDirectory()) {
-      if (visited.has(identity)) { hash.update('visited'); return }
-      visited.add(identity)
+      if (visited.has(real)) { hash.update('visited'); return }
+      visited.add(real)
       for (const name of readdirSync(real).sort()) {
         // Vitest/Vite 실행 캐시는 설치된 모듈이 아닌 생성 산출물이다.
         if (label.startsWith('node_modules') && ['.cache', '.vite', '.vite-temp'].includes(name)) continue
@@ -121,7 +123,7 @@ export function captureVerificationInputs(cwd: string): VerificationInputs {
   for (const file of [...declaredInputs].sort()) {
     const absolute = resolve(root, file)
     const rel = relative(root, absolute)
-    if (isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`) || rel.split(sep)[0] === '.git' || pathIdentity(absolute) === pathIdentity(root)) throw new Error('선언한 입력 경계가 유효하지 않습니다')
+    if (isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`) || rel.split(sep)[0] === '.git' || rel === '') throw new Error('선언한 입력 경계가 유효하지 않습니다')
     add(`declared:${file}`, absolute, root)
   }
   add('node_modules', join(root, 'node_modules'), root)

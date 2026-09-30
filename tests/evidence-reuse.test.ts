@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync, realpathSync, symlinkSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
@@ -15,8 +15,7 @@ import { buildReceiptLogEntry } from '../src/lib/receipt-log.js'
 import { captureVerificationInputs, sealVerification, readReusableVerification } from '../src/lib/evidence-reuse.js'
 
 const roots: string[] = []
-function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'vhk-reuse-'))
+function fixture(root = mkdtempSync(join(tmpdir(), 'vhk-reuse-'))) {
   roots.push(root)
   mkdirSync(join(root, '.vhk', 'reports'), { recursive: true })
   mkdirSync(join(root, 'node_modules', 'sample-dependency'), { recursive: true })
@@ -35,6 +34,15 @@ function fixture() {
   sealVerification(root, report, before)
   writeFileSync(join(root, '.vhk', 'reports', 'latest.json'), JSON.stringify(report))
   return { root, report }
+}
+function boundaryFixture(siblingName: string) {
+  const parent = mkdtempSync(join(tmpdir(), 'vhk-boundary-'))
+  roots.push(parent)
+  const fixtureResult = fixture(join(parent, 'repo'))
+  const sibling = join(parent, siblingName)
+  mkdirSync(sibling)
+  writeFileSync(join(sibling, 'source.ts'), 'outside\n')
+  return { ...fixtureResult, parent, sibling }
 }
 afterEach(() => {
   vi.restoreAllMocks()
@@ -93,8 +101,92 @@ describe('opt-in verification reuse', () => {
     const { root } = fixture()
     const sibling = fixture().root
     const native = realpathSync.native
-    vi.spyOn(realpathSync, 'native').mockImplementation(path => path === join(root, 'source.ts') ? native(join(sibling, 'source.ts')) : native(path))
+    const source = native(join(root, 'source.ts'))
+    const outside = native(join(sibling, 'source.ts'))
+    const paths = vi.spyOn(realpathSync, 'native').mockImplementation(path => {
+      const real = native(path)
+      return real === source ? outside : real
+    })
     expect(() => captureVerificationInputs(root)).toThrow('입력이 봉인 대상 폴더를 벗어납니다')
+    expect(paths).toHaveReturnedWith(outside)
+  })
+
+  it.each(['repo-other', 'REPO-other'])('rejects the prefix sibling %s after native resolution', siblingName => {
+    const { root, sibling } = boundaryFixture(siblingName)
+    const native = realpathSync.native
+    const source = native(join(root, 'source.ts'))
+    const outside = native(join(sibling, 'source.ts'))
+    const paths = vi.spyOn(realpathSync, 'native').mockImplementation(path => {
+      const real = native(path)
+      return real === source ? outside : real
+    })
+    expect(() => captureVerificationInputs(root)).toThrow('입력이 봉인 대상 폴더를 벗어납니다')
+    expect(paths).toHaveReturnedWith(outside)
+    expect(readReusableVerification(root).report).toBeNull()
+  })
+
+  it('rejects a case-distinct native sibling instead of folding input identity', () => {
+    const { root } = boundaryFixture('repo-other')
+    const native = realpathSync.native
+    const canonical = native(root)
+    const source = native(join(root, 'source.ts'))
+    // #631: Windows의 대소문자 구분 폴더 두 개를 native 출력으로 재현한다.
+    // 일반 Windows 폴더에서도 lstat/read는 가능하므로 잘못된 허용을 숨기지 않는다.
+    const outside = join(canonical.slice(0, -'repo'.length) + 'REPO', 'source.ts')
+    const paths = vi.spyOn(realpathSync, 'native').mockImplementation(path => {
+      const real = native(path)
+      return real === source ? outside : real
+    })
+    expect(() => captureVerificationInputs(root)).toThrow('입력이 봉인 대상 폴더를 벗어납니다')
+    expect(paths).toHaveReturnedWith(outside)
+    expect(readReusableVerification(root).report).toBeNull()
+  })
+
+  it.each(['inside', 'outside'] as const)('resolves an 8.3 input alias before checking its %s target', location => {
+    const { root, sibling } = boundaryFixture('repo-other')
+    const native = realpathSync.native
+    const alias = join(native(root), '.vhk', 'phase2', 'INPUT~1')
+    mkdirSync(join(root, '.vhk', 'phase2'))
+    writeFileSync(alias, 'alias placeholder')
+    writeFileSync(join(root, '.vhk', 'gates.json'), JSON.stringify({ reuse: {
+      localInputsOnly: true, extraInputs: ['.vhk/phase2/INPUT~1'],
+    } }))
+    const target = native(join(location === 'inside' ? root : sibling, 'source.ts'))
+    const paths = vi.spyOn(realpathSync, 'native').mockImplementation(path => path === alias ? target : native(path))
+    if (location === 'inside') expect(() => captureVerificationInputs(root)).not.toThrow()
+    else expect(() => captureVerificationInputs(root)).toThrow('입력이 봉인 대상 폴더를 벗어납니다')
+    expect(paths).toHaveReturnedWith(target)
+  })
+
+  it.each(['inside', 'outside'] as const)('checks the real %s target of a junction input', location => {
+    const { root, sibling } = boundaryFixture('repo-other')
+    mkdirSync(join(root, '.vhk', 'phase2'))
+    const target = location === 'inside' ? join(root, 'node_modules', 'sample-dependency') : sibling
+    symlinkSync(target, join(root, '.vhk', 'phase2', 'input-link'), process.platform === 'win32' ? 'junction' : 'dir')
+    writeFileSync(join(root, '.vhk', 'gates.json'), JSON.stringify({ reuse: {
+      localInputsOnly: true, extraInputs: ['.vhk/phase2/input-link'],
+    } }))
+    if (location === 'inside') expect(() => captureVerificationInputs(root)).not.toThrow()
+    else expect(() => captureVerificationInputs(root)).toThrow('입력이 봉인 대상 폴더를 벗어납니다')
+  })
+
+  it('accepts a junction alias only when it resolves to the same execution root', () => {
+    const { root, parent, sibling } = boundaryFixture('repo-other')
+    const alias = join(parent, 'REPO~1')
+    symlinkSync(root, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    expect(captureVerificationInputs(alias)).toEqual(captureVerificationInputs(root))
+    const native = realpathSync.native
+    const gitRoot = vi.spyOn(gitRepo, 'getGitRoot').mockReturnValue(native(sibling))
+    expect(() => captureVerificationInputs(alias)).toThrow('재사용은 저장소 루트에서 실행해야 합니다')
+    expect(gitRoot).toHaveBeenCalled()
+  })
+
+  it.each(['direct', 'case-alias'] as const)('rejects declaring the execution root through a %s path', kind => {
+    const { root } = boundaryFixture('repo-other')
+    writeFileSync(join(root, '.vhk', 'gates.json'), JSON.stringify({ reuse: {
+      localInputsOnly: true, extraInputs: [kind === 'direct' ? '.' : realpathSync.native(root).toUpperCase()],
+    } }))
+    expect(() => captureVerificationInputs(root)).toThrow('선언한 입력 경계가 유효하지 않습니다')
   })
 
   it('failed verify cannot become receipt PASS through an implicit retry (reuse=true)', () => {
