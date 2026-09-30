@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { existsSync, mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from 'node:fs'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync, realpathSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gitRun, getCommitInfo } from '../src/lib/git-repo.js'
+import * as gitRepo from '../src/lib/git-repo.js'
 import { removeDirSync } from '../src/lib/fs-remove.js'
 import { buildReport, verifyEvidence, checkEvidenceFreshness } from '../src/commands/verify.js'
 import { collectReceipt } from '../src/commands/receipt.js'
@@ -35,7 +36,11 @@ function fixture() {
   writeFileSync(join(root, '.vhk', 'reports', 'latest.json'), JSON.stringify(report))
   return { root, report }
 }
-afterEach(() => { for (const root of roots.splice(0)) removeDirSync(root) })
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  for (const root of roots.splice(0)) removeDirSync(root)
+})
 
 function realGateFixture(program: string) {
   const { root, report } = fixture()
@@ -53,6 +58,45 @@ function realGateFixture(program: string) {
 }
 
 describe('opt-in verification reuse', () => {
+  it('accepts a Git root reported through a short path alias', () => {
+    const { root } = fixture()
+    const expected = captureVerificationInputs(root)
+    const native = realpathSync.native
+    const alias = join(root, 'SAMPLE~1')
+    vi.spyOn(gitRepo, 'getGitRoot').mockReturnValue(alias)
+    vi.spyOn(realpathSync, 'native').mockImplementation(path => path === alias ? native(root) : native(path))
+    expect(captureVerificationInputs(root)).toEqual(expected)
+  })
+
+  it.each(['win32', 'linux'] as const)('compares root casing according to %s filesystem rules', platform => {
+    const { root } = fixture()
+    const native = realpathSync.native
+    const canonical = native(root)
+    const differentCase = canonical === canonical.toUpperCase() ? canonical.toLowerCase() : canonical.toUpperCase()
+    vi.stubGlobal('process', new Proxy(process, {
+      get(target, key, receiver) { return key === 'platform' ? platform : Reflect.get(target, key, receiver) },
+    }))
+    const expected = captureVerificationInputs(root)
+    const alias = join(root, 'git-root-alias')
+    vi.spyOn(gitRepo, 'getGitRoot').mockReturnValue(alias)
+    vi.spyOn(realpathSync, 'native').mockImplementation(path => path === alias ? differentCase : native(path))
+    if (platform === 'win32') expect(captureVerificationInputs(root)).toEqual(expected)
+    else expect(() => captureVerificationInputs(root)).toThrow('재사용은 저장소 루트에서 실행해야 합니다')
+  })
+
+  it('still rejects a repository subdirectory as the execution root', () => {
+    const { root } = fixture()
+    expect(() => captureVerificationInputs(join(root, 'node_modules'))).toThrow('재사용은 저장소 루트에서 실행해야 합니다')
+  })
+
+  it('rejects a native input path escaping into a sibling repository', () => {
+    const { root } = fixture()
+    const sibling = fixture().root
+    const native = realpathSync.native
+    vi.spyOn(realpathSync, 'native').mockImplementation(path => path === join(root, 'source.ts') ? native(join(sibling, 'source.ts')) : native(path))
+    expect(() => captureVerificationInputs(root)).toThrow('입력이 봉인 대상 폴더를 벗어납니다')
+  })
+
   it('failed verify cannot become receipt PASS through an implicit retry (reuse=true)', () => {
     const { root } = realGateFixture(`
       const fs = require('node:fs');
@@ -105,8 +149,15 @@ describe('opt-in verification reuse', () => {
 
   it.each(['PASS', 'FAIL'] as const)('interrupted verify remains failed and invalidates reuse after prior %s', async prior => {
     const { root, report } = realGateFixture(`
-      require('node:fs').appendFileSync('.vhk/phase2/gate-started', 'run\\n');
-      setTimeout(() => process.exit(0), 1000);
+      const fs = require('node:fs');
+      fs.appendFileSync('.vhk/phase2/gate-started', 'run\\n');
+      const started = Date.now();
+      setInterval(() => {
+        if (fs.existsSync('.vhk/phase2/release-gate') || Date.now() - started >= 20000) {
+          fs.writeFileSync('.vhk/phase2/gate-finished', 'done');
+          process.exit(0);
+        }
+      }, 25);
     `)
     if (prior === 'FAIL') {
       report.status = 'FAIL'
@@ -114,10 +165,13 @@ describe('opt-in verification reuse', () => {
       delete report.reuse
       writeFileSync(join(root, '.vhk', 'reports', 'latest.json'), JSON.stringify(report))
     } else expect(readReusableVerification(root).report).not.toBeNull()
-    const child = spawn(process.execPath, [
-      fileURLToPath(new URL('../node_modules/tsx/dist/cli.mjs', import.meta.url)),
-      fileURLToPath(new URL('../src/index.ts', import.meta.url)), 'verify', '--json',
-    ], { cwd: root, env: { ...process.env }, stdio: 'ignore', windowsHide: true })
+    // #631: tsx CLI 래퍼를 죽이면 Linux의 실제 verifier가 살아남는다.
+    // Node에 로더를 직접 붙여 소유한 PID가 실제 verifier가 되게 한다.
+    const cliArgs = ['--import', new URL('../node_modules/tsx/dist/loader.mjs', import.meta.url).href,
+      fileURLToPath(new URL('../src/index.ts', import.meta.url)), 'verify']
+    const child = spawn(process.execPath, [...cliArgs, '--json'], {
+      cwd: root, env: { ...process.env }, stdio: 'ignore', windowsHide: true,
+    })
     const exited = once(child, 'exit')
     let during: ReturnType<typeof readReusableVerification> | undefined
     try {
@@ -130,8 +184,15 @@ describe('opt-in verification reuse', () => {
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
       await exited
-      // 소유한 게이트는 제한된 타이머로 부모 종료 뒤에도 스스로 끝난다.
-      await new Promise(resolve => setTimeout(resolve, 1200))
+      // verifier 종료를 확인한 뒤 첫 게이트만 해제하고 실제 종료 기록을 기다린다.
+      writeFileSync(join(root, '.vhk', 'phase2', 'release-gate'), 'release')
+      if (existsSync(join(root, '.vhk', 'phase2', 'gate-started'))) {
+        const deadline = Date.now() + 8_000
+        while (!existsSync(join(root, '.vhk', 'phase2', 'gate-finished'))) {
+          if (Date.now() >= deadline) throw new Error('소유한 게이트가 종료되지 않았습니다')
+          await new Promise(resolve => setTimeout(resolve, 25))
+        }
+      }
     }
     expect(during?.report).toBeNull()
     expect(readReusableVerification(root).report).toBeNull()
@@ -141,10 +202,9 @@ describe('opt-in verification reuse', () => {
     if (prior === 'FAIL') expect(interrupted.gates[0].status).toBe('fail')
     expect(checkEvidenceFreshness(interrupted, getCommitInfo(root)).stale).toBe(true)
     for (const option of ['--report', '--check-fresh']) {
-      const result = spawnSync(process.execPath, [
-        fileURLToPath(new URL('../node_modules/tsx/dist/cli.mjs', import.meta.url)),
-        fileURLToPath(new URL('../src/index.ts', import.meta.url)), 'verify', option,
-      ], { cwd: root, env: { ...process.env }, encoding: 'utf8', windowsHide: true })
+      const result = spawnSync(process.execPath, [...cliArgs, option], {
+        cwd: root, env: { ...process.env }, encoding: 'utf8', windowsHide: true,
+      })
       expect(result.error).toBeUndefined()
       expect(result.status).toBe(1)
     }

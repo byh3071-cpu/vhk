@@ -17,6 +17,9 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Fixed
 
+- Windows에서 Git 루트의 짧은 이름·대소문자 차이를 같은 실제 경로로 정규화해
+  검증 증거 재사용을 잘못 차단하지 않는다. 저장소 하위 폴더·외부 입력은 계속 거절한다 (#631).
+
 - 기본 receipt는 이전 FAIL·미완료·손상 리포트와 무관하게 실제 전체 검사를 새로 실행한다.
   새 verify 시작 시 이전 봉인을 무효화하며 중단된 검증은 FAIL로 남긴다. 직전 실패 게이트와
   커밋을 보존하고 `verify --report`·`verify --check-fresh`도 미완료 증거를 거절한다.
