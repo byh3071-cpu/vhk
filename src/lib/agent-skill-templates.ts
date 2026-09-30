@@ -44,7 +44,7 @@ interface AgentSkillSourceBundleData {
 // VHK-GENERATED-AGENT-SKILLS:BEGIN
 const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
   "schemaVersion": 1,
-  "bundleVersion": 5,
+  "bundleVersion": 6,
   "skills": [
     {
       "name": "vhk-auto",
@@ -59,7 +59,7 @@ const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
         "SKILL.md": [
           "---",
           "name: vhk-auto",
-          "description: Use when one active VHK goal should run autonomously through implementation and verification without external publication or merge.",
+          "description: Use when one active VHK goal should run autonomously through implementation and verification without external publication or merge. 한국어 트리거 - \"오토파일럿\", \"자동으로 돌려\", \"혼자 한 바퀴\", \"vhk auto\", \"goal 자동 진행\".",
           "---",
           "",
           "# VHK Autopilot (1단계 MVP)",
@@ -197,7 +197,7 @@ const GENERATED_AGENT_SKILL_SOURCE: AgentSkillSourceBundleData = {
         "SKILL.md": [
           "---",
           "name: overnight-vhk-auto",
-          "description: Use when one VHK goal should run unattended overnight and stop after opening a pull request without merging.",
+          "description: Use when one VHK goal should run unattended overnight and stop after opening a pull request without merging. 한국어 트리거 - \"밤새 vhk-auto\", \"overnight vhk\", \"자율 overnight\", \"큐부터 한 장\".",
           "---",
           "",
           "# Overnight vhk-auto conductor",
@@ -532,10 +532,12 @@ const LEGACY_MANAGED_HASHES: Readonly<
     1: ['4a5d60709dda0375234deb4426ee523143cbf70c604f66deb5bc430bf5f50532'],
     2: ['370579087d2505742753e07043b9c1d866d881c2adcfda80a1b72a59e6cda8b7'],
     3: ['ed38c38511b0981d3c54a5be7e8de98467861224df0276034b99d4e1aaa21ff1'],
+    5: ['6fef987dad87d3d704ed97f72d3843d589c7ef47aa0eb8aeb26c97d0db3f3297'],
   },
   '.claude/skills/overnight-vhk-auto/SKILL.md': {
     2: ['7decf6ef274439677028b5684c90064a2e872cef82d457a722026ce20dcd7fde'],
     3: ['2918e66c87a861da3fdf2880520638565ed6ea7a2f37ee7668ef47bade94c4c7'],
+    5: ['2e04ef5e4cb3ebed1f7729a74f4b9728de7a686a7824d877ae1715f1dd4160c6'],
   },
 })
 

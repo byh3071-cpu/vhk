@@ -416,6 +416,7 @@ export async function init(options: InitOptions = {}) {
   if (allowAutoSync) {
     try {
       const syncResult = await syncCore(cwd, { yes: true }, async () => true)
+      if (syncResult.rosterCardWarning) log.warn(syncResult.rosterCardWarning)
       for (const conflict of syncResult.agentSkills.conflicts) {
         log.warn(ko.sync.skillConflict(conflict))
       }

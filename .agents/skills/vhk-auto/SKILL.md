@@ -1,6 +1,6 @@
 ---
 name: vhk-auto
-description: Use when one active VHK goal should run autonomously through implementation and verification without external publication or merge.
+description: Use when one active VHK goal should run autonomously through implementation and verification without external publication or merge. 한국어 트리거 - "오토파일럿", "자동으로 돌려", "혼자 한 바퀴", "vhk auto", "goal 자동 진행".
 ---
 
 # VHK Autopilot (1단계 MVP)

@@ -12,6 +12,15 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Fixed
 
+- `vhk sync`가 AGENTS.md를 다시 만들 때 yohan 라우팅 카드 관리 블록(`YOHAN-ROSTER-CARD:BEGIN`~`END`)을
+  지우지 않는다. 기존 AGENTS.md에 정확히 한 쌍이 있으면 같은 위치에 그대로 다시 붙이고
+  (첫 줄 카드는 첫 줄, 끝 카드는 문서 끝, 그 외는 다음 줄 앞 → 앞 줄 뒤 → 문서 끝 순),
+  없으면 아무것도 넣지 않는다. 짝이 안 맞거나 여러 쌍이면 보존하지 않고 경고한다(`vhk init` 자동 sync 포함).
+  `sync --check`는 보존된 블록을 불일치로 보지 않는다 (#627).
+- 자동 실행 스킬 `vhk-auto`·`overnight-vhk-auto`의 description 끝에 한국어 트리거 문장을 추가했다
+  (정본 `.agents/skills`, bundleVersion 5→6). 트리거 추가 전 v5 관리본은 sync가 안전하게 갱신한다 (#627).
+  파급: 소비 레포에서는 프로젝트 스킬 관리본의 마커 줄이 @5→@6으로 바뀌므로, 업그레이드 후 다시
+  `vhk sync`를 하기 전까지 `sync --check`가 불일치로 실패한다. 사람이 고친 v5 관리본은 충돌로 보존된다.
 - `vhk context`가 세션마다 `_생성:` 시각만 바꿔 `.vhk/context.md`를 dirty로 만들던 문제를 고친다.
   본문(git HEAD 마커 포함)이 같으면 다시 쓰지 않는다 (#603).
 - `vhk goal done`이 134 문법(`### Phase N` · `- [ ] **Task N**`) 미완 Task를 침묵하고 DONE 하던 구멍을 막는다.

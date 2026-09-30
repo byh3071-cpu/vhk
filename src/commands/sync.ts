@@ -517,6 +517,116 @@ export function agentsMdEcosystemBlock(rootDir?: string): string[] {
 }
 
 /**
+ * yohan 라우팅 카드(YOHAN-ROSTER-CARD) 관리 블록 보존 (#627).
+ * 카드의 주인은 VHK 밖(카드를 관리하는 외부 도구)이다 — VHK 는 내용을 만들지 않고, 기존 AGENTS.md 에 정확히 한 쌍이
+ * 있을 때만 통째로 다시 붙인다(CLAUDE.md 사용자 영역 보존과 같은 원리). 없으면 아무것도 넣지 않는다.
+ * BEGIN/END 짝이 어긋나거나 여러 개면 어느 쪽이 진짜인지 알 수 없어 보존하지 않고 경고한다.
+ */
+const ROSTER_BEGIN_RE = /<!--\s*YOHAN-ROSTER-CARD:BEGIN\b[^>]*-->/g
+const ROSTER_END_RE = /<!--\s*YOHAN-ROSTER-CARD:END\s*-->/g
+
+export type RosterCardScan =
+  | { status: 'none' }
+  | { status: 'one'; block: string }
+  | { status: 'invalid' }
+
+export function scanRosterCard(existing: string): RosterCardScan {
+  const text = existing.replace(/\r\n/g, '\n')
+  const begins = [...text.matchAll(ROSTER_BEGIN_RE)]
+  const ends = [...text.matchAll(ROSTER_END_RE)]
+  if (begins.length === 0 && ends.length === 0) return { status: 'none' }
+  if (begins.length !== 1 || ends.length !== 1) return { status: 'invalid' }
+  const start = begins[0].index
+  const end = ends[0].index + ends[0][0].length
+  if (end <= start) return { status: 'invalid' }
+  return { status: 'one', block: text.slice(start, end) }
+}
+
+/**
+ * 생성본에 카드 블록을 붙인다. 위치 규칙(위에서부터 먼저 맞는 것):
+ *  1. 기존 파일에서 블록 앞이 공백·BOM 뿐이면(첫 줄 카드) 생성본 맨 앞에 둔다(BOM 유지).
+ *  2. 기존 파일에서 END 뒤가 공백 뿐이면 항상 문서 끝.
+ *  3. 블록 뒤 첫 비공백 줄(보통 다음 `##` 제목)이 생성본에 정확히 한 번 나오면 그 줄 앞.
+ *  4. 블록 앞 비어 있지 않은 줄이 생성본에 정확히 한 번 나오면 그 줄 뒤.
+ *  5. 그래도 못 찾으면 문서 끝.
+ * 뒤 기준(2·3)을 앞 기준보다 먼저 쓰는 이유: 앞 줄 뒤에 붙이면 RULES.md 의 마지막 섹션에 규칙을
+ * 추가할 때 새 규칙이 카드 아래로 밀려 들어가 그대로 굳는다. 첫 sync 결과가 이미 안정 상태라
+ * (다시 sync 해도 같다) `sync --check` 가 보존된 블록을 불일치로 보지 않는다.
+ */
+export function withRosterCard(generated: string, existing: string | null): string {
+  if (existing === null) return generated
+  const scan = scanRosterCard(existing)
+  if (scan.status !== 'one') return generated
+  // RULES.md 가 이미 같은 마커를 품고 있으면 중복 주입하지 않는다.
+  if (scanRosterCard(generated).status !== 'none') return generated
+
+  const text = existing.replace(/\r\n/g, '\n')
+  const blockStart = text.indexOf(scan.block)
+  const beforeText = text.slice(0, blockStart)
+  const afterText = text.slice(blockStart + scan.block.length)
+  const blockLines = scan.block.split('\n')
+
+  const strippedBefore = beforeText.replace(/^﻿/, '')
+  if (strippedBefore.trim() === '') {
+    const bom = beforeText.startsWith('﻿') ? '﻿' : ''
+    return `${bom}${scan.block}\n\n${generated.replace(/^\n+/, '')}`
+  }
+  if (afterText.trim() === '') {
+    return `${generated.replace(/\n+$/, '')}\n\n${scan.block}\n`
+  }
+
+  const lines = generated.split('\n')
+  const onlyIndexOf = (target: string): number => {
+    const hits = lines.flatMap((line, i) => (line === target ? [i] : []))
+    return hits.length === 1 ? hits[0] : -1
+  }
+  const insertAt = (index: number): string => {
+    const head = lines.slice(0, index)
+    while (head.length && head[head.length - 1].trim() === '') head.pop()
+    const tail = lines.slice(index)
+    while (tail.length && tail[0].trim() === '') tail.shift()
+    // head 가 비면(카드가 생성본 첫 줄 앞) 맨 앞 빈 줄을 만들지 않는다 — 첫 sync 결과가 곧 안정 상태여야 한다.
+    return [...(head.length ? [...head, ''] : []), ...blockLines, '', ...tail].join('\n')
+  }
+
+  const nextLine = afterText.split('\n').find((line) => line.trim() !== '')
+  if (nextLine !== undefined) {
+    const at = onlyIndexOf(nextLine)
+    if (at >= 0) return insertAt(at)
+  }
+  const prevLine = [...beforeText.split('\n')].reverse().find((line) => line.trim() !== '')
+  if (prevLine !== undefined) {
+    const at = onlyIndexOf(prevLine)
+    if (at >= 0) return insertAt(at + 1)
+  }
+  return `${generated.replace(/\n+$/, '')}\n\n${scan.block}\n`
+}
+
+/** rootDir 의 AGENTS.md 를 읽어(없거나 못 읽으면 null) 라우팅 카드를 보존한 AGENTS.md 를 만든다. */
+function agentsMdPreserving(
+  sections: RulesSection[],
+  projectName: string,
+  rootDir: string | undefined,
+): string {
+  const generated = toAgentsMd(
+    sections,
+    projectName,
+    rootDir === undefined ? undefined : resolveAgentCompactRel(rootDir),
+    rootDir,
+  )
+  return withRosterCard(generated, rootDir === undefined ? null : readExistingAgentsMd(rootDir))
+}
+
+function readExistingAgentsMd(rootDir: string): string | null {
+  try {
+    return fs.readFileSync(path.join(rootDir, 'AGENTS.md'), 'utf-8')
+  } catch {
+    return null
+  }
+}
+
+
+/**
  * RULES.md 섹션을 AGENTS.md 포맷으로 변환 (sync 6번째 타겟).
  * Loop Protocol 보일러플레이트를 생성기에 내장해 — sync 가 AGENTS.md 를 재생성해도
  * 운영 규약(Loop Protocol)·compact 안내가 보존된다(수기 AGENTS.md 하드코딩 회피).
@@ -623,13 +733,8 @@ export const SYNC_TARGETS: SyncTarget[] = [
   // 해석해야 sync·doctor 등 모든 호출부가 같은 생성 함수를 써서 기대값이 갈라지지 않는다(#519).
   {
     path: 'AGENTS.md',
-    generate: (sections, projectName, rootDir) =>
-      toAgentsMd(
-        sections,
-        projectName,
-        rootDir === undefined ? undefined : resolveAgentCompactRel(rootDir),
-        rootDir,
-      ),
+    // #627: 기존 AGENTS.md 의 YOHAN-ROSTER-CARD 블록을 보존한다(generate 가 rootDir 로 기존 파일을 읽는다).
+    generate: (sections, projectName, rootDir) => agentsMdPreserving(sections, projectName, rootDir),
     doneMessage: ko.sync.agentsDone,
   },
   // Goal 16 — Gemini CLI / Cline (공식 경로 검증). 레지스트리 추가만으로 drift·백업 자동 반영.
@@ -862,6 +967,8 @@ export interface SyncResult {
    * 두 상태를 합치면 "기본 규칙으로 동기화했다" 는 거짓 안내가 나간다.
    */
   coreRulesFallback?: boolean
+  /** #627: 기존 AGENTS.md 의 라우팅 카드 BEGIN/END 짝이 어긋나 보존하지 못했을 때의 경고. */
+  rosterCardWarning?: string
 }
 
 /**
@@ -933,6 +1040,11 @@ export async function syncCore(
   const coreRules = loadCoreRuleset()
   const coreRulesWarning = coreRules.warning
   const coreRulesFallback = coreRules.origin === 'bundled'
+  // #627: 카드 짝이 어긋나면 보존하지 않고 덮어쓰므로(백업은 별도) 조용히 지우지 않게 알린다.
+  const existingAgents = readExistingAgentsMd(rootDir)
+  const rosterCardWarning = existingAgents !== null && scanRosterCard(existingAgents).status === 'invalid'
+    ? ko.sync.rosterCardInvalid
+    : undefined
 
   // --dry-run — 어떤 디스크 변경도 하지 않는다(백업·쓰기·마커 전부 생략)
   if (opts.dryRun) {
@@ -957,6 +1069,7 @@ export async function syncCore(
       },
       coreRulesWarning,
       coreRulesFallback,
+      rosterCardWarning,
     }
   }
 
@@ -1012,7 +1125,7 @@ export async function syncCore(
   ) {
     // AGENTS.md 의 Ecosystem 블록은 ecosystem.mdc 존재를 전제로 삽입된다 → 방금 생겼으면 재생성
     const agentsPath = path.join(rootDir, 'AGENTS.md')
-    const refreshed = toAgentsMd(sections, projectName, resolveAgentCompactRel(rootDir), rootDir)
+    const refreshed = agentsMdPreserving(sections, projectName, rootDir)
     fs.writeFileSync(agentsPath, refreshed, 'utf-8')
   }
 
@@ -1034,6 +1147,7 @@ export async function syncCore(
     agentSkills,
     coreRulesWarning,
     coreRulesFallback,
+    rosterCardWarning,
   }
 }
 
@@ -1149,6 +1263,7 @@ export async function sync(opts: SyncOptions = {}): Promise<void> {
 
   // #556 — 지정한 규칙 원본을 못 읽어 내장 기본 규칙이 깔렸으면 알린다.
   // init 은 이미 같은 경고를 내보내는데 sync 만 빠져 있어, sync 로만 쓰는 사용자는 대체를 모른 채 지나갔다.
+  if (result.rosterCardWarning) log.warn(result.rosterCardWarning)
   if (result.coreRulesWarning) {
     log.warn(result.coreRulesWarning)
     // 대체 안내는 실제로 대체됐을 때만 — 홈 설정 원본을 읽어낸 경우까지 "기본 규칙으로 동기화" 라고 하면 거짓말이다.

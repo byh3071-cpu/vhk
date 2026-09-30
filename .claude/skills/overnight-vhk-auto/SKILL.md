@@ -1,6 +1,6 @@
 ---
 name: overnight-vhk-auto
-description: Use when one VHK goal should run unattended overnight and stop after opening a pull request without merging.
+description: Use when one VHK goal should run unattended overnight and stop after opening a pull request without merging. 한국어 트리거 - "밤새 vhk-auto", "overnight vhk", "자율 overnight", "큐부터 한 장".
 ---
 
 # Overnight vhk-auto conductor
@@ -44,4 +44,4 @@ Prepare a temporary PR body file that follows `AGENTS.md` and includes the morni
 - Skill SoT for inner loop: `.agents/skills/vhk-auto/SKILL.md`
 - Work order: `docs/roadmap/2.x-roadmap.md`
 - Acceptance criteria: `docs/PRD-2.x.md`
-<!-- vhk-agent-skill: overnight-vhk-auto@5 source=.agents/skills sha256=2e04ef5e4cb3ebed1f7729a74f4b9728de7a686a7824d877ae1715f1dd4160c6 -->
+<!-- vhk-agent-skill: overnight-vhk-auto@6 source=.agents/skills sha256=6e2e55f8fd515960091cf7e614e90d625ff87a813157e400bd3fd34cf65d786a -->

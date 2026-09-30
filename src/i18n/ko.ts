@@ -593,6 +593,7 @@ export const ko = {
     copilotDone: '✅ .github/copilot-instructions.md 맞춤 완료',
     antigravityDone: '✅ .agents/rules/vhk-rules.md 맞춤 완료',
     agentsDone: '✅ AGENTS.md 맞춤 완료',
+    rosterCardInvalid: 'AGENTS.md 의 YOHAN-ROSTER-CARD BEGIN/END 짝이 맞지 않거나 여러 개라 카드 블록을 보존할 수 없습니다 — sync 를 적용하면 라우팅 카드 블록이 빠집니다(적용 전 백업 저장).',
     geminiDone: '✅ GEMINI.md 맞춤 완료',
     clineDone: '✅ .clinerules/vhk-rules.md 맞춤 완료',
     antigravityTruncated: 'Antigravity 12,000자 제한으로 일부 절삭됨 — 전체는 RULES.md 참조',
