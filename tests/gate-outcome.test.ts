@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { execGate, gateResultFromExec, verifyEvidence, GATE_TIMEOUT_MS } from '../src/commands/verify.js'
+import { classifyGateError, execGate, gateResultFromExec, verifyEvidence, GATE_TIMEOUT_MS, type GateExecError } from '../src/commands/verify.js'
 import { removeDirSync } from '../src/lib/fs-remove.js'
 
 // 게이트가 왜 실패했는지(시간 초과·실행 불가·강제 종료·일반 실패)와 실제 소요 시간을 남기는지 확인한다.
@@ -27,7 +27,8 @@ describe('execGate 실패 종류와 소요 시간', () => {
     expect(result.failureKind).toBe('timeout')
     expect(result.exitCode).not.toBe(0)
     expect(result.durationMs).toBeGreaterThanOrEqual(400)
-    expect(result.durationMs).toBeLessThan(15_000)
+    // 20초짜리 명령을 500ms 한도로 끊었는지 — 명령 자체가 끝날 때까지 기다리지 않았음을 확인한다.
+    expect(result.durationMs).toBeLessThan(5_000)
   }, 30_000)
 
   it('명령을 시작하지 못하면 spawn 종류로 남긴다', () => {
@@ -45,6 +46,29 @@ describe('execGate 실패 종류와 소요 시간', () => {
   it('기본 시간 한도는 기존 600초를 유지한다', () => {
     expect(GATE_TIMEOUT_MS).toBe(600_000)
   })
+})
+
+describe('classifyGateError — 예외 경로는 어떤 경우에도 통과가 아니다', () => {
+  // execFileSync 가 던지는 예외 모양을 직접 넣어 분류와 게이트 판정까지 확인한다.
+  const cases: Array<[string, GateExecError, { failureKind: string; exitCode: number }]> = [
+    ['0이 아닌 종료', { status: 3 }, { failureKind: 'exit', exitCode: 3 }],
+    ['시간 초과(신호로 끊김)', { status: null, signal: 'SIGTERM', code: 'ETIMEDOUT' }, { failureKind: 'timeout', exitCode: 1 }],
+    ['시간 초과인데 status 0', { status: 0, code: 'ETIMEDOUT' }, { failureKind: 'timeout', exitCode: 1 }],
+    ['출력 한도 초과인데 status 0', { status: 0, code: 'ENOBUFS' }, { failureKind: 'error', exitCode: 1 }],
+    ['출력 한도 초과로 신호 종료', { status: null, signal: 'SIGTERM', code: 'ENOBUFS' }, { failureKind: 'signal', exitCode: 1 }],
+    ['명령 없음', { status: null, code: 'ENOENT' }, { failureKind: 'spawn', exitCode: 1 }],
+    ['신호 종료', { status: null, signal: 'SIGKILL' }, { failureKind: 'signal', exitCode: 1 }],
+  ]
+  for (const [name, err, expected] of cases) {
+    it(name, () => {
+      const exec = classifyGateError(err, 42, 1000)
+      expect(exec).toMatchObject({ ...expected, durationMs: 42 })
+      const gate = gateResultFromExec('test', 'test:run', exec)
+      expect(gate.status).toBe('fail')
+      expect(gate.exitCode).not.toBe(0)
+      expect(gate.detail).toEqual(expect.any(String))
+    })
+  }
 })
 
 describe('gateResultFromExec — 종류는 사유만 바꾸고 판정은 바꾸지 않는다', () => {

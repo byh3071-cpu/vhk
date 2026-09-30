@@ -88,9 +88,10 @@ export const GATE_TIMEOUT_MS = 600_000
 
 /**
  * 외부 게이트 실패 종류 — exit: 0이 아닌 종료코드, timeout: 시간 한도로 중단,
- * spawn: 명령을 시작하지 못함(설치·경로), signal: 신호로 강제 종료.
+ * spawn: 명령을 시작하지 못함(설치·경로), signal: 신호로 강제 종료,
+ * error: 종료코드는 0이어도 실행 중 오류(출력 한도 초과 ENOBUFS 등)로 결과를 믿을 수 없음.
  */
-export type GateFailureKind = 'exit' | 'timeout' | 'spawn' | 'signal'
+export type GateFailureKind = 'exit' | 'timeout' | 'spawn' | 'signal' | 'error'
 
 export interface GateExecResult {
   exitCode: number
@@ -178,19 +179,26 @@ export function execGate(cmd: string, args: string[], cwd: string, timeoutMs = G
     })
     return { exitCode: 0, out: '', durationMs: elapsed() }
   } catch (e) {
-    const durationMs = elapsed()
-    const err = e as { status?: number | null; signal?: string | null; stdout?: Buffer | string; stderr?: Buffer | string; code?: string; message?: string }
-    // execFileSync 는 비-0 종료 시 err.status = 종료코드. ENOENT 등 실행 자체 실패는 status 없음 → 1 로 기록(추측 금지).
-    const exitCode = typeof err.status === 'number' ? err.status : 1
-    const out = ((err.stdout?.toString?.() ?? '') + (err.stderr?.toString?.() ?? '')).trim()
-    // spawnSync 는 한도 초과 때 code='ETIMEDOUT' 을 준다. 외부 신호(Ctrl+C 등)와 섞지 않으려고 code 만 믿는다.
-    if (err.code === 'ETIMEDOUT') return { exitCode: exitCode === 0 ? 1 : exitCode, out, durationMs, failureKind: 'timeout', timeoutMs }
-    if (typeof err.status === 'number') {
-      return err.status === 0 ? { exitCode: 0, out, durationMs } : { exitCode, out, durationMs, failureKind: 'exit' }
-    }
-    if (err.signal) return { exitCode, out, durationMs, failureKind: 'signal', signal: err.signal }
-    return { exitCode, out, durationMs, failureKind: 'spawn', error: err.code ?? err.message ?? 'unknown' }
+    return classifyGateError(e as GateExecError, elapsed(), timeoutMs)
   }
+}
+
+export interface GateExecError { status?: number | null; signal?: string | null; stdout?: Buffer | string; stderr?: Buffer | string; code?: string; message?: string }
+
+/**
+ * execFileSync 예외 → 게이트 실행 결과. 예외 경로는 어떤 경우에도 통과(종료코드 0·실패 종류 없음)를 돌려주지 않는다.
+ * execFileSync 는 비-0 종료 시 err.status = 종료코드. ENOENT 등 실행 자체 실패는 status 없음 → 1 로 기록(추측 금지).
+ */
+export function classifyGateError(err: GateExecError, durationMs: number, timeoutMs = GATE_TIMEOUT_MS): GateExecResult {
+  const exitCode = typeof err.status === 'number' && err.status !== 0 ? err.status : 1
+  const out = ((err.stdout?.toString?.() ?? '') + (err.stderr?.toString?.() ?? '')).trim()
+  // spawnSync 는 한도 초과 때 code='ETIMEDOUT' 을 준다. 외부 신호(Ctrl+C 등)와 섞지 않으려고 code 만 믿는다.
+  if (err.code === 'ETIMEDOUT') return { exitCode, out, durationMs, failureKind: 'timeout', timeoutMs }
+  if (typeof err.status === 'number' && err.status !== 0) return { exitCode, out, durationMs, failureKind: 'exit' }
+  if (err.signal) return { exitCode, out, durationMs, failureKind: 'signal', signal: err.signal }
+  // 종료코드 0인데 예외가 난 경우(ENOBUFS 등): 출력·결과를 끝까지 받지 못했으므로 통과로 보지 않는다.
+  if (err.status === 0) return { exitCode, out, durationMs, failureKind: 'error', error: err.code ?? err.message ?? 'unknown' }
+  return { exitCode, out, durationMs, failureKind: 'spawn', error: err.code ?? err.message ?? 'unknown' }
 }
 
 function gateFailureDetail(exec: GateExecResult): string {
@@ -201,6 +209,8 @@ function gateFailureDetail(exec: GateExecResult): string {
       return `실행하지 못함(${exec.error ?? '원인 미상'}) — 명령·설치 상태 확인`
     case 'signal':
       return `강제 종료(${exec.signal ?? '신호 미상'})`
+    case 'error':
+      return `실행 오류(${exec.error ?? '원인 미상'}) — 종료코드 0이지만 결과를 끝까지 받지 못해 통과로 보지 않음`
     case 'exit':
     case undefined:
       return `종료코드 ${exec.exitCode}`

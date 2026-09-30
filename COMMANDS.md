@@ -129,7 +129,7 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 
 재사용은 README의 `gates.json` 로컬 입력 계약이 있어야 하며 외부·시간 의존 검사에는 적용하지 않습니다. `--reuse-verified`는 동일 clean HEAD와 봉인된 입력·dist·PASS 결과만 10분간 유효합니다. 변경·부재·실패·미완료는 BLOCK하고 새 검증은 명시 실행합니다. 옵션 없는 기본 receipt는 이전 FAIL·미완료·손상 리포트가 있어도 항상 전체 검사를 새로 실행합니다. verify 중단 시 리포트는 FAIL/미완료로 남고 직전 실패 게이트를 보존합니다. 재사용 영수증은 실험 기간 공식 완주 통계에 포함하지 않습니다.
 
-verify 리포트(`.vhk/reports/latest.json`)의 외부 게이트(typecheck·lint·test·build)는 실제 소요 시간 `durationMs`를 남기고, 실패하면 `failureKind`로 종류를 가릅니다: `exit`(0이 아닌 종료코드), `timeout`(명령당 600초 한도로 중단 — 테스트 실패와 다름), `spawn`(명령을 시작하지 못함), `signal`(신호로 강제 종료). 종류는 원인만 가르며 fail 판정을 바꾸지 않습니다. 콘솔 출력에도 게이트별 소요 시간이 붙습니다.
+verify 리포트(`.vhk/reports/latest.json`)의 외부 게이트(typecheck·lint·test·build)는 실제 소요 시간 `durationMs`를 남기고, 실패하면 `failureKind`로 종류를 가릅니다: `exit`(0이 아닌 종료코드), `timeout`(명령당 600초 한도로 중단 — 테스트 실패와 다름), `spawn`(명령을 시작하지 못함), `signal`(신호로 강제 종료), `error`(종료코드는 0이지만 출력 한도 초과 등 실행 오류로 결과를 끝까지 받지 못함). 종류는 원인만 가르며 fail 판정을 바꾸지 않습니다. 콘솔 출력에도 게이트별 소요 시간이 붙습니다.
 
 > `receipt` 는 에이전트가 "됐어요"라고 한 순간 검증을 새로 실행하고, **4대 기계증거**(① verify 5개 게이트 — typecheck/lint/test/build 실종료코드 + secure scan 결과 ② git dirty ③ 검증 시작 SHA·dirty와 게이트 종료 후 HEAD·dirty의 stale 대조 ④ 변경라인 diff-cover)를 모아 `.vhk/receipts/<날짜-decision-시각>.{json,md}` 영수증 1장으로 굳힙니다. `--mark-start`는 stale 복구가 아니라 작업 이후의 커밋된 변경까지 intent/forbidden 검사에 포함할 시작 SHA만 기록합니다. `decision = block|caution|pass` 는 **기계증거로만(LLM 추론 0)** — 실차단(red·dirty·known stale·mission forbidden 위반) 중 하나라도면 block, stale 판정에 필요한 커밋을 식별하지 못하면 caution(exit 0), ④ diff-cover 는 advisory(약신호)라 차단시키지 못합니다. block 이면 exit 1. **이 영수증은 게으른 거짓완료(빌드 깨짐·미커밋·낡은 증거)를 잡지, 미묘한 오류(그럴듯하게 틀린 코드)는 못 잡습니다.**
 
