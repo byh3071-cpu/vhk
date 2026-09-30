@@ -6,6 +6,8 @@ import { gitRun, getCommitInfo } from '../src/lib/git-repo.js'
 import { removeDirSync } from '../src/lib/fs-remove.js'
 import { buildReport, verifyEvidence } from '../src/commands/verify.js'
 import { collectReceipt } from '../src/commands/receipt.js'
+import { renderReceiptMarkdown } from '../src/lib/receipt.js'
+import { buildReceiptLogEntry } from '../src/lib/receipt-log.js'
 import { captureVerificationInputs, sealVerification, readReusableVerification } from '../src/lib/evidence-reuse.js'
 
 const roots: string[] = []
@@ -115,6 +117,26 @@ describe('opt-in verification reuse', () => {
     appendFileSync(join(root, '.vhk', 'events', 'ai-actions.jsonl'), '{}\n')
     expect(readReusableVerification(root).report).not.toBeNull()
   })
+  it('reuses with modified tracked verify ledgers and blocks other tracked events', () => {
+    const { root, report } = fixture()
+    mkdirSync(join(root, '.vhk', 'events'), { recursive: true })
+    for (const file of ['.vhk/ledger.jsonl', '.vhk/events/ai-actions.jsonl', '.vhk/events/other.jsonl']) writeFileSync(join(root, file), '{}\n')
+    gitRun(['add', '--force', '.vhk/ledger.jsonl', '.vhk/events/ai-actions.jsonl', '.vhk/events/other.jsonl'], root)
+    gitRun(['-c', 'user.name=sample', '-c', 'user.email=sample@example.invalid', 'commit', '-m', 'tracked ledgers'], root)
+    report.commit = getCommitInfo(root)
+    sealVerification(root, report, captureVerificationInputs(root))
+    writeFileSync(join(root, '.vhk', 'reports', 'latest.json'), JSON.stringify(report))
+    appendFileSync(join(root, '.vhk', 'ledger.jsonl'), '{}\n')
+    appendFileSync(join(root, '.vhk', 'events', 'ai-actions.jsonl'), '{}\n')
+    const receipt = collectReceipt(root, null, true)
+    expect(receipt.decision).toBe('pass')
+    expect(receipt.evidence.gates.source).toBe('reused')
+    expect(renderReceiptMarkdown(receipt)).toContain('source=reused')
+    expect(buildReceiptLogEntry(receipt).verificationSource).toBe('reused')
+    expect(buildReceiptLogEntry(receipt).verifiedAt).toBe(report.generatedAt)
+    appendFileSync(join(root, '.vhk', 'events', 'other.jsonl'), '{}\n')
+    expect(collectReceipt(root, null, true).decision).toBe('block')
+  })
   it('blocks failed or altered gate results', () => {
     const { root, report } = fixture()
     report.gates[0].status = 'fail'
@@ -166,5 +188,7 @@ describe('opt-in verification reuse', () => {
     const blocked = collectReceipt(root, null, true)
     expect(blocked.decision).toBe('block')
     expect(blocked.evidence.gates.status).toBe('WARN')
+    expect(renderReceiptMarkdown(blocked)).toContain('| ① 게이트(tsc/test/build) | ℹ️ | WARN')
+    expect(renderReceiptMarkdown(blocked)).not.toContain('| ① 게이트(tsc/test/build) | ✅')
   })
 })

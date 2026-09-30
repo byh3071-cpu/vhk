@@ -16,6 +16,7 @@
 
 import type { ReportStatus } from '../commands/verify.js'
 import type { AgentId } from './detect-agent.js'
+import { ko } from '../i18n/ko.js'
 
 /** 영수증 판정 — 기계증거만(LLM 0). block: 실차단(red/dirty/stale/forbidden). caution: 약신호만. pass: 전부 clean·확인됨. */
 export type ReceiptDecision = 'block' | 'caution' | 'pass'
@@ -277,15 +278,12 @@ export function renderReceiptMarkdown(r: Receipt): string {
   lines.push('')
   lines.push('| 게이트 | 상태 | 비고 |')
   lines.push('| --- | --- | --- |')
-  lines.push(
-    gateRow(
-      '① 게이트(tsc/test/build)',
-      !e.gates.red,
-      e.gates.red
-        ? `FAIL: ${e.gates.failedGateIds.join(', ') || '게이트'}`
-        : `${e.gates.status}${e.gates.hasSoftWarning ? ' (skip/warn 포함)' : ''}`
-    )
-  )
+  if (e.gates.source) lines.push(`| 검증 출처 | ℹ️ | ${ko.receipt.verificationSource(e.gates.source, e.gates.verifiedAt)} |`)
+  const verificationCell = e.gates.red ? '❌' : e.gates.status === 'PASS' ? '✅' : 'ℹ️'
+  const verificationNote = e.gates.red
+    ? `FAIL: ${e.gates.failedGateIds.join(', ') || '게이트'}`
+    : `${e.gates.status}${e.gates.hasSoftWarning ? ' (skip/warn 포함)' : ''}`
+  lines.push(`| ① 게이트(tsc/test/build) | ${verificationCell} | ${verificationNote} |`)
   lines.push(gateRow('② git dirty', !e.dirty, e.dirty ? '미커밋/untracked 변경 있음' : 'clean(자기파일 제외)'))
   // ③ stale 미상은 ✅(통과)도 ❌(차단)도 아닌 ℹ️(판정 불가) — 모르는 걸 통과로 위장하지 않는다.
   const staleCell = !e.staleKnown ? 'ℹ️' : e.stale ? '❌' : '✅'

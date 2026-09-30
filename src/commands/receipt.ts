@@ -32,6 +32,7 @@ import {
   type ReceiptIntentEvidence,
 } from '../lib/receipt.js'
 import { appendReceiptLog, buildReceiptLogEntry } from '../lib/receipt-log.js'
+import { log } from '../utils/logger.js'
 
 /**
  * Goal 86 (RFC 0056 T1): vhk receipt — 에이전트 "완료" 시점에 4대 기계증거를 영수증 1장으로.
@@ -322,7 +323,7 @@ export function collectReceipt(cwd: string, baseShaOverride?: string | null, reu
       agent: detectAgent(),
     }
   )
-  if (cached && !cached.report) result.reasons.push(`Evidence reuse blocked: ${cached.reason}. Run vhk verify --prepare-reuse, then receipt --reuse-verified.`)
+  if (cached && !cached.report) result.reasons.push(ko.receipt.reuseBlocked(cached.reason))
   return result
 }
 
@@ -402,6 +403,7 @@ export async function receipt(opts: ReceiptOptions = {}): Promise<void> {
     )
   )
   console.log('')
+  if (r.evidence.gates.source) log.plain(ko.receipt.verificationSource(r.evidence.gates.source, r.evidence.gates.verifiedAt))
   for (const reason of r.reasons) {
     const mark = r.decision === 'pass' ? chalk.green('✓') : chalk.yellow('•')
     console.log(`   ${mark} ${reason}`)

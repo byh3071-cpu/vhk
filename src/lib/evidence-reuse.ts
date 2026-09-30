@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
-import { isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gitOut, getGitRoot } from './git-repo.js'
 import { readJsonFile } from './read-json.js'
@@ -70,8 +70,17 @@ export function captureVerificationInputs(cwd: string): VerificationInputs {
   hash.update(JSON.stringify({ root, sha, node: process.version, platform: process.platform, arch: process.arch }))
   hash.update(JSON.stringify(Object.entries(process.env).sort(([a], [b]) => a.localeCompare(b))))
   hash.update(JSON.stringify(loadCoreRuleset()))
-  // In the bundled CLI this hashes the running implementation, not just its version.
-  hash.update(readFileSync(fileURLToPath(import.meta.url)))
+  // Include sibling ESM chunks too; a split package can update a gate without
+  // changing the chunk containing this helper. Development entry/source files
+  // must be declared as extra inputs when the CLI is not a built JS entry.
+  const implementationFile = fileURLToPath(import.meta.url)
+  const implementationDir = dirname(implementationFile)
+  for (const name of readdirSync(implementationDir).filter(name => name.endsWith('.js')).sort()) {
+    const contents = readFileSync(join(implementationDir, name))
+    hash.update(JSON.stringify(['implementation', name, contents.length, createHash('sha256').update(contents).digest('hex')]))
+  }
+  hash.update(readFileSync(implementationFile))
+  if (process.argv[1] && existsSync(process.argv[1]) && process.argv[1].endsWith('.js')) hash.update(readFileSync(process.argv[1]))
   let count = 0
   let bytes = 0
   const visited = new Set<string>()

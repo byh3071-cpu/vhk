@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import { readConfigFromProjectRoot } from '../lib/config.js'
 import { SAFETY_MODE_DESC } from '../lib/safety-mode.js'
@@ -29,6 +30,7 @@ import { appendActionEntry, readActionLedger } from '../lib/action-ledger.js'
 import { detectAgent } from '../lib/detect-agent.js'
 import { readGatesConfig, type GateId } from '../lib/gates-config.js'
 import { log } from '../utils/logger.js'
+import { ko } from '../i18n/ko.js'
 import { captureVerificationInputs, sealVerification, type VerificationReuseSeal } from '../lib/evidence-reuse.js'
 
 /**
@@ -671,6 +673,11 @@ export async function verify(
 ): Promise<void> {
   // HARD_STOP 활성 → 게이트 실행 거부 + exit 1 (PRD §9).
   if (!ensureNotHardStopped('verify')) return
+  if (opts.prepareReuse && fileURLToPath(import.meta.url).endsWith('.ts')) {
+    log.error(ko.receipt.reuseRequiresBuild)
+    process.exitCode = 1
+    return
+  }
 
   const cwd = process.cwd()
 
