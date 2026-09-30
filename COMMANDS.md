@@ -125,6 +125,9 @@ Phase/Task는 선택 사항이며, Phase가 없는 legacy Goal도 호환됩니�
 | 영수증 떼기 (4대 기계증거) | `vhk receipt` | "증거 영수증 떼줘" |
 | 변경·의도 대조 기준선 기록 | `vhk receipt --mark-start` | "작업 시작점 찍어줘" |
 | 기계용 JSON 출력 | `vhk receipt --json` | — |
+| 로컬 입력 증거 재사용 실험 | `vhk verify --prepare-reuse` → `vhk receipt --reuse-verified` | — |
+
+재사용은 README의 `gates.json` 로컬 입력 계약이 있어야 하며 외부·시간 의존 검사에는 적용하지 않습니다. `--reuse-verified`는 동일 clean HEAD와 봉인된 입력·dist·PASS 결과만 10분간 유효합니다. 변경·부재·실패·미완료는 BLOCK하고 새 검증은 명시 실행합니다. 옵션 없는 기본 receipt는 이전 FAIL·미완료·손상 리포트가 있어도 항상 전체 검사를 새로 실행합니다. verify 중단 시 리포트는 FAIL/미완료로 남고 직전 실패 게이트를 보존합니다. 재사용 영수증은 실험 기간 공식 완주 통계에 포함하지 않습니다.
 
 > `receipt` 는 에이전트가 "됐어요"라고 한 순간 검증을 새로 실행하고, **4대 기계증거**(① verify 5개 게이트 — typecheck/lint/test/build 실종료코드 + secure scan 결과 ② git dirty ③ 검증 시작 SHA·dirty와 게이트 종료 후 HEAD·dirty의 stale 대조 ④ 변경라인 diff-cover)를 모아 `.vhk/receipts/<날짜-decision-시각>.{json,md}` 영수증 1장으로 굳힙니다. `--mark-start`는 stale 복구가 아니라 작업 이후의 커밋된 변경까지 intent/forbidden 검사에 포함할 시작 SHA만 기록합니다. `decision = block|caution|pass` 는 **기계증거로만(LLM 추론 0)** — 실차단(red·dirty·known stale·mission forbidden 위반) 중 하나라도면 block, stale 판정에 필요한 커밋을 식별하지 못하면 caution(exit 0), ④ diff-cover 는 advisory(약신호)라 차단시키지 못합니다. block 이면 exit 1. **이 영수증은 게으른 거짓완료(빌드 깨짐·미커밋·낡은 증거)를 잡지, 미묘한 오류(그럴듯하게 틀린 코드)는 못 잡습니다.**
 

@@ -21,6 +21,8 @@ import type { ReportStatus } from '../commands/verify.js'
 export const RECEIPT_LOG_REL = join('.vhk', 'events', 'receipt-log.jsonl')
 
 export interface ReceiptLogEntry {
+  verificationSource?: 'reused' | 'unavailable'
+  verifiedAt?: string
   /** 발행 시각 ISO(receipt.generatedAt). */
   ts: string
   /** 기계 판정. */
@@ -66,6 +68,8 @@ export function buildReceiptLogEntry(r: Receipt): ReceiptLogEntry {
     shortSha: r.head.shortSha,
     red: e.gates.red,
     gateStatus: e.gates.status,
+    ...(e.gates.source ? { verificationSource: e.gates.source } : {}),
+    ...(e.gates.verifiedAt ? { verifiedAt: e.gates.verifiedAt } : {}),
     dirty: e.dirty,
     stale: e.staleKnown ? e.stale : null,
     diffCoverRatio: e.diffCover.measured ? e.diffCover.ratio : null,

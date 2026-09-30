@@ -6,11 +6,25 @@ VHK 변경 이력. [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 형�
 
 ### Added
 
+- 로컬 입력 계약을 선언한 프로젝트에서만 `verify --prepare-reuse` → `receipt --reuse-verified`를
+  선택 실행할 수 있다. 같은 clean HEAD·입력·산출물·PASS 결과를 10분간 재사용하며,
+  변경·실패·미완료·부재·손상은 새 검사 없이 BLOCK한다. 출처와 검증 시각을 표시하고
+  실험용 재사용 영수증은 공식 자율 완주 통계에서 제외한다. CI·독립 검토를 대체하지 않는다.
+
 - `vhk worktree add`가 생성 전에 source·branch·target·copy·install을 보여준다. `--path`와
   `.vhk/config.json`의 `worktreeRoot`로 대상을 고를 수 있고, `--dry-run`은 Git·복사·install을
   하지 않는다. 비-TTY는 `--yes` 없이 만들지 않는다. source는 git 루트다 (#604).
 
 ### Fixed
+
+- Windows에서 Git 루트의 짧은 이름·대소문자 차이를 같은 실제 경로로 정규화해
+  검증 증거 재사용을 잘못 차단하지 않는다. 대소문자 무시 비교는 루트 동일성에만 적용하고,
+  입력 경계·해시·visited는 펼쳐진 정확한 경로를 사용한다. 저장소 하위 폴더·외부 입력,
+  구분자 앞까지 이름이 같은 형제와 대소문자만 다른 native 형제 경로를 거절한다 (#631).
+
+- 기본 receipt는 이전 FAIL·미완료·손상 리포트와 무관하게 실제 전체 검사를 새로 실행한다.
+  새 verify 시작 시 이전 봉인을 무효화하며 중단된 검증은 FAIL로 남긴다. 직전 실패 게이트와
+  커밋을 보존하고 `verify --report`·`verify --check-fresh`도 미완료 증거를 거절한다.
 
 - `vhk sync`가 AGENTS.md를 다시 만들 때 yohan 라우팅 카드 관리 블록(`YOHAN-ROSTER-CARD:BEGIN`~`END`)을
   지우지 않는다. 기존 AGENTS.md에 정확히 한 쌍이 있으면 같은 위치에 그대로 다시 붙이고

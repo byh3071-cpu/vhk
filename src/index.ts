@@ -633,8 +633,9 @@ program
   .option('--open', '리포트 생성 후 기본 브라우저로 열기 (비대화형/CI/MCP 자동 스킵)')
   .option('--check-fresh', '기존 증거(latest.json)가 현재 HEAD 와 일치하는지 검사 — 낡으면 exit 1 (증거 안 만듦)')
   .option('--dismiss <id>', '현재 알림을 숨기고 숨긴 횟수를 기록 (예: lint-gate)')
+  .option('--prepare-reuse', '실험: 동일 HEAD의 로컬 검증 증거 봉인 (원장 자동 커밋 보류, 10분 유효)')
   .description('검증 게이트(tsc/test/build/secure) 실제 실행 + 증거 기록 (.vhk/reports/latest.json)')
-  .action(async (opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string }) => { await verify(opts) })
+  .action(async (opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string; prepareReuse?: boolean }) => { await verify(opts) })
 
 program
   .command('preflight')
@@ -703,8 +704,9 @@ program
   .option('--json', '영수증 JSON 을 stdout 으로 출력 (CI/기계용 — block 이면 exit 1)')
   .option('--mark-start', '현재 HEAD 를 작업시작 기준선으로 기록 (이후 변경·의도 대조 기준)')
   .option('--since <sha>', '변경·의도 대조 기준 SHA 를 명시 (.base-sha 무시)')
+  .option('--reuse-verified', '실험: 봉인된 동일 입력 증거 재사용, 부재·변경·만료 시 BLOCK (자동 재검사 없음)')
   .description('증거 영수증 — 4대 기계증거(종료코드·dirty·stale·diff-cover)로 거짓완료 판정 (.vhk/receipts/)')
-  .action(async (opts: { json?: boolean; markStart?: boolean; since?: string }) => { await receipt(opts) })
+  .action(async (opts: { json?: boolean; markStart?: boolean; since?: string; reuseVerified?: boolean }) => { await receipt(opts) })
 
 // prev 기본 [] — default 미지정이라 옵션 미제공 시 opts 에 키 자체가 없음(undefined = 보존 신호).
 const collectGlob = (v: string, prev: string[] = []): string[] => prev.concat([v])

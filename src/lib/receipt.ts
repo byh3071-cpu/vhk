@@ -16,12 +16,15 @@
 
 import type { ReportStatus } from '../commands/verify.js'
 import type { AgentId } from './detect-agent.js'
+import { ko } from '../i18n/ko.js'
 
 /** 영수증 판정 — 기계증거만(LLM 0). block: 실차단(red/dirty/stale/forbidden). caution: 약신호만. pass: 전부 clean·확인됨. */
 export type ReceiptDecision = 'block' | 'caution' | 'pass'
 
 /** 게이트(verify) 증거 요약 — 실종료코드 출처(자기보고 거부, verify.ts 가 이미 강제). */
 export interface ReceiptGateEvidence {
+  source?: 'reused' | 'unavailable'
+  verifiedAt?: string
   /** 게이트 하나라도 실제 프로세스 종료코드로 fail 인가(=red). 실차단 사유 ①. */
   red: boolean
   /** verify 종합(PASS/WARN/FAIL). 사람 표시·요약용. */
@@ -113,7 +116,7 @@ export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
   const forbiddenViolated = intentKnown && e.intent!.forbiddenHits > 0
 
   // 실차단 — diff-cover·scope 는 여기에 없다(advisory 라 block 격하 불가). forbidden 위반은 결정론 차단.
-  if (e.gates.red || e.dirty || (e.staleKnown && e.stale) || forbiddenViolated) return 'block'
+  if (e.gates.source === 'unavailable' || e.gates.red || e.dirty || (e.staleKnown && e.stale) || forbiddenViolated) return 'block'
 
   // 약신호(soft) — 차단은 아니나 "안심"도 금지 → caution. (단조성: pass 로 못 내려감)
   const hasUncoveredChange = e.diffCover.measured && e.diffCover.totalUncovered > 0
@@ -132,6 +135,7 @@ export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
 /** decision 사유(사람 표시) — 왜 그 색인지 한 줄씩. */
 export function receiptReasons(e: ReceiptEvidence): string[] {
   const reasons: string[] = []
+  if (e.gates.source === 'unavailable') reasons.push('유효한 완료 검증 증거가 없어 차단합니다 — verify를 명시적으로 완료하세요.')
   if (e.gates.red) {
     const ids = e.gates.failedGateIds.length ? e.gates.failedGateIds.join(', ') : '게이트'
     reasons.push(`게이트 실패(실종료코드 ≠ 0): ${ids} — red`)
@@ -275,15 +279,12 @@ export function renderReceiptMarkdown(r: Receipt): string {
   lines.push('')
   lines.push('| 게이트 | 상태 | 비고 |')
   lines.push('| --- | --- | --- |')
-  lines.push(
-    gateRow(
-      '① 게이트(tsc/test/build)',
-      !e.gates.red,
-      e.gates.red
-        ? `FAIL: ${e.gates.failedGateIds.join(', ') || '게이트'}`
-        : `${e.gates.status}${e.gates.hasSoftWarning ? ' (skip/warn 포함)' : ''}`
-    )
-  )
+  if (e.gates.source) lines.push(`| 검증 출처 | ℹ️ | ${ko.receipt.verificationSource(e.gates.source, e.gates.verifiedAt)} |`)
+  const verificationCell = e.gates.red ? '❌' : e.gates.status === 'PASS' ? '✅' : 'ℹ️'
+  const verificationNote = e.gates.red
+    ? `FAIL: ${e.gates.failedGateIds.join(', ') || '게이트'}`
+    : `${e.gates.status}${e.gates.hasSoftWarning ? ' (skip/warn 포함)' : ''}`
+  lines.push(`| ① 게이트(tsc/test/build) | ${verificationCell} | ${verificationNote} |`)
   lines.push(gateRow('② git dirty', !e.dirty, e.dirty ? '미커밋/untracked 변경 있음' : 'clean(자기파일 제외)'))
   // ③ stale 미상은 ✅(통과)도 ❌(차단)도 아닌 ℹ️(판정 불가) — 모르는 걸 통과로 위장하지 않는다.
   const staleCell = !e.staleKnown ? 'ℹ️' : e.stale ? '❌' : '✅'

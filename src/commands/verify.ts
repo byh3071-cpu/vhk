@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import chalk from 'chalk'
 import { readConfigFromProjectRoot } from '../lib/config.js'
 import { SAFETY_MODE_DESC } from '../lib/safety-mode.js'
@@ -29,6 +30,8 @@ import { appendActionEntry, readActionLedger } from '../lib/action-ledger.js'
 import { detectAgent } from '../lib/detect-agent.js'
 import { readGatesConfig, type GateId } from '../lib/gates-config.js'
 import { log } from '../utils/logger.js'
+import { ko } from '../i18n/ko.js'
+import { captureVerificationInputs, sealVerification, type VerificationReuseSeal } from '../lib/evidence-reuse.js'
 
 /**
  * 저장/위험 작업 전 돌려야 하는 검증 묶음.
@@ -100,7 +103,11 @@ export interface VerifyReport {
   advisories?: VerifyAdvisory[]
   /** Goal 44: 이 증거가 어느 코드(커밋)에서 나왔는지. git 레포 아님/커밋 0개 → null. v1 리포트엔 없음(undefined). */
   commit?: CommitInfo | null
+  reuse?: VerificationReuseSeal
+  reuseUnavailable?: string
 }
+
+export const VERIFICATION_INCOMPLETE_REASON = 'verification-incomplete'
 
 export interface VerifyAdvisory extends LedgerAdvisory {
   firstSeenAt?: string
@@ -423,6 +430,7 @@ export function checkEvidenceFreshness(
   current: CommitInfo | null
 ): FreshnessResult {
   const reasons: string[] = []
+  if (report.reuseUnavailable === VERIFICATION_INCOMPLETE_REASON) reasons.push('검증이 완료되지 않았습니다 — vhk verify 로 재검증 필요')
   if (!report.commit) reasons.push('증거에 커밋 SHA 없음 (구버전 리포트 — vhk verify 로 재검증 필요)')
   if (!current) reasons.push('현재 git 커밋을 알 수 없음 (git 레포 아님 또는 커밋 0개)')
   if (report.commit && current && report.commit.sha !== current.sha) {
@@ -440,11 +448,31 @@ export function checkEvidenceFreshness(
  * reports/ 는 로컬 전용 산출물 → `.vhk/.gitignore` 에 등록(클라우드/추적 제외, RFC 0038).
  * @returns 리포트 객체 + 기록 경로
  */
-export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyReport; path: string } {
+export function verifyEvidence(cwd: string = process.cwd(), prepareReuse = false): { report: VerifyReport; path: string } {
   // 증거는 게이트가 시작된 코드에 묶는다. 긴 게이트 도중 다른 프로세스가 HEAD를 옮기면
   // 이후 현재 HEAD와의 신선도 대조가 반드시 stale로 잡아야 하며, 종료 뒤 SHA를 기록하면 C를
   // 검증한 것처럼 거짓 바인딩할 수 있다.
   const commit = getCommitInfo(cwd)
+  const dir = join(cwd, REPORT_DIR_REL)
+  mkdirSync(dir, { recursive: true })
+  const path = join(cwd, REPORT_PATH_REL)
+  // 중단된 새 검증을 통과로 읽거나 이전 봉인을 재사용하지 못하게 한다.
+  // 직전 실패 게이트와 그 커밋은 보존해 미완료 상태가 실패 근거를 지우지 않는다.
+  let pending = buildReport([], new Date().toISOString(), localDate(), commit)
+  try {
+    const previous = readJsonFile<VerifyReport>(path)
+    if (Array.isArray(previous?.gates)) {
+      pending = buildReport(previous.gates, previous.generatedAt ?? pending.generatedAt, previous.date ?? pending.date, previous.commit ?? null)
+    }
+  } catch { /* 이전 증거가 없거나 손상됐어도 미완료 검증은 FAIL로 남긴다. */ }
+  pending.status = 'FAIL'
+  pending.reuseUnavailable = VERIFICATION_INCOMPLETE_REASON
+  pending.nextActions = [ko.receipt.previousVerificationBlocked]
+  atomicWriteFile(path, JSON.stringify(pending, null, 2) + '\n')
+  let before: ReturnType<typeof captureVerificationInputs> | undefined
+  if (prepareReuse) {
+    try { before = captureVerificationInputs(cwd) } catch { /* 실제 검사는 실행하되 봉인은 발급하지 않는다. */ }
+  }
   const gates = runGates(cwd)
   const report = buildReport(gates, new Date().toISOString(), localDate(), commit)
   report.advisories = trackAdvisories(
@@ -453,10 +481,13 @@ export function verifyEvidence(cwd: string = process.cwd()): { report: VerifyRep
     readActionLedger(cwd),
     report.generatedAt,
   )
+  if (prepareReuse) {
+    try {
+      if (before) sealVerification(cwd, report, before)
+    } catch { /* 읽기 실패·변경된 입력에는 재사용 증거를 발급하지 않는다. */ }
+    if (!report.reuse) report.reuseUnavailable = '입력이 깨끗하고 안정적이며 모두 읽을 수 있는 상태가 아닙니다. 새 검증을 실행하세요.'
+  }
 
-  const dir = join(cwd, REPORT_DIR_REL)
-  mkdirSync(dir, { recursive: true })
-  const path = join(cwd, REPORT_PATH_REL)
   atomicWriteFile(path, JSON.stringify(report, null, 2) + '\n')
   // reports/ 는 개인 환경 산물 → 로컬 전용(추적·클라우드 제외).
   try {
@@ -654,10 +685,15 @@ async function checkFreshCommand(cwd: string): Promise<void> {
 }
 
 export async function verify(
-  opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string } = {}
+  opts: { json?: boolean; report?: boolean; open?: boolean; checkFresh?: boolean; dismiss?: string; prepareReuse?: boolean } = {}
 ): Promise<void> {
   // HARD_STOP 활성 → 게이트 실행 거부 + exit 1 (PRD §9).
   if (!ensureNotHardStopped('verify')) return
+  if (opts.prepareReuse && fileURLToPath(import.meta.url).endsWith('.ts')) {
+    log.error(ko.receipt.reuseRequiresBuild)
+    process.exitCode = 1
+    return
+  }
 
   const cwd = process.cwd()
 
@@ -694,13 +730,15 @@ export async function verify(
     return
   }
 
-  const { report, path } = verifyEvidence(cwd)
+  const { report, path } = verifyEvidence(cwd, opts.prepareReuse)
 
   // 멀티PC dirty-block(B축): verify 가 방금 append 한 증거 원장(events·ledger)을 저소음 단일
   // 커밋으로 정리한다. 멀티PC 에서 미커밋 증거가 외부 pull 의 fast-forward 를 막던 문제 해소.
   // ★커밋은 반드시 verifyEvidence 밖(여기 명령 본체)에 둔다★ — 수집 함수 내부에서 HEAD가 이동하면
   // report.commit과 호출자가 직후 읽는 HEAD가 어긋난다. 비치명: 실패해도 증거는 이미 기록됐다.
-  try {
+  // 재사용 실험에서는 검증한 HEAD를 유지하고 원장만 디스크에 남긴다.
+  // 이후 커밋은 HEAD를 바꾸므로 이 짧은 재사용 구간을 무효화한다.
+  if (!opts.prepareReuse) try {
     commitPaths(
       'chore(vhk): evidence ledger [skip ci]',
       [join('.vhk', 'events', 'ai-actions.jsonl'), LEDGER_PATH_REL],
