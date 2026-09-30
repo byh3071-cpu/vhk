@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gitRun, getCommitInfo } from '../src/lib/git-repo.js'
@@ -34,7 +37,83 @@ function fixture() {
 }
 afterEach(() => { for (const root of roots.splice(0)) removeDirSync(root) })
 
+function realGateFixture(program: string) {
+  const { root, report } = fixture()
+  mkdirSync(join(root, '.vhk', 'phase2'), { recursive: true })
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ scripts: {
+    typecheck: 'node gate.cjs', lint: 'node gate.cjs', 'test:run': 'node gate.cjs', build: 'node gate.cjs',
+  } }))
+  writeFileSync(join(root, 'gate.cjs'), program)
+  gitRun(['add', '.'], root)
+  gitRun(['-c', 'user.name=sample', '-c', 'user.email=sample@example.invalid', 'commit', '-m', 'gate fixture'], root)
+  report.commit = getCommitInfo(root)
+  sealVerification(root, report, captureVerificationInputs(root))
+  writeFileSync(join(root, '.vhk', 'reports', 'latest.json'), JSON.stringify(report))
+  return { root, report }
+}
+
 describe('opt-in verification reuse', () => {
+  it.each([false, true])('failed verify cannot become receipt PASS through an implicit retry (reuse=%s)', reuse => {
+    const { root } = realGateFixture(`
+      const fs = require('node:fs');
+      const file = '.vhk/phase2/count';
+      const attempts = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').trim().split('\\n').length : 0;
+      fs.appendFileSync(file, 'run\\n');
+      process.exit(attempts === 0 ? 1 : 0);
+    `)
+    const failed = verifyEvidence(root, true)
+    expect(failed.report.status).toBe('FAIL')
+    expect(failed.report.reuse).toBeUndefined()
+    expect(readReusableVerification(root).report).toBeNull()
+    const receipt = collectReceipt(root, null, reuse)
+    expect(receipt.decision).toBe('block')
+    if (!reuse) expect(receipt.evidence.stale).toBe(false)
+    const count = () => readFileSync(join(root, '.vhk', 'phase2', 'count'), 'utf8').trim().split('\n').length
+    expect(count()).toBe(4)
+    // Recovery fixes the flaky gate before explicitly verifying it again. Its
+    // passing variant only writes an output, so the reuse input contract is valid.
+    writeFileSync(join(root, 'gate.cjs'), "require('node:fs').appendFileSync('.vhk/phase2/count', 'run\\n')")
+    gitRun(['add', 'gate.cjs'], root)
+    gitRun(['-c', 'user.name=sample', '-c', 'user.email=sample@example.invalid', 'commit', '-m', 'fixed gate'], root)
+    expect(verifyEvidence(root, true).report.status).toBe('PASS')
+    expect(collectReceipt(root, null, true).decision).toBe('pass')
+    expect(count()).toBe(8)
+  }, 30_000)
+
+  it('interrupted verify invalidates the previous seal before gates and blocks receipt recovery', async () => {
+    const { root } = realGateFixture(`
+      require('node:fs').appendFileSync('.vhk/phase2/gate-started', 'run\\n');
+      setTimeout(() => process.exit(0), 1000);
+    `)
+    expect(readReusableVerification(root).report).not.toBeNull()
+    const child = spawn(process.execPath, [
+      fileURLToPath(new URL('../node_modules/tsx/dist/cli.mjs', import.meta.url)),
+      fileURLToPath(new URL('../src/index.ts', import.meta.url)), 'verify', '--json',
+    ], { cwd: root, env: { ...process.env }, stdio: 'ignore', windowsHide: true })
+    const exited = once(child, 'exit')
+    let during: ReturnType<typeof readReusableVerification> | undefined
+    try {
+      const deadline = Date.now() + 12_000
+      while (!existsSync(join(root, '.vhk', 'phase2', 'gate-started'))) {
+        if (child.exitCode !== null || Date.now() >= deadline) throw new Error('Owned verification did not reach its gate')
+        await new Promise(resolve => setTimeout(resolve, 25))
+      }
+      during = readReusableVerification(root)
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+      await exited
+      // Its one owned gate has a bounded timer and exits without its killed parent.
+      await new Promise(resolve => setTimeout(resolve, 1200))
+    }
+    expect(during?.report).toBeNull()
+    expect(readReusableVerification(root).report).toBeNull()
+    expect(collectReceipt(root, null, true).decision).toBe('block')
+    const defaultReceipt = collectReceipt(root, null, false)
+    expect(defaultReceipt.decision).toBe('block')
+    expect(defaultReceipt.evidence.stale).toBe(false)
+    expect(readFileSync(join(root, '.vhk', 'phase2', 'gate-started'), 'utf8').trim().split('\n')).toHaveLength(1)
+  }, 30_000)
+
   it('reuses the real report on identical clean inputs', () => {
     const { root, report } = fixture()
     expect(readReusableVerification(root).report?.generatedAt).toBe(report.generatedAt)

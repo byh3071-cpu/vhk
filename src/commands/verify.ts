@@ -107,6 +107,8 @@ export interface VerifyReport {
   reuseUnavailable?: string
 }
 
+export const VERIFICATION_INCOMPLETE_REASON = 'verification-incomplete'
+
 export interface VerifyAdvisory extends LedgerAdvisory {
   firstSeenAt?: string
   ageMs?: number
@@ -450,6 +452,16 @@ export function verifyEvidence(cwd: string = process.cwd(), prepareReuse = false
   // 이후 현재 HEAD와의 신선도 대조가 반드시 stale로 잡아야 하며, 종료 뒤 SHA를 기록하면 C를
   // 검증한 것처럼 거짓 바인딩할 수 있다.
   const commit = getCommitInfo(cwd)
+  const dir = join(cwd, REPORT_DIR_REL)
+  mkdirSync(dir, { recursive: true })
+  const path = join(cwd, REPORT_PATH_REL)
+  // Invalidate before any gate or input scan: an interrupted run must not leave
+  // the previous sealed PASS available. Use the existing report schema/fields.
+  const pending = buildReport([], new Date().toISOString(), localDate(), commit)
+  pending.status = 'WARN'
+  pending.reuseUnavailable = VERIFICATION_INCOMPLETE_REASON
+  pending.nextActions = [ko.receipt.previousVerificationBlocked]
+  atomicWriteFile(path, JSON.stringify(pending, null, 2) + '\n')
   let before: ReturnType<typeof captureVerificationInputs> | undefined
   if (prepareReuse) {
     try { before = captureVerificationInputs(cwd) } catch { /* Fresh gates still run; no reuse seal is issued. */ }
@@ -469,9 +481,6 @@ export function verifyEvidence(cwd: string = process.cwd(), prepareReuse = false
     if (!report.reuse) report.reuseUnavailable = 'Inputs were not clean, stable and completely readable; run fresh verification.'
   }
 
-  const dir = join(cwd, REPORT_DIR_REL)
-  mkdirSync(dir, { recursive: true })
-  const path = join(cwd, REPORT_PATH_REL)
   atomicWriteFile(path, JSON.stringify(report, null, 2) + '\n')
   // reports/ 는 개인 환경 산물 → 로컬 전용(추적·클라우드 제외).
   try {

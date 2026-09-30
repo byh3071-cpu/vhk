@@ -116,7 +116,7 @@ export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
   const forbiddenViolated = intentKnown && e.intent!.forbiddenHits > 0
 
   // 실차단 — diff-cover·scope 는 여기에 없다(advisory 라 block 격하 불가). forbidden 위반은 결정론 차단.
-  if (e.gates.red || e.dirty || (e.staleKnown && e.stale) || forbiddenViolated) return 'block'
+  if (e.gates.source === 'unavailable' || e.gates.red || e.dirty || (e.staleKnown && e.stale) || forbiddenViolated) return 'block'
 
   // 약신호(soft) — 차단은 아니나 "안심"도 금지 → caution. (단조성: pass 로 못 내려감)
   const hasUncoveredChange = e.diffCover.measured && e.diffCover.totalUncovered > 0
@@ -135,6 +135,7 @@ export function decideReceipt(e: ReceiptEvidence): ReceiptDecision {
 /** decision 사유(사람 표시) — 왜 그 색인지 한 줄씩. */
 export function receiptReasons(e: ReceiptEvidence): string[] {
   const reasons: string[] = []
+  if (e.gates.source === 'unavailable') reasons.push('유효한 완료 검증 증거가 없어 차단합니다 — verify를 명시적으로 완료하세요.')
   if (e.gates.red) {
     const ids = e.gates.failedGateIds.length ? e.gates.failedGateIds.join(', ') : '게이트'
     reasons.push(`게이트 실패(실종료코드 ≠ 0): ${ids} — red`)

@@ -408,6 +408,7 @@ export const ko = {
   // Goal 86 (RFC 0056 T1): 검증 리포트 — 에이전트 "됐어요"를 기계 증거로 판정 (용어: ADR-011).
   receipt: {
     reuseRequiresBuild: '증거 재사용 실험은 빌드된 JS CLI로 실행하세요 (pnpm build 후 node dist/index.js verify --prepare-reuse).',
+    previousVerificationBlocked: '이전 검증이 실패했거나 완료되지 않았습니다. receipt는 자동 재시도하지 않습니다. vhk verify를 명시적으로 완료한 뒤 receipt를 실행하세요.',
     verificationSource: (source: 'reused' | 'unavailable', verifiedAt?: string) => source === 'reused'
       ? `기존 로컬 검증 증거 재사용 (source=reused · verifiedAt=${verifiedAt ?? '미상'}). 위조 방지 서명이나 독립 검토를 대신하지 않습니다.`
       : '유효한 검증 증거 없음 (source=unavailable). 새 검증이 필요합니다.',
